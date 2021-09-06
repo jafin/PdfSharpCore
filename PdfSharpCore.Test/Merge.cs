@@ -5,12 +5,12 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using Xunit;
 
-namespace PdfSharpCore.Test
+namespace PdfSharpCore.UnitTests
 {
     public class Merge
     {
         [Fact]
-        public void ShouldBePossible()
+        public void CanMerge2Documents()
         {
             var root = Path.GetDirectoryName(GetType().GetTypeInfo().Assembly.Location);
             if (root == null)
@@ -33,14 +33,14 @@ namespace PdfSharpCore.Test
                 }
             }
 
-            var outFilePAth = Path.Combine(root, "Out", "merge.pdf");
-            var dir = Path.GetDirectoryName(outFilePAth);
+            var outFilePath = Path.Combine(root, "Out", "merge.pdf");
+            var dir = Path.GetDirectoryName(outFilePath);
             if (!Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
 
-            outputDocument.Save(outFilePAth);
+            outputDocument.Save(outFilePath);
         }
     }
 }

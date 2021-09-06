@@ -1,8 +1,7 @@
 using System;
-using System.Reflection;
 using Xunit;
 
-namespace PdfSharpCore.Test
+namespace PdfSharpCore.UnitTests
 {
     public class PdfInteger
     {
