@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -42,12 +42,7 @@ namespace MigraDocCore.Rendering
     public static XColor ToXColor(Color color, bool cmyk)
     {
       if (color.IsEmpty)
-#if DEBUG
-        //return XColor.Empty;
-        return XColors.LightGreen;
-#else
       return XColor.Empty;
-#endif
 
       if (cmyk)
         return XColor.FromCmyk(color.Alpha / 100.0, color.C / 100.0, color.M / 100.0, color.Y / 100.0, color.K / 100.0);
