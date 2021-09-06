@@ -1,23 +1,56 @@
-﻿using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
-using System.Text;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
 using Xunit;
 
-namespace PdfSharpCore.Test
+namespace PdfSharpCore.UnitTests
 {
-    public class CreateSimplePDF
+    public class CreateSimplePdf
     {
-        private static readonly string rootPath = Path.GetDirectoryName(typeof(CreateSimplePDF).GetTypeInfo().Assembly.Location);
+        private static readonly string RootPath = Path.GetDirectoryName(typeof(CreateSimplePdf).GetTypeInfo().Assembly.Location);
+        private const string OutputDirName = "Out";
 
-        private const string outputDirName = "Out";
+        [Fact]
+        public void CreateTestPdf()
+        {
+            var outName = "test1.pdf";
+
+            ValidateTargetAvailable(outName);
+
+            var document = new PdfDocument();
+
+            var pageNewRenderer = document.AddPage();
+
+            var renderer = XGraphics.FromPdfPage(pageNewRenderer);
+
+            renderer.DrawString("Testy Test Test", new XFont("Arial", 12), XBrushes.Black, new XPoint(12, 12));
+
+            SaveDocument(document, outName);
+            ValidateFileIsPDF(outName);
+        }
+
+        [Fact]
+        public void CreateTestPdfWithImage()
+        {
+            using var stream = new MemoryStream();
+            var document = new PdfDocument();
+
+            var pageNewRenderer = document.AddPage();
+
+            var renderer = XGraphics.FromPdfPage(pageNewRenderer);
+
+            renderer.DrawImage(XImage.FromFile(Path.Combine(RootPath, "Assets", "lenna.png")), new XPoint(0, 0));
+
+            document.Save(stream);
+            stream.Position = 0;
+            Assert.True(stream.Length > 1);
+            ReadStreamAndVerifyPDFMagicNumber(stream);
+        }
 
         private void SaveDocument(PdfDocument document, string name)
         {
-            var outFilePAth = Path.Combine(rootPath, outputDirName, name);
+            var outFilePAth = Path.Combine(RootPath, OutputDirName, name);
             var dir = Path.GetDirectoryName(outFilePAth);
             if (!Directory.Exists(dir))
             {
@@ -29,15 +62,13 @@ namespace PdfSharpCore.Test
 
         private void ValidateFileIsPDF(string v)
         {
-            var path = Path.Combine(rootPath, outputDirName, v);
+            var path = Path.Combine(RootPath, OutputDirName, v);
             Assert.True(File.Exists(path));
             var fi = new FileInfo(path);
             Assert.True(fi.Length > 1);
 
-            using (var stream = File.OpenRead(path))
-            {
-                ReadStreamAndVerifyPDFMagicNumber(stream);
-            }
+            using var stream = File.OpenRead(path);
+            ReadStreamAndVerifyPDFMagicNumber(stream);
         }
 
         private static void ReadStreamAndVerifyPDFMagicNumber(Stream stream)
@@ -52,52 +83,13 @@ namespace PdfSharpCore.Test
 
         private void ValidateTargetAvailable(string file)
         {
-            var path = Path.Combine(rootPath, outputDirName, file);
+            var path = Path.Combine(RootPath, OutputDirName, file);
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
+
             Assert.False(File.Exists(path));
         }
-
-        [Fact]
-        public void CreateTestPDF()
-        {
-            var outName = "test1.pdf";
-
-            ValidateTargetAvailable(outName);
-
-            var document = new PdfDocument();
-
-            PdfPage pageNewRenderer = document.AddPage();
-
-            var renderer = XGraphics.FromPdfPage(pageNewRenderer);
-
-            renderer.DrawString("Testy Test Test", new XFont("Arial", 12), XBrushes.Black, new XPoint(12, 12));
-
-            SaveDocument(document, outName);
-            ValidateFileIsPDF(outName);
-        }
-
-        [Fact]
-        public void CreateTestPDFWithImage()
-        {
-            using (var stream = new MemoryStream())
-            {
-                var document = new PdfDocument();
-
-                PdfPage pageNewRenderer = document.AddPage();
-
-                var renderer = XGraphics.FromPdfPage(pageNewRenderer);
-
-                renderer.DrawImage(XImage.FromFile(Path.Combine(rootPath, "Assets", "lenna.png")), new XPoint(0, 0));
-
-                document.Save(stream);
-                stream.Position = 0;
-                Assert.True(stream.Length > 1);
-                ReadStreamAndVerifyPDFMagicNumber(stream);
-            }
-        }
-
     }
 }

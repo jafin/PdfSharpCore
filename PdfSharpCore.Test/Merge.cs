@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Reflection;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -12,23 +13,23 @@ namespace PdfSharpCore.Test
         public void ShouldBePossible()
         {
             var root = Path.GetDirectoryName(GetType().GetTypeInfo().Assembly.Location);
+            if (root == null)
+                throw new Exception("root cannot be null");
 
             var pdf1Path = Path.Combine(root, "Assets", "FamilyTree.pdf");
             var pdf2Path = Path.Combine(root, "Assets", "test.pdf");
 
-            PdfDocument outputDocument = new PdfDocument();
+            var outputDocument = new PdfDocument();
 
-            foreach (var pdfPath in new[] {pdf1Path, pdf2Path})
+            foreach (var pdfPath in new[] { pdf1Path, pdf2Path })
             {
-                using (var fs = File.OpenRead(pdfPath))
+                using var fs = File.OpenRead(pdfPath);
+                var inputDocument = Pdf.IO.PdfReader.Open(fs, PdfDocumentOpenMode.Import);
+                var count = inputDocument.PageCount;
+                for (var idx = 0; idx < count; idx++)
                 {
-                    PdfDocument inputDocument = Pdf.IO.PdfReader.Open(fs, PdfDocumentOpenMode.Import);
-                    int count = inputDocument.PageCount;
-                    for (int idx = 0; idx < count; idx++)
-                    {
-                        PdfPage page = inputDocument.Pages[idx];
-                        outputDocument.AddPage(page);
-                    }
+                    var page = inputDocument.Pages[idx];
+                    outputDocument.AddPage(page);
                 }
             }
 

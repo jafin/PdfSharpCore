@@ -4,7 +4,7 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using Xunit;
 
-namespace PdfSharpCore.Test
+namespace PdfSharpCore.UnitTests
 {
     public class PdfReader
     {
