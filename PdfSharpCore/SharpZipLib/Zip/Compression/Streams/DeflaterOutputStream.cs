@@ -568,7 +568,7 @@ namespace PdfSharpCore.SharpZipLib.Zip.Compression.Streams
 			}
 		}
 #else
-        public void Close()
+        public override void Close()
         {
             if (!isClosed_)
             {

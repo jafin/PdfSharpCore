@@ -123,7 +123,7 @@ namespace PdfSharpCore.Pdf.Security
         }
 
 
-        public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
+        public new int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
         {
             // Do some validation, we let BlockCopy do the destination array validation
             if (inputBuffer == null)
@@ -150,7 +150,7 @@ namespace PdfSharpCore.Pdf.Security
         private byte[] m_hashValue;
 
 
-        public byte[] Hash
+        public override byte[] Hash
         {
             get {
                 return this.m_hashValue;
@@ -158,7 +158,7 @@ namespace PdfSharpCore.Pdf.Security
         }
 
 
-        public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
+        public new byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
         {
             // Do some validation
             if (inputBuffer == null)
