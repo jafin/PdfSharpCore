@@ -6,7 +6,7 @@ using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.UnitTests.Helpers;
 using Xunit;
 
-namespace PdfSharpCore.UnitTests
+namespace PdfSharpCore.UnitTests.IO
 {
     public class PdfReader
     {
@@ -15,7 +15,7 @@ namespace PdfSharpCore.UnitTests
         {
             using var fs = File.OpenRead(PathHelper.GetInstance().GetAssetPath("FamilyTree.pdf"));
             var inputDocument = Pdf.IO.PdfReader.Open(fs, PdfDocumentOpenMode.Import);
-            AssertIsAValidDocumentWithProperties(inputDocument, 38148);
+            AssertIsAValidPdfDocumentWithProperties(inputDocument, 38148);
         }
 
         [Fact]
@@ -26,7 +26,7 @@ namespace PdfSharpCore.UnitTests
             act.Should().Throw<InvalidOperationException>().WithMessage("The file is not a valid PDF document.");
         }
 
-        private void AssertIsAValidDocumentWithProperties(PdfDocument inputDocument, int expectedFileSize)
+        private void AssertIsAValidPdfDocumentWithProperties(PdfDocument inputDocument, int expectedFileSize)
         {
             inputDocument.Should().NotBeNull();
             inputDocument.FileSize.Should().Be(expectedFileSize);

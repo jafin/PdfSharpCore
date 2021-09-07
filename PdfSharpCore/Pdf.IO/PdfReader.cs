@@ -149,10 +149,10 @@ namespace PdfSharpCore.Pdf.IO
         /// number as integer (e.g. 14 for PDF 1.4). If the data is invalid or inaccessible
         /// for any reason, 0 is returned. The function never throws an exception.
         /// </summary>
-        public static int TestPdfFile(byte[] data)
-        {
-            return GetPdfFileVersion(data);
-        }
+        // public static int TestPdfFile(byte[] data)
+        // {
+        //     return GetPdfFileVersion(data);
+        // }
 
         /// <summary>
         /// Implements scanning the PDF file version.
