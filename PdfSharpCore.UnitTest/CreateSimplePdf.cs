@@ -1,20 +1,23 @@
-﻿using System.IO;
-using System.Reflection;
+﻿using System;
+using System.IO;
+using System.Text;
+using FluentAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.UnitTests.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.UnitTests
 {
     public class CreateSimplePdf
     {
-        private static readonly string RootPath = Path.GetDirectoryName(typeof(CreateSimplePdf).GetTypeInfo().Assembly.Location);
+        private readonly string _rootPath = PathHelper.GetInstance().RootDir;
         private const string OutputDirName = "Out";
 
         [Fact]
         public void CreateTestPdf()
         {
-            var outName = "test1.pdf";
+            const string outName = "test1.pdf";
 
             ValidateTargetAvailable(outName);
 
@@ -27,7 +30,7 @@ namespace PdfSharpCore.UnitTests
             renderer.DrawString("Testy Test Test", new XFont("Arial", 12), XBrushes.Black, new XPoint(12, 12));
 
             SaveDocument(document, outName);
-            ValidateFileIsPDF(outName);
+            ValidateFileIsPdf(outName);
         }
 
         [Fact]
@@ -40,56 +43,60 @@ namespace PdfSharpCore.UnitTests
 
             var renderer = XGraphics.FromPdfPage(pageNewRenderer);
 
-            renderer.DrawImage(XImage.FromFile(Path.Combine(RootPath, "Assets", "lenna.png")), new XPoint(0, 0));
+            renderer.DrawImage(XImage.FromFile(PathHelper.GetInstance().GetAssetPath("lenna.png")), new XPoint(0, 0));
 
             document.Save(stream);
             stream.Position = 0;
             Assert.True(stream.Length > 1);
-            ReadStreamAndVerifyPDFMagicNumber(stream);
+            ReadStreamAndVerifyPdfHeaderSignature(stream);
         }
 
         private void SaveDocument(PdfDocument document, string name)
         {
-            var outFilePAth = Path.Combine(RootPath, OutputDirName, name);
-            var dir = Path.GetDirectoryName(outFilePAth);
+            var outFilePath = GetOutFilePath(name);
+            var dir = Path.GetDirectoryName(outFilePath);
             if (!Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
 
-            document.Save(outFilePAth);
+            document.Save(outFilePath);
         }
 
-        private void ValidateFileIsPDF(string v)
+        private void ValidateFileIsPdf(string v)
         {
-            var path = Path.Combine(RootPath, OutputDirName, v);
+            var path = GetOutFilePath(v);
             Assert.True(File.Exists(path));
             var fi = new FileInfo(path);
             Assert.True(fi.Length > 1);
 
             using var stream = File.OpenRead(path);
-            ReadStreamAndVerifyPDFMagicNumber(stream);
+            ReadStreamAndVerifyPdfHeaderSignature(stream);
         }
 
-        private static void ReadStreamAndVerifyPDFMagicNumber(Stream stream)
+        private static void ReadStreamAndVerifyPdfHeaderSignature(Stream stream)
         {
             var readBuffer = new byte[5];
-            // PDF must start with %PDF-
-            var pdfsignature = new byte[5] { 0x25, 0x50, 0x44, 0x46, 0x2d };
+            var pdfSignature = Encoding.ASCII.GetBytes("%PDF-"); // PDF must start with %PDF-
 
             stream.Read(readBuffer, 0, readBuffer.Length);
-            Assert.Equal(pdfsignature, readBuffer);
+            readBuffer.Should().Equal(pdfSignature);
         }
 
         private void ValidateTargetAvailable(string file)
         {
-            var path = Path.Combine(RootPath, OutputDirName, file);
+            var path = GetOutFilePath(file);
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
 
             Assert.False(File.Exists(path));
+        }
+
+        private string GetOutFilePath(string name)
+        {
+            return Path.Combine(_rootPath, OutputDirName, name);
         }
     }
 }

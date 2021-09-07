@@ -16,7 +16,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpCore.UnitTests", "PdfSharpCore.Test\PdfSharpCore.UnitTests.csproj", "{A862C0CE-C095-459C-A32B-8FCDD15A93BF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpCore.UnitTests", "PdfSharpCore.UnitTest\PdfSharpCore.UnitTests.csproj", "{A862C0CE-C095-459C-A32B-8FCDD15A93BF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{EF33C739-DD27-4F29-BD95-B4425C52CFF1}"
 EndProject

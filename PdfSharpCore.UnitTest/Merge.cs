@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.UnitTests.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.UnitTests
@@ -12,12 +13,8 @@ namespace PdfSharpCore.UnitTests
         [Fact]
         public void CanMerge2Documents()
         {
-            var root = Path.GetDirectoryName(GetType().GetTypeInfo().Assembly.Location);
-            if (root == null)
-                throw new Exception("root cannot be null");
-
-            var pdf1Path = Path.Combine(root, "Assets", "FamilyTree.pdf");
-            var pdf2Path = Path.Combine(root, "Assets", "test.pdf");
+            var pdf1Path =  PathHelper.GetInstance().GetAssetPath("FamilyTree.pdf");
+            var pdf2Path = PathHelper.GetInstance().GetAssetPath("test.pdf");
 
             var outputDocument = new PdfDocument();
 
@@ -33,7 +30,7 @@ namespace PdfSharpCore.UnitTests
                 }
             }
 
-            var outFilePath = Path.Combine(root, "Out", "merge.pdf");
+            var outFilePath = Path.Combine(PathHelper.GetInstance().RootDir, "Out", "merge.pdf");
             var dir = Path.GetDirectoryName(outFilePath);
             if (!Directory.Exists(dir))
             {
