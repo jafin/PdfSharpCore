@@ -5,7 +5,7 @@
     <Authors>Stefan Steiger and Contributors</Authors>
     <Description>PdfSharpCore.Charting for .NET Core PdfSharpCore.Charting was ported from PdfSharp</Description>
     <Copyright>Copyright (c) 2005-2007 empira Software GmbH, Cologne (Germany)</Copyright>
-    <PackageLicenseFile>license.txt</PackageLicenseFile>
+    <PackageLicenseFile>LICENCE.md</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/ststeiger/PdfSharpCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ststeiger/PdfSharpCore</RepositoryUrl>
     <PackageReleaseNotes>PdfSharpCore.Charting was ported from PdfSharp</PackageReleaseNotes>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\license.txt" Pack="true" PackagePath="" />
+    <None Include="..\LICENCE.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

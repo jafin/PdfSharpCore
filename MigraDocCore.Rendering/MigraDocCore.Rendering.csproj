@@ -7,7 +7,7 @@
 
 MigraDocCore.Rendering was ported from MigraDoc version 1.32</Description>
     <Copyright>Copyright (c) 2005-2007 empira Software GmbH, Cologne (Germany)</Copyright>
-    <PackageLicenseFile>license.txt</PackageLicenseFile>
+    <PackageLicenseFile>LICENCE.md</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/ststeiger/PdfSharpCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ststeiger/PdfSharpCore</RepositoryUrl>
     <PackageReleaseNotes>MigraDocCore.Rendering was ported from MigraDoc version 1.32</PackageReleaseNotes>
@@ -35,7 +35,7 @@ MigraDocCore.Rendering was ported from MigraDoc version 1.32</Description>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\license.txt" Pack="true" PackagePath="" />
+    <None Include="..\LICENCE.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
