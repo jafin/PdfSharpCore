@@ -4,10 +4,10 @@ using System.Text;
 using FluentAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.UnitTests.Helpers;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
-namespace PdfSharpCore.UnitTests
+namespace PdfSharpCore.Test
 {
     public class CreateSimplePdf
     {

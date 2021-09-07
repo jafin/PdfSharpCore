@@ -1,12 +1,10 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
+﻿using System.IO;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
-using PdfSharpCore.UnitTests.Helpers;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
-namespace PdfSharpCore.UnitTests
+namespace PdfSharpCore.Test
 {
     public class Merge
     {

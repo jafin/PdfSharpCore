@@ -3,10 +3,10 @@ using System.IO;
 using FluentAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
-using PdfSharpCore.UnitTests.Helpers;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
-namespace PdfSharpCore.UnitTests.IO
+namespace PdfSharpCore.Test.IO
 {
     public class PdfReader
     {
