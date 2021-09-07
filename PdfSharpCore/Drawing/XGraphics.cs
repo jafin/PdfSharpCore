@@ -429,7 +429,7 @@ namespace PdfSharpCore.Drawing  // #??? aufräumen
         }
         XGraphics(XSize size, XGraphicsUnit pageUnit, XPageDirection pageDirection)
         {
-            if (size == null)
+            if (size == default)
                 throw new ArgumentNullException("size");
             
 
