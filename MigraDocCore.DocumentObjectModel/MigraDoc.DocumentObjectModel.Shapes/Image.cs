@@ -105,37 +105,19 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// Gets or sets the ScaleWidth of the image.
         /// If the Width is set to, the resulting image width is ScaleWidth * Width.
         /// </summary>
-        public double ScaleWidth
-        {
-            get { return _scaleWidth.Value; }
-            set { _scaleWidth.Value = value; }
-        }
-        [DV]
-        internal NDouble _scaleWidth = NDouble.NullValue;
+        public double? ScaleWidth { get; set; }
 
         /// <summary>
         /// Gets or sets the ScaleHeight of the image.
         /// If the Height is set too, the resulting image height is ScaleHeight * Height.
         /// </summary>
-        public double ScaleHeight
-        {
-            get { return _scaleHeight.Value; }
-            set { _scaleHeight.Value = value; }
-        }
-        [DV]
-        internal NDouble _scaleHeight = NDouble.NullValue;
+        public double? ScaleHeight { get; set; }
 
         /// <summary>
         /// Gets or sets whether the AspectRatio of the image is kept unchanged.
         /// If both Width and Height are set, this property is ignored.
         /// </summary>
-        public bool LockAspectRatio
-        {
-            get { return _lockAspectRatio.Value; }
-            set { _lockAspectRatio.Value = value; }
-        }
-        [DV]
-        internal NBool _lockAspectRatio = NBool.NullValue;
+        public bool? LockAspectRatio { get; set; }
 
         /// <summary>
         /// Gets or sets the PictureFormat for the image
@@ -155,13 +137,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// <summary>
         /// Gets or sets a user defined resolution for the image in dots per inch.
         /// </summary>
-        public double Resolution
-        {
-            get { return _resolution.Value; }
-            set { _resolution.Value = value; }
-        }
-        [DV]
-        internal NDouble _resolution = NDouble.NullValue;
+        public double? Resolution { get; set; }
 
         /// <summary>
         /// Converts Image into DDL.
@@ -173,14 +149,14 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
             int pos = serializer.BeginAttributes();
 
             base.Serialize(serializer);
-            if (!_scaleWidth.IsNull)
-                serializer.WriteSimpleAttribute("ScaleWidth", ScaleWidth);
-            if (!_scaleHeight.IsNull)
-                serializer.WriteSimpleAttribute("ScaleHeight", ScaleHeight);
-            if (!_lockAspectRatio.IsNull)
-                serializer.WriteSimpleAttribute("LockAspectRatio", LockAspectRatio);
-            if (!_resolution.IsNull)
-                serializer.WriteSimpleAttribute("Resolution", Resolution);
+            if (ScaleWidth.HasValue)
+                serializer.WriteSimpleAttribute("ScaleWidth", ScaleWidth.Value);
+            if (ScaleHeight.HasValue)
+                serializer.WriteSimpleAttribute("ScaleHeight", ScaleHeight.Value);
+            if (LockAspectRatio.HasValue)
+                serializer.WriteSimpleAttribute("LockAspectRatio", LockAspectRatio.Value);
+            if (Resolution.HasValue)
+                serializer.WriteSimpleAttribute("Resolution", Resolution.Value);
             if (!IsNull("PictureFormat"))
                 _pictureFormat.Serialize(serializer);
 

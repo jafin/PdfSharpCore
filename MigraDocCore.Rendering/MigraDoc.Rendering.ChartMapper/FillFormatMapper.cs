@@ -52,7 +52,7 @@ namespace MigraDocCore.Rendering.ChartMapper
         fillFormat.Color = ColorHelper.ToXColor(domFillFormat.Color, domFillFormat.Document.UseCmykColor);
 #endif
       }
-      fillFormat.Visible = domFillFormat.Visible;
+      fillFormat.Visible = domFillFormat.Visible ?? false;
     }
 
     internal static void Map(FillFormat fillFormat, DocumentObjectModel.Shapes.FillFormat domFillFormat)

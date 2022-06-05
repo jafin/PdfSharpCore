@@ -55,8 +55,6 @@ namespace MigraDocCore.Rendering
         {
             XPdfFontOptions options = new XPdfFontOptions(encoding);
             XFontStyle style = GetXStyle(font);
-
-      if (xFont == null)
             XFont xFont = new XFont(font.Name, font.Size, style, options);
 #if DEBUG
       CreateFontCounter++;

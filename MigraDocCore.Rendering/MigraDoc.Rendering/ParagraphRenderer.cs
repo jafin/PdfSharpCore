@@ -30,7 +30,9 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using PdfSharpCore.Pdf;
@@ -182,7 +184,7 @@ namespace MigraDocCore.Rendering
                     {
                         if (_phase == Phase.Formatting)
                             return "XX";
-                        return Messages2.BookmarkNotDefined(pageRefField.Name);
+                        return string.Format(AppResources.BookmarkNotDefined, pageRefField.Name);
                     }
                 }
                 else if (field is SectionField)
@@ -625,14 +627,14 @@ namespace MigraDocCore.Rendering
             //Automatic tab stop: FirstLineIndent < 0 => automatic tab stop at LeftIndent.
 
             if (format.FirstLineIndent < 0 || 
-                (format._listInfo != null && !format._listInfo.IsNull() && format.ListInfo.NumberPosition < format.LeftIndent))
+                (format.ListInfo != null && !format.ListInfo.IsNull() && format.ListInfo.NumberPosition < format.LeftIndent))
             {
                 XUnit leftIndent = format.LeftIndent.Point;
                 if (_isFirstLine && _currentXPosition < leftIndent + _formattingArea.X)
                     return new TabStop(leftIndent.Point);
             }
             XUnit defaultTabStop = "1.25cm";
-            if (!_paragraph.Document._defaultTabStop.IsNull)
+            if (!_paragraph.Document.DefaultTabStop.IsNull)
                 defaultTabStop = _paragraph.Document.DefaultTabStop.Point;
 
             XUnit currTabPos = defaultTabStop;
@@ -918,9 +920,11 @@ namespace MigraDocCore.Rendering
                 var pageNr = pdfDocument.PageCount; // Magic: Pages are added while rendering, so the current page number equals pdfDocument.PageCount.
                 Debug.Assert(pageNr >= 1);
 
-                var destinationName = bookmarkField.Name;
-                var position = GetDestinationPosition();
-                pdfDocument.AddNamedDestination(destinationName, pageNr, PdfNamedDestinationParameters.CreatePosition(position));
+                //TODO: Implement in PdfSharp
+                //var destinationName = bookmarkField.Name;
+                //var position = GetDestinationPosition();
+
+                //pdfDocument.AddNamedDestination(destinationName, pageNr, PdfNamedDestinationParameters.CreatePosition(position));
             }
 
             RenderUnderline(0, false);
@@ -937,7 +941,7 @@ namespace MigraDocCore.Rendering
             var x = _currentXPosition > margin ? _currentXPosition - margin : 0;
             var y = _currentYPosition > margin ? _currentYPosition - margin : 0;
             var destinationPosition = new XPoint(x, y);
-
+        
             var pdfPosition = _gfx.Transformer.WorldToDefaultPage(destinationPosition);
             return pdfPosition;
         }
@@ -1149,15 +1153,15 @@ namespace MigraDocCore.Rendering
                 switch (hyperlink.Type)
                 {
                     case HyperlinkType.Local:
-
+                        //TODO: Implement in pdfSharpCore
                         // Try to use named destination, if a document is rendered.
-                        var pdfDocument = _gfx.PdfPage.Owner;
-                        if (pdfDocument != null)
-                        {
-                            page.AddDocumentLink(new PdfRectangle(rect), hyperlink.BookmarkName);
-                        }
+                        // var pdfDocument = _gfx.PdfPage.Owner;
+                        // if (pdfDocument != null)
+                        // {
+                        //     page.AddDocumentLink(new PdfRectangle(rect), hyperlink.BookmarkName);
+                        // }
                         // Otherwise use page from bookmarks's fieldInfo.
-                        else
+                        // else
                         {
                             var pageRef = _fieldInfos.GetPhysicalPageNumber(hyperlink.BookmarkName);
                         if (pageRef > 0)
@@ -1166,12 +1170,15 @@ namespace MigraDocCore.Rendering
                         break;
 
                     case HyperlinkType.ExternalBookmark:
-                        page.AddDocumentLink(new PdfRectangle(rect), hyperlink.Filename, hyperlink.BookmarkName, ConvertHyperlinkTargetWindow(hyperlink.NewWindow));
-                        break;
+                        throw new NotImplementedException();
+                        //TODO Implement
+                        //page.AddDocumentLink(new PdfRectangle(rect), hyperlink.Filename, hyperlink.BookmarkName, ConvertHyperlinkTargetWindow(hyperlink.NewWindow));
+                        //break;
 
                     case HyperlinkType.EmbeddedDocument:
-                        page.AddEmbeddedDocumentLink(new PdfRectangle(rect), hyperlink.Filename, hyperlink.BookmarkName, ConvertHyperlinkTargetWindow(hyperlink.NewWindow));
-                        break;
+                        throw new NotImplementedException();
+                        //page.AddEmbeddedDocumentLink(new PdfRectangle(rect), hyperlink.Filename, hyperlink.BookmarkName, ConvertHyperlinkTargetWindow(hyperlink.NewWindow));
+                        //break;
 
                     case HyperlinkType.Web:
                         page.AddWebLink(new PdfRectangle(rect), hyperlink.Filename);
@@ -1353,7 +1360,7 @@ namespace MigraDocCore.Rendering
             if (_phase == Phase.Formatting)
             {
                 ParagraphFormat format = _paragraph.Format;
-                if (format._listInfo != null && !format._listInfo.IsNull())
+                if (format.ListInfo != null && !format.ListInfo.IsNull())
                 {
                     ListInfo listInfo = format.ListInfo;
                     double size = format.Font.Size;
@@ -1416,11 +1423,11 @@ namespace MigraDocCore.Rendering
                 XUnit leftIndent = format.LeftIndent.Point;
                 if (_isFirstLine)
                 {
-                    if (format._listInfo != null && !format._listInfo.IsNull())
+                    if (format.ListInfo != null && !format.ListInfo.IsNull())
                     {
-                        if (!format.ListInfo._numberPosition.IsNull)
+                        if (!format.ListInfo.NumberPosition.IsNull)
                             return format.ListInfo.NumberPosition.Point;
-                        if (format._firstLineIndent.IsNull)
+                        if (format.FirstLineIndent.IsNull)
                             return 0;
                     }
                     return leftIndent + _paragraph.Format.FirstLineIndent.Point;
@@ -1834,7 +1841,7 @@ namespace MigraDocCore.Rendering
             XUnit right = contentArea.X + contentArea.Width;
             right -= format.RightIndent;
 
-            if (_paragraph.Format._borders != null && !_paragraph.Format._borders.IsNull())
+            if (_paragraph.Format.Borders != null && !_paragraph.Format.Borders.IsNull())
             {
                 Borders borders = format.Borders;
                 BordersRenderer bordersRenderer = new BordersRenderer(borders, _gfx);
@@ -1852,7 +1859,7 @@ namespace MigraDocCore.Rendering
 
         void RenderShading()
         {
-            if (_paragraph.Format._shading == null || _paragraph.Format._shading.IsNull())
+            if (_paragraph.Format.Shading == null || _paragraph.Format.Shading.IsNull())
                 return;
 
             ShadingRenderer shadingRenderer = new ShadingRenderer(_gfx, _paragraph.Format.Shading);
@@ -1864,7 +1871,7 @@ namespace MigraDocCore.Rendering
 
         void RenderBorders()
         {
-            if (_paragraph.Format._borders == null || _paragraph.Format._borders.IsNull())
+            if (_paragraph.Format.Borders == null || _paragraph.Format.Borders.IsNull())
                 return;
 
             Area shadingArea = GetShadingArea();
@@ -2277,10 +2284,10 @@ namespace MigraDocCore.Rendering
             get
             {
                 XUnit offset = 0;
-                if (_isFirstLine && _paragraph.Format._borders != null && !_paragraph.Format._borders.IsNull())
+                if (_isFirstLine && _paragraph.Format.Borders != null && !_paragraph.Format.Borders.IsNull())
                 {
                     offset += _paragraph.Format.Borders.DistanceFromTop;
-                    if (_paragraph.Format._borders != null && !_paragraph.Format._borders.IsNull())
+                    if (_paragraph.Format.Borders != null && !_paragraph.Format.Borders.IsNull())
                     {
                         BordersRenderer bordersRenderer = new BordersRenderer(_paragraph.Format.Borders, _gfx);
                         offset += bordersRenderer.GetWidth(BorderType.Top);
@@ -2313,7 +2320,7 @@ namespace MigraDocCore.Rendering
                 if ((_phase == Phase.Formatting && (_currentLeaf == null || IsLastVisibleLeaf))
                   || (_phase == Phase.Rendering && (_isLastLine)))
                 {
-                    if (_paragraph.Format._borders != null && !_paragraph.Format._borders.IsNull())
+                    if (_paragraph.Format.Borders != null && !_paragraph.Format.Borders.IsNull())
                     {
                         offset += _paragraph.Format.Borders.DistanceFromBottom;
                         BordersRenderer bordersRenderer = new BordersRenderer(_paragraph.Format.Borders, _gfx);

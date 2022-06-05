@@ -29,6 +29,7 @@
 #endregion
 
 using System;
+using MigraDoc.Rendering;
 
 namespace MigraDocCore.Rendering
 {

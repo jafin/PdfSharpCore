@@ -176,8 +176,8 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
             if (border == null)
                 border = new Border(parentBorders);
 
-            if (border._visible.IsNull)
-                border._visible = parentBorders._visible;
+            if (!border.Visible.HasValue)
+                border.Visible = parentBorders.Visible;
 
             if (!border.Style.HasValue)
                 border.Style = parentBorders.Style;
@@ -193,12 +193,12 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
 
         protected void FlattenBorders(Borders borders, Borders refBorders)
         {
-            if (borders._visible.IsNull)
-                borders._visible = refBorders._visible;
+            if (!borders.Visible.HasValue)
+                borders.Visible = refBorders.Visible;
             if (borders._width.IsNull)
                 borders._width = refBorders._width;
-            if (borders._style.IsNull)
-                borders._style = refBorders._style;
+            if (!borders.Style.HasValue)
+                borders.Style = refBorders.Style;
             if (borders._color.IsNull)
                 borders._color = refBorders._color;
 
@@ -235,8 +235,8 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
 
         protected void FlattenBorder(Border border, Border refBorder)
         {
-            if (border._visible.IsNull)
-                border._visible = refBorder._visible;
+            if (!border.Visible.HasValue)
+                border.Visible = refBorder.Visible;
             if (border._width.IsNull)
                 border._width = refBorder._width;
             if (!border.Style.HasValue)

@@ -1971,6 +1971,21 @@ namespace PdfSharpCore.Drawing  // #??? aufräumen
 
                 return new XRect(xmin, ymin, xmax - xmin, ymax - ymin);
             }
+
+            /// <summary>
+            /// Gets a point in PDF world space units.
+            /// </summary>
+            public XPoint WorldToDefaultPage(XPoint point)
+            {
+                XMatrix matrix = _gfx.Transform;
+                matrix.Transform(point);
+
+                double height = _gfx.PageSize.Height;
+                point.Y = height - point.Y;
+
+                return point;
+            }
+
         }
     }
 }

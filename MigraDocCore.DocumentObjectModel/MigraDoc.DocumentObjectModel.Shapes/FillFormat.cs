@@ -78,13 +78,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// <summary>
         /// Gets or sets a value indicating whether the background color should be visible.
         /// </summary>
-        public bool Visible
-        {
-            get { return _visible.Value; }
-            set { _visible.Value = value; }
-        }
-        [DV]
-        internal NBool _visible = NBool.NullValue;
+        public bool? Visible { get; set; }
         #endregion
 
         #region Internal
@@ -94,7 +88,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         internal override void Serialize(Serializer serializer)
         {
             serializer.BeginContent("FillFormat");
-            if (!_visible.IsNull)
+            if (Visible.HasValue)
                 serializer.WriteSimpleAttribute("Visible", Visible);
             if (!_color.IsNull)
                 serializer.WriteSimpleAttribute("Color", Color);

@@ -37,8 +37,10 @@ public class TestLayout
         printer.PdfDocument.Save(outputFile);
     }
 
-    public static void A1000Paragraphs(string outputFile)
+    [Fact]
+    public static void A1000Paragraphs()
     {
+        const string outputFile = "test-a1000Paragraphs.pdf";
         Document doc = new Document();
         Section sec = doc.Sections.AddSection();
 
@@ -59,26 +61,5 @@ public class TestLayout
         };
         printer.RenderDocument();
         printer.PdfDocument.Save(outputFile);
-    }
-
-    public static string DumpParagraph()
-    {
-        return "";
-        //      Document doc = new Document();
-        //      Paragraph par = doc.Sections.AddSection().AddParagraph();
-        //      par.Format.SpaceAfter = "3cm";
-        //      par.Format.SpaceBefore = "2cm";
-        //      TestParagraphRenderer.FillFormattedParagraph(par);
-        //      PdfFlattenVisitor visitor = new PdfFlattenVisitor(doc);
-        //      visitor.Visit();
-        //
-        //      XGraphics gfx = XGraphics.FromGraphics(Graphics.FromHwnd(IntPtr.Zero), new XSize(2000, 2000));
-        //      //Renderer rndrr = Renderer.Create(gfx, par, new FieldInfos(new Hashtable()));
-        //      rndrr.Format(new Rectangle(0, 0, XUnit.FromCentimeter(21), XUnit.FromCentimeter(29)), null);
-        //      string retVal = ValueDumper.DumpValues(rndrr.RenderInfo.LayoutInfo);
-        //      retVal += "\r\n";
-        //
-        //      retVal += ValueDumper.DumpValues(rndrr.RenderInfo.LayoutInfo.ContentArea);
-        //      return retVal;
     }
 }

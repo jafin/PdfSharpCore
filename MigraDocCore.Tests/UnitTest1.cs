@@ -23,7 +23,7 @@ namespace MigraDocCore.Tests
             PdfDocumentRenderer renderer = new PdfDocumentRenderer(true);
             renderer.Document = document;
             renderer.RenderDocument();
-            renderer.PdfDocument.Save("C:\\temp\\migradoc.pdf");
+            renderer.PdfDocument.Save("test-migradoc.pdf");
         }
     }
 }

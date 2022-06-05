@@ -1,4 +1,5 @@
 #region MigraDoc - Creating Documents on the Fly
+
 //
 // Authors:
 //   Klaus Potzesny
@@ -26,6 +27,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
@@ -35,100 +37,101 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Renders a shape to an XGraphics object.
-  /// </summary>
-  internal abstract class ShapeRenderer : Renderer
-  {
-
-    internal ShapeRenderer(XGraphics gfx, Shape shape, FieldInfos fieldInfos)
-      : base(gfx, shape, fieldInfos)
+    /// <summary>
+    /// Renders a shape to an XGraphics object.
+    /// </summary>
+    internal abstract class ShapeRenderer : Renderer
     {
+        internal ShapeRenderer(XGraphics gfx, Shape shape, FieldInfos fieldInfos)
+            : base(gfx, shape, fieldInfos)
+        {
             _shape = shape;
             LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
             _lineFormatRenderer = new LineFormatRenderer(lf, gfx);
-    }
+        }
 
-    internal ShapeRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
-      : base(gfx, renderInfo, fieldInfos)
-    {
+        internal ShapeRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
+            : base(gfx, renderInfo, fieldInfos)
+        {
             _shape = (Shape)renderInfo.DocumentObject;
             LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
             _lineFormatRenderer = new LineFormatRenderer(lf, gfx);
             FillFormat ff = (FillFormat)_shape.GetValue("FillFormat", GV.ReadOnly);
             _fillFormatRenderer = new FillFormatRenderer(ff, gfx);
-    }
+        }
 
-    internal override LayoutInfo InitialLayoutInfo
-    {
-      get
-      {
-        LayoutInfo layoutInfo = new LayoutInfo();
+        internal override LayoutInfo InitialLayoutInfo
+        {
+            get
+            {
+                LayoutInfo layoutInfo = new LayoutInfo();
 
                 layoutInfo.MarginTop = _shape.WrapFormat.DistanceTop.Point;
                 layoutInfo.MarginLeft = _shape.WrapFormat.DistanceLeft.Point;
                 layoutInfo.MarginBottom = _shape.WrapFormat.DistanceBottom.Point;
                 layoutInfo.MarginRight = _shape.WrapFormat.DistanceRight.Point;
-        layoutInfo.KeepTogether = true;
-        layoutInfo.KeepWithNext = false;
-        layoutInfo.PageBreakBefore = false;
-        layoutInfo.VerticalReference = GetVerticalReference();
-        layoutInfo.HorizontalReference = GetHorizontalReference();
-        layoutInfo.Floating = GetFloating();
+                layoutInfo.KeepTogether = true;
+                layoutInfo.KeepWithNext = false;
+                layoutInfo.PageBreakBefore = false;
+                layoutInfo.VerticalReference = GetVerticalReference();
+                layoutInfo.HorizontalReference = GetHorizontalReference();
+                layoutInfo.Floating = GetFloating();
                 if (layoutInfo.Floating == Floating.TopBottom && !_shape.Top.Position.IsEmpty)
-        {
+                {
                     layoutInfo.MarginTop = Math.Max(layoutInfo.MarginTop, _shape.Top.Position);
-        }
-        return layoutInfo;
-      }
-    }
+                }
 
-    Floating GetFloating()
-    {
+                return layoutInfo;
+            }
+        }
+
+        Floating GetFloating()
+        {
             if (_shape.RelativeVertical != RelativeVertical.Line && _shape.RelativeVertical != RelativeVertical.Paragraph)
                 return Floating.None;
 
             switch (_shape.WrapFormat.Style)
-      {
-        case WrapStyle.None:
-        case WrapStyle.Through:
-          return Floating.None;
-      }
-      return Floating.TopBottom;
-    }
+            {
+                case WrapStyle.None:
+                case WrapStyle.Through:
+                    return Floating.None;
+            }
 
-    /// <summary>
-    /// Gets the shape width including line width.
-    /// </summary>
-    protected virtual XUnit ShapeWidth
-    {
+            return Floating.TopBottom;
+        }
+
+        /// <summary>
+        /// Gets the shape width including line width.
+        /// </summary>
+        protected virtual XUnit ShapeWidth
+        {
             get { return _shape.Width + _lineFormatRenderer.GetWidth(); }
-      }
+        }
 
-    /// <summary>
-    /// Gets the shape height including line width.
-    /// </summary>
-    protected virtual XUnit ShapeHeight
-    {
+        /// <summary>
+        /// Gets the shape height including line width.
+        /// </summary>
+        protected virtual XUnit ShapeHeight
+        {
             get { return _shape.Height + _lineFormatRenderer.GetWidth(); }
-    }
+        }
 
-    /// <summary>
-    /// Formats the shape.
-    /// </summary>
-    /// <param name="area">The area to fit in the shape.</param>
-    /// <param name="previousFormatInfo"></param>
-    internal override void Format(Area area, FormatInfo previousFormatInfo)
-    {
-      Floating floating = GetFloating();
+        /// <summary>
+        /// Formats the shape.
+        /// </summary>
+        /// <param name="area">The area to fit in the shape.</param>
+        /// <param name="previousFormatInfo"></param>
+        internal override void Format(Area area, FormatInfo previousFormatInfo)
+        {
+            Floating floating = GetFloating();
             bool fits = floating == Floating.None || ShapeHeight <= area.Height;
             ((ShapeFormatInfo)_renderInfo.FormatInfo).Fits = fits;
-      FinishLayoutInfo(area);
-    }
+            FinishLayoutInfo(area);
+        }
 
 
-    void FinishLayoutInfo(Area area)
-    {
+        void FinishLayoutInfo(Area area)
+        {
             LayoutInfo layoutInfo = _renderInfo.LayoutInfo;
             Area contentArea = new Rectangle(area.X, area.Y, ShapeWidth, ShapeHeight);
             layoutInfo.ContentArea = contentArea;
@@ -144,57 +147,60 @@ namespace MigraDocCore.Rendering
             if (_shape.Top.ShapePosition == ShapePosition.Undefined)
                 layoutInfo.Top = _shape.Top.Position.Point;
 
-      layoutInfo.VerticalAlignment = GetVerticalAlignment();
-      layoutInfo.HorizontalAlignment = GetHorizontalAlignment();
+            layoutInfo.VerticalAlignment = GetVerticalAlignment();
+            layoutInfo.HorizontalAlignment = GetHorizontalAlignment();
 
             if (_shape.Left.ShapePosition == ShapePosition.Undefined)
                 layoutInfo.Left = _shape.Left.Position.Point;
 
-      layoutInfo.HorizontalReference = GetHorizontalReference();
-      layoutInfo.VerticalReference = GetVerticalReference();
-      layoutInfo.Floating = GetFloating();
-    }
+            layoutInfo.HorizontalReference = GetHorizontalReference();
+            layoutInfo.VerticalReference = GetVerticalReference();
+            layoutInfo.Floating = GetFloating();
+        }
 
-    HorizontalReference GetHorizontalReference()
-    {
+        HorizontalReference GetHorizontalReference()
+        {
             switch (_shape.RelativeHorizontal)
-      {
-        case RelativeHorizontal.Margin:
-          return HorizontalReference.PageMargin;
-        case RelativeHorizontal.Page:
-          return HorizontalReference.Page;
-      }
-      return HorizontalReference.AreaBoundary;
-    }
+            {
+                case RelativeHorizontal.Margin:
+                    return HorizontalReference.PageMargin;
+                case RelativeHorizontal.Page:
+                    return HorizontalReference.Page;
+            }
 
-    VerticalReference GetVerticalReference()
-    {
+            return HorizontalReference.AreaBoundary;
+        }
+
+        VerticalReference GetVerticalReference()
+        {
             switch (_shape.RelativeVertical)
-      {
-        case RelativeVertical.Margin:
-          return VerticalReference.PageMargin;
+            {
+                case RelativeVertical.Margin:
+                    return VerticalReference.PageMargin;
 
-        case RelativeVertical.Page:
-          return VerticalReference.Page;
-      }
-      return VerticalReference.PreviousElement;
-    }
+                case RelativeVertical.Page:
+                    return VerticalReference.Page;
+            }
 
-    ElementAlignment GetVerticalAlignment()
-    {
+            return VerticalReference.PreviousElement;
+        }
+
+        ElementAlignment GetVerticalAlignment()
+        {
             switch (_shape.Top.ShapePosition)
-      {
-        case ShapePosition.Center:
-          return ElementAlignment.Center;
+            {
+                case ShapePosition.Center:
+                    return ElementAlignment.Center;
 
-        case ShapePosition.Bottom:
-          return ElementAlignment.Far;
-      }
-      return ElementAlignment.Near;
-    }
+                case ShapePosition.Bottom:
+                    return ElementAlignment.Far;
+            }
 
-    protected void RenderFilling()
-    {
+            return ElementAlignment.Near;
+        }
+
+        protected void RenderFilling()
+        {
             Area contentArea = _renderInfo.LayoutInfo.ContentArea;
             XUnit lineWidth = _lineFormatRenderer.GetWidth();
             // Half of the line is drawn outside the shape, the other half inside the shape.
@@ -203,35 +209,37 @@ namespace MigraDocCore.Rendering
                 contentArea.Width - 2 * lineWidth, contentArea.Height - 2 * lineWidth);
         }
 
-    protected void RenderLine()
-    {
+        protected void RenderLine()
+        {
             Area contentArea = _renderInfo.LayoutInfo.ContentArea;
             XUnit lineWidth = _lineFormatRenderer.GetWidth();
-      XUnit width = contentArea.Width - lineWidth;
-      XUnit height = contentArea.Height - lineWidth;
+            XUnit width = contentArea.Width - lineWidth;
+            XUnit height = contentArea.Height - lineWidth;
             _lineFormatRenderer.Render(contentArea.X, contentArea.Y, width, height);
-    }
+        }
 
-    ElementAlignment GetHorizontalAlignment()
-    {
+        ElementAlignment GetHorizontalAlignment()
+        {
             switch (_shape.Left.ShapePosition)
-      {
-        case ShapePosition.Center:
-          return ElementAlignment.Center;
+            {
+                case ShapePosition.Center:
+                    return ElementAlignment.Center;
 
-        case ShapePosition.Right:
-          return ElementAlignment.Far;
-        
-        case ShapePosition.Outside:
-          return ElementAlignment.Outside;
+                case ShapePosition.Right:
+                    return ElementAlignment.Far;
 
-        case ShapePosition.Inside:
-          return ElementAlignment.Inside;
-      }
-      return ElementAlignment.Near;
-    }
+                case ShapePosition.Outside:
+                    return ElementAlignment.Outside;
+
+                case ShapePosition.Inside:
+                    return ElementAlignment.Inside;
+            }
+
+            return ElementAlignment.Near;
+        }
+
         protected LineFormatRenderer _lineFormatRenderer;
         protected FillFormatRenderer _fillFormatRenderer;
         protected Shape _shape;
-  }
+    }
 }

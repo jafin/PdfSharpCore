@@ -180,18 +180,18 @@ namespace MigraDocCore.Rendering
                     {
                         XUnit usrWidth = _image.Width.Point;
                         XUnit usrHeight = _image.Height.Point;
-                        bool usrWidthSet = !_image._width.IsNull;
-                        bool usrHeightSet = !_image._height.IsNull;
+                        bool usrWidthSet = !_image.Width.IsNull;
+                        bool usrHeightSet = !_image.Height.IsNull;
 
                         XUnit resultWidth = usrWidth;
                         XUnit resultHeight = usrHeight;
 
                         Debug.Assert(xImage != null);
                         double xPixels = xImage.PixelWidth;
-                        bool usrResolutionSet = !_image._resolution.IsNull;
+                        bool usrResolutionSet = _image.Resolution.HasValue;
 
-                        double horzRes = usrResolutionSet ? _image.Resolution : xImage.HorizontalResolution;
-                        double vertRes = usrResolutionSet ? _image.Resolution : xImage.VerticalResolution;
+                        double horzRes = usrResolutionSet ? _image.Resolution.Value : xImage.HorizontalResolution;
+                        double vertRes = usrResolutionSet ? _image.Resolution.Value : xImage.VerticalResolution;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
                         if (horzRes == 0 && vertRes == 0)
@@ -215,15 +215,12 @@ namespace MigraDocCore.Rendering
                         double yPixels = xImage.PixelHeight;
                         XUnit inherentHeight = XUnit.FromInch(yPixels / vertRes);
 
-                        //bool lockRatio = _image.IsNull("LockAspectRatio") ? true : _image.LockAspectRatio;
-                        bool lockRatio = _image._lockAspectRatio.IsNull || _image.LockAspectRatio;
+                        bool lockRatio = !_image.LockAspectRatio.HasValue || _image.LockAspectRatio.Value;
 
-                        double scaleHeight = _image.ScaleHeight;
-                        double scaleWidth = _image.ScaleWidth;
-                        //bool scaleHeightSet = !_image.IsNull("ScaleHeight");
-                        //bool scaleWidthSet = !_image.IsNull("ScaleWidth");
-                        bool scaleHeightSet = !_image._scaleHeight.IsNull;
-                        bool scaleWidthSet = !_image._scaleWidth.IsNull;
+                        double scaleHeight = _image.ScaleHeight.Value;
+                        double scaleWidth = _image.ScaleWidth.Value;
+                        bool scaleHeightSet = _image.ScaleHeight.HasValue;
+                        bool scaleWidthSet = !_image.ScaleWidth.HasValue;
 
                         if (lockRatio && !(scaleHeightSet && scaleWidthSet))
                         {
@@ -269,7 +266,7 @@ namespace MigraDocCore.Rendering
 
                     formatInfo.CropWidth = (int)xPixels;
                     formatInfo.CropHeight = (int)yPixels;
-                        if (_image._pictureFormat != null && !_image._pictureFormat.IsNull())
+                        if (_image.PictureFormat != null && !_image.PictureFormat.IsNull())
                         {
                             PictureFormat picFormat = _image.PictureFormat;
                         //Cropping in pixels.
@@ -321,12 +318,12 @@ namespace MigraDocCore.Rendering
             }
             if (formatInfo.Failure != ImageFailure.None)
             {
-                if (!_image._width.IsNull)
+                if (!_image.Width.IsNull)
                     formatInfo.Width = _image.Width.Point;
                 else
                     formatInfo.Width = XUnit.FromCentimeter(2.5);
 
-                if (!_image._height.IsNull)
+                if (!_image.Height.IsNull)
                     formatInfo.Height = _image.Height.Point;
                 else
                     formatInfo.Height = XUnit.FromCentimeter(2.5);
@@ -339,11 +336,13 @@ namespace MigraDocCore.Rendering
             {
                 string base64 = uri.Substring("base64:".Length);
                 byte[] bytes = Convert.FromBase64String(base64);
-                using (Stream stream = new MemoryStream(bytes))
-                {
-                    XImage image = XImage.FromStream(stream);
-                    return image;
-                }
+                var image = XImage.FromStream(()=>new MemoryStream(bytes));
+                return image;
+                // using (Stream stream = new MemoryStream(bytes))
+                // {
+                //     XImage image = XImage.FromStream(stream);
+                //     return image;
+                // }
             }
             return XImage.FromFile(uri);
         }

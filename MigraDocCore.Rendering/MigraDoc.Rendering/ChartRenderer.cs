@@ -31,11 +31,15 @@
 using System;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.Tables;
 using PdfSharpCore.Drawing;
 using MigraDocCore.Rendering.ChartMapper;
-using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
+using PdfSharpCore.Charting;
+using Chart = MigraDocCore.DocumentObjectModel.Shapes.Charts.Chart;
+using FillFormat = MigraDocCore.DocumentObjectModel.Shapes.FillFormat;
+using LineFormat = MigraDocCore.DocumentObjectModel.Shapes.LineFormat;
+using PlotArea = MigraDocCore.DocumentObjectModel.Shapes.Charts.PlotArea;
+using VerticalAlignment = MigraDocCore.DocumentObjectModel.Tables.VerticalAlignment;
 
 namespace MigraDocCore.Rendering
 {
@@ -347,7 +351,7 @@ namespace MigraDocCore.Rendering
 
         void RenderPlotArea(PlotArea area, Rectangle rect)
         {
-            PdfSharp.Charting.ChartFrame chartFrame = ((ChartFormatInfo)_renderInfo.FormatInfo).ChartFrame;
+            ChartFrame chartFrame = ((ChartFormatInfo)_renderInfo.FormatInfo).ChartFrame;
 
             XUnit top = rect.Y;
             top += area.TopPadding;

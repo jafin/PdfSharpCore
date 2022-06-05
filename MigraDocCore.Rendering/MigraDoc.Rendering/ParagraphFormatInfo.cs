@@ -30,8 +30,10 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
+using MigraDocCore.DocumentObjectModel.Shapes;
 
 namespace MigraDocCore.Rendering
 {

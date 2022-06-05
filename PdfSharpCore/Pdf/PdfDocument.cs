@@ -889,5 +889,15 @@ namespace PdfSharpCore.Pdf
                 return !(left == right);
             }
         }
+
+        public void AddEmbeddedFile(string embeddedFileName, string embeddedFilePath)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void AddNamedDestination(string destinationName, int pageNr, object createPosition)
+        {
+            Debug.Write("Not Implemented.");
+        }
     }
 }

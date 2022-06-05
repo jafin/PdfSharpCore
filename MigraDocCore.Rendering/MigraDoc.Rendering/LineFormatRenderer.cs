@@ -65,13 +65,13 @@ namespace MigraDocCore.Rendering
         {
             if (_lineFormat == null)
                 return 0;
-            if (!_lineFormat._visible.IsNull && !_lineFormat.Visible)
+            if (_lineFormat.Visible.HasValue && !_lineFormat.Visible.Value)
                 return 0;
 
-            if (!_lineFormat._width.IsNull)
+            if (!_lineFormat.Width.IsNull)
                 return _lineFormat.Width.Point;
 
-            if (!_lineFormat._color.IsNull || !_lineFormat._style.IsNull || _lineFormat.Visible)
+            if (!_lineFormat.Color.IsNull || _lineFormat.Style.HasValue || (_lineFormat.Visible?? true))
                 return 1;
 
             return 0;

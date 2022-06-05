@@ -60,16 +60,16 @@ namespace MigraDocCore.Rendering
             _unicode = unicode;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfDocumentRenderer" /> class.
-        /// </summary>
-        /// <param name="unicode">If true Unicode encoding is used for all text. If false, WinAnsi encoding is used.</param>
-        /// <param name="fontEmbedding">Obsolete parameter.</param>
-        [Obsolete("Must not specify an embedding option anymore.")]
-        public PdfDocumentRenderer(bool unicode, PdfFontEmbedding fontEmbedding)
-        {
-            _unicode = unicode;
-        }
+        // /// <summary>
+        // /// Initializes a new instance of the <see cref="PdfDocumentRenderer" /> class.
+        // /// </summary>
+        // /// <param name="unicode">If true Unicode encoding is used for all text. If false, WinAnsi encoding is used.</param>
+        // /// <param name="fontEmbedding">Obsolete parameter.</param>
+        // [Obsolete("Must not specify an embedding option anymore.")]
+        // public PdfDocumentRenderer(bool unicode, PdfFontEmbedding fontEmbedding)
+        // {
+        //     _unicode = unicode;
+        // }
 
         /// <summary>
         /// Gets a value indicating whether the text is rendered as Unicode.
@@ -299,7 +299,7 @@ namespace MigraDocCore.Rendering
         PdfDocument CreatePdfDocument()
         {
             PdfDocument document = new PdfDocument();
-            document.Info.Creator = VersionInfo.Creator;
+            document.Info.Creator = ProductVersionInfo.Creator;
             if (!String.IsNullOrEmpty(_language))
                 document.Language = _language;
             return document;

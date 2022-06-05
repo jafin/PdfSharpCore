@@ -67,13 +67,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// <summary>
         /// Gets or sets a value indicating whether the line should be visible.
         /// </summary>
-        public bool Visible
-        {
-            get { return _visible.Value; }
-            set { _visible.Value = value; }
-        }
-        [DV]
-        internal NBool _visible = NBool.NullValue;
+        public bool? Visible { get; set; }
 
         /// <summary>
         /// Gets or sets the width of the line in Unit.
@@ -111,13 +105,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// <summary>
         /// Gets or sets the style of the line.
         /// </summary>
-        public LineStyle Style
-        {
-            get { return (LineStyle)_style.Value; }
-            set { _style.Value = (int)value; }
-        }
-        [DV(Type = typeof(LineStyle))]
-        internal NEnum _style = NEnum.NullValue(typeof(LineStyle));
+        public LineStyle? Style { get; set; }
         #endregion
 
         #region Internal
@@ -127,9 +115,9 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         internal override void Serialize(Serializer serializer)
         {
             int pos = serializer.BeginContent("LineFormat");
-            if (!_visible.IsNull)
-                serializer.WriteSimpleAttribute("Visible", Visible);
-            if (!_style.IsNull)
+            if (Visible.HasValue)
+                serializer.WriteSimpleAttribute("Visible", Visible.Value);
+            if (Style.HasValue)
                 serializer.WriteSimpleAttribute("Style", Style);
             if (!_dashStyle.IsNull)
                 serializer.WriteSimpleAttribute("DashStyle", DashStyle);

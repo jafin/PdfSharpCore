@@ -85,7 +85,7 @@ namespace MigraDocCore.Rendering.ChartMapper
                     lineFormat.Style = LineStyle.Single;
                     break;
             }
-            lineFormat.Visible = domLineFormat.Visible;
+            lineFormat.Visible = domLineFormat.Visible?? false;
             if (domLineFormat.IsNull("Visible"))
                 lineFormat.Visible = true;
             lineFormat.Width = domLineFormat.Width.Point;

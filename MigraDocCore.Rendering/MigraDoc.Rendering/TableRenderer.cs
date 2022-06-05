@@ -140,10 +140,10 @@ namespace MigraDocCore.Rendering
             Border primaryBorder = (Border)cell.Borders.GetValue(primaryBorderType.ToString(), GV.ReadWrite);
             Border secondaryBorder = (Border)cell.Borders.GetValue(secondaryBorderType.ToString(), GV.ReadWrite);
 
-            Border source = primaryBorder.Visible ? primaryBorder
-                : secondaryBorder.Visible ? secondaryBorder : null;
-            Border target = primaryBorder.Visible ? secondaryBorder
-                : secondaryBorder.Visible ? primaryBorder : null;
+            Border source = primaryBorder.Visible ?? false ? primaryBorder
+                : secondaryBorder.Visible?? false  ? secondaryBorder : null;
+            Border target = primaryBorder.Visible?? false ? secondaryBorder
+                : secondaryBorder.Visible?? false ? primaryBorder : null;
 
             if (source == null || target == null)
                 return;
