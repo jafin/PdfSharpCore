@@ -31,12 +31,8 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Globalization;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel
@@ -44,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// <summary>
     /// A Borders collection represents the eight border objects used for paragraphs, tables etc.
     /// </summary>
-    public class Borders : DocumentObject, IEnumerable
+    public class Borders : DocumentObject, IEnumerable, IBorder
     {
         /// <summary>
         /// Initializes a new instance of the Borders class.

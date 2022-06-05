@@ -1,4 +1,5 @@
 #region MigraDoc - Creating Documents on the Fly
+
 //
 // Authors:
 //   Stefan Lange
@@ -28,12 +29,12 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using MigraDocCore.DocumentObjectModel.IO;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
@@ -48,14 +49,18 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// Initializes a new instance of the Row class.
         /// </summary>
         public Row()
-        { }
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the Row class with the specified parent.
         /// </summary>
-        internal Row(DocumentObject parent) : base(parent) { }
+        internal Row(DocumentObject parent) : base(parent)
+        {
+        }
 
         #region Methods
+
         /// <summary>
         /// Creates a deep copy of this object.
         /// </summary>
@@ -76,21 +81,25 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                 row._format = row._format.Clone();
                 row._format._parent = row;
             }
+
             if (row._borders != null)
             {
                 row._borders = row._borders.Clone();
                 row._borders._parent = row;
             }
+
             if (row._shading != null)
             {
                 row._shading = row._shading.Clone();
                 row._shading._parent = row;
             }
+
             if (row._cells != null)
             {
                 row._cells = row._cells.Clone();
                 row._cells._parent = row;
             }
+
             return row;
         }
 
@@ -103,9 +112,11 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             _table = null;
             index = NInt.NullValue;
         }
+
         #endregion
 
         #region Properties
+
         /// <summary>
         /// Gets the table the row belongs to.
         /// </summary>
@@ -119,9 +130,11 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                     if (rws != null)
                         _table = rws.Table;
                 }
+
                 return _table;
             }
         }
+
         Table _table;
 
         /// <summary>
@@ -131,20 +144,22 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get
             {
-                if (index == NInt.NullValue /*IsNull("index")*/)
+                if (index == NInt.NullValue)
                 {
                     Rows rws = (Rows)_parent;
+
                     // One for all and all for one.
                     for (int i = 0; i < rws.Count; ++i)
                     {
                         rws[i].index = i;
                     }
                 }
+
                 return index;
             }
         }
-        [DV]
-        internal NInt index = NInt.NullValue;
+
+        [DV] internal NInt index = NInt.NullValue;
 
         /// <summary>
         /// Gets a cell by its column index. The first cell has index 0.
@@ -162,8 +177,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _style.Value; }
             set { _style.Value = value; }
         }
-        [DV]
-        internal NString _style = NString.NullValue;
+
+        [DV] internal NString _style = NString.NullValue;
 
         /// <summary>
         /// Gets the default ParagraphFormat for all cells of the row.
@@ -177,8 +192,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                 _format = value;
             }
         }
-        [DV]
-        internal ParagraphFormat _format;
+
+        [DV] internal ParagraphFormat _format;
 
         /// <summary>
         /// Gets or sets the default vertical alignment for all cells of the row.
@@ -188,8 +203,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return (VerticalAlignment)_verticalAlignment.Value; }
             set { _verticalAlignment.Value = (int)value; }
         }
-        [DV(Type = typeof(VerticalAlignment))]
-        internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+
+        [DV(Type = typeof(VerticalAlignment))] internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
 
         /// <summary>
         /// Gets or sets the height of the row.
@@ -199,8 +214,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _height; }
             set { _height = value; }
         }
-        [DV]
-        internal Unit _height = Unit.NullValue;
+
+        [DV] internal Unit _height = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the rule which is used to determine the height of the row.
@@ -210,8 +225,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return (RowHeightRule)_heightRule.Value; }
             set { _heightRule.Value = (int)value; }
         }
-        [DV(Type = typeof(RowHeightRule))]
-        internal NEnum _heightRule = NEnum.NullValue(typeof(RowHeightRule));
+
+        [DV(Type = typeof(RowHeightRule))] internal NEnum _heightRule = NEnum.NullValue(typeof(RowHeightRule));
 
         /// <summary>
         /// Gets or sets the default value for all cells of the row.
@@ -221,8 +236,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _topPadding; }
             set { _topPadding = value; }
         }
-        [DV]
-        internal Unit _topPadding = Unit.NullValue;
+
+        [DV] internal Unit _topPadding = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the default value for all cells of the row.
@@ -232,8 +247,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _bottomPadding; }
             set { _bottomPadding = value; }
         }
-        [DV]
-        internal Unit _bottomPadding = Unit.NullValue;
+
+        [DV] internal Unit _bottomPadding = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets a value which define whether the row is a header.
@@ -243,8 +258,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _headingFormat.Value; }
             set { _headingFormat.Value = value; }
         }
-        [DV]
-        internal NBool _headingFormat = NBool.NullValue;
+
+        [DV] internal NBool _headingFormat = NBool.NullValue;
 
         /// <summary>
         /// Gets the default Borders object for all cells of the row.
@@ -258,8 +273,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                 _borders = value;
             }
         }
-        [DV]
-        internal Borders _borders;
+
+        [DV] internal Borders _borders;
 
         /// <summary>
         /// Gets the default Shading object for all cells of the row.
@@ -273,8 +288,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                 _shading = value;
             }
         }
-        [DV]
-        internal Shading _shading;
+
+        [DV] internal Shading _shading;
 
         /// <summary>
         /// Gets or sets the number of rows that should be
@@ -285,8 +300,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _keepWith.Value; }
             set { _keepWith.Value = value; }
         }
-        [DV]
-        internal NInt _keepWith = NInt.NullValue;
+
+        [DV] internal NInt _keepWith = NInt.NullValue;
 
         /// <summary>
         /// Gets the Cells collection of the table.
@@ -300,8 +315,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables
                 _cells = value;
             }
         }
-        [DV]
-        internal Cells _cells;
+
+        [DV] internal Cells _cells;
 
         /// <summary>
         /// Gets or sets a comment associated with this object.
@@ -311,11 +326,13 @@ namespace MigraDocCore.DocumentObjectModel.Tables
             get { return _comment.Value; }
             set { _comment.Value = value; }
         }
-        [DV]
-        internal NString _comment = NString.NullValue;
+
+        [DV] internal NString _comment = NString.NullValue;
+
         #endregion
 
         #region Internal
+
         /// <summary>
         /// Converts Row into DDL.
         /// </summary>
@@ -386,7 +403,9 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get { return _meta ?? (_meta = new Meta(typeof(Row))); }
         }
+
         static Meta _meta;
+
         #endregion
     }
 }

@@ -33,7 +33,6 @@
 using System;
 using System.IO;
 using System.Text;
-using MigraDocCore.DocumentObjectModel;
 
 namespace MigraDocCore.DocumentObjectModel.IO
 {

@@ -33,7 +33,6 @@
 using System;
 using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
 namespace MigraDocCore.DocumentObjectModel.Visitors
 {

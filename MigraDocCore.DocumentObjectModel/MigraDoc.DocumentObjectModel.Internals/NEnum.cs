@@ -31,7 +31,6 @@
 #endregion
 
 using System;
-using System.ComponentModel;
 
 namespace MigraDocCore.DocumentObjectModel.Internals
 {

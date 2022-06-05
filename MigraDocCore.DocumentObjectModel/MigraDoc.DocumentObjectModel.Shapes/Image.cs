@@ -101,6 +101,8 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         [DV]
         internal NString _name = NString.NullValue;
 
+        public IImageSource Source { get; set; }
+
         /// <summary>
         /// Gets or sets the ScaleWidth of the image.
         /// If the Width is set to, the resulting image width is ScaleWidth * Width.
@@ -183,7 +185,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
 
                 if (!Document.IsNull("ImagePath"))
                 {
-                    var foundfile = ImageHelper.GetImageName(filePath, Name, Document.ImagePath);
+                    var foundfile = ImageHelper.GetImageName(filePath, Source.Name, Document.ImagePath);
                     if (foundfile != null)
                         filePath = foundfile;
                     else
@@ -196,7 +198,6 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
             {
                 Debug.Assert(false, "Should never occur with properly formatted Wiki texts. " + ex);
                 return null;
-                //throw;
             }
 
             return filePath;

@@ -30,9 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts

@@ -86,7 +86,7 @@ namespace MigraDocCore.Rendering
             Border border = GetBorder(type);
             if (border != null && border.Style.HasValue)
                 style = border.Style.Value;
-            else if (!_borders.Style.HasValue)
+            else if (_borders.Style.HasValue)
                 style = _borders.Style.Value;
             return style;
         }

@@ -46,7 +46,8 @@ namespace MigraDocCore.Rendering
             : base(gfx, shape, fieldInfos)
         {
             _shape = shape;
-            LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
+            var lf = _shape.LineFormat;
+            //LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
             _lineFormatRenderer = new LineFormatRenderer(lf, gfx);
         }
 
@@ -54,9 +55,11 @@ namespace MigraDocCore.Rendering
             : base(gfx, renderInfo, fieldInfos)
         {
             _shape = (Shape)renderInfo.DocumentObject;
-            LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
+            //LineFormat lf = (LineFormat)_shape.GetValue("LineFormat", GV.ReadOnly);
+            var lf = _shape.LineFormat;
             _lineFormatRenderer = new LineFormatRenderer(lf, gfx);
-            FillFormat ff = (FillFormat)_shape.GetValue("FillFormat", GV.ReadOnly);
+            //FillFormat ff = (FillFormat)_shape.GetValue("FillFormat", GV.ReadOnly);
+            var ff = _shape.FillFormat;
             _fillFormatRenderer = new FillFormatRenderer(ff, gfx);
         }
 

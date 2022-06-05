@@ -31,9 +31,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Globalization;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel
@@ -42,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// Represents one border in a borders collection. The type determines its position in a cell,
     /// paragraph etc.
     /// </summary>
-    public class Border : DocumentObject
+    public class Border : DocumentObject, IBorder
     {
         /// <summary>
         /// Initializes a new instance of the Border class.

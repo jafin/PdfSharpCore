@@ -48,6 +48,6 @@ namespace MigraDocCore.Rendering
         internal XUnit Height;
 
         internal ImageFailure Failure;
-        internal string ImagePath;
+        internal IImageSource ImageSource { get; set; }
     }
 }

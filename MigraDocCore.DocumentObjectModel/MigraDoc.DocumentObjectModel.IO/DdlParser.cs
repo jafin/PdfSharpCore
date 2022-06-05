@@ -31,18 +31,13 @@
 #endregion
 
 using System;
-using System.IO;
-using System.Text;
 using System.Diagnostics;
-using System.Collections;
 using System.Globalization;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
-using MigraDocCore.DocumentObjectModel.Fields;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 
 namespace MigraDocCore.DocumentObjectModel.IO
@@ -489,7 +484,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
                         break;
 
                     case Symbol.Image:
-                        ParseImage(elements.AddImage(""), false);
+                        ParseImage(elements.AddImage(ImageSource.FromFile("")), false);
                         break;
 
                     case Symbol.Chart:
@@ -656,7 +651,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
                         break;
 
                     case Symbol.Image:
-                        ParseImage(elements.AddImage(""), true);
+                        ParseImage(elements.AddImage(ImageSource.FromFile("")), true);
                         ReadText(rootLevel);
                         break;
 
@@ -1284,7 +1279,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
                 ReadCode();
 
                 if (_scanner.Symbol == Symbol.ParenLeft)
-                    image.Name = ParseElementName();
+                    image.Source = ImageSource.FromFile(ParseElementName());
 
                 if (_scanner.PeekSymbol() == Symbol.BracketLeft)
                 {

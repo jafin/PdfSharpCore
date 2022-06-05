@@ -1,4 +1,5 @@
 #region MigraDoc - Creating Documents on the Fly
+
 //
 // Authors:
 //   Klaus Potzesny
@@ -26,6 +27,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
@@ -141,9 +143,9 @@ namespace MigraDocCore.Rendering
             Border secondaryBorder = (Border)cell.Borders.GetValue(secondaryBorderType.ToString(), GV.ReadWrite);
 
             Border source = primaryBorder.Visible ?? false ? primaryBorder
-                : secondaryBorder.Visible?? false  ? secondaryBorder : null;
-            Border target = primaryBorder.Visible?? false ? secondaryBorder
-                : secondaryBorder.Visible?? false ? primaryBorder : null;
+                : secondaryBorder.Visible ?? false ? secondaryBorder : null;
+            Border target = primaryBorder.Visible ?? false ? secondaryBorder
+                : secondaryBorder.Visible ?? false ? primaryBorder : null;
 
             if (source == null || target == null)
                 return;
@@ -175,13 +177,17 @@ namespace MigraDocCore.Rendering
             XUnit rightWidth = bordersRenderer.GetWidth(BorderType.Right);
 
             if (cell.RoundedCorner == RoundedCorner.TopLeft)
-                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X, innerRect.Y, innerRect.Width + rightWidth, innerRect.Height + bottomWidth);
+                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X, innerRect.Y, innerRect.Width + rightWidth,
+                    innerRect.Height + bottomWidth);
             else if (cell.RoundedCorner == RoundedCorner.TopRight)
-                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X - leftWidth, innerRect.Y, innerRect.Width + leftWidth, innerRect.Height + bottomWidth);
+                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X - leftWidth, innerRect.Y, innerRect.Width + leftWidth,
+                    innerRect.Height + bottomWidth);
             else if (cell.RoundedCorner == RoundedCorner.BottomLeft)
-                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X, innerRect.Y - topWidth, innerRect.Width + rightWidth, innerRect.Height + topWidth);
+                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X, innerRect.Y - topWidth, innerRect.Width + rightWidth,
+                    innerRect.Height + topWidth);
             else if (cell.RoundedCorner == RoundedCorner.BottomRight)
-                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X - leftWidth, innerRect.Y - topWidth, innerRect.Width + leftWidth, innerRect.Height + topWidth);
+                bordersRenderer.RenderRounded(cell.RoundedCorner, innerRect.X - leftWidth, innerRect.Y - topWidth, innerRect.Width + leftWidth,
+                    innerRect.Height + topWidth);
 
             // Render horizontal and vertical borders only if touching no rounded corner.
             if (cell.RoundedCorner != RoundedCorner.TopRight && cell.RoundedCorner != RoundedCorner.BottomRight)
@@ -191,10 +197,12 @@ namespace MigraDocCore.Rendering
                 bordersRenderer.RenderVertically(BorderType.Left, leftPos - leftWidth, topPos, bottomPos + bottomWidth - topPos);
 
             if (cell.RoundedCorner != RoundedCorner.BottomLeft && cell.RoundedCorner != RoundedCorner.BottomRight)
-                bordersRenderer.RenderHorizontally(BorderType.Bottom, leftPos - leftWidth, bottomPos, rightPos + rightWidth + leftWidth - leftPos);
+                bordersRenderer.RenderHorizontally(BorderType.Bottom, leftPos - leftWidth, bottomPos,
+                    rightPos + rightWidth + leftWidth - leftPos);
 
             if (cell.RoundedCorner != RoundedCorner.TopLeft && cell.RoundedCorner != RoundedCorner.TopRight)
-                bordersRenderer.RenderHorizontally(BorderType.Top, leftPos - leftWidth, topPos - topWidth, rightPos + rightWidth + leftWidth - leftPos);
+                bordersRenderer.RenderHorizontally(BorderType.Top, leftPos - leftWidth, topPos - topWidth,
+                    rightPos + rightWidth + leftWidth - leftPos);
 
             RenderDiagonalBorders(mergedBorders, innerRect);
         }
@@ -280,6 +288,7 @@ namespace MigraDocCore.Rendering
             {
                 x += _table.Columns[clmIdx].Width;
             }
+
             x += LeftBorderOffset;
 
             return new Rectangle(x, y, width, height);
@@ -315,8 +324,8 @@ namespace MigraDocCore.Rendering
             // Equalize the two borders, that are used to determine a rounded corner's border.
             // This way the innerWidth of the cell, which is got by the saved _formattedCells, is the same regardless of which corner relevant border is set.
             foreach (Row row in _table.Rows)
-                foreach (Cell cell in row.Cells)
-                    EqualizeRoundedCornerBorders(cell);
+            foreach (Cell cell in row.Cells)
+                EqualizeRoundedCornerBorders(cell);
 
             _renderInfo = tblRenderInfo;
 
@@ -341,8 +350,10 @@ namespace MigraDocCore.Rendering
                     CalcLastHeaderColumn();
                     CreateConnectedColumns();
                 }
+
                 _startRow = _lastHeaderRow + 1;
             }
+
             ((TableFormatInfo)tblRenderInfo.FormatInfo).MergedCells = _mergedCells;
             ((TableFormatInfo)tblRenderInfo.FormatInfo).FormattedCells = _formattedCells;
             ((TableFormatInfo)tblRenderInfo.FormatInfo).BottomBorderMap = _bottomBorderMap;
@@ -356,7 +367,7 @@ namespace MigraDocCore.Rendering
             foreach (Cell cell in _mergedCells)
             {
                 FormattedCell formattedCell = new FormattedCell(cell, _documentRenderer, _mergedCells.GetEffectiveBorders(cell),
-                                                                _fieldInfos, 0, 0);
+                    _fieldInfos, 0, 0);
                 formattedCell.Format(_gfx);
                 _formattedCells.Add(cell, formattedCell);
             }
@@ -415,6 +426,7 @@ namespace MigraDocCore.Rendering
                         isEmpty = true;
                         break;
                     }
+
                     startingHeight = probeHeight;
                 }
 
@@ -428,6 +440,7 @@ namespace MigraDocCore.Rendering
                     ++probeRow;
                 }
             }
+
             if (!isEmpty)
             {
                 TableFormatInfo formatInfo = (TableFormatInfo)_renderInfo.FormatInfo;
@@ -437,6 +450,7 @@ namespace MigraDocCore.Rendering
 
                 UpdateThisPagesBookmarks(_startRow, _currRow);
             }
+
             FinishLayoutInfo(area, currentHeight, startingHeight);
         }
 
@@ -472,8 +486,10 @@ namespace MigraDocCore.Rendering
                 {
                     width += clm.Width;
                 }
+
                 layoutInfo.ContentArea.Width = width;
             }
+
             layoutInfo.MinWidth = layoutInfo.ContentArea.Width;
 
             if (!_table.Rows.LeftIndent.IsNull)
@@ -517,6 +533,7 @@ namespace MigraDocCore.Rendering
                     else
                         _leftBorderOffset = 0;
                 }
+
                 return _leftBorderOffset;
             }
         }
@@ -554,6 +571,7 @@ namespace MigraDocCore.Rendering
                     _lastHeaderColumn = clm.Index;
                 else break;
             }
+
             if (_lastHeaderColumn >= 0)
                 _lastHeaderRow = CalcLastConnectedColumn(_lastHeaderColumn);
 
@@ -571,6 +589,7 @@ namespace MigraDocCore.Rendering
                     _lastHeaderRow = row.Index;
                 else break;
             }
+
             if (_lastHeaderRow >= 0)
                 _lastHeaderRow = CalcLastConnectedRow(_lastHeaderRow);
 
@@ -607,7 +626,7 @@ namespace MigraDocCore.Rendering
 
         private void CreateBottomBorderMap()
         {
-            _bottomBorderMap = new Dictionary<int, XUnit>(); //new SortedList();
+            _bottomBorderMap = new Dictionary<int, XUnit>(_table.Rows.Count); //new SortedList();
             _bottomBorderMap.Add(0, XUnit.FromPoint(0));
             while (!_bottomBorderMap.ContainsKey(_table.Rows.Count))
             {
@@ -639,9 +658,11 @@ namespace MigraDocCore.Rendering
                         if (width > maxWidth)
                             maxWidth = width;
                     }
+
                     ++cellIdx;
                 }
             }
+
             return maxWidth;
         }
 
@@ -663,6 +684,7 @@ namespace MigraDocCore.Rendering
                 if (key > lastBorderRow)
                     lastBorderRow = key;
             }
+
             XUnit lastPos = _bottomBorderMap[lastBorderRow];
             Cell minMergedCell = GetMinMergedCell(lastBorderRow);
             FormattedCell minMergedFormattedCell = (FormattedCell)this._formattedCells[minMergedCell];
@@ -689,6 +711,7 @@ namespace MigraDocCore.Rendering
                         maxBottomBorderPosition = bottomBorderPos;
                 }
             }
+
             this._bottomBorderMap.Add(mergedIndexPlusDown + 1, maxBottomBorderPosition);
         }
 
@@ -705,6 +728,7 @@ namespace MigraDocCore.Rendering
                 BordersRenderer bordersRenderer = new BordersRenderer(borders, _gfx);
                 return bordersRenderer.GetWidth(BorderType.Bottom);
             }
+
             return 0;
         }
 
@@ -721,26 +745,27 @@ namespace MigraDocCore.Rendering
             Cell minCell = null;
             foreach (Cell cell in _mergedCells)
             {
-        var rowIndex = cell.Row.Index; // Note: Taking index only once speeds up large tables.
-        if (rowIndex <= row && rowIndex + cell.MergeDown >= row)
-        {
-          if (rowIndex == row && cell.MergeDown == 0)
-          {
-            // Perfect match: non-merged cell in the desired row.
-            minCell = cell;
-            break;
-          }
-          else if (rowIndex + cell.MergeDown - row < minMerge)
-          {
-            minMerge = rowIndex + cell.MergeDown - row;
-            minCell = cell;
-          }
+                var rowIndex = cell.Row.Index; // Note: Taking index only once speeds up large tables.
+                if (rowIndex <= row && rowIndex + cell.MergeDown >= row)
+                {
+                    if (rowIndex == row && cell.MergeDown == 0)
+                    {
+                        // Perfect match: non-merged cell in the desired row.
+                        minCell = cell;
+                        break;
+                    }
+                    else if (rowIndex + cell.MergeDown - row < minMerge)
+                    {
+                        minMerge = rowIndex + cell.MergeDown - row;
+                        minCell = cell;
+                    }
+                }
+                else if (rowIndex > row)
+                    break;
+            }
+
+            return minCell;
         }
-        else if (rowIndex > row)
-          break;
-      }
-      return minCell;
-    }
 
 
         /// <summary>
@@ -753,16 +778,17 @@ namespace MigraDocCore.Rendering
             int lastConnectedRow = row;
             foreach (Cell cell in _mergedCells)
             {
-        var index = cell.Row.Index; // Note: Caching index here for speedup for large tables.
-        if (index <= lastConnectedRow)
-        {
-          int downConnection = Math.Max(cell.Row.KeepWith, cell.MergeDown);
-          if (lastConnectedRow < index + downConnection)
-            lastConnectedRow = index + downConnection;
+                var index = cell.Row.Index; // Note: Caching index here for speedup for large tables.
+                if (index <= lastConnectedRow)
+                {
+                    int downConnection = Math.Max(cell.Row.KeepWith, cell.MergeDown);
+                    if (lastConnectedRow < index + downConnection)
+                        lastConnectedRow = index + downConnection;
+                }
+            }
+
+            return lastConnectedRow;
         }
-      }
-      return lastConnectedRow;
-    }
 
         /// <summary>
         ///   Calculates the last column that is connected with the specified column.
@@ -781,6 +807,7 @@ namespace MigraDocCore.Rendering
                         lastConnectedColumn = cell.Column.Index + rightConnection;
                 }
             }
+
             return lastConnectedColumn;
         }
 

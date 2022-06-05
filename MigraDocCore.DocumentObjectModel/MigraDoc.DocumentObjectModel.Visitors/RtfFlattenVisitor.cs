@@ -30,14 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.IO;
-using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.Shapes.Charts;
-
 namespace MigraDocCore.DocumentObjectModel.Visitors
 {
   /// <summary>

@@ -12,7 +12,6 @@ namespace PdfSharpCore.Utils
 {
     public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanaged, IPixel<TPixel>
     {
-
         public static IImageSource FromImageSharpImage(Image<TPixel> image, IImageFormat imgFormat, int? quality = 75)
         {
             var _path = "*" + Guid.NewGuid().ToString("B");

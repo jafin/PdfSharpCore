@@ -169,7 +169,7 @@ namespace PdfSharpCore.Drawing
 
             if (PdfReader.TestPdfFile(path) > 0)
                 return true;
-            return false;
+            return File.Exists(path);
         }
 
         internal XImageState XImageState

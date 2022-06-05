@@ -31,11 +31,7 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes
 {

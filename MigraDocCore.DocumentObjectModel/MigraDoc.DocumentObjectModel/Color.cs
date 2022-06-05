@@ -32,12 +32,9 @@
 
 using System;
 using System.Diagnostics;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
 namespace MigraDocCore.DocumentObjectModel
 {

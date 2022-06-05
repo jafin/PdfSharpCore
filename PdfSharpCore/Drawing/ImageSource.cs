@@ -1,21 +1,19 @@
 ﻿
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using PdfSharpCore.Utils;
+using SixLabors.ImageSharp.PixelFormats;
 
 
 namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes
 {
-
-
     public abstract class ImageSource
     {
         /// <summary>
         /// Gets or sets the image source implementation to use for reading images.
         /// </summary>
         /// <value>The image source impl.</value>
-        public static ImageSource ImageSourceImpl { get; set; }
+        public static ImageSource ImageSourceImpl { get; set; } = new ImageSharpImageSource<Rgba32>();
 
         public interface IImageSource
         {

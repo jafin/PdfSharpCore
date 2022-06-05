@@ -36,7 +36,6 @@ using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocImage = MigraDocCore.DocumentObjectModel.Shapes.Image;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel
@@ -171,12 +170,14 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Adds a new image to the collection.
         /// </summary>
-        public Image AddImage(string name)
+        public MigraDocImage AddImage(IImageSource image)
         {
-            Image image = new Image();
-            image.Name = name;
-            Add(image);
-            return image;
+            MigraDocImage img = new MigraDocImage()
+            {
+                Source = image,                
+            };
+            Add(img);
+            return img;
         }
 
         /// <summary>

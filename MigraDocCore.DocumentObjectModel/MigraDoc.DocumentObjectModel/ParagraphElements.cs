@@ -31,15 +31,9 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Fields;
-using MigraDocCore.DocumentObjectModel.Shapes;
-using System.IO;
-using MigraDocCore.DocumentObjectModel;
 using MigraDocImage = MigraDocCore.DocumentObjectModel.Shapes.Image;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel
@@ -482,10 +476,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Adds a new Image.
         /// </summary>
-        public Image AddImage(string name)
+        public MigraDocImage AddImage(IImageSource source)
         {
-            Image image = new Image();
-            image.Name = name;
+            var image = new MigraDocImage
+            {
+                Source = source
+            };
             Add(image);
             return image;
         }

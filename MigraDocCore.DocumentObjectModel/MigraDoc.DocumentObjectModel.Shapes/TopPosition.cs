@@ -32,7 +32,6 @@
 
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes
 {

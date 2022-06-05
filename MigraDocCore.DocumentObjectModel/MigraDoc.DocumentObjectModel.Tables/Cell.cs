@@ -31,14 +31,10 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel.Tables
@@ -146,9 +142,9 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// <summary>
         /// Adds a new Image to the cell.
         /// </summary>
-        public Image AddImage(string fileName)
+        public Image AddImage(IImageSource imageSource)
         {
-            return Elements.AddImage(fileName);
+            return Elements.AddImage(imageSource);
         }
 
         /// <summary>

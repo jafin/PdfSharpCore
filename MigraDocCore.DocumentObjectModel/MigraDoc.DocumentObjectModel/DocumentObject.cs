@@ -106,8 +106,7 @@ namespace MigraDocCore.DocumentObjectModel
                 if (_document != null)
                     return _document;
                 DocumentObject doc = Parent;
-                Document document = doc as Document;
-                if (document != null)
+                if (doc is Document document)
                     return _document = document;
                 // Call document at the parent - recursive call instead of while loop - and all parent objects will also update their _document fields.
                 // Next call to Document from a sibbling will succeed without climbing all the way up.

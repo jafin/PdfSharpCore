@@ -30,15 +30,10 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.IO;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel
@@ -125,9 +120,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Adds a new image to the footnote.
         /// </summary>
-        public Image AddImage(string name)
+        public Image AddImage(IImageSource imageSource)
         {
-            return Elements.AddImage(name);
+            return this.Elements.AddImage(imageSource);
         }
 
         /// <summary>

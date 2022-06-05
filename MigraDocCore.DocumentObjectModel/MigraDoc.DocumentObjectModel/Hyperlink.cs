@@ -31,16 +31,11 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
-using DomSR = MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources.DomSR;
 
 namespace MigraDocCore.DocumentObjectModel
 {
@@ -329,9 +324,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Adds a new Image object
         /// </summary>
-        public Image AddImage(string fileName)
+        public Image AddImage(IImageSource imageSource)
         {
-            return Elements.AddImage(fileName);
+            return this.Elements.AddImage(imageSource);
         }
         /// <summary>
         /// Adds a new Bookmark
