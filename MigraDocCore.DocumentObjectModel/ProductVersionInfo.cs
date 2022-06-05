@@ -1,6 +1,6 @@
 #region MigraDoc - Creating Documents on the Fly
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharp.com
 // http://www.migradoc.com
@@ -25,12 +25,12 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDoc
+namespace MigraDocCore
 {
   /// <summary>
   /// Base namespace of MigraDoc. Classes are implemented in nested namespaces like e. g. MigraDoc.DocumentObjectModel.
   /// </summary>
-  /// <seealso cref="MigraDoc.DocumentObjectModel"></seealso>
+  /// <seealso cref="MigraDocCore.DocumentObjectModel"></seealso>
   [System.Runtime.CompilerServices.CompilerGenerated]
   internal class NamespaceDoc { }
 

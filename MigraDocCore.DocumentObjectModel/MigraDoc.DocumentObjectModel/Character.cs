@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -67,12 +67,11 @@ namespace MigraDocCore.DocumentObjectModel
     public static readonly Character NonBreakableBlank = new Character(SymbolName.NonBreakableBlank);
     public static readonly Character HardBlank = new Character(SymbolName.HardBlank);
 
-    /// <summary>
-    /// Initializes a new instance of the Character class.
-    /// </summary>
-    public Character()
-    {
-    }
+        /// <summary>
+        /// Initializes a new instance of the Character class.
+        /// </summary>
+        public Character()
+        { }
 
     /// <summary>
     /// Initializes a new instance of the Character class with the specified parent.
@@ -87,8 +86,8 @@ namespace MigraDocCore.DocumentObjectModel
     {
       //DaSt: uint wird nicht akzeptiert, muss auf int casten
       //SetValue("SymbolName", (int)(uint)name);
-      this.symbolName.Value = (int)name;
-    }
+            _symbolName.Value = (int)name;
+        }
 
     #region Properties
     /// <summary>
@@ -96,11 +95,11 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public SymbolName SymbolName
     {
-      get { return (SymbolName)this.symbolName.Value; }
-      set { this.symbolName.Value = (int)value; }
-    }
+            get { return (SymbolName)_symbolName.Value; }
+            set { _symbolName.Value = (int)value; }
+        }
     [DV(Type = typeof(SymbolName))]
-    internal NEnum symbolName = NEnum.NullValue(typeof(SymbolName));
+        internal NEnum _symbolName = NEnum.NullValue(typeof(SymbolName));
 
     /// <summary>
     /// Gets or sets the SymbolName as character. Returns 0 if the type is defined via an enum.
@@ -109,24 +108,23 @@ namespace MigraDocCore.DocumentObjectModel
     {
       get
       {
-        if (((uint)symbolName.Value & 0xF0000000) == 0)
-          return (char)symbolName.Value;
-        else
-          return '\0';
-      }
-      set { this.symbolName.Value = (int)value; }
-    }
+                if (((uint)_symbolName.Value & 0xF0000000) == 0)
+                    return (char)_symbolName.Value;
+                return '\0';
+            }
+            set { _symbolName.Value = value; }
+        }
 
     /// <summary>
     /// Gets or sets the number of times the character is repeated.
     /// </summary>
     public int Count
     {
-      get { return this.count.Value; }
-      set { this.count.Value = value; }
+            get { return _count.Value; }
+            set { _count.Value = value; }
     }
     [DV]
-    internal NInt count = new NInt(1);
+        internal NInt _count = new NInt(1);
     #endregion
 
     #region Internal
@@ -136,13 +134,13 @@ namespace MigraDocCore.DocumentObjectModel
     internal override void Serialize(Serializer serializer)
     {
       string text = String.Empty;
-      if (count == 1)
-      {
-        if ((SymbolName)symbolName.Value == SymbolName.Tab)
-          text = "\\tab ";
-        else if ((SymbolName)symbolName.Value == SymbolName.LineBreak)
-          text = "\\linebreak\x0D\x0A";
-        else if ((SymbolName)symbolName.Value == SymbolName.ParaBreak)
+            if (_count == 1)
+            {
+                if ((SymbolName)_symbolName.Value == SymbolName.Tab)
+                    text = "\\tab ";
+                else if ((SymbolName)_symbolName.Value == SymbolName.LineBreak)
+                    text = "\\linebreak\x0D\x0A";
+                else if ((SymbolName)_symbolName.Value == SymbolName.ParaBreak)
           text = "\x0D\x0A\x0D\x0A";
         //else if (symbolType == SymbolName.MarginBreak)
         //  text = "\\marginbreak ";
@@ -154,12 +152,12 @@ namespace MigraDocCore.DocumentObjectModel
         }
       }
 
-      if (((uint)symbolName.Value & 0xF0000000) == 0xF0000000)
-      {
-        // SymbolName == SpaceType?
-        if (((uint)symbolName.Value & 0xF1000000) == 0xF1000000)
-        {
-          if ((SymbolName)symbolName.Value == SymbolName.Blank)
+            if (((uint)_symbolName.Value & 0xF0000000) == 0xF0000000)
+            {
+                // SymbolName == SpaceType?
+                if (((uint)_symbolName.Value & 0xF1000000) == 0xF1000000)
+                {
+                    if ((SymbolName)_symbolName.Value == SymbolName.Blank)
           {
             //Note: Don't try to optimize it by leaving away the braces in case a single space is added.
             //This would lead to confusion with '(' in directly following text.
@@ -167,7 +165,7 @@ namespace MigraDocCore.DocumentObjectModel
           }
           else
           {
-            if (count == 1)
+                        if (_count == 1)
               text = "\\space(" + SymbolName + ")";
             else
               text = "\\space(" + SymbolName + ", " + Count + ")";
@@ -181,7 +179,7 @@ namespace MigraDocCore.DocumentObjectModel
       else
       {
         // symbolType is a (unicode) character
-        text = " \\chr(0x" + ((int)symbolName.Value).ToString("X") + ")";
+                text = " \\chr(0x" + _symbolName.Value.ToString("X") + ")";
       }
 
       serializer.Write(text);
@@ -191,15 +189,10 @@ namespace MigraDocCore.DocumentObjectModel
     /// Returns the meta object of this instance.
     /// </summary>
     internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Character));
-        return meta;
-      }
-    }
-    static Meta meta;
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Character))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

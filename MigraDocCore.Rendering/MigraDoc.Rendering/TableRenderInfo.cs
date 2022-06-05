@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -37,22 +37,29 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Rendering information for tables.
   /// </summary>
-  internal class TableRenderInfo : RenderInfo
+    public class TableRenderInfo : RenderInfo
   {
-    internal TableRenderInfo()
-    {
-    }
+        internal TableRenderInfo()
+        { }
 
-    internal override FormatInfo FormatInfo
-    {
-      get { return this.formatInfo; }
-    }
-    private TableFormatInfo formatInfo = new TableFormatInfo();
+        /// <summary>
+        /// Gets the format information in a specific derived type. For a table, for example, this will be a TableFormatInfo with information about the first and last row showing on a page.
+        /// </summary>
+        public override FormatInfo FormatInfo
+        {
+            get { return _formatInfo; }
+            internal set { _formatInfo = (TableFormatInfo)value; }
+        }
+        TableFormatInfo _formatInfo = new TableFormatInfo();
 
-    internal override DocumentObject DocumentObject
-    {
-      get { return this.table; }
+        /// <summary>
+        /// Gets the document object to which the layout information applies. Use the Tag property of DocumentObject to identify an object.
+        /// </summary>
+        public override DocumentObject DocumentObject
+        {
+            get { return _table; }
+            internal set { _table = (Table)value; }
+        }
+        Table _table;
     }
-    internal Table table;
-  }
 }

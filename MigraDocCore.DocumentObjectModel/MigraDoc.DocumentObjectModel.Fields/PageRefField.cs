@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -79,42 +79,37 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     /// </summary>
     public string Name
     {
-      get { return this.name.Value; }
-      set { this.name.Value = value; }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
+            get { return _name.Value; }
+            set { _name.Value = value; }
+        }
+        [DV]
+        internal NString _name = NString.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts PageRefField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string str = "\\field(PageRef)";
-      str += "[Name = \"" + this.Name + "\"";
+        #region Internal
+        /// <summary>
+        /// Converts PageRefField into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            string str = "\\field(PageRef)";
+            str += "[Name = \"" + Name + "\"";
 
-      if (this.format.Value != "")
-        str += " Format = \"" + this.Format + "\"";
-      str += "]";
+            if (_format.Value != "")
+                str += " Format = \"" + Format + "\"";
+            str += "]";
 
-      serializer.Write(str);
-    }
+            serializer.Write(str);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(PageRefField));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(PageRefField))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

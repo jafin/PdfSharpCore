@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -30,38 +30,48 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.DocumentObjectModel
 {
-  /// <summary>
-  /// Specifies the target of the hyperlink.
-  /// </summary>
-  public enum HyperlinkType
-  {
     /// <summary>
-    /// Targets a position in the document. Same as 'Bookmark'.
+    /// Specifies the target of the hyperlink.
     /// </summary>
-    Local = 0,
+    public enum HyperlinkType
+    {
+        /// <summary>
+        /// Targets a position in the document. Same as 'Bookmark'.
+        /// </summary>
+        Local = 0,
 
-    /// <summary>
-    /// Targets a position in the document. Same as 'Local'.
-    /// </summary>
-    Bookmark = Local,
+        /// <summary>
+        /// Targets a position in the document. Same as 'Local'.
+        /// </summary>
+        Bookmark = Local,
 
-    /// <summary>
-    /// Targets a resource on the Internet or network. Same as 'Url'.
-    /// </summary>
-    Web,
+        /// <summary>
+        /// Targets a position in another PDF document.
+        /// This is only supported in PDF. In RTF the other document is opened, but the target position is not moved to.
+        /// </summary>
+        ExternalBookmark,
 
-    /// <summary>
-    /// Targets a resource on the Internet or network. Same as 'Web'.
-    /// </summary>
-    Url = Web,
+        /// <summary>
+        /// Targets a position in an embedded document in this or another root PDF document.
+        /// This is only supported in PDF.
+        /// </summary>
+        EmbeddedDocument,
 
-    /// <summary>
-    /// Targets a physical file.
-    /// </summary>
-    File
-  }
+        /// <summary>
+        /// Targets a resource on the Internet or network. Same as 'Url'.
+        /// </summary>
+        Web,
+
+        /// <summary>
+        /// Targets a resource on the Internet or network. Same as 'Web'.
+        /// </summary>
+        Url = Web,
+
+        /// <summary>
+        /// Targets a physical file.
+        /// </summary>
+        File
+    }
 }

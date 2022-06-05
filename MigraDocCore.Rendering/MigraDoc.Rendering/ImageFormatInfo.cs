@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -38,12 +38,8 @@ namespace MigraDocCore.Rendering
     /// <summary>
     /// Formatting information for an image.
     /// </summary>
-    internal class ImageFormatInfo : ShapeFormatInfo
+    internal sealed class ImageFormatInfo : ShapeFormatInfo
     {
-        internal ImageFormatInfo()
-        {
-        }
-
         internal int CropX;
         internal int CropY;
         internal int CropWidth;
@@ -51,12 +47,7 @@ namespace MigraDocCore.Rendering
         internal XUnit Width;
         internal XUnit Height;
 
-        internal ImageFailure Failure
-        {
-            get;
-            set;
-        }
-
-        internal IImageSource ImageSource { get; set; }
+        internal ImageFailure Failure;
+        internal string ImagePath;
     }
 }

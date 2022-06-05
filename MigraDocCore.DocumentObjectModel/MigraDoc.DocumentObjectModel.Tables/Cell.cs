@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -52,8 +52,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// Initializes a new instance of the Cell class.
         /// </summary>
         public Cell()
-        {
-        }
+        { }
 
         /// <summary>
         /// Initializes a new instance of the Cell class with the specified parent.
@@ -75,25 +74,28 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         protected override object DeepCopy()
         {
             Cell cell = (Cell)base.DeepCopy();
-            if (cell.format != null)
+            // Remove all references to the original object hierarchy.
+            cell.ResetCachedValues();
+            // TODO Call ResetCachedValues() for all classes where this is needed!
+            if (cell._format != null)
             {
-                cell.format = cell.format.Clone();
-                cell.format.parent = cell;
+                cell._format = cell._format.Clone();
+                cell._format._parent = cell;
             }
-            if (cell.borders != null)
+            if (cell._borders != null)
             {
-                cell.borders = cell.borders.Clone();
-                cell.borders.parent = cell;
+                cell._borders = cell._borders.Clone();
+                cell._borders._parent = cell;
             }
-            if (cell.shading != null)
+            if (cell._shading != null)
             {
-                cell.shading = cell.shading.Clone();
-                cell.shading.parent = cell;
+                cell._shading = cell._shading.Clone();
+                cell._shading._parent = cell;
             }
-            if (cell.elements != null)
+            if (cell._elements != null)
             {
-                cell.elements = cell.elements.Clone();
-                cell.elements.parent = cell;
+                cell._elements = cell._elements.Clone();
+                cell._elements._parent = cell;
             }
             return cell;
         }
@@ -103,8 +105,10 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         internal override void ResetCachedValues()
         {
-            this.row = null;
-            this.clm = null;
+            base.ResetCachedValues();
+            _row = null;
+            _clm = null;
+            _table = null;
         }
 
         /// <summary>
@@ -112,7 +116,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public Paragraph AddParagraph()
         {
-            return this.Elements.AddParagraph();
+            return Elements.AddParagraph();
         }
 
         /// <summary>
@@ -120,7 +124,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public Paragraph AddParagraph(string paragraphText)
         {
-            return this.Elements.AddParagraph(paragraphText);
+            return Elements.AddParagraph(paragraphText);
         }
 
         /// <summary>
@@ -128,7 +132,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public Chart AddChart(ChartType type)
         {
-            return this.Elements.AddChart(type);
+            return Elements.AddChart(type);
         }
 
         /// <summary>
@@ -136,15 +140,15 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public Chart AddChart()
         {
-            return this.Elements.AddChart();
+            return Elements.AddChart();
         }
 
         /// <summary>
         /// Adds a new Image to the cell.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        public Image AddImage(string fileName)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddImage(fileName);
         }
 
         /// <summary>
@@ -152,7 +156,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public TextFrame AddTextFrame()
         {
-            return this.Elements.AddTextFrame();
+            return Elements.AddTextFrame();
         }
 
         /// <summary>
@@ -160,7 +164,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public void Add(Paragraph paragraph)
         {
-            this.Elements.Add(paragraph);
+            Elements.Add(paragraph);
         }
 
         /// <summary>
@@ -168,7 +172,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public void Add(Chart chart)
         {
-            this.Elements.Add(chart);
+            Elements.Add(chart);
         }
 
         /// <summary>
@@ -176,7 +180,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
 
         /// <summary>
@@ -184,7 +188,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         public void Add(TextFrame textFrame)
         {
-            this.Elements.Add(textFrame);
+            Elements.Add(textFrame);
         }
         #endregion
 
@@ -196,16 +200,16 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get
             {
-                if (this.table == null)
+                if (_table == null)
                 {
-                    Cells cls = this.Parent as Cells;
+                    Cells cls = Parent as Cells;
                     if (cls != null)
-                        this.table = cls.Table;
+                        _table = cls.Table;
                 }
-                return this.table;
+                return _table;
             }
         }
-        Table table;
+        Table _table;
 
         /// <summary>
         /// Gets the column the cell belongs to.
@@ -214,19 +218,19 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get
             {
-                if (this.clm == null)
+                if (_clm == null)
                 {
-                    Cells cells = this.Parent as Cells;
+                    Cells cells = Parent as Cells;
                     for (int index = 0; index < cells.Count; ++index)
                     {
                         if (cells[index] == this)
-                            this.clm = this.Table.Columns[index];
+                            _clm = Table.Columns[index];
                     }
                 }
-                return this.clm;
+                return _clm;
             }
         }
-        Column clm;
+        Column _clm;
 
         /// <summary>
         /// Gets the row the cell belongs to.
@@ -235,58 +239,52 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get
             {
-                if (this.row == null)
+                if (_row == null)
                 {
-                    Cells cells = this.Parent as Cells;
-                    this.row = cells.Row;
+                    Cells cells = Parent as Cells;
+                    _row = cells.Row;
                 }
-                return this.row;
+                return _row;
             }
         }
-        Row row;
+        Row _row;
 
         /// <summary>
         /// Sets or gets the style name.
         /// </summary>
         public string Style
         {
-            get { return this.style.Value; }
-            set { this.style.Value = value; }
+            get { return _style.Value; }
+            set { _style.Value = value; }
         }
         [DV]
-        internal NString style = NString.NullValue;
+        internal NString _style = NString.NullValue;
 
         /// <summary>
         /// Gets the ParagraphFormat object of the paragraph.
         /// </summary>
         public ParagraphFormat Format
         {
-            get
-            {
-                if (this.format == null)
-                    this.format = new ParagraphFormat(this);
-
-                return this.format;
-            }
+            get { return _format ?? (_format = new ParagraphFormat(this)); }
             set
             {
                 SetParent(value);
-                this.format = value;
+                _format = value;
             }
         }
         [DV]
-        internal ParagraphFormat format;
+        internal ParagraphFormat _format;
 
         /// <summary>
         /// Gets or sets the vertical alignment of the cell.
         /// </summary>
         public VerticalAlignment VerticalAlignment
         {
-            get { return (VerticalAlignment)this.verticalAlignment.Value; }
-            set { this.verticalAlignment.Value = (int)value; }
+            get { return (VerticalAlignment)_verticalAlignment.Value; }
+            set { _verticalAlignment.Value = (int)value; }
         }
         [DV(Type = typeof(VerticalAlignment))]
-        internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+        internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
 
         /// <summary>
         /// Gets the Borders object.
@@ -295,97 +293,99 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         {
             get
             {
-                if (this.borders == null)
+                if (_borders == null)
                 {
-                    if (this.Document == null) // BUG CMYK
+                    if (Document == null) // BUG CMYK
                         GetType();
-                    this.borders = new Borders(this);
+                    _borders = new Borders(this);
                 }
-                return this.borders;
+                return _borders;
             }
             set
             {
                 SetParent(value);
-                this.borders = value;
+                _borders = value;
             }
         }
         [DV]
-        internal Borders borders;
+        internal Borders _borders;
 
         /// <summary>
         /// Gets the shading object.
         /// </summary>
         public Shading Shading
         {
-            get
-            {
-                if (this.shading == null)
-                    this.shading = new Shading(this);
-
-                return this.shading;
-            }
+            get { return _shading ?? (_shading = new Shading(this)); }
             set
             {
                 SetParent(value);
-                this.shading = value;
+                _shading = value;
             }
         }
         [DV]
-        internal Shading shading;
+        internal Shading _shading;
+
+        /// <summary>
+        /// Specifies if the Cell should be rendered as a rounded corner.
+        /// </summary>
+        public RoundedCorner RoundedCorner
+        {
+            get { return _roundedCorner; }
+            set
+            {
+                _roundedCorner = value;
+            }
+        }
+        [DV]
+        internal RoundedCorner _roundedCorner;
 
         /// <summary>
         /// Gets or sets the number of cells to be merged right.
         /// </summary>
         public int MergeRight
         {
-            get { return this.mergeRight ?? 0; }
-            set { this.mergeRight = value; }
+            get { return _mergeRight.Value; }
+            set { _mergeRight.Value = value; }
         }
         [DV]
-        internal int? mergeRight;
+        internal NInt _mergeRight = NInt.NullValue;
 
         /// <summary>
         /// Gets or sets the number of cells to be merged down.
         /// </summary>
         public int MergeDown
         {
-            get { return this.mergeDown ?? 0; }
-            set { this.mergeDown = value; }
+            get { return _mergeDown.Value; }
+            set { _mergeDown.Value = value; }
         }
         [DV]
-        internal int? mergeDown;
+        internal NInt _mergeDown = NInt.NullValue;
 
         /// <summary>
         /// Gets the collection of document objects that defines the cell.
         /// </summary>
         public DocumentElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new DocumentElements(this);
-
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV(ItemType = typeof(DocumentObject))]
-        internal DocumentElements elements;
+        internal DocumentElements _elements;
 
         /// <summary>
         /// Gets or sets a comment associated with this object.
         /// </summary>
         public string Comment
         {
-            get { return this.comment.Value; }
-            set { this.comment.Value = value; }
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
         }
         [DV]
-        internal NString comment = NString.NullValue;
+        internal NString _comment = NString.NullValue;
         #endregion
 
         #region Internal
@@ -394,49 +394,52 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         internal override void Serialize(Serializer serializer)
         {
-            serializer.WriteComment(this.comment.Value);
+            serializer.WriteComment(_comment.Value);
             serializer.WriteLine("\\cell");
 
             int pos = serializer.BeginAttributes();
 
-            if (this.style.Value != String.Empty)
-                serializer.WriteSimpleAttribute("Style", this.Style);
+            if (_style.Value != String.Empty)
+                serializer.WriteSimpleAttribute("Style", Style);
 
-            if (!this.IsNull("Format"))
-                this.format.Serialize(serializer, "Format", null);
+            if (!IsNull("Format"))
+                _format.Serialize(serializer, "Format", null);
 
-            if (this.mergeDown.HasValue)
-                serializer.WriteSimpleAttribute("MergeDown", this.MergeDown);
+            if (!_mergeDown.IsNull)
+                serializer.WriteSimpleAttribute("MergeDown", MergeDown);
 
-            if (this.mergeRight.HasValue)
-                serializer.WriteSimpleAttribute("MergeRight", this.MergeRight);
+            if (!_mergeRight.IsNull)
+                serializer.WriteSimpleAttribute("MergeRight", MergeRight);
 
-            if (!this.verticalAlignment.IsNull)
-                serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
+            if (!_verticalAlignment.IsNull)
+                serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
-            if (!this.IsNull("Borders"))
-                this.borders.Serialize(serializer, null);
+            if (!IsNull("Borders"))
+                _borders.Serialize(serializer, null);
 
-            if (!this.IsNull("Shading"))
-                this.shading.Serialize(serializer);
+            if (!IsNull("Shading"))
+                _shading.Serialize(serializer);
+
+            if (_roundedCorner != RoundedCorner.None)
+                serializer.WriteSimpleAttribute("RoundedCorner", RoundedCorner);
 
             serializer.EndAttributes(pos);
 
             pos = serializer.BeginContent();
-            if (!this.IsNull("Elements"))
-                this.elements.Serialize(serializer);
+            if (!IsNull("Elements"))
+                _elements.Serialize(serializer);
             serializer.EndContent(pos);
         }
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitCell(this);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, visitChildren);
         }
 
         /// <summary>
@@ -444,14 +447,9 @@ namespace MigraDocCore.DocumentObjectModel.Tables
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Cell));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Cell))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -62,201 +62,178 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
       return (Shape)DeepCopy();
     }
 
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Shape shape = (Shape)base.DeepCopy();
-      if (shape.wrapFormat != null)
-      {
-        shape.wrapFormat = shape.wrapFormat.Clone();
-        shape.wrapFormat.parent = shape;
-      }
-      if (shape.lineFormat != null)
-      {
-        shape.lineFormat = shape.lineFormat.Clone();
-        shape.lineFormat.parent = shape;
-      }
-      if (shape.fillFormat != null)
-      {
-        shape.fillFormat = shape.fillFormat.Clone();
-        shape.fillFormat.parent = shape;
-      }
-      return shape;
-    }
-    #endregion
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            Shape shape = (Shape)base.DeepCopy();
+            if (shape._wrapFormat != null)
+            {
+                shape._wrapFormat = shape._wrapFormat.Clone();
+                shape._wrapFormat._parent = shape;
+            }
+            if (shape._lineFormat != null)
+            {
+                shape._lineFormat = shape._lineFormat.Clone();
+                shape._lineFormat._parent = shape;
+            }
+            if (shape._fillFormat != null)
+            {
+                shape._fillFormat = shape._fillFormat.Clone();
+                shape._fillFormat._parent = shape;
+            }
+            return shape;
+        }
+        #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the wrapping format of the shape.
-    /// </summary>
-    public WrapFormat WrapFormat
-    {
-      get
-      {
-        if (this.wrapFormat == null)
-          this.wrapFormat = new WrapFormat(this);
+        #region Properties
+        /// <summary>
+        /// Gets or sets the wrapping format of the shape.
+        /// </summary>
+        public WrapFormat WrapFormat
+        {
+            get { return _wrapFormat ?? (_wrapFormat = new WrapFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _wrapFormat = value;
+            }
+        }
+        [DV]
+        internal WrapFormat _wrapFormat;
 
-        return this.wrapFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.wrapFormat = value;
-      }
-    }
-    [DV]
-    internal WrapFormat wrapFormat;
+        /// <summary>
+        /// Gets or sets the reference point of the Top property.
+        /// </summary>
+        public RelativeVertical RelativeVertical
+        {
+            get { return (RelativeVertical)_relativeVertical.Value; }
+            set { _relativeVertical.Value = (int)value; }
+        }
+        [DV(Type = typeof(RelativeVertical))]
+        internal NEnum _relativeVertical = NEnum.NullValue(typeof(RelativeVertical));
 
-    /// <summary>
-    /// Gets or sets the reference point of the Top property.
-    /// </summary>
-    public RelativeVertical RelativeVertical
-    {
-      get { return (RelativeVertical)this.relativeVertical.Value; }
-      set { this.relativeVertical.Value = (int)value; }
-    }
-    [DV(Type = typeof(RelativeVertical))]
-    internal NEnum relativeVertical = NEnum.NullValue(typeof(RelativeVertical));
+        /// <summary>
+        /// Gets or sets the reference point of the Left property.
+        /// </summary>
+        public RelativeHorizontal RelativeHorizontal
+        {
+            get { return (RelativeHorizontal)_relativeHorizontal.Value; }
+            set { _relativeHorizontal.Value = (int)value; }
+        }
+        [DV(Type = typeof(RelativeHorizontal))]
+        internal NEnum _relativeHorizontal = NEnum.NullValue(typeof(RelativeHorizontal));
 
-    /// <summary>
-    /// Gets or sets the reference point of the Left property.
-    /// </summary>
-    public RelativeHorizontal RelativeHorizontal
-    {
-      get { return (RelativeHorizontal)this.relativeHorizontal.Value; }
-      set { this.relativeHorizontal.Value = (int)value; }
-    }
-    [DV(Type = typeof(RelativeHorizontal))]
-    internal NEnum relativeHorizontal = NEnum.NullValue(typeof(RelativeHorizontal));
+        /// <summary>
+        /// Gets or sets the position of the top side of the shape.
+        /// </summary>
+        public TopPosition Top
+        {
+            get { return _top; }
+            set { _top = value; }
+        }
+        [DV]
+        internal TopPosition _top = TopPosition.NullValue;
 
-    /// <summary>
-    /// Gets or sets the position of the top side of the shape.
-    /// </summary>
-    public TopPosition Top
-    {
-      get { return this.top; }
-      set { this.top = value; }
-    }
-    [DV]
-    internal TopPosition top = TopPosition.NullValue;
+        /// <summary>
+        /// Gets or sets the position of the left side of the shape.
+        /// </summary>
+        public LeftPosition Left
+        {
+            get { return _left; }
+            set { _left = value; }
+        }
+        [DV]
+        internal LeftPosition _left = LeftPosition.NullValue;
 
-    /// <summary>
-    /// Gets or sets the position of the left side of the shape.
-    /// </summary>
-    public LeftPosition Left
-    {
-      get { return this.left; }
-      set { this.left = value; }
-    }
-    [DV]
-    internal LeftPosition left = LeftPosition.NullValue;
+        /// <summary>
+        /// Gets the line format of the shape's border.
+        /// </summary>
+        public LineFormat LineFormat
+        {
+            get { return _lineFormat ?? (_lineFormat = new LineFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _lineFormat = value;
+            }
+        }
+        [DV]
+        internal LineFormat _lineFormat;
 
-    /// <summary>
-    /// Gets the line format of the shape's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
+        /// <summary>
+        /// Gets the background filling format of the shape.
+        /// </summary>
+        public FillFormat FillFormat
+        {
+            get { return _fillFormat ?? (_fillFormat = new FillFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _fillFormat = value;
+            }
+        }
+        [DV]
+        internal FillFormat _fillFormat;
 
-        return this.lineFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.lineFormat = value;
-      }
-    }
-    [DV]
-    internal LineFormat lineFormat;
+        /// <summary>
+        /// Gets or sets the height of the shape.
+        /// </summary>
+        public Unit Height
+        {
+            get { return _height; }
+            set { _height = value; }
+        }
+        [DV]
+        internal Unit _height = Unit.NullValue;
 
-    /// <summary>
-    /// Gets the background filling format of the shape.
-    /// </summary>
-    public FillFormat FillFormat
-    {
-      get
-      {
-        if (this.fillFormat == null)
-          this.fillFormat = new FillFormat(this);
+        /// <summary>
+        /// Gets or sets the width of the shape.
+        /// </summary>
+        public Unit Width
+        {
+            get { return _width; }
+            set { _width = value; }
+        }
+        [DV]
+        internal Unit _width = Unit.NullValue;
+        #endregion
 
-        return this.fillFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.fillFormat = value;
-      }
-    }
-    [DV]
-    internal FillFormat fillFormat;
+        #region Internal
+        /// <summary>
+        /// Converts Shape into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (!_height.IsNull)
+                serializer.WriteSimpleAttribute("Height", Height);
+            if (!_width.IsNull)
+                serializer.WriteSimpleAttribute("Width", Width);
+            if (!_relativeHorizontal.IsNull)
+                serializer.WriteSimpleAttribute("RelativeHorizontal", RelativeHorizontal);
+            if (!_relativeVertical.IsNull)
+                serializer.WriteSimpleAttribute("RelativeVertical", RelativeVertical);
+            if (!IsNull("Left"))
+                _left.Serialize(serializer);
+            if (!IsNull("Top"))
+                _top.Serialize(serializer);
+            if (!IsNull("WrapFormat"))
+                _wrapFormat.Serialize(serializer);
+            if (!IsNull("LineFormat"))
+                _lineFormat.Serialize(serializer);
+            if (!IsNull("FillFormat"))
+                _fillFormat.Serialize(serializer);
+        }
 
-    /// <summary>
-    /// Gets or sets the height of the shape.
-    /// </summary>
-    public Unit Height
-    {
-      get { return this.height; }
-      set { this.height = value; }
-    }
-    [DV]
-    internal Unit height = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the width of the shape.
-    /// </summary>
-    public Unit Width
-    {
-      get { return this.width; }
-      set { this.width = value; }
-    }
-    [DV]
-    internal Unit width = Unit.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Shape into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (!this.height.IsNull)
-        serializer.WriteSimpleAttribute("Height", this.Height);
-      if (!this.width.IsNull)
-        serializer.WriteSimpleAttribute("Width", this.Width);
-      if (!this.relativeHorizontal.IsNull)
-        serializer.WriteSimpleAttribute("RelativeHorizontal", this.RelativeHorizontal);
-      if (!this.relativeVertical.IsNull)
-        serializer.WriteSimpleAttribute("RelativeVertical", this.RelativeVertical);
-      if (!this.IsNull("Left"))
-        this.left.Serialize(serializer);
-      if (!this.IsNull("Top"))
-        this.top.Serialize(serializer);
-      if (!this.IsNull("WrapFormat"))
-        this.wrapFormat.Serialize(serializer);
-      if (!this.IsNull("LineFormat"))
-        this.lineFormat.Serialize(serializer);
-      if (!this.IsNull("FillFormat"))
-        this.fillFormat.Serialize(serializer);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Shape));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Shape))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

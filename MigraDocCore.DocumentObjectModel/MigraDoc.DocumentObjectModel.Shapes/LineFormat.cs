@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -63,96 +63,91 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets a value indicating whether the line should be visible.
-    /// </summary>
-    public bool Visible
-    {
-      get { return this.visible.Value; }
-      set { this.visible.Value = value; }
-    }
-    [DV]
-    internal NBool visible = NBool.NullValue;
+        #region Properties
+        /// <summary>
+        /// Gets or sets a value indicating whether the line should be visible.
+        /// </summary>
+        public bool Visible
+        {
+            get { return _visible.Value; }
+            set { _visible.Value = value; }
+        }
+        [DV]
+        internal NBool _visible = NBool.NullValue;
 
-    /// <summary>
-    /// Gets or sets the width of the line in Unit.
-    /// </summary>
-    public Unit Width
-    {
-      get { return this.width; }
-      set { this.width = value; }
-    }
-    [DV]
-    internal Unit width = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the width of the line in Unit.
+        /// </summary>
+        public Unit Width
+        {
+            get { return _width; }
+            set { _width = value; }
+        }
+        [DV]
+        internal Unit _width = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets the color of the line.
-    /// </summary>
-    public Color Color
-    {
-      get { return this.color; }
-      set { this.color = value; }
-    }
-    [DV]
-    internal Color color = Color.Empty;
+        /// <summary>
+        /// Gets or sets the color of the line.
+        /// </summary>
+        public Color Color
+        {
+            get { return _color; }
+            set { _color = value; }
+        }
+        [DV]
+        internal Color _color = Color.Empty;
 
-    /// <summary>
-    /// Gets or sets the dash style of the line.
-    /// </summary>
-    public DashStyle DashStyle
-    {
-      get { return (DashStyle)this.dashStyle.Value; }
-      set { this.dashStyle.Value = (int)value; }
-    }
-    [DV(Type = typeof(DashStyle))]
-    internal NEnum dashStyle = NEnum.NullValue(typeof(DashStyle));
+        /// <summary>
+        /// Gets or sets the dash style of the line.
+        /// </summary>
+        public DashStyle DashStyle
+        {
+            get { return (DashStyle)_dashStyle.Value; }
+            set { _dashStyle.Value = (int)value; }
+        }
+        [DV(Type = typeof(DashStyle))]
+        internal NEnum _dashStyle = NEnum.NullValue(typeof(DashStyle));
 
-    /// <summary>
-    /// Gets or sets the style of the line.
-    /// </summary>
-    public LineStyle Style
-    {
-      get { return (LineStyle)this.style.Value; }
-      set { this.style.Value = (int)value; }
-    }
-    [DV(Type = typeof(LineStyle))]
-    internal NEnum style = NEnum.NullValue(typeof(LineStyle));
-    #endregion
+        /// <summary>
+        /// Gets or sets the style of the line.
+        /// </summary>
+        public LineStyle Style
+        {
+            get { return (LineStyle)_style.Value; }
+            set { _style.Value = (int)value; }
+        }
+        [DV(Type = typeof(LineStyle))]
+        internal NEnum _style = NEnum.NullValue(typeof(LineStyle));
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts LineFormat into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int pos = serializer.BeginContent("LineFormat");
-      if (!this.visible.IsNull)
-        serializer.WriteSimpleAttribute("Visible", this.Visible);
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-      if (!this.dashStyle.IsNull)
-        serializer.WriteSimpleAttribute("DashStyle", this.DashStyle);
-      if (!this.width.IsNull)
-        serializer.WriteSimpleAttribute("Width", this.Width);
-      if (!this.color.IsNull)
-        serializer.WriteSimpleAttribute("Color", this.Color);
-      serializer.EndContent();
-    }
+        #region Internal
+        /// <summary>
+        /// Converts LineFormat into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int pos = serializer.BeginContent("LineFormat");
+            if (!_visible.IsNull)
+                serializer.WriteSimpleAttribute("Visible", Visible);
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
+            if (!_dashStyle.IsNull)
+                serializer.WriteSimpleAttribute("DashStyle", DashStyle);
+            if (!_width.IsNull)
+                serializer.WriteSimpleAttribute("Width", Width);
+            if (!_color.IsNull)
+                serializer.WriteSimpleAttribute("Color", Color);
+            serializer.EndContent();
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(LineFormat));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(LineFormat))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

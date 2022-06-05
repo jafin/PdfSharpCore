@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -66,142 +66,137 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the text orientation for the barcode content.
-    /// </summary>
-    public TextOrientation Orientation
-    {
-      get { return (TextOrientation)this.orientation.Value; }
-      set { this.orientation.Value = (int)value; }
-    }
-    [DV(Type = typeof(TextOrientation))]
-    internal NEnum orientation = NEnum.NullValue(typeof(TextOrientation));
+        #region Properties
+        /// <summary>
+        /// Gets or sets the text orientation for the barcode content.
+        /// </summary>
+        public TextOrientation Orientation
+        {
+            get { return (TextOrientation)_orientation.Value; }
+            set { _orientation.Value = (int)value; }
+        }
+        [DV(Type = typeof(TextOrientation))]
+        internal NEnum _orientation = NEnum.NullValue(typeof(TextOrientation));
 
-    /// <summary>
-    /// Gets or sets the type of the barcode.
-    /// </summary>
-    public BarcodeType Type
-    {
-      get { return (BarcodeType)this.type.Value; }
-      set { this.type.Value = (int)value; }
-    }
-    [DV(Type = typeof(BarcodeType))]
-    internal NEnum type = NEnum.NullValue(typeof(BarcodeType));
+        /// <summary>
+        /// Gets or sets the type of the barcode.
+        /// </summary>
+        public BarcodeType Type
+        {
+            get { return (BarcodeType)_type.Value; }
+            set { _type.Value = (int)value; }
+        }
+        [DV(Type = typeof(BarcodeType))]
+        internal NEnum _type = NEnum.NullValue(typeof(BarcodeType));
 
-    /// <summary>
-    /// Gets or sets a value indicating whether bars shall appear beside the barcode
-    /// </summary>
-    public bool BearerBars
-    {
-      get { return this.bearerBars.Value; }
-      set { this.bearerBars.Value = value; }
-    }
-    [DV]
-    internal NBool bearerBars = NBool.NullValue;
+        /// <summary>
+        /// Gets or sets a value indicating whether bars shall appear beside the barcode
+        /// </summary>
+        public bool BearerBars
+        {
+            get { return _bearerBars.Value; }
+            set { _bearerBars.Value = value; }
+        }
+        [DV]
+        internal NBool _bearerBars = NBool.NullValue;
 
-    /// <summary>
-    /// Gets or sets the a value indicating whether the barcode's code is rendered.
-    /// </summary>
-    public bool Text
-    {
-      get { return this.text.Value; }
-      set { this.text.Value = value; }
-    }
-    [DV]
-    internal NBool text = NBool.NullValue;
+        /// <summary>
+        /// Gets or sets the a value indicating whether the barcode's code is rendered.
+        /// </summary>
+        public bool Text
+        {
+            get { return _text.Value; }
+            set { _text.Value = value; }
+        }
+        [DV]
+        internal NBool _text = NBool.NullValue;
 
-    /// <summary>
-    /// Gets or sets code the barcode represents.
-    /// </summary>
-    public string Code
-    {
-      get { return this.code.Value; }
-      set { this.code.Value = value; }
-    }
-    [DV]
-    internal NString code = NString.NullValue;
+        /// <summary>
+        /// Gets or sets code the barcode represents.
+        /// </summary>
+        public string Code
+        {
+            get { return _code.Value; }
+            set { _code.Value = value; }
+        }
+        [DV]
+        internal NString _code = NString.NullValue;
 
-    /// <summary>
-    /// ???
-    /// </summary>
-    public double LineRatio
-    {
-      get { return this.lineRatio.Value; }
-      set { this.lineRatio.Value = value; }
-    }
-    [DV]
-    internal NDouble lineRatio = NDouble.NullValue;
+        /// <summary>
+        /// ???
+        /// </summary>
+        public double LineRatio
+        {
+            get { return _lineRatio.Value; }
+            set { _lineRatio.Value = value; }
+        }
+        [DV]
+        internal NDouble _lineRatio = NDouble.NullValue;
 
-    /// <summary>
-    /// ???
-    /// </summary>
-    public double LineHeight
-    {
-      get { return this.lineHeight.Value; }
-      set { this.lineHeight.Value = value; }
-    }
-    [DV]
-    internal NDouble lineHeight = NDouble.NullValue;
+        /// <summary>
+        /// ???
+        /// </summary>
+        public double LineHeight
+        {
+            get { return _lineHeight.Value; }
+            set { _lineHeight.Value = value; }
+        }
+        [DV]
+        internal NDouble _lineHeight = NDouble.NullValue;
 
-    /// <summary>
-    /// ???
-    /// </summary>
-    public double NarrowLineWidth
-    {
-      get { return this.narrowLineWidth.Value; }
-      set { this.narrowLineWidth.Value = value; }
-    }
-    [DV]
-    internal NDouble narrowLineWidth = NDouble.NullValue;
-    #endregion
+        /// <summary>
+        /// ???
+        /// </summary>
+        public double NarrowLineWidth
+        {
+            get { return _narrowLineWidth.Value; }
+            set { _narrowLineWidth.Value = value; }
+        }
+        [DV]
+        internal NDouble _narrowLineWidth = NDouble.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts Barcode into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (this.code.Value == "")
-        throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
+        #region Internal
+        /// <summary>
+        /// Converts Barcode into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (_code.Value == "")
+                throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
 
-      serializer.WriteLine("\\barcode(\"" + this.Code + "\")");
+            serializer.WriteLine("\\barcode(\"" + Code + "\")");
 
-      int pos = serializer.BeginAttributes();
+            int pos = serializer.BeginAttributes();
 
-      base.Serialize(serializer);
+            base.Serialize(serializer);
 
-      if (!this.orientation.IsNull)
-        serializer.WriteSimpleAttribute("Orientation", this.Orientation);
-      if (!this.bearerBars.IsNull)
-        serializer.WriteSimpleAttribute("BearerBars", this.BearerBars);
-      if (!this.text.IsNull)
-        serializer.WriteSimpleAttribute("Text", this.Text);
-      if (!this.type.IsNull)
-        serializer.WriteSimpleAttribute("Type", this.Type);
-      if (!this.lineRatio.IsNull)
-        serializer.WriteSimpleAttribute("LineRatio", this.LineRatio);
-      if (!this.lineHeight.IsNull)
-        serializer.WriteSimpleAttribute("LineHeight", this.LineHeight);
-      if (!this.narrowLineWidth.IsNull)
-        serializer.WriteSimpleAttribute("NarrowLineWidth", this.NarrowLineWidth);
+            if (!_orientation.IsNull)
+                serializer.WriteSimpleAttribute("Orientation", Orientation);
+            if (!_bearerBars.IsNull)
+                serializer.WriteSimpleAttribute("BearerBars", BearerBars);
+            if (!_text.IsNull)
+                serializer.WriteSimpleAttribute("Text", Text);
+            if (!_type.IsNull)
+                serializer.WriteSimpleAttribute("Type", Type);
+            if (!_lineRatio.IsNull)
+                serializer.WriteSimpleAttribute("LineRatio", LineRatio);
+            if (!_lineHeight.IsNull)
+                serializer.WriteSimpleAttribute("LineHeight", LineHeight);
+            if (!_narrowLineWidth.IsNull)
+                serializer.WriteSimpleAttribute("NarrowLineWidth", NarrowLineWidth);
 
-      serializer.EndAttributes(pos);
-    }
+            serializer.EndAttributes(pos);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Barcode));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Barcode))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

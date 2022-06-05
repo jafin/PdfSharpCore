@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -61,8 +61,8 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Font(string name, Unit size)
         {
-            this.name.Value = name;
-            this.size.Value = size;
+            _name.Value = name;
+            _size.Value = size;
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Font(string name)
         {
-            this.name.Value = name;
+            _name.Value = name;
         }
 
         #region Methods
@@ -90,28 +90,28 @@ namespace MigraDocCore.DocumentObjectModel
             if (font == null)
                 throw new ArgumentNullException("font");
 
-            if ((!font.name.IsNull && font.name.Value != "") && (refFont == null || font.Name != refFont.Name))
-                this.Name = font.Name;
+            if ((!font._name.IsNull && font._name.Value != "") && (refFont == null || font.Name != refFont.Name))
+                Name = font.Name;
 
-            if (!font.size.IsNull && (refFont == null || font.Size != refFont.Size))
-                this.Size = font.Size;
+            if (!font._size.IsNull && (refFont == null || font.Size != refFont.Size))
+                Size = font.Size;
 
-            if (!font.bold.IsNull && (refFont == null || font.Bold != refFont.Bold))
-                this.Bold = font.Bold;
+            if (!font._bold.IsNull && (refFont == null || font.Bold != refFont.Bold))
+                Bold = font.Bold;
 
-            if (!font.italic.IsNull && (refFont == null || font.Italic != refFont.Italic))
-                this.Italic = font.Italic;
+            if (!font._italic.IsNull && (refFont == null || font.Italic != refFont.Italic))
+                Italic = font.Italic;
 
-            if (!font.subscript.IsNull && (refFont == null || font.Subscript != refFont.Subscript))
-                this.Subscript = font.Subscript;
-            else if (!font.superscript.IsNull && (refFont == null || font.Superscript != refFont.Superscript))
-                this.Superscript = font.Superscript;
+            if (!font._subscript.IsNull && (refFont == null || font.Subscript != refFont.Subscript))
+                Subscript = font.Subscript;
+            else if (!font._superscript.IsNull && (refFont == null || font.Superscript != refFont.Superscript))
+                Superscript = font.Superscript;
 
-            if (!font.underline.IsNull && (refFont == null || font.Underline != refFont.Underline))
-                this.Underline = font.Underline;
+            if (!font._underline.IsNull && (refFont == null || font.Underline != refFont.Underline))
+                Underline = font.Underline;
 
-            if (!font.color.IsNull && (refFont == null || font.Color.Argb != refFont.Color.Argb))
-                this.Color = font.Color;
+            if (!font._color.IsNull && (refFont == null || font.Color.Argb != refFont.Color.Argb))
+                Color = font.Color;
         }
 
         /// <summary>
@@ -122,28 +122,28 @@ namespace MigraDocCore.DocumentObjectModel
             if (font == null)
                 throw new ArgumentNullException("font");
 
-            if (!font.name.IsNull && font.name.Value != "")
-                this.Name = font.Name;
+            if (!font._name.IsNull && font._name.Value != "")
+                Name = font.Name;
 
-            if (!font.size.IsNull)
-                this.Size = font.Size;
+            if (!font._size.IsNull)
+                Size = font.Size;
 
-            if (!font.bold.IsNull)
-                this.Bold = font.Bold;
+            if (!font._bold.IsNull)
+                Bold = font.Bold;
 
-            if (!font.italic.IsNull)
-                this.Italic = font.Italic;
+            if (!font._italic.IsNull)
+                Italic = font.Italic;
 
-            if (!font.subscript.IsNull)
-                this.Subscript = font.Subscript;
-            else if (!font.superscript.IsNull)
-                this.Superscript = font.Superscript;
+            if (!font._subscript.IsNull)
+                Subscript = font.Subscript;
+            else if (!font._superscript.IsNull)
+                Superscript = font.Superscript;
 
-            if (!font.underline.IsNull)
-                this.Underline = font.Underline;
+            if (!font._underline.IsNull)
+                Underline = font.Underline;
 
-            if (!font.color.IsNull)
-                this.Color = font.Color;
+            if (!font._color.IsNull)
+                Color = font.Color;
         }
         #endregion
 
@@ -153,96 +153,97 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public string Name
         {
-            get { return this.name.Value; }
-            set { this.name.Value = value; }
+            get { return _name.Value; }
+            set { _name.Value = value; }
         }
         [DV]
-        internal NString name = NString.NullValue;
+        internal NString _name = NString.NullValue;
 
         /// <summary>
         /// Gets or sets the size of the font.
         /// </summary>
         public Unit Size
         {
-            get { return this.size; }
-            set { this.size = value; }
+            get { return _size; }
+            set { _size = value; }
         }
         [DV]
-        internal Unit size = Unit.NullValue;
+        internal Unit _size = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the bold property.
         /// </summary>
         public bool Bold
         {
-            get { return this.bold.Value; }
-            set { this.bold.Value = value; }
+            get { return _bold.Value; }
+            set { _bold.Value = value; }
         }
         [DV]
-        internal NBool bold = NBool.NullValue;
+        internal NBool _bold = NBool.NullValue;
 
         /// <summary>
         /// Gets or sets the italic property.
         /// </summary>
         public bool Italic
         {
-            get { return this.italic.Value; }
-            set { this.italic.Value = value; }
+            get { return _italic.Value; }
+            set { _italic.Value = value; }
         }
         [DV]
-        internal NBool italic = NBool.NullValue;
+        internal NBool _italic = NBool.NullValue;
 
+        // THHO4STLA Implementation for Strikethrough in the forum: http://forum.pdfsharp.net/viewtopic.php?p=4636#p4636
         /// <summary>
         /// Gets or sets the underline property.
         /// </summary>
         public Underline Underline
         {
-            get { return (Underline)this.underline.Value; }
-            set { this.underline.Value = (int)value; }
+            get { return (Underline)_underline.Value; }
+            set { _underline.Value = (int)value; }
         }
         [DV(Type = typeof(Underline))]
-        internal NEnum underline = NEnum.NullValue(typeof(Underline));
+        internal NEnum _underline = NEnum.NullValue(typeof(Underline));
 
         /// <summary>
         /// Gets or sets the color property.
         /// </summary>
         public Color Color
         {
-            get { return this.color; }
-            set { this.color = value; }
+            get { return _color; }
+            set { _color = value; }
         }
         [DV]
-        internal Color color = Color.Empty;
+        internal Color _color = Color.Empty;
 
         /// <summary>
         /// Gets or sets the superscript property.
         /// </summary>
         public bool Superscript
         {
-            get { return this.superscript.Value; }
+            get { return _superscript.Value; }
             set
             {
-                this.superscript.Value = value;
-                this.subscript.SetNull();
+                _superscript.Value = value;
+                _subscript.SetNull();
             }
         }
         [DV]
-        internal NBool superscript = NBool.NullValue;
+        internal NBool _superscript = NBool.NullValue;
 
         /// <summary>
         /// Gets or sets the subscript property.
         /// </summary>
         public bool Subscript
         {
-            get { return this.subscript.Value; }
+            get { return _subscript.Value; }
             set
             {
-                this.subscript.Value = value;
-                this.superscript.SetNull();
+                _subscript.Value = value;
+                _superscript.SetNull();
             }
         }
         [DV]
-        internal NBool subscript = NBool.NullValue;
+        internal NBool _subscript = NBool.NullValue;
 
         //  + .Name = "Verdana"
         //  + .Size = 8
@@ -276,21 +277,21 @@ namespace MigraDocCore.DocumentObjectModel
         private FontProperties CheckWhatIsNotNull()
         {
             FontProperties fp = FontProperties.None;
-            if (!this.name.IsNull)
+            if (!_name.IsNull)
                 fp |= FontProperties.Name;
-            if (!this.size.IsNull)
+            if (!_size.IsNull)
                 fp |= FontProperties.Size;
-            if (!this.bold.IsNull)
+            if (!_bold.IsNull)
                 fp |= FontProperties.Bold;
-            if (!this.italic.IsNull)
+            if (!_italic.IsNull)
                 fp |= FontProperties.Italic;
-            if (!this.underline.IsNull)
+            if (!_underline.IsNull)
                 fp |= FontProperties.Underline;
-            if (!this.color.IsNull)
+            if (!_color.IsNull)
                 fp |= FontProperties.Color;
-            if (!this.superscript.IsNull)
+            if (!_superscript.IsNull)
                 fp |= FontProperties.Superscript;
-            if (!this.subscript.IsNull)
+            if (!_subscript.IsNull)
                 fp |= FontProperties.Subscript;
             return fp;
         }
@@ -309,67 +310,67 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal void Serialize(Serializer serializer, Font font)
         {
-            if (this.Parent is FormattedText)
+            if (Parent is FormattedText)
             {
                 string fontStyle = "";
-                if (((FormattedText)this.Parent).style.IsNull)
+                if (((FormattedText)Parent)._style.IsNull)
                 {
                     // Check if we can use a DDL keyword.
                     FontProperties notNull = CheckWhatIsNotNull();
                     if (notNull == FontProperties.Size)
                     {
-                        serializer.Write("\\fontsize(" + size.ToString() + ")");
+                        serializer.Write("\\fontsize(" + _size + ")");
                         return;
                     }
-                    else if (notNull == FontProperties.Bold && bold.Value)
+                    if (notNull == FontProperties.Bold && _bold.Value)
                     {
                         serializer.Write("\\bold");
                         return;
                     }
-                    else if (notNull == FontProperties.Italic && italic.Value)
+                    if (notNull == FontProperties.Italic && _italic.Value)
                     {
                         serializer.Write("\\italic");
                         return;
                     }
-                    else if (notNull == FontProperties.Color)
+                    if (notNull == FontProperties.Color)
                     {
-                        serializer.Write("\\fontcolor(" + color.ToString() + ")");
+                        serializer.Write("\\fontcolor(" + _color + ")");
                         return;
                     }
                 }
                 else
-                    fontStyle = "(\"" + ((FormattedText)this.Parent).Style + "\")";
+                    fontStyle = "(\"" + ((FormattedText)Parent).Style + "\")";
 
                 //bool needBlank = false;  // nice, but later...
                 serializer.Write("\\font" + fontStyle + "[");
 
-                if (!this.name.IsNull && this.name.Value != "")
-                    serializer.WriteSimpleAttribute("Name", this.Name);
+                if (!_name.IsNull && _name.Value != "")
+                    serializer.WriteSimpleAttribute("Name", Name);
 
-#if DEBUG // Test
-                if (!this.size.IsNull && this.Size != 0 && this.Size.Point == 0)
-                    this.GetType();
+#if DEBUG_ // Test
+                if (!_size.IsNull && Size != 0 && Size.Point == 0)
+                    GetType();
 #endif
-                if ((!this.size.IsNull))
-                    serializer.WriteSimpleAttribute("Size", this.Size);
+                if ((!_size.IsNull))
+                    serializer.WriteSimpleAttribute("Size", Size);
 
-                if (!this.bold.IsNull)
-                    serializer.WriteSimpleAttribute("Bold", this.Bold);
+                if (!_bold.IsNull)
+                    serializer.WriteSimpleAttribute("Bold", Bold);
 
-                if (!this.italic.IsNull)
-                    serializer.WriteSimpleAttribute("Italic", this.Italic);
+                if (!_italic.IsNull)
+                    serializer.WriteSimpleAttribute("Italic", Italic);
 
-                if (!this.underline.IsNull)
-                    serializer.WriteSimpleAttribute("Underline", this.Underline);
+                if (!_underline.IsNull)
+                    serializer.WriteSimpleAttribute("Underline", Underline);
 
-                if (!this.superscript.IsNull)
-                    serializer.WriteSimpleAttribute("Superscript", this.Superscript);
+                if (!_superscript.IsNull)
+                    serializer.WriteSimpleAttribute("Superscript", Superscript);
 
-                if (!this.subscript.IsNull)
-                    serializer.WriteSimpleAttribute("Subscript", this.Subscript);
+                if (!_subscript.IsNull)
+                    serializer.WriteSimpleAttribute("Subscript", Subscript);
 
-                if (!this.color.IsNull)
-                    serializer.WriteSimpleAttribute("Color", this.Color);
+                if (!_color.IsNull)
+                    serializer.WriteSimpleAttribute("Color", Color);
 
                 serializer.Write("]");
             }
@@ -379,34 +380,31 @@ namespace MigraDocCore.DocumentObjectModel
 
                 // Don't write null values if font is null.
                 // Do write null values if font is not null!
-                if ((!name.IsNull && Name != String.Empty && font == null) ||
-                    (font != null && !name.IsNull && Name != String.Empty && Name != font.Name))
+                if ((!_name.IsNull && Name != String.Empty && font == null) ||
+                    (font != null && !_name.IsNull && Name != String.Empty && Name != font.Name))
                     serializer.WriteSimpleAttribute("Name", Name);
 
-                // Test
-                if (!size.IsNull && Size != 0 && Size.Point == 0)
-                    GetType();
-                if (!size.IsNull &&
+                if (!_size.IsNull &&
                     (font == null || Size != font.Size))
                     serializer.WriteSimpleAttribute("Size", Size);
-                //NBool and NEnum have to be compared directly to check whether the value Null is
-                if (!bold.IsNull && (font == null || Bold != font.Bold || font.bold.IsNull))
+                // NBool and NEnum have to be compared directly to check whether the value Null is.
+                if (!_bold.IsNull && (font == null || Bold != font.Bold || font._bold.IsNull))
                     serializer.WriteSimpleAttribute("Bold", Bold);
 
-                if (!italic.IsNull && (font == null || Italic != font.Italic || font.italic.IsNull))
+                if (!_italic.IsNull && (font == null || Italic != font.Italic || font._italic.IsNull))
                     serializer.WriteSimpleAttribute("Italic", Italic);
 
-                if (!underline.IsNull && (font == null || Underline != font.Underline || font.underline.IsNull))
+                if (!_underline.IsNull && (font == null || Underline != font.Underline || font._underline.IsNull))
                     serializer.WriteSimpleAttribute("Underline", Underline);
 
-                if (!superscript.IsNull && (font == null || Superscript != font.Superscript || font.superscript.IsNull))
+                if (!_superscript.IsNull && (font == null || Superscript != font.Superscript || font._superscript.IsNull))
                     serializer.WriteSimpleAttribute("Superscript", Superscript);
 
-                if (!subscript.IsNull && (font == null || Subscript != font.Subscript || font.subscript.IsNull))
+                if (!_subscript.IsNull && (font == null || Subscript != font.Subscript || font._subscript.IsNull))
                     serializer.WriteSimpleAttribute("Subscript", Subscript);
 
-                if (!color.IsNull && (font == null || this.Color.Argb != font.Color.Argb))// && this.Color.RGB != Color.Transparent.RGB)
-                    serializer.WriteSimpleAttribute("Color", this.Color);
+                if (!_color.IsNull && (font == null || Color.Argb != font.Color.Argb))// && Color.RGB != Color.Transparent.RGB)
+                    serializer.WriteSimpleAttribute("Color", Color);
 
                 serializer.EndContent(pos);
             }
@@ -417,14 +415,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Font));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Font))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

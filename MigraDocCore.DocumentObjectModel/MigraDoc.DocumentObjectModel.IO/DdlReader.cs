@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -33,7 +33,6 @@
 using System;
 using System.IO;
 using System.Text;
-using MigraDocCore.DocumentObjectModel;
 
 namespace MigraDocCore.DocumentObjectModel.IO
 {
@@ -46,52 +45,63 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// Initializes a new instance of the DdlReader class with the specified Stream.
         /// </summary>
         public DdlReader(Stream stream)
-          : this(stream, null)
-        {
-        }
+            : this(stream, null)
+        { }
 
         /// <summary>
         /// Initializes a new instance of the DdlReader class with the specified Stream and ErrorManager2.
         /// </summary>
         public DdlReader(Stream stream, DdlReaderErrors errors)
         {
-            this.errorManager = errors;
-            this.reader = new StreamReader(stream);
+            _errorManager = errors;
+            _reader = new StreamReader(stream);
         }
 
         /// <summary>
         /// Initializes a new instance of the DdlReader class with the specified filename.
         /// </summary>
         public DdlReader(string filename)
-          : this(filename, null)
-        {
-        }
+            : this(filename, null)
+        { }
 
         /// <summary>
         /// Initializes a new instance of the DdlReader class with the specified filename and ErrorManager2.
         /// </summary>
         public DdlReader(string filename, DdlReaderErrors errors)
         {
-            this.fileName = filename;
-            this.errorManager = errors;
-            this.reader = new StreamReader(File.OpenRead(filename), Encoding.UTF8, false, 1028, false);
+            _fileName = filename;
+            _errorManager = errors;
+            _reader = new StreamReader(File.OpenRead(filename), Encoding.UTF8, false, 1028, false);
+            //_reader = new StreamReader(null, Encoding.UTF8);
         }
 
         /// <summary>
         /// Initializes a new instance of the DdlReader class with the specified TextReader.
         /// </summary>
         public DdlReader(TextReader reader)
-          : this(reader, null)
-        {
-        }
+            : this(reader, null)
+        { }
 
         /// <summary>
         /// Initializes a new instance of the DdlReader class with the specified TextReader and ErrorManager2.
         /// </summary>
         public DdlReader(TextReader reader, DdlReaderErrors errors)
         {
-            this.errorManager = errors;
-            this.reader = reader;
+            _doClose = false;
+            _errorManager = errors;
+            _reader = reader;
+        }
+
+        /// <summary>
+        /// Closes the underlying stream or text writer.
+        /// </summary>
+        public void Close()
+        {
+            if (_doClose && _reader != null)
+            {
+                _reader.Close();
+                _reader = null;
+            }
         }
 
         /// <summary>
@@ -99,18 +109,18 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public Document ReadDocument()
         {
-            string ddl = this.reader.ReadToEnd();
+            string ddl = _reader.ReadToEnd();
 
-            Document document = null;
-            if (this.fileName != null && this.fileName != "")
+            Document document;
+            if (!String.IsNullOrEmpty(_fileName))
             {
-                DdlParser parser = new DdlParser(this.fileName, ddl, this.errorManager);
+                DdlParser parser = new DdlParser(_fileName, ddl, _errorManager);
                 document = parser.ParseDocument(null);
-                document.ddlFile = this.fileName;
+                document._ddlFile = _fileName;
             }
             else
             {
-                DdlParser parser = new DdlParser(ddl, this.errorManager);
+                DdlParser parser = new DdlParser(ddl, _errorManager);
                 document = parser.ParseDocument(null);
             }
 
@@ -122,13 +132,10 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public DocumentObject ReadObject()
         {
-            string ddl = this.reader.ReadToEnd();
-
-            DdlParser parser = null;
-            if (this.fileName != null && this.fileName != "")
-                parser = new DdlParser(this.fileName, ddl, this.errorManager);
-            else
-                parser = new DdlParser(ddl, this.errorManager);
+            string ddl = _reader.ReadToEnd();
+            DdlParser parser = !String.IsNullOrEmpty(_fileName) ? 
+                new DdlParser(_fileName, ddl, _errorManager) : 
+                new DdlParser(ddl, _errorManager);
             return parser.ParseDocumentObject();
         }
 
@@ -203,15 +210,17 @@ namespace MigraDocCore.DocumentObjectModel.IO
 
         protected virtual void Dispose(bool disposing)
         {
-            if (this.reader != null)
+            if (_reader != null)
             {
-                this.reader.Dispose();
-                this.reader = null;
+                _reader.Dispose();
+                _reader = null;
             }
         }
 
-        TextReader reader;
-        DdlReaderErrors errorManager;
-        string fileName;
+        readonly bool _doClose = true;
+        TextReader _reader;
+        DdlReaderErrors _errorManager;
+        string _fileName;
     }
 }
+

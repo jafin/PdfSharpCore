@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -70,11 +70,11 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     /// </summary>
     public string Format
     {
-      get { return this.format.Value; }
-      set { this.format.Value = value; }
-    }
-    [DV]
-    internal NString format = NString.NullValue;
+            get { return _format.Value; }
+            set { _format.Value = value; }
+        }
+        [DV]
+        internal NString _format = NString.NullValue;
     #endregion
 
     #region Internal
@@ -84,8 +84,8 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     internal override void Serialize(Serializer serializer)
     {
       string str = "\\field(Date)";
-      if (this.format.Value != string.Empty)
-        str += "[Format = \"" + this.Format + "\"]";
+            if (_format.Value != string.Empty)
+                str += "[Format = \"" + Format + "\"]";
       else
         str += "[]"; //Has to be appended to avoid confusion with '[' in immediatly following text.
 
@@ -100,19 +100,14 @@ namespace MigraDocCore.DocumentObjectModel.Fields
       return false;
     }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(DateField));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(DateField))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

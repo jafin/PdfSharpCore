@@ -117,17 +117,29 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="BookmarkNotDefined" xml:space="preserve">
-    <value>Bookmark '{0}' is not defined within the document.</value>
-  </data>
   <data name="DisplayEmptyImageSize" xml:space="preserve">
     <value>Image has empty size.</value>
+  </data>
+  <data name="EmptyImageSize" xml:space="preserve">
+    <value>The specified image size is empty.</value>
   </data>
   <data name="DisplayImageFileNotFound" xml:space="preserve">
     <value>Image not found.</value>
   </data>
   <data name="DisplayImageNotRead" xml:space="preserve">
     <value>Image could not be read.</value>
+  </data>
+  <data name="NumberTooLargeForLetters" xml:space="preserve">
+    <value>The number {0} is to large to be displayed as letters.</value>
+  </data>
+  <data name="BookmarkNotDefined" xml:space="preserve">
+    <value>Bookmark '{0}' is not defined within the document.</value>
+  </data>
+  <data name="InvalidImageType" xml:space="preserve">
+    <value>Invalid image type: '{0}'.</value>
+  </data>
+  <data name="NumberTooLargeForRoman" xml:space="preserve">
+    <value>The number {0} is to large to be displayed as roman.</value>
   </data>
   <data name="DisplayInvalidImageType" xml:space="preserve">
     <value>Image has no valid type.</value>
@@ -138,6 +150,16 @@
   <data name="ImageNotFound" xml:space="preserve">
     <value>Image '{0}' not found.</value>
   </data>
+  <data name="PropertyNotSetBefore" xml:space="preserve">
+    <value>'{0}' must be set before calling '{1}'.</value>
+  </data>
+  <data name="DisplayEmptyImageSize" xml:space="preserve">
+    <value>Image has empty size.</value>
+  </data>
+  <data name="DisplayInvalidImageType" xml:space="preserve">
+    <value>Image has no valid type.</value>
+  </data>
+  
   <data name="ImageNotReadable" xml:space="preserve">
     <value>Image {0} could not be read.\n Inner exception: {1}</value>
   </data>
@@ -152,6 +174,10 @@
   </data>
   <data name="ObjectNotRenderable" xml:space="preserve">
     <value>Only images, textframes, charts and paragraphs can be rendered freely.</value>
+  </data>
+  <data name="ImageNotReadable" xml:space="preserve">
+    <value>Image {0} could not be read.
+ Inner exception: {1}</value>
   </data>
   <data name="PropertyNotSetBefore" xml:space="preserve">
     <value>'{0}' must be set before calling '{1}'.</value>

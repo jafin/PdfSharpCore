@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -37,23 +37,26 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Abstract base class for all classes that store rendering information.
   /// </summary>
-  internal abstract class RenderInfo
-  {
-    internal abstract FormatInfo FormatInfo
+    public abstract class RenderInfo
     {
-      get;
-    }
+        /// <summary>
+        /// Gets the format information in a specific derived type. For a table, for example, this will be a TableFormatInfo with information about the first and last row showing on a page.
+        /// </summary>
+        public abstract FormatInfo FormatInfo { get; internal set; }
 
-    internal LayoutInfo LayoutInfo
-    {
-      get { return this.layoutInfo; }
-    }
-    LayoutInfo layoutInfo = new LayoutInfo();
+        /// <summary>
+        /// Gets the layout information.
+        /// </summary>
+        public LayoutInfo LayoutInfo
+        {
+            get { return _layoutInfo; }
+        }
+        readonly LayoutInfo _layoutInfo = new LayoutInfo();
 
-    internal abstract DocumentObject DocumentObject
-    {
-      get;
-    }
+        /// <summary>
+        /// Gets the document object to which the layout information applies. Use the Tag property of DocumentObject to identify an object.
+        /// </summary>
+        public abstract DocumentObject DocumentObject { get; internal set; }
 
     internal virtual void RemoveEnding()
     {

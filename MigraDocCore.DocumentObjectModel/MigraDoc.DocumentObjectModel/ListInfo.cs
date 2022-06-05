@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -64,69 +64,58 @@ namespace MigraDocCore.DocumentObjectModel
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the type of the list.
-    /// </summary>
-    public ListType ListType
-    {
-      get { return (ListType)this.listType.Value; }
-      set { this.listType.Value = (int)value; }
-    }
-    [DV(Type = typeof(ListType))]
-    internal NEnum listType = NEnum.NullValue(typeof(ListType));
+        #region Properties
+        /// <summary>
+        /// Gets or sets the type of the list.
+        /// </summary>
+        public ListType ListType
+        {
+            get { return (ListType)_listType.Value; }
+            set { _listType.Value = (int)value; }
+        }
+        [DV(Type = typeof(ListType))]
+        internal NEnum _listType = NEnum.NullValue(typeof(ListType));
 
-    /// <summary>
-    /// Gets or sets the left indent of the list symbol.
-    /// </summary>
-    public Unit NumberPosition
-    {
-      get { return this.numberPosition; }
-      set { this.numberPosition = value; }
-    }
-    [DV]
-    internal Unit numberPosition = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the left indent of the list symbol.
+        /// </summary>
+        public Unit NumberPosition
+        {
+            get { return _numberPosition; }
+            set { _numberPosition = value; }
+        }
+        [DV]
+        internal Unit _numberPosition = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets a value indicating whether
-    /// the previous list numbering should be continued.
-    /// </summary>
-    public bool ContinuePreviousList
-    {
-      get { return this.continuePreviousList.Value; }
-      set { this.continuePreviousList.Value = value; }
-    }
-    [DV]
-    internal NBool continuePreviousList = NBool.NullValue;
-    #endregion
+        /// <summary>
+        /// Gets or sets a value indicating whether
+        /// the previous list numbering should be continued.
+        /// </summary>
+        public bool? ContinuePreviousList { get; set; }
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts ListInfo into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (!this.listType.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.ListType", this.ListType);
-      if (!this.numberPosition.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.NumberPosition", this.NumberPosition);
-      if (!this.continuePreviousList.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", this.ContinuePreviousList);
-    }
+        #region Internal
+        /// <summary>
+        /// Converts ListInfo into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (!_listType.IsNull)
+                serializer.WriteSimpleAttribute("ListInfo.ListType", ListType);
+            if (!_numberPosition.IsNull)
+                serializer.WriteSimpleAttribute("ListInfo.NumberPosition", NumberPosition);
+            if (ContinuePreviousList.HasValue)
+                serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", ContinuePreviousList);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(ListInfo));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(ListInfo))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,25 +32,32 @@ using System;
 using MigraDocCore.DocumentObjectModel;
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Rendering information for page breaks.
-  /// </summary>
-  internal class PageBreakRenderInfo : RenderInfo
-  {
-    internal PageBreakRenderInfo()
+    /// <summary>
+    /// Rendering information for page breaks.
+    /// </summary>
+    public sealed class PageBreakRenderInfo : RenderInfo
     {
-    }
+        internal PageBreakRenderInfo()
+        { }
 
-    internal override FormatInfo FormatInfo
-    {
-      get { return this.pageBreakFormatInfo; }
-    }
-    internal PageBreakFormatInfo pageBreakFormatInfo;
+        /// <summary>
+        /// Gets the format information in a specific derived type. For a table, for example, this will be a TableFormatInfo with information about the first and last row showing on a page.
+        /// </summary>
+        public override FormatInfo FormatInfo
+        {
+            get { return _pageBreakFormatInfo; }
+            internal set { _pageBreakFormatInfo = (PageBreakFormatInfo)value; }
+        }
+        PageBreakFormatInfo _pageBreakFormatInfo;
 
-    internal override DocumentObject DocumentObject
-    {
-      get { return this.pageBreak; }
+        /// <summary>
+        /// Gets the document object to which the layout information applies. Use the Tag property of DocumentObject to identify an object.
+        /// </summary>
+        public override DocumentObject DocumentObject
+        {
+            get { return _pageBreak; }
+            internal set { _pageBreak = (PageBreak)value; }
+        }
+        PageBreak _pageBreak;
     }
-    internal PageBreak pageBreak;
-  }
 }

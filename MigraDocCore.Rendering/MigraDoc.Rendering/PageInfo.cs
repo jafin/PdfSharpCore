@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -34,47 +34,47 @@ using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Provides information necessary to render the page.
-  /// </summary>
-  public class PageInfo
-  {
-    internal PageInfo(XUnit width, XUnit height, PageOrientation orientation)
-    {
-      this.width = width;
-      this.height = height;
-      this.orientation = orientation;
-    }
-
     /// <summary>
-    /// Gets the with of the described page as specified in Document.PageSetup, i.e. the orientation
-    /// is not taken into account.
+    /// Provides information necessary to render the page.
     /// </summary>
-    public XUnit Width
+    public class PageInfo
     {
-      get { return this.width; }
-    }
-    private XUnit width;
+        internal PageInfo(XUnit width, XUnit height, PageOrientation orientation)
+        {
+            _width = width;
+            _height = height;
+            _orientation = orientation;
+        }
 
-    /// <summary>
-    /// Gets the height of the described page as specified in Document.PageSetup, i.e. the orientation
-    /// is not taken into account.
-    /// </summary>
-    public XUnit Height
-    {
-      get { return this.height; }
-    }
-    private XUnit height;
+        /// <summary>
+        /// Gets the with of the described page as specified in Document.PageSetup, i.e. the orientation
+        /// is not taken into account.
+        /// </summary>
+        public XUnit Width
+        {
+            get { return _width; }
+        }
+        private readonly XUnit _width;
 
-    /// <summary>
-    /// Gets the orientation of the described page as specified in Document.PageSetup.
-    /// The value has no influence on the properties Width or Height, i.e. if the result is PageOrientation.Landscape
-    /// you must exchange the values of Width or Height to get the real page size.
-    /// </summary>
-    public PageOrientation Orientation
-    {
-      get { return this.orientation; }
+        /// <summary>
+        /// Gets the height of the described page as specified in Document.PageSetup, i.e. the orientation
+        /// is not taken into account.
+        /// </summary>
+        public XUnit Height
+        {
+            get { return _height; }
+        }
+        private readonly XUnit _height;
+
+        /// <summary>
+        /// Gets the orientation of the described page as specified in Document.PageSetup.
+        /// The value has no influence on the properties Width or Height, i.e. if the result is PageOrientation.Landscape
+        /// you must exchange the values of Width or Height to get the real page size.
+        /// </summary>
+        public PageOrientation Orientation
+        {
+            get { return _orientation; }
+        }
+        private readonly PageOrientation _orientation;
     }
-    private PageOrientation orientation;
-  }
 }

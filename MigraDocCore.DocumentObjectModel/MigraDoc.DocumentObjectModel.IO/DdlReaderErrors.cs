@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,6 +35,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace MigraDocCore.DocumentObjectModel.IO
 {
@@ -48,7 +49,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
     /// </summary>
     public void AddError(DdlReaderError error)
     {
-      this.errors.Add(error);
+            _errors.Add(error);
     }
 
     /// <summary>
@@ -56,7 +57,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
     /// </summary>
     public DdlReaderError this[int index]
     {
-      get { return (DdlReaderError)this.errors[index]; }
+            get { return _errors[index]; }
     }
 
     /// <summary>
@@ -67,18 +68,21 @@ namespace MigraDocCore.DocumentObjectModel.IO
       get
       {
         int count = 0;
-        for (int idx = 0; idx < this.errors.Count; idx++)
-          if (((DdlReaderError)this.errors[idx]).ErrorLevel == DdlErrorLevel.Error)
+                for (int idx = 0; idx < _errors.Count; idx++)
+                    if (_errors[idx].ErrorLevel == DdlErrorLevel.Error)
             count++;
         return count;
       }
     }
 
-    private ArrayList errors = new ArrayList();
+        private readonly List<DdlReaderError> _errors = new List<DdlReaderError>();
 
-    public IEnumerator GetEnumerator()
-    {
-      return this.errors.GetEnumerator();
+        /// <summary>
+        /// Returns an enumerator that iterates through the error collection.
+        /// </summary>
+        public IEnumerator GetEnumerator()
+        {
+            return _errors.GetEnumerator();
+        }
     }
-  }
 }

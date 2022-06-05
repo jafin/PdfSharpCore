@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -33,6 +33,7 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
+using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Fields;
@@ -52,8 +53,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// Initializes a new instance of the FormattedText class.
         /// </summary>
         public FormattedText()
-        {
-        }
+        { }
 
         /// <summary>
         /// Initializes a new instance of the FormattedText class with the specified parent.
@@ -75,25 +75,27 @@ namespace MigraDocCore.DocumentObjectModel
         protected override object DeepCopy()
         {
             FormattedText formattedText = (FormattedText)base.DeepCopy();
-            if (formattedText.font != null)
+            if (formattedText._font != null)
             {
-                formattedText.font = formattedText.font.Clone();
-                formattedText.font.parent = formattedText;
+                formattedText._font = formattedText._font.Clone();
+                formattedText._font._parent = formattedText;
             }
-            if (formattedText.elements != null)
+            if (formattedText._elements != null)
             {
-                formattedText.elements = formattedText.elements.Clone();
-                formattedText.elements.parent = formattedText;
+                formattedText._elements = formattedText._elements.Clone();
+                formattedText._elements._parent = formattedText;
             }
             return formattedText;
         }
 
         /// <summary>
         /// Adds a new Bookmark.
+        /// <param name="name">The name of the bookmark.</param>
+        /// <param name="prepend">True, if the bookmark shall be inserted at the beginning of the paragraph.</param>
         /// </summary>
-        public BookmarkField AddBookmark(string name)
+        public BookmarkField AddBookmark(string name, bool prepend = true)
         {
-            return this.Elements.AddBookmark(name);
+            return Elements.AddBookmark(name, prepend);
         }
 
         /// <summary>
@@ -101,7 +103,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Text AddChar(char ch, int count)
         {
-            return this.Elements.AddChar(ch, count);
+            return Elements.AddChar(ch, count);
         }
 
         /// <summary>
@@ -109,7 +111,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Text AddChar(char ch)
         {
-            return this.Elements.AddChar(ch);
+            return Elements.AddChar(ch);
         }
 
         /// <summary>
@@ -117,7 +119,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public PageField AddPageField()
         {
-            return this.Elements.AddPageField();
+            return Elements.AddPageField();
         }
 
         /// <summary>
@@ -125,7 +127,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public PageRefField AddPageRefField(string name)
         {
-            return this.Elements.AddPageRefField(name);
+            return Elements.AddPageRefField(name);
         }
 
         /// <summary>
@@ -133,7 +135,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public NumPagesField AddNumPagesField()
         {
-            return this.Elements.AddNumPagesField();
+            return Elements.AddNumPagesField();
         }
 
         /// <summary>
@@ -141,7 +143,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public SectionField AddSectionField()
         {
-            return this.Elements.AddSectionField();
+            return Elements.AddSectionField();
         }
 
         /// <summary>
@@ -149,7 +151,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public SectionPagesField AddSectionPagesField()
         {
-            return this.Elements.AddSectionPagesField();
+            return Elements.AddSectionPagesField();
         }
 
         /// <summary>
@@ -157,7 +159,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public DateField AddDateField()
         {
-            return this.Elements.AddDateField();
+            return Elements.AddDateField();
         }
 
         /// <summary>
@@ -165,7 +167,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public DateField AddDateField(string format)
         {
-            return this.Elements.AddDateField(format);
+            return Elements.AddDateField(format);
         }
 
         /// <summary>
@@ -173,7 +175,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public InfoField AddInfoField(InfoFieldType iType)
         {
-            return this.Elements.AddInfoField(iType);
+            return Elements.AddInfoField(iType);
         }
 
         /// <summary>
@@ -181,7 +183,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Footnote AddFootnote(string text)
         {
-            return this.Elements.AddFootnote(text);
+            return Elements.AddFootnote(text);
         }
 
         /// <summary>
@@ -189,7 +191,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Footnote AddFootnote()
         {
-            return this.Elements.AddFootnote();
+            return Elements.AddFootnote();
         }
 
         /// <summary>
@@ -199,7 +201,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// <returns>Returns a new Text object.</returns>
         public Text AddText(string text)
         {
-            return this.Elements.AddText(text);
+            return Elements.AddText(text);
         }
 
         /// <summary>
@@ -207,7 +209,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText()
         {
-            return this.Elements.AddFormattedText();
+            return Elements.AddFormattedText();
         }
 
         /// <summary>
@@ -215,7 +217,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(TextFormat textFormat)
         {
-            return this.Elements.AddFormattedText(textFormat);
+            return Elements.AddFormattedText(textFormat);
         }
 
         /// <summary>
@@ -223,7 +225,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(Font font)
         {
-            return this.Elements.AddFormattedText(font);
+            return Elements.AddFormattedText(font);
         }
 
         /// <summary>
@@ -231,7 +233,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(string text)
         {
-            return this.Elements.AddFormattedText(text);
+            return Elements.AddFormattedText(text);
         }
 
         /// <summary>
@@ -239,7 +241,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(string text, TextFormat textFormat)
         {
-            return this.Elements.AddFormattedText(text, textFormat);
+            return Elements.AddFormattedText(text, textFormat);
         }
 
         /// <summary>
@@ -247,7 +249,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(string text, Font font)
         {
-            return this.Elements.AddFormattedText(text, font);
+            return Elements.AddFormattedText(text, font);
         }
 
         /// <summary>
@@ -255,32 +257,74 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public FormattedText AddFormattedText(string text, string style)
         {
-            return this.Elements.AddFormattedText(text, style);
+            return Elements.AddFormattedText(text, style);
         }
 
         /// <summary>
-        /// Adds a new Hyperlink of Type "Local", 
-        /// i.e. the target is a Bookmark within the Document
+        /// Adds a new Hyperlink of Type "Local", i.e. the target is a Bookmark within the Document.
         /// </summary>
-        public Hyperlink AddHyperlink(string name)
+        public Hyperlink AddHyperlink(string bookmarkName)
         {
-            return this.Elements.AddHyperlink(name);
+            return Elements.AddHyperlink(bookmarkName);
         }
 
         /// <summary>
-        /// Adds a new Hyperlink
+        /// Adds a new Hyperlink.
         /// </summary>
         public Hyperlink AddHyperlink(string name, HyperlinkType type)
         {
-            return this.Elements.AddHyperlink(name, type);
+            return Elements.AddHyperlink(name, type);
         }
 
         /// <summary>
-        /// Adds a new Image object
+        /// Adds a new Hyperlink of Type "ExternalBookmark", i.e. the target is a Bookmark in an external PDF Document.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        /// <param name="filename">The path to the target document.</param>
+        /// <param name="bookmarkName">The Named Destination's name in the target document.</param>
+        /// <param name="newWindow">Defines if the document shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlink(string filename, string bookmarkName, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddHyperlink(filename, bookmarkName, newWindow);
+        }
+
+        /// <summary>
+        /// Adds a new Hyperlink of Type "EmbeddedDocument".
+        /// The target is a Bookmark in an embedded Document in this Document.
+        /// </summary>
+        /// <param name="destinationPath">The path to the named destination through the embedded documents.
+        /// The path is separated by '\' and the last segment is the name of the named destination.
+        /// The other segments describe the route from the current (root or embedded) document to the embedded document holding the destination.
+        /// ".." references to the parent, other strings refer to a child with this name in the EmbeddedFiles name dictionary.</param>
+        /// <param name="newWindow">Defines if the HyperlinkType ExternalBookmark shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlinkToEmbeddedDocument(string destinationPath, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
+        {
+            return Elements.AddHyperlinkToEmbeddedDocument(destinationPath, newWindow);
+        }
+
+        /// <summary>
+        /// Adds a new Hyperlink of Type "EmbeddedDocument".
+        /// The target is a Bookmark in an embedded Document in an external PDF Document.
+        /// </summary>
+        /// <param name="filename">The path to the target document.</param>
+        /// <param name="destinationPath">The path to the named destination through the embedded documents in the target document.
+        /// The path is separated by '\' and the last segment is the name of the named destination.
+        /// The other segments describe the route from the root document to the embedded document.
+        /// Each segment name refers to a child with this name in the EmbeddedFiles name dictionary.</param>
+        /// <param name="newWindow">Defines if the HyperlinkType ExternalBookmark shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlinkToEmbeddedDocument(string filename, string destinationPath, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
+        {
+            return Elements.AddHyperlinkToEmbeddedDocument(filename, destinationPath, newWindow);
+        }
+
+        /// <summary>
+        /// Adds a new Image object.
+        /// </summary>
+        public Image AddImage(string fileName)
+        {
+            return Elements.AddImage(fileName);
         }
 
         /// <summary>
@@ -288,7 +332,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Character AddCharacter(SymbolName symbolType)
         {
-            return this.Elements.AddCharacter(symbolType);
+            return Elements.AddCharacter(symbolType);
         }
 
         /// <summary>
@@ -296,7 +340,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Character AddCharacter(SymbolName symbolType, int count)
         {
-            return this.Elements.AddCharacter(symbolType, count);
+            return Elements.AddCharacter(symbolType, count);
         }
 
         /// <summary>
@@ -304,7 +348,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Character AddCharacter(char ch)
         {
-            return this.Elements.AddCharacter(ch);
+            return Elements.AddCharacter(ch);
         }
 
         /// <summary>
@@ -312,7 +356,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Character AddCharacter(char ch, int count)
         {
-            return this.Elements.AddCharacter(ch, count);
+            return Elements.AddCharacter(ch, count);
         }
 
         /// <summary>
@@ -320,7 +364,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Character AddSpace(int count)
         {
-            return this.Elements.AddSpace(count);
+            return Elements.AddSpace(count);
         }
 
         /// <summary>
@@ -328,7 +372,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void AddTab()
         {
-            this.Elements.AddTab();
+            Elements.AddTab();
         }
 
         /// <summary>
@@ -336,7 +380,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void AddLineBreak()
         {
-            this.Elements.AddLineBreak();
+            Elements.AddLineBreak();
         }
 
         /// <summary>
@@ -344,7 +388,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(BookmarkField bookmark)
         {
-            this.Elements.Add(bookmark);
+            Elements.Add(bookmark);
         }
 
         /// <summary>
@@ -352,7 +396,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(PageField pageField)
         {
-            this.Elements.Add(pageField);
+            Elements.Add(pageField);
         }
 
         /// <summary>
@@ -360,7 +404,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(PageRefField pageRefField)
         {
-            this.Elements.Add(pageRefField);
+            Elements.Add(pageRefField);
         }
 
         /// <summary>
@@ -368,7 +412,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(NumPagesField numPagesField)
         {
-            this.Elements.Add(numPagesField);
+            Elements.Add(numPagesField);
         }
 
         /// <summary>
@@ -376,7 +420,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(SectionField sectionField)
         {
-            this.Elements.Add(sectionField);
+            Elements.Add(sectionField);
         }
 
         /// <summary>
@@ -384,7 +428,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(SectionPagesField sectionPagesField)
         {
-            this.Elements.Add(sectionPagesField);
+            Elements.Add(sectionPagesField);
         }
 
         /// <summary>
@@ -392,7 +436,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(DateField dateField)
         {
-            this.Elements.Add(dateField);
+            Elements.Add(dateField);
         }
 
         /// <summary>
@@ -400,7 +444,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(InfoField infoField)
         {
-            this.Elements.Add(infoField);
+            Elements.Add(infoField);
         }
 
         /// <summary>
@@ -408,7 +452,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Footnote footnote)
         {
-            this.Elements.Add(footnote);
+            Elements.Add(footnote);
         }
 
         /// <summary>
@@ -416,7 +460,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Text text)
         {
-            this.Elements.Add(text);
+            Elements.Add(text);
         }
 
         /// <summary>
@@ -424,7 +468,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(FormattedText formattedText)
         {
-            this.Elements.Add(formattedText);
+            Elements.Add(formattedText);
         }
 
         /// <summary>
@@ -432,7 +476,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Hyperlink hyperlink)
         {
-            this.Elements.Add(hyperlink);
+            Elements.Add(hyperlink);
         }
 
         /// <summary>
@@ -440,7 +484,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
 
         /// <summary>
@@ -448,7 +492,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Character character)
         {
-            this.Elements.Add(character);
+            Elements.Add(character);
         }
         #endregion
 
@@ -458,32 +502,26 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Font Font
         {
-            get
-            {
-                if (this.font == null)
-                    this.font = new Font(this);
-
-                return this.font;
-            }
+            get { return _font ?? (_font = new Font(this)); }
             set
             {
                 SetParent(value);
-                this.font = value;
+                _font = value;
             }
         }
         [DV]
-        internal Font font;
+        internal Font _font;
 
         /// <summary>
         /// Gets or sets the style name.
         /// </summary>
         public string Style
         {
-            get { return this.style.Value; }
-            set { this.style.Value = value; }
+            get { return _style.Value; }
+            set { _style.Value = value; }
         }
         [DV]
-        internal NString style = NString.NullValue;
+        internal NString _style = NString.NullValue;
 
         /// <summary>
         /// Gets or sets the name of the font.
@@ -581,21 +619,15 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public ParagraphElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new ParagraphElements(this);
-
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new ParagraphElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV(ItemType = typeof(DocumentObject))]
-        internal ParagraphElements elements;
+        internal ParagraphElements _elements;
         #endregion
 
         #region Internal
@@ -605,16 +637,16 @@ namespace MigraDocCore.DocumentObjectModel
         internal override void Serialize(Serializer serializer)
         {
             bool isFormatted = false;
-            if (!this.IsNull("Font"))
+            if (!IsNull("Font"))
             {
-                this.Font.Serialize(serializer);
+                Font.Serialize(serializer);
                 isFormatted = true;
             }
             else
             {
-                if (!this.style.IsNull)
+                if (!_style.IsNull)
                 {
-                    serializer.Write("\\font(\"" + this.Style + "\")");
+                    serializer.Write("\\font(\"" + Style + "\")");
                     isFormatted = true;
                 }
             }
@@ -622,22 +654,22 @@ namespace MigraDocCore.DocumentObjectModel
             if (isFormatted)
                 serializer.Write("{");
 
-            if (!this.IsNull("Elements"))
-                this.Elements.Serialize(serializer);
+            if (!IsNull("Elements"))
+                Elements.Serialize(serializer);
 
             if (isFormatted)
                 serializer.Write("}");
         }
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitFormattedText(this);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, visitChildren);
         }
 
         /// <summary>
@@ -645,14 +677,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(FormattedText));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(FormattedText))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

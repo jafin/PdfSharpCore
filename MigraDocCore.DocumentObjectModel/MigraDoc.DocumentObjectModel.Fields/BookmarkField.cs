@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -74,53 +74,48 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the name of the bookmark.
-    /// Used to reference the bookmark from a Hyperlink or PageRef.
-    /// </summary>
-    public string Name
-    {
-      get { return this.name.Value; }
-      set { this.name.Value = value; }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
+        #region Properties
+        /// <summary>
+        /// Gets or sets the name of the bookmark.
+        /// Used to reference the bookmark from a Hyperlink or PageRef.
+        /// </summary>
+        public string Name
+        {
+            get { return _name.Value; }
+            set { _name.Value = value; }
+        }
+        [DV]
+        internal NString _name = NString.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts BookmarkField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (this.name.Value == string.Empty)
-        throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
+        #region Internal
+        /// <summary>
+        /// Converts BookmarkField into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (_name.Value == string.Empty)
+                throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
 
-      serializer.Write("\\field(Bookmark)[Name = \"" + this.Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]");
-    }
+            serializer.Write("\\field(Bookmark)[Name = \"" + Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]");
+        }
 
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public override bool IsNull()
-    {
-      return false;
-    }
+        /// <summary>
+        /// Determines whether this instance is null (not set).
+        /// </summary>
+        public override bool IsNull()
+        {
+            return false;
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(BookmarkField));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(BookmarkField))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

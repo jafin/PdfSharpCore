@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -34,90 +34,89 @@ using System;
 
 namespace MigraDocCore.DocumentObjectModel.Internals
 {
-  /// <summary>
-  /// Represents a nullable double value.
-  /// </summary>
-  internal struct NDouble : INullableValue
-  {
-    public NDouble(double value)
-    {
-      this.val = value;
-    }
-
     /// <summary>
-    /// Gets or sets the value of the instance.
+    /// Represents a nullable double value.
     /// </summary>
-    public double Value
+    internal struct NDouble : INullableValue
     {
-      get { return double.IsNaN(this.val) ? 0 : this.val; }
-      set { this.val = value; }
+        public NDouble(double value)
+        {
+            _value = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the value of the instance.
+        /// </summary>
+        public double Value
+        {
+            get { return double.IsNaN(_value) ? 0 : _value; }
+            set { _value = value; }
+        }
+
+        /// <summary>
+        /// Gets the value of the instance.
+        /// </summary>
+        object INullableValue.GetValue()
+        {
+            return Value;
+        }
+
+        /// <summary>
+        /// Sets the value of the instance.
+        /// </summary>
+        void INullableValue.SetValue(object value)
+        {
+            _value = (double)value;
+        }
+
+        /// <summary>
+        /// Resets this instance,
+        /// i.e. IsNull() will return true afterwards.
+        /// </summary>
+        public void SetNull()
+        {
+            _value = double.NaN;
+        }
+
+        /// <summary>
+        /// Determines whether this instance is null (not set).
+        /// </summary>
+        public bool IsNull
+        {
+            get { return double.IsNaN(_value); }
+        }
+
+        /// <summary>
+        /// Returns a value indicating whether this instance is equal to the specified object.
+        /// </summary>
+        public override bool Equals(object value)
+        {
+            if (value is NDouble)
+                return this == (NDouble)value;
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return _value.GetHashCode();
+        }
+
+        public static bool operator ==(NDouble l, NDouble r)
+        {
+            if (l.IsNull)
+                return r.IsNull;
+            if (r.IsNull)
+                return false;
+            return l.Value == r.Value;
+        }
+
+        public static bool operator !=(NDouble l, NDouble r)
+        {
+            return !(l == r);
+        }
+
+        public static readonly NDouble NullValue = new NDouble(double.NaN);
+
+        double _value;
     }
-
-    /// <summary>
-    /// Gets the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
-
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (double)value;
-    }
-
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = double.NaN;
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return double.IsNaN(this.val); }
-    }
-
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NDouble)
-        return this == (NDouble)value;
-      return false;
-    }
-
-    public override int GetHashCode()
-    {
-      return this.val.GetHashCode();
-    }
-
-    public static bool operator ==(NDouble l, NDouble r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
-
-    public static bool operator !=(NDouble l, NDouble r)
-    {
-      return !(l == r);
-    }
-
-    public static readonly NDouble NullValue = new NDouble(double.NaN);
-
-    double val;
-  }
 }

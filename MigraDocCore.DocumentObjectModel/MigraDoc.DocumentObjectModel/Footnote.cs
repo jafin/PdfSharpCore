@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -65,9 +65,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// Initializes a new instance of the Footnote class with a text the Footnote shall content.
         /// </summary>
         internal Footnote(string content)
-          : this()
+            : this()
         {
-            this.Elements.AddParagraph(content);
+            Elements.AddParagraph(content);
         }
 
         #region Methods
@@ -85,15 +85,15 @@ namespace MigraDocCore.DocumentObjectModel
         protected override object DeepCopy()
         {
             Footnote footnote = (Footnote)base.DeepCopy();
-            if (footnote.elements != null)
+            if (footnote._elements != null)
             {
-                footnote.elements = footnote.elements.Clone();
-                footnote.elements.parent = footnote;
+                footnote._elements = footnote._elements.Clone();
+                footnote._elements._parent = footnote;
             }
-            if (footnote.format != null)
+            if (footnote._format != null)
             {
-                footnote.format = footnote.format.Clone();
-                footnote.format.parent = footnote;
+                footnote._format = footnote._format.Clone();
+                footnote._format._parent = footnote;
             }
             return footnote;
         }
@@ -103,7 +103,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph()
         {
-            return this.Elements.AddParagraph();
+            return Elements.AddParagraph();
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph(string text)
         {
-            return this.Elements.AddParagraph(text);
+            return Elements.AddParagraph(text);
         }
 
         /// <summary>
@@ -119,15 +119,15 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Table AddTable()
         {
-            return this.Elements.AddTable();
+            return Elements.AddTable();
         }
 
         /// <summary>
         /// Adds a new image to the footnote.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        public Image AddImage(string name)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddImage(name);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Paragraph paragraph)
         {
-            this.Elements.Add(paragraph);
+            Elements.Add(paragraph);
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Table table)
         {
-            this.Elements.Add(table);
+            Elements.Add(table);
         }
 
         /// <summary>
@@ -151,7 +151,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
         #endregion
 
@@ -161,63 +161,52 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public DocumentElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new DocumentElements(this);
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV(ItemType = typeof(DocumentObject))]
-        internal DocumentElements elements;
+        internal DocumentElements _elements;
 
         /// <summary>
         /// Gets or sets the character to be used to mark the footnote.
         /// </summary>
         public string Reference
         {
-            get { return this.reference.Value; }
-            set { this.reference.Value = value; }
+            get { return _reference.Value; }
+            set { _reference.Value = value; }
         }
         [DV]
-        internal NString reference = NString.NullValue;
+        internal NString _reference = NString.NullValue;
 
         /// <summary>
         /// Gets or sets the style name of the footnote.
         /// </summary>
         public string Style
         {
-            get { return this.style.Value; }
-            set { this.style.Value = value; }
+            get { return _style.Value; }
+            set { _style.Value = value; }
         }
         [DV]
-        internal NString style = NString.NullValue;
+        internal NString _style = NString.NullValue;
 
         /// <summary>
         /// Gets the format of the footnote.
         /// </summary>
         public ParagraphFormat Format
         {
-            get
-            {
-                if (this.format == null)
-                    this.format = new ParagraphFormat(this);
-
-                return this.format;
-            }
+            get { return _format ?? (_format = new ParagraphFormat(this)); }
             set
             {
                 SetParent(value);
-                this.format = value;
+                _format = value;
             }
         }
         [DV]
-        internal ParagraphFormat format;
+        internal ParagraphFormat _format;
         #endregion
 
         #region Internal
@@ -229,31 +218,31 @@ namespace MigraDocCore.DocumentObjectModel
             serializer.WriteLine("\\footnote");
 
             int pos = serializer.BeginAttributes();
-            if (this.reference.Value != string.Empty)
-                serializer.WriteSimpleAttribute("Reference", this.Reference);
-            if (this.style.Value != string.Empty)
-                serializer.WriteSimpleAttribute("Style", this.Style);
+            if (_reference.Value != string.Empty)
+                serializer.WriteSimpleAttribute("Reference", Reference);
+            if (_style.Value != string.Empty)
+                serializer.WriteSimpleAttribute("Style", Style);
 
-            if (!this.IsNull("Format"))
-                this.format.Serialize(serializer, "Format", null);
+            if (!IsNull("Format"))
+                _format.Serialize(serializer, "Format", null);
 
             serializer.EndAttributes(pos);
 
             pos = serializer.BeginContent();
-            if (!this.IsNull("Elements"))
-                this.elements.Serialize(serializer);
+            if (!IsNull("Elements"))
+                _elements.Serialize(serializer);
             serializer.EndContent(pos);
         }
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitFootnote(this);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, true);
         }
 
         /// <summary>
@@ -261,14 +250,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Footnote));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Footnote))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

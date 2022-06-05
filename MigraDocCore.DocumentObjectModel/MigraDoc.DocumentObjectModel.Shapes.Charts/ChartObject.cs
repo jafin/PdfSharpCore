@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,45 +35,40 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Base class for all chart classes.
-  /// </summary>
-  public class ChartObject : DocumentObject
-  {
     /// <summary>
-    /// Initializes a new instance of the ChartObject class.
+    /// Base class for all chart classes.
     /// </summary>
-    public ChartObject()
+    public class ChartObject : DocumentObject
     {
-    }
+        /// <summary>
+        /// Initializes a new instance of the ChartObject class.
+        /// </summary>
+        public ChartObject()
+        {
+        }
 
-    /// <summary>
-    /// Initializes a new instance of the ChartObject class with the specified parent.
-    /// </summary>
-    internal ChartObject(DocumentObject parent) : base(parent) { }
+        /// <summary>
+        /// Initializes a new instance of the ChartObject class with the specified parent.
+        /// </summary>
+        internal ChartObject(DocumentObject parent) : base(parent) { }
 
-    #region Internal
-    /// <summary>
-    /// Converts ChartObject into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer _serializer)
-    {
-      // Nothing to do
-    }
+        #region Internal
+        /// <summary>
+        /// Converts ChartObject into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer _serializer)
+        {
+            // Nothing to do
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(ChartObject));
-        return meta;
-      }
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(ChartObject))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-    static Meta meta;
-    #endregion
-  }
 }

@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -38,60 +38,64 @@ using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Formatting information for tables.
-  /// </summary>
-  internal class TableFormatInfo : FormatInfo
-  {
-    internal TableFormatInfo()
+    /// <summary>
+    /// Formatting information for tables.
+    /// </summary>
+    public class TableFormatInfo : FormatInfo
     {
+        internal TableFormatInfo()
+        { }
+
+        internal override bool EndingIsComplete
+        {
+            get { return _isEnding; }
+        }
+
+        internal override bool StartingIsComplete
+        {
+            get { return !IsEmpty && StartRow > LastHeaderRow; }
+        }
+
+        internal override bool IsComplete
+        {
+            get { return false; }
+        }
+
+        internal override bool IsEmpty
+        {
+            get { return StartRow < 0; }
+        }
+
+        internal override bool IsEnding
+        {
+            get { return _isEnding; }
+        }
+        internal bool _isEnding;
+
+        internal override bool IsStarting
+        {
+            get { return StartRow == LastHeaderRow + 1; }
+        }
+
+        internal int StartColumn = -1;
+        internal int EndColumn = -1;
+
+        /// <summary>
+        /// The first row of the table that is showing on a page.
+        /// </summary>
+        public int StartRow = -1;
+        /// <summary>
+        /// The last row of the table that is showing on a page.
+        /// </summary>
+        public int EndRow = -1;
+
+        internal int LastHeaderRow = -1;
+        /// <summary>
+        /// The formatted cells.
+        /// </summary>
+        public Dictionary<Cell, FormattedCell> FormattedCells; //Sorted_List formattedCells;
+        internal MergedCellList MergedCells;
+        internal Dictionary<int, XUnit> BottomBorderMap; //Sorted_List bottomBorderMap;
+        internal Dictionary<int, int> ConnectedRowsMap; //Sorted_List connectedRowsMap;
     }
-
-    internal override bool EndingIsComplete
-    {
-      get { return this.isEnding; }
-    }
-
-
-    internal override bool StartingIsComplete
-    {
-      get { return !this.IsEmpty && this.startRow > this.lastHeaderRow; }
-    }
-
-    internal override bool IsComplete
-    {
-      get { return false; }
-    }
-
-    internal override bool IsEmpty
-    {
-      get { return this.startRow < 0; }
-    }
-
-    internal override bool IsEnding
-    {
-      get { return this.isEnding; }
-    }
-    internal bool isEnding;
-
-    internal override bool IsStarting
-    {
-      get
-      {
-        return this.startRow == this.lastHeaderRow + 1;
-      }
-    }
-
-    internal int startColumn = -1;
-    internal int endColumn = -1;
-
-    internal int startRow = -1;
-    internal int endRow = -1;
-
-    internal int lastHeaderRow = -1;
-    internal SortedList<Cell, FormattedCell> formattedCells;
-    internal MergedCellList mergedCells;
-    internal SortedList<int, XUnit> bottomBorderMap;
-    internal SortedList<int, int> connectedRowsMap;
-  }
 }

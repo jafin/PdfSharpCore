@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
@@ -83,8 +84,8 @@ namespace MigraDocCore.DocumentObjectModel
                 // index starts from 1; DefaultParagraphFont cannot be modified.
                 for (int index = 1; index < count; ++index)
                 {
-                    Style style = (Style)this[index];
-                    if (String.Compare(style.Name, styleName, true) == 0)
+                    Style style = this[index];
+                    if (String.Compare(style.Name, styleName, StringComparison.OrdinalIgnoreCase) == 0)
                         return style;
                 }
                 return null;
@@ -103,7 +104,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// Gets the index of a style by name.
         /// </summary>
         /// <param name="styleName">Name of the style looking for.</param>
-        /// <returns>Index or -1 if not exists.</returns>
+        /// <returns>Index or -1 if it does not exist.</returns>
         public int GetIndex(string styleName)
         {
             if (styleName == null)
@@ -112,8 +113,8 @@ namespace MigraDocCore.DocumentObjectModel
             int count = Count;
             for (int index = 0; index < count; ++index)
             {
-                Style style = (Style)this[index];
-                if (String.Compare(style.Name, styleName, true) == 0)
+                Style style = this[index];
+                if (String.Compare(style.Name, styleName, StringComparison.OrdinalIgnoreCase) == 0)
                     return index;
             }
             return -1;
@@ -132,14 +133,15 @@ namespace MigraDocCore.DocumentObjectModel
                 throw new ArgumentException(name == "" ? "name" : "baseStyleName");
 
             Style style = new Style();
-            style.name.Value = name;
-            style.baseStyle.Value = baseStyleName;
-            this.Add(style);
-            return style;
+            style._name.Value = name;
+            style._baseStyle.Value = baseStyleName;
+            Add(style);
+            // Add(style) may add a clone of style, therefore we return the style by name.
+            return this[name];
         }
 
         /// <summary>
-        /// Adds a DocumentObject to the styles collection.
+        /// Adds a DocumentObject to the styles collection. Will sometimes add a clone of the DocumentObject, not the object passed as parameter.
         /// </summary>
         public override void Add(DocumentObject value)
         {
@@ -148,7 +150,7 @@ namespace MigraDocCore.DocumentObjectModel
 
             Style style = value as Style;
             if (style == null)
-                throw new InvalidOperationException(AppResources.StyleExpected);
+                throw new InvalidOperationException(DomSR.StyleExpected);
 
             bool isRootStyle = style.IsRootStyle;
 
@@ -164,14 +166,15 @@ namespace MigraDocCore.DocumentObjectModel
                 throw new ArgumentException(DomSR.UndefinedBaseStyle(style.BaseStyle));
 
             if (baseStyle != null)
-                style.styleType.Value = (int)baseStyle.Type;
+                style._styleType.Value = (int)baseStyle.Type;
 
             int index = GetIndex(style.Name);
 
             if (index >= 0)
             {
+                // Here a clone of the object will be added to the list, not the original object.
                 style = style.Clone();
-                style.parent = this;
+                style._parent = this;
                 ((IList)this)[index] = style;
             }
             else
@@ -193,33 +196,31 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public string Comment
         {
-            get { return this.comment.Value; }
-            set { this.comment.Value = value; }
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
         }
         [DV]
-        internal NString comment = NString.NullValue;
+        internal NString _comment = NString.NullValue;
         #endregion
 
         /// <summary>
-        /// Initialize the built in styles.
+        /// Initialize the built-in styles.
         /// </summary>
         internal void SetupStyles()
         {
             Style style;
 
-            // First standard style
-            style = new Style(Style.DefaultParagraphFontName, null)
-            {
-                readOnly = true
-            };
-            style.styleType.Value = (int)StyleType.Character;
-            style.buildIn.Value = true;
-            this.Add(style);
+            // First standard style.
+            style = new Style(Style.DefaultParagraphFontName, null);
+            style.IsReadOnly = true;
+            style._styleType.Value = (int)StyleType.Character;
+            style._buildIn.Value = true;
+            Add(style);
 
-            // Normal 'Standard' (Paragraph Style)
+            // Normal 'Standard' (Paragraph Style).
             style = new Style(Style.DefaultParagraphName, null);
-            style.styleType.Value = (int)StyleType.Paragraph;
-            style.buildIn.Value = true;
+            style._styleType.Value = (int)StyleType.Paragraph;
+            style._buildIn.Value = true;
             style.Font.Name = GlobalFontSettings.FontResolver.DefaultFontName;
             style.Font.Size = 10;
             style.Font.Bold = false;
@@ -243,92 +244,92 @@ namespace MigraDocCore.DocumentObjectModel
             style.ParagraphFormat.WidowControl = true;
             this.Add(style);
 
-            // Heading1 'Überschrift 1' (Paragraph Style)
-            style = new Style("Heading1", "Normal");
-            style.buildIn.Value = true;
+            // Heading1 'Überschrift 1' (Paragraph Style).
+            style = new Style(StyleNames.Heading1, StyleNames.Normal);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level1;
-            this.Add(style);
+            Add(style);
 
-            // Heading2 'Überschrift 2' (Paragraph Style)
-            style = new Style("Heading2", "Heading1");
-            style.buildIn.Value = true;
+            // Heading2 'Überschrift 2' (Paragraph Style).
+            style = new Style(StyleNames.Heading2, StyleNames.Heading1);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level2;
-            this.Add(style);
+            Add(style);
 
-            // Heading3 'Überschrift 3' (Paragraph Style)
-            style = new Style("Heading3", "Heading2");
-            style.buildIn.Value = true;
+            // Heading3 'Überschrift 3' (Paragraph Style).
+            style = new Style(StyleNames.Heading3, StyleNames.Heading2);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level3;
-            this.Add(style);
+            Add(style);
 
-            // Heading4 'Überschrift 4' (Paragraph Style)
-            style = new Style("Heading4", "Heading3");
-            style.buildIn.Value = true;
+            // Heading4 'Überschrift 4' (Paragraph Style).
+            style = new Style(StyleNames.Heading4, StyleNames.Heading3);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level4;
-            this.Add(style);
+            Add(style);
 
-            // Heading5 'Überschrift 5' (Paragraph Style)
-            style = new Style("Heading5", "Heading4");
-            style.buildIn.Value = true;
+            // Heading5 'Überschrift 5' (Paragraph Style).
+            style = new Style(StyleNames.Heading5, StyleNames.Heading4);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level5;
-            this.Add(style);
+            Add(style);
 
-            // Heading6 'Überschrift 6' (Paragraph Style)
-            style = new Style("Heading6", "Heading5");
-            style.buildIn.Value = true;
+            // Heading6 'Überschrift 6' (Paragraph Style).
+            style = new Style(StyleNames.Heading6, StyleNames.Heading5);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level6;
-            this.Add(style);
+            Add(style);
 
-            // Heading7 'Überschrift 7' (Paragraph Style)
-            style = new Style("Heading7", "Heading6");
-            style.buildIn.Value = true;
+            // Heading7 'Überschrift 7' (Paragraph Style).
+            style = new Style(StyleNames.Heading7, StyleNames.Heading6);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level7;
-            this.Add(style);
+            Add(style);
 
-            // Heading8 'Überschrift 8' (Paragraph Style)
-            style = new Style("Heading8", "Heading7");
-            style.buildIn.Value = true;
+            // Heading8 'Überschrift 8' (Paragraph Style).
+            style = new Style(StyleNames.Heading8, StyleNames.Heading7);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level8;
-            this.Add(style);
+            Add(style);
 
-            // Heading9 'Überschrift 9' (Paragraph Style)
-            style = new Style("Heading9", "Heading8");
-            style.buildIn.Value = true;
+            // Heading9 'Überschrift 9' (Paragraph Style).
+            style = new Style(StyleNames.Heading9, StyleNames.Heading8);
+            style._buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level9;
-            this.Add(style);
+            Add(style);
 
-            // List 'Liste' (Paragraph Style)
-            style = new Style("List", "Normal");
-            style.buildIn.Value = true;
-            this.Add(style);
+            // List 'Liste' (Paragraph Style).
+            style = new Style(StyleNames.List, StyleNames.Normal);
+            style._buildIn.Value = true;
+            Add(style);
 
-            // Footnote 'Fußnote' (Paragraph Style)
-            style = new Style("Footnote", "Normal");
-            style.buildIn.Value = true;
-            this.Add(style);
+            // Footnote 'Fußnote' (Paragraph Style).
+            style = new Style(StyleNames.Footnote, StyleNames.Normal);
+            style._buildIn.Value = true;
+            Add(style);
 
-            // Header 'Kopfzeile' (Paragraph Style)
-            style = new Style("Header", "Normal");
-            style.buildIn.Value = true;
-            this.Add(style);
+            // Header 'Kopfzeile' (Paragraph Style).
+            style = new Style(StyleNames.Header, StyleNames.Normal);
+            style._buildIn.Value = true;
+            Add(style);
 
-            // -33: Footer 'Fußzeile' (Paragraph Style)
-            style = new Style("Footer", "Normal");
-            style.buildIn.Value = true;
-            this.Add(style);
+            // -33: Footer 'Fußzeile' (Paragraph Style).
+            style = new Style(StyleNames.Footer, StyleNames.Normal);
+            style._buildIn.Value = true;
+            Add(style);
 
-            // Hyperlink 'Hyperlink' (Character Style)
-            style = new Style("Hyperlink", "DefaultParagraphFont");
-            style.buildIn.Value = true;
-            this.Add(style);
+            // Hyperlink 'Hyperlink' (Character Style).
+            style = new Style(StyleNames.Hyperlink, StyleNames.DefaultParagraphFont);
+            style._buildIn.Value = true;
+            Add(style);
 
-            // InvalidStyleName 'Ungültiger Formatvorlagenname' (Paragraph Style)
-            style = new Style("InvalidStyleName", "Normal");
-            style.buildIn.Value = true;
+            // InvalidStyleName 'Ungültiger Formatvorlagenname' (Paragraph Style).
+            style = new Style(StyleNames.InvalidStyleName, StyleNames.Normal);
+            style._buildIn.Value = true;
             style.Font.Bold = true;
             style.Font.Underline = Underline.Dash;
             style.Font.Color = new Color(0xFF00FF00);
-            this.Add(style);
+            Add(style);
         }
 
         #region Internal
@@ -337,7 +338,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override void Serialize(Serializer serializer)
         {
-            serializer.WriteComment(this.comment.Value);
+            serializer.WriteComment(_comment.Value);
             int pos = serializer.BeginContent("\\styles");
 
             // A style can only be added to Styles if its base style exists. Therefore the
@@ -353,7 +354,7 @@ namespace MigraDocCore.DocumentObjectModel
             fSerialized[0] = true;                       // consider DefaultParagraphFont as serialized
             bool[] fSerializePending = new bool[count];  // currently serializing
             bool newLine = false;  // gets true if at least one style was written
-                                   //Start from 1 and do not serialize DefaultParagraphFont
+            //Start from 1 and do not serialize DefaultParagraphFont
             for (int index = 1; index < count; index++)
             {
                 if (!fSerialized[index])
@@ -382,7 +383,7 @@ namespace MigraDocCore.DocumentObjectModel
             if (fSerializePending[index])
             {
                 string message = String.Format("Circular dependency detected according to style '{0}'.", style.Name);
-                throw new Exception(message);
+                throw new InvalidOperationException(message);
             }
 
             // Only style 'Normal' has no base style
@@ -409,13 +410,13 @@ namespace MigraDocCore.DocumentObjectModel
         }
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitStyles(this);
 
-            Hashtable visitedStyles = new Hashtable();
+            Dictionary<Style, object> visitedStyles = new Dictionary<Style, object>();
             foreach (Style style in this)
                 VisitStyle(visitedStyles, style, visitor, visitChildren);
         }
@@ -423,12 +424,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Ensures that base styles are visited first.
         /// </summary>
-        void VisitStyle(Hashtable visitedStyles, Style style, DocumentObjectVisitor visitor, bool visitChildren)
+        void VisitStyle(Dictionary<Style, object> visitedStyles, Style style, DocumentObjectVisitor visitor, bool visitChildren)
         {
-            if (!visitedStyles.Contains(style))
+            if (!visitedStyles.ContainsKey(style))
             {
                 Style baseStyle = style.GetBaseStyle();
-                if (baseStyle != null && !visitedStyles.Contains(baseStyle)) //baseStyle != ""
+                if (baseStyle != null && !visitedStyles.ContainsKey(baseStyle)) //baseStyle != ""
                     VisitStyle(visitedStyles, baseStyle, visitor, visitChildren);
                 ((IVisitable)style).AcceptVisitor(visitor, visitChildren);
                 visitedStyles.Add(style, null);
@@ -442,14 +443,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Styles));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Styles))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

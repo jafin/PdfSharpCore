@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -63,83 +63,72 @@ namespace MigraDocCore.DocumentObjectModel
       return (Shading)DeepCopy();
     }
 
-    /// <summary>
-    /// Clears the Shading object. Additionally 'Shading = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public void Clear()
-    {
-      this.isCleared = true;
-    }
-    #endregion
+        /// <summary>
+        /// Clears the Shading object. Additionally 'Shading = null'
+        /// is written to the DDL stream when serialized.
+        /// </summary>
+        public void Clear()
+        {
+            _isCleared = true;
+        }
+        #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets a value indicating whether the shading is visible.
-    /// </summary>
-    public bool Visible
-    {
-      get { return this.visible.Value; }
-      set { this.visible.Value = value; }
-    }
-    [DV]
-    internal NBool visible = NBool.NullValue;
+        #region Properties
+        /// <summary>
+        /// Gets or sets a value indicating whether the shading is visible.
+        /// </summary>
+        public bool? Visible { get; set; }
 
-    /// <summary>
-    /// Gets or sets the shading color.
-    /// </summary>
-    public Color Color
-    {
-      get { return this.color; }
-      set { this.color = value; }
-    }
-    [DV]
-    internal Color color = Color.Empty;
+        /// <summary>
+        /// Gets or sets the shading color.
+        /// </summary>
+        public Color Color
+        {
+            get { return _color; }
+            set { _color = value; }
+        }
+        [DV]
+        internal Color _color = Color.Empty;
 
-    /// <summary>
-    /// Gets the information if the shading is marked as cleared. Additionally 'Shading = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public bool IsCleared
-    {
-      get { return this.isCleared; }
-    }
-    internal bool isCleared = false;
-    #endregion
+        /// <summary>
+        /// Gets the information if the shading is marked as cleared. Additionally 'Shading = null'
+        /// is written to the DDL stream when serialized.
+        /// </summary>
+        public bool IsCleared
+        {
+            get { return _isCleared; }
+        }
+        internal bool _isCleared = false;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts Shading into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (isCleared)
-        serializer.WriteLine("Shading = null");
+        #region Internal
+        /// <summary>
+        /// Converts Shading into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (_isCleared)
+                serializer.WriteLine("Shading = null");
 
-      int pos = serializer.BeginContent("Shading");
+            int pos = serializer.BeginContent("Shading");
 
-      if (!this.visible.IsNull)
-        serializer.WriteSimpleAttribute("Visible", this.Visible);
+            if (Visible.HasValue)
+                serializer.WriteSimpleAttribute("Visible", Visible);
 
-      if (!this.color.IsNull)
-        serializer.WriteSimpleAttribute("Color", this.Color);
+            if (!_color.IsNull)
+                serializer.WriteSimpleAttribute("Color", Color);
 
-      serializer.EndContent(pos);
-    }
+            serializer.EndContent(pos);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Shading));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Shading))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

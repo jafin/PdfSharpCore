@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -49,15 +49,15 @@ namespace MigraDocCore.DocumentObjectModel.Internals
       ItemType = null;
     }
 
-    /// <summary>
-    /// Gets or sets the type of the reflected value. Must be specified by NEnum.
-    /// </summary>
-    public Type Type
-    {
-      get { return this.type; }
-      set { this.type = value; }
-    }
-    internal Type type;
+        /// <summary>
+        /// Gets or sets the type of the reflected value. Must be specified by NEnum.
+        /// </summary>
+        public Type Type
+        {
+            get { return _type; }
+            set { _type = value; }
+        }
+        Type _type;
 
     /// <summary>
     /// Determines whether the field is RefOnly and should be excluded from recursive operations.

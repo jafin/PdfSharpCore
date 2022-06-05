@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore;
@@ -57,7 +58,7 @@ namespace MigraDocCore.Rendering
         /// <param name="document">The migradoc document to render.</param>
         public DocumentRenderer(Document document)
         {
-            this.document = document;
+            _document = document;
         }
 
         /// <summary>
@@ -66,20 +67,20 @@ namespace MigraDocCore.Rendering
         public void PrepareDocument()
         {
             PdfFlattenVisitor visitor = new PdfFlattenVisitor();
-            visitor.Visit(this.document);
-            this.previousListNumbers = new Hashtable(3);
-            this.previousListNumbers[ListType.NumberList1] = 0;
-            this.previousListNumbers[ListType.NumberList2] = 0;
-            this.previousListNumbers[ListType.NumberList3] = 0;
-            this.formattedDocument = new FormattedDocument(this.document, this);
+            visitor.Visit(_document);
+            _previousListNumbers = new Dictionary<ListType, int>(3);
+            _previousListNumbers[ListType.NumberList1] = 0;
+            _previousListNumbers[ListType.NumberList2] = 0;
+            _previousListNumbers[ListType.NumberList3] = 0;
+            _formattedDocument = new FormattedDocument(_document, this);
             //REM: Size should not be necessary in this case.
             XGraphics gfx = XGraphics.CreateMeasureContext(new XSize(2000, 2000), XGraphicsUnit.Point, XPageDirection.Downwards);
             //      this.previousListNumber = int.MinValue;
             //gfx.MUH = this.unicode;
             //gfx.MFEH = this.fontEmbedding;
 
-            this.previousListInfo = null;
-            this.formattedDocument.Format(gfx);
+            _previousListInfo = null;
+            _formattedDocument.Format(gfx);
         }
 
         /// <summary>
@@ -115,9 +116,9 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public FormattedDocument FormattedDocument
         {
-            get { return this.formattedDocument; }
+            get { return _formattedDocument; }
         }
-        internal FormattedDocument formattedDocument;
+        FormattedDocument _formattedDocument;
 
         /// <summary>
         /// Renders a MigraDoc document to the specified graphics object.
@@ -132,15 +133,12 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public void RenderPage(XGraphics gfx, int page, PageRenderOptions options)
         {
-            if (this.formattedDocument.IsEmptyPage(page))
+            if (_formattedDocument.IsEmptyPage(page))
                 return;
 
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = _formattedDocument.GetFieldInfos(page);
 
-            if (this.printDate != DateTime.MinValue)
-                fieldInfos.date = this.printDate;
-            else
-                fieldInfos.date = DateTime.Now;
+            fieldInfos.Date = _printDate != DateTime.MinValue ? _printDate : DateTime.Now;
 
             if ((options & PageRenderOptions.RenderHeader) == PageRenderOptions.RenderHeader)
                 RenderHeader(gfx, page);
@@ -149,7 +147,7 @@ namespace MigraDocCore.Rendering
 
             if ((options & PageRenderOptions.RenderContent) == PageRenderOptions.RenderContent)
             {
-                RenderInfo[] renderInfos = this.formattedDocument.GetRenderInfos(page);
+                RenderInfo[] renderInfos = _formattedDocument.GetRenderInfos(page);
                 //foreach (RenderInfo renderInfo in renderInfos)
                 int count = renderInfos.Length;
                 for (int idx = 0; idx < count; idx++)
@@ -166,12 +164,20 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public DocumentObject[] GetDocumentObjectsFromPage(int page)
         {
-            RenderInfo[] renderInfos = this.formattedDocument.GetRenderInfos(page);
+            RenderInfo[] renderInfos = _formattedDocument.GetRenderInfos(page);
             int count = renderInfos != null ? renderInfos.Length : 0;
             DocumentObject[] documentObjects = new DocumentObject[count];
             for (int idx = 0; idx < count; idx++)
                 documentObjects[idx] = renderInfos[idx].DocumentObject;
             return documentObjects;
+        }
+
+        /// <summary>
+        /// Gets the render information for document objects that get rendered on the specified page.
+        /// </summary>
+        public RenderInfo[] GetRenderInfoFromPage(int page)
+        {
+            return _formattedDocument.GetRenderInfos(page);
         }
 
         /// <summary>
@@ -211,20 +217,20 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public string WorkingDirectory
         {
-            get { return this.workingDirectory; }
-            set { this.workingDirectory = value; }
+            get { return _workingDirectory; }
+            set { _workingDirectory = value; }
         }
-        string workingDirectory;
+        string _workingDirectory;
 
         private void RenderHeader(XGraphics graphics, int page)
         {
-            FormattedHeaderFooter formattedHeader = this.formattedDocument.GetFormattedHeader(page);
+            FormattedHeaderFooter formattedHeader = _formattedDocument.GetFormattedHeader(page);
             if (formattedHeader == null)
                 return;
 
-            Rectangle headerArea = this.formattedDocument.GetHeaderArea(page);
+            Rectangle headerArea = _formattedDocument.GetHeaderArea(page);
             RenderInfo[] renderInfos = formattedHeader.GetRenderInfos();
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = _formattedDocument.GetFieldInfos(page);
             foreach (RenderInfo renderInfo in renderInfos)
             {
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
@@ -234,15 +240,35 @@ namespace MigraDocCore.Rendering
 
         private void RenderFooter(XGraphics graphics, int page)
         {
-            FormattedHeaderFooter formattedFooter = this.formattedDocument.GetFormattedFooter(page);
+            FormattedHeaderFooter formattedFooter = _formattedDocument.GetFormattedFooter(page);
             if (formattedFooter == null)
                 return;
 
-            Rectangle footerArea = this.formattedDocument.GetFooterArea(page);
+            Rectangle footerArea = _formattedDocument.GetFooterArea(page);
             RenderInfo[] renderInfos = formattedFooter.GetRenderInfos();
+            // The footer is bottom-aligned and grows with its contents. topY specifies the Y position where the footer begins.
             XUnit topY = footerArea.Y + footerArea.Height - RenderInfo.GetTotalHeight(renderInfos);
+            // Hack: The purpose of "topY" is unclear, but two paragraphs in the footer will use the same topY and will be rendered at the same position.
+            // offsetY specifies the offset (amount of movement) for all footer items. It's the difference between topY and the position calculated for the first item.
+            XUnit offsetY = 0;
+            bool notFirst = false;
 
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = _formattedDocument.GetFieldInfos(page);
+            foreach (RenderInfo renderInfo in renderInfos)
+            {
+                Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
+                if (!notFirst)
+                {
+                    offsetY = renderer.RenderInfo.LayoutInfo.ContentArea.Y - topY;
+                    notFirst = true;
+                }
+                XUnit savedY = renderer.RenderInfo.LayoutInfo.ContentArea.Y;
+                // Apply offsetY only to items that do not have an absolute position.
+                if (renderer.RenderInfo.LayoutInfo.Floating != Floating.None)
+                    renderer.RenderInfo.LayoutInfo.ContentArea.Y -= offsetY;
+                renderer.Render();
+                renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
+            }
             foreach (RenderInfo renderInfo in renderInfos)
             {
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
@@ -253,7 +279,7 @@ namespace MigraDocCore.Rendering
             }
         }
 
-        internal void AddOutline(int level, string title, PdfPage destinationPage)
+        internal void AddOutline(int level, string title, PdfPage destinationPage, XPoint position)
         {
             if (level < 1 || destinationPage == null)
                 return;
@@ -270,13 +296,21 @@ namespace MigraDocCore.Rendering
                 if (count == 0)
                 {
                     // You cannot add empty bookmarks to PDF. So we use blank here.
-                    PdfOutline outline = outlines.Add(" ", destinationPage, true);
+                    var outline = AddOutline(outlines, " ", destinationPage, position);
                     outlines = outline.Outlines;
                 }
                 else
                     outlines = outlines[count - 1].Outlines;
             }
-            outlines.Add(title, destinationPage, true);
+            AddOutline(outlines, title, destinationPage, position);
+        }
+
+        private PdfOutline AddOutline(PdfOutlineCollection outlines, string title, PdfPage destinationPage, XPoint position)
+        {
+            var outline = outlines.Add(title, destinationPage, true);
+            outline.Left = position.X;
+            outline.Top = position.Y;
+            return outline;
         }
 
         internal int NextListNumber(ListInfo listInfo)
@@ -287,33 +321,31 @@ namespace MigraDocCore.Rendering
               listType == ListType.NumberList3;
 
             int listNumber = int.MinValue;
-            if (listInfo == this.previousListInfo)
+            if (listInfo == _previousListInfo)
             {
                 if (isNumberList)
-                    return (int)this.previousListNumbers[listType];
+                    return _previousListNumbers[listType];
                 return listNumber;
             }
 
-            //bool listTypeChanged = this.previousListInfo == null || this.previousListInfo.ListType != listType;
+            //bool listTypeChanged = _previousListInfo == null || _previousListInfo.ListType != listType;
 
             if (isNumberList)
             {
                 listNumber = 1;
-                if (/*!listTypeChanged &&*/ (listInfo.IsNull("ContinuePreviousList") || listInfo.ContinuePreviousList))
-                    listNumber = (int)this.previousListNumbers[listType] + 1;
+                if (/*!listTypeChanged &&*/ (!listInfo.ContinuePreviousList.HasValue || listInfo.ContinuePreviousList.Value))
+                    listNumber = _previousListNumbers[listType] + 1;
 
-                this.previousListNumbers[listType] = listNumber;
+                _previousListNumbers[listType] = listNumber;
             }
-            //      else
-            //        listNumber = int.MinValue;
 
-            this.previousListInfo = listInfo;
+            _previousListInfo = listInfo;
             return listNumber;
         }
-        ListInfo previousListInfo;
-        Hashtable previousListNumbers;
-        private Document document;
-        internal DateTime printDate = DateTime.MinValue;
+        ListInfo _previousListInfo;
+        Dictionary<ListType, int> _previousListNumbers;
+        private readonly Document _document;
+        internal DateTime _printDate = DateTime.MinValue;
 
         /// <summary>
         /// Arguments for the PrepareDocumentProgressEvent which is called while a document is being prepared (you can use this to display a progress bar).
@@ -336,8 +368,8 @@ namespace MigraDocCore.Rendering
             /// <param name="maximum">The latest step in document preparation.</param>
             public PrepareDocumentProgressEventArgs(int value, int maximum)
             {
-                this.Value = value;
-                this.Maximum = maximum;
+                Value = value;
+                Maximum = maximum;
             }
         }
 

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -47,8 +47,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public DdlWriter(Stream stream)
         {
-            this.writer = new StreamWriter(stream);
-            this.serializer = new Serializer(this.writer);
+            _writer = new StreamWriter(stream);
+            _serializer = new Serializer(_writer);
         }
 
         /// <summary>
@@ -56,8 +56,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public DdlWriter(string filename)
         {
-            this.writer = new StreamWriter(File.Open(filename, FileMode.Create), Encoding.UTF8, 1024, false);
-            this.serializer = new Serializer(this.writer);
+            _writer = new StreamWriter(File.Open(filename, FileMode.Create), Encoding.UTF8, 1024, false);
+            _serializer = new Serializer(_writer);
         }
 
         /// <summary>
@@ -65,7 +65,21 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public DdlWriter(TextWriter writer)
         {
-            this.serializer = new Serializer(writer);
+            _serializer = new Serializer(writer);
+        }
+
+        /// <summary>
+        /// Closes the underlying serializer and text writer.
+        /// </summary>
+        public void Close()
+        {
+            _serializer = null;
+
+            if (_writer != null)
+            {
+                _writer.Close();
+                _writer = null;
+            }
         }
 
         /// <summary>
@@ -73,7 +87,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public void Flush()
         {
-            this.serializer.Flush();
+            _serializer.Flush();
         }
 
         /// <summary>
@@ -81,8 +95,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public int Indent
         {
-            get { return serializer.Indent; }
-            set { serializer.Indent = value; }
+            get { return _serializer.Indent; }
+            set { _serializer.Indent = value; }
         }
 
         /// <summary>
@@ -90,8 +104,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public int InitialIndent
         {
-            get { return serializer.InitialIndent; }
-            set { serializer.InitialIndent = value; }
+            get { return _serializer.InitialIndent; }
+            set { _serializer.InitialIndent = value; }
         }
 
         /// <summary>
@@ -99,8 +113,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public void WriteDocument(DocumentObject documentObject)
         {
-            documentObject.Serialize(this.serializer);
-            this.serializer.Flush();
+            documentObject.Serialize(_serializer);
+            _serializer.Flush();
         }
 
         /// <summary>
@@ -108,8 +122,8 @@ namespace MigraDocCore.DocumentObjectModel.IO
         /// </summary>
         public void WriteDocument(DocumentObjectCollection documentObjectContainer)
         {
-            documentObjectContainer.Serialize(this.serializer);
-            this.serializer.Flush();
+            documentObjectContainer.Serialize(_serializer);
+            _serializer.Flush();
         }
 
         /// <summary>
@@ -257,17 +271,17 @@ namespace MigraDocCore.DocumentObjectModel.IO
 
         protected virtual void Dispose(bool disposing)
         {
-            if (this.serializer != null)
-                this.serializer = null;
+            if (_serializer != null)
+                _serializer = null;
 
-            if (this.writer != null)
+            if (_writer != null)
             {
-                this.writer.Dispose();
-                this.writer = null;
+                _writer.Dispose();
+                _writer = null;
             }
         }
 
-        StreamWriter writer;
-        Serializer serializer;
+        StreamWriter _writer;
+        Serializer _serializer;
     }
 }

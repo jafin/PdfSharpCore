@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -38,7 +38,7 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Abstract base class for formatting information received by calling Format() on a renderer.
   /// </summary>
-  internal abstract class FormatInfo
+    public abstract class FormatInfo
   {
     /// <summary>
     /// Indicates that the formatted object is starting.

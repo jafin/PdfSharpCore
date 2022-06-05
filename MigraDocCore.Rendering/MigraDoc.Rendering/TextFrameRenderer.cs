@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,101 +35,98 @@ using MigraDocCore.DocumentObjectModel.Shapes;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Renders textframes.
-  /// </summary>
-  internal class TextFrameRenderer : ShapeRenderer
-  {
-    internal TextFrameRenderer(XGraphics gfx, TextFrame textframe, FieldInfos fieldInfos)
-      : base(gfx, textframe, fieldInfos)
+    /// <summary>
+    /// Renders textframes.
+    /// </summary>
+    internal class TextFrameRenderer : ShapeRenderer
     {
-      this.textframe = textframe;
-      TextFrameRenderInfo renderInfo = new TextFrameRenderInfo();
-      renderInfo.shape = this.shape;
-      this.renderInfo = renderInfo;
+        internal TextFrameRenderer(XGraphics gfx, TextFrame textframe, FieldInfos fieldInfos)
+            : base(gfx, textframe, fieldInfos)
+        {
+            _textframe = textframe;
+            TextFrameRenderInfo renderInfo = new TextFrameRenderInfo();
+            renderInfo.DocumentObject = _shape;
+            _renderInfo = renderInfo;
+        }
+
+        internal TextFrameRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
+            : base(gfx, renderInfo, fieldInfos)
+        {
+            _textframe = (TextFrame)renderInfo.DocumentObject;
+        }
+
+        internal override void Format(Area area, FormatInfo previousFormatInfo)
+        {
+            FormattedTextFrame formattedTextFrame = new FormattedTextFrame(_textframe, _documentRenderer, _fieldInfos);
+            formattedTextFrame.Format(_gfx);
+            ((TextFrameFormatInfo)_renderInfo.FormatInfo).FormattedTextFrame = formattedTextFrame;
+            base.Format(area, previousFormatInfo);
+        }
+
+        internal override LayoutInfo InitialLayoutInfo
+        {
+            get { return base.InitialLayoutInfo; }
+        }
+
+        internal override void Render()
+        {
+            RenderFilling();
+            RenderContent();
+            RenderLine();
+        }
+
+        void RenderContent()
+        {
+            FormattedTextFrame formattedTextFrame = ((TextFrameFormatInfo)_renderInfo.FormatInfo).FormattedTextFrame;
+            RenderInfo[] renderInfos = formattedTextFrame.GetRenderInfos();
+            if (renderInfos == null)
+                return;
+
+            XGraphicsState state = Transform();
+            RenderByInfos(renderInfos);
+            ResetTransform(state);
+        }
+
+        XGraphicsState Transform()
+        {
+            Area frameContentArea = _renderInfo.LayoutInfo.ContentArea;
+            XGraphicsState state = _gfx.Save();
+            XUnit xPosition;
+            XUnit yPosition;
+            switch (_textframe.Orientation)
+            {
+                case TextOrientation.Downward:
+                case TextOrientation.Vertical:
+                case TextOrientation.VerticalFarEast:
+                    xPosition = frameContentArea.X + frameContentArea.Width;
+                    yPosition = frameContentArea.Y;
+                    _gfx.TranslateTransform(xPosition, yPosition);
+                    _gfx.RotateTransform(90);
+                    break;
+
+                case TextOrientation.Upward:
+                    state = _gfx.Save();
+                    xPosition = frameContentArea.X;
+                    yPosition = frameContentArea.Y + frameContentArea.Height;
+                    _gfx.TranslateTransform(xPosition, yPosition);
+                    _gfx.RotateTransform(-90);
+                    break;
+
+                default:
+                    xPosition = frameContentArea.X;
+                    yPosition = frameContentArea.Y;
+                    _gfx.TranslateTransform(xPosition, yPosition);
+                    break;
+            }
+            return state;
+        }
+
+        void ResetTransform(XGraphicsState state)
+        {
+            if (state != null)
+                _gfx.Restore(state);
+        }
+
+        readonly TextFrame _textframe;
     }
-
-    internal TextFrameRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
-      : base(gfx, renderInfo, fieldInfos)
-    {
-      this.textframe = (TextFrame)renderInfo.DocumentObject;
-    }
-
-    internal override void Format(Area area, FormatInfo previousFormatInfo)
-    {
-      FormattedTextFrame formattedTextFrame = new FormattedTextFrame(this.textframe, this.documentRenderer, this.fieldInfos);
-      formattedTextFrame.Format(this.gfx);
-      ((TextFrameFormatInfo)this.renderInfo.FormatInfo).formattedTextFrame = formattedTextFrame;
-      base.Format(area, previousFormatInfo);
-    }
-
-
-    internal override LayoutInfo InitialLayoutInfo
-    {
-      get
-      {
-        return base.InitialLayoutInfo;
-      }
-    }
-
-    internal override void Render()
-    {
-      RenderFilling();
-      RenderContent();
-      RenderLine();
-    }
-
-    void RenderContent()
-    {
-      FormattedTextFrame formattedTextFrame = ((TextFrameFormatInfo)this.renderInfo.FormatInfo).formattedTextFrame;
-      RenderInfo[] renderInfos = formattedTextFrame.GetRenderInfos();
-      if (renderInfos == null)
-        return;
-
-      XGraphicsState state = Transform();
-      RenderByInfos(renderInfos);
-      ResetTransform(state);
-    }
-
-    XGraphicsState Transform()
-    {
-      Area frameContentArea = this.renderInfo.LayoutInfo.ContentArea;
-      XGraphicsState state = this.gfx.Save();
-      XUnit xPosition;
-      XUnit yPosition;
-      switch (this.textframe.Orientation)
-      {
-        case TextOrientation.Downward:
-        case TextOrientation.Vertical:
-        case TextOrientation.VerticalFarEast:
-          xPosition = frameContentArea.X + frameContentArea.Width;
-          yPosition = frameContentArea.Y;
-          this.gfx.TranslateTransform(xPosition, yPosition);
-          this.gfx.RotateTransform(90);
-          break;
-
-        case TextOrientation.Upward:
-          state = this.gfx.Save();
-          xPosition = frameContentArea.X;
-          yPosition = frameContentArea.Y + frameContentArea.Height;
-          this.gfx.TranslateTransform(xPosition, yPosition);
-          this.gfx.RotateTransform(-90);
-          break;
-
-        default:
-          xPosition = frameContentArea.X;
-          yPosition = frameContentArea.Y;
-          this.gfx.TranslateTransform(xPosition, yPosition);
-          break;
-      }
-      return state;
-    }
-
-    void ResetTransform(XGraphicsState state)
-    {
-      if (state != null)
-        this.gfx.Restore(state);
-    }
-    TextFrame textframe;
-  }
 }

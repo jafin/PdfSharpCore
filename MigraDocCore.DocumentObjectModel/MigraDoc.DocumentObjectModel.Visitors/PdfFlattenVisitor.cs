@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.IO;
 
@@ -82,7 +83,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
 
     internal override void VisitDocumentObjectCollection(DocumentObjectCollection elements)
     {
-      ArrayList textIndices = new ArrayList();
+            List<int> textIndices = new List<int>();
       if (elements is ParagraphElements)
       {
         for (int idx = 0; idx < elements.Count; ++idx)
@@ -92,7 +93,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
         }
       }
 
-      int[] indices = (int[])textIndices.ToArray(typeof(int));
+            int[] indices = (int[])textIndices.ToArray();
       if (indices != null)
       {
         int insertedObjects = 0;
@@ -102,6 +103,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
           string currentString = "";
           foreach (char ch in text.Content)
           {
+                        // TODO Add support for other breaking spaces (en space, em space, &c.).
             switch (ch)
             {
               case ' ':
@@ -118,12 +120,21 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
                 ++insertedObjects;
                 break;
 
-              case Chars.ZeroWidthSpace:
               case '-': //minus
                 elements.InsertObject(idx + insertedObjects, new Text(currentString + ch));
                 ++insertedObjects;
                 currentString = "";
                 break;
+                            // Characters that allow line breaks without indication.
+                            case Chars.ZeroWidthSpace: // zero width space.
+                            case '\u200C': // zero width non-joiner.
+                                if (currentString != "")
+                                {
+                                    elements.InsertObject(idx + insertedObjects, new Text(currentString));
+                                    ++insertedObjects;
+                                    currentString = "";
+                                }
+                                break;
 
               case Chars.SoftHyphen: //soft hyphen
                 if (currentString != "")
@@ -158,48 +169,49 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
       Document document = formattedText.Document;
       ParagraphFormat format = null;
 
-      Style style = document.styles[formattedText.style.Value];
-      if (style != null)
-        format = style.paragraphFormat;
-      else if (formattedText.style.Value != "")
-        format = document.styles["InvalidStyleName"].paragraphFormat;
+            Style style = document._styles[formattedText._style.Value];
+            if (style != null)
+                format = style._paragraphFormat;
+            else if (formattedText._style.Value != "")
+                format = document._styles[StyleNames.InvalidStyleName]._paragraphFormat;
 
-      if (format != null)
-      {
-        if (formattedText.font == null)
-          formattedText.Font = format.font.Clone();
-        else if (format.font != null)
-          FlattenFont(formattedText.font, format.font);
-      }
+            if (format != null)
+            {
+                if (formattedText._font == null)
+                    formattedText.Font = format._font.Clone();
+                else if (format._font != null)
+                    FlattenFont(formattedText._font, format._font);
+            }
 
-      Font parentFont = GetParentFont(formattedText);
+            Font parentFont = GetParentFont(formattedText);
 
-      if (formattedText.font == null)
-        formattedText.Font = parentFont.Clone();
-      else if (parentFont != null)
-        FlattenFont(formattedText.font, parentFont);
-    }
+            if (formattedText._font == null)
+                formattedText.Font = parentFont.Clone();
+            else if (parentFont != null)
+                FlattenFont(formattedText._font, parentFont);
+        }
 
-    internal override void VisitHyperlink(Hyperlink hyperlink)
-    {
-      Font styleFont = hyperlink.Document.Styles["Hyperlink"].Font;
-      if (hyperlink.font == null)
-        hyperlink.Font = styleFont.Clone();
-      else
-        FlattenFont(hyperlink.font, styleFont);
+        internal override void VisitHyperlink(Hyperlink hyperlink)
+        {
+            Font styleFont = hyperlink.Document.Styles[StyleNames.Hyperlink].Font;
+            if (hyperlink._font == null)
+                hyperlink.Font = styleFont.Clone();
+            else
+                FlattenFont(hyperlink._font, styleFont);
 
-      FlattenFont(hyperlink.font, GetParentFont(hyperlink));
-    }
+            FlattenFont(hyperlink._font, GetParentFont(hyperlink));
+        }
 
-    protected Font GetParentFont(DocumentObject obj)
-    {
-      DocumentObject parentElements = DocumentRelations.GetParent(obj);
-      DocumentObject parentObject = DocumentRelations.GetParent(parentElements);
-      Font parentFont = null;
-      if (parentObject is Paragraph)
-      {
-        ParagraphFormat format = ((Paragraph)parentObject).Format;
-        parentFont = format.font;
+        protected Font GetParentFont(DocumentObject obj)
+        {
+            DocumentObject parentElements = DocumentRelations.GetParent(obj);
+            DocumentObject parentObject = DocumentRelations.GetParent(parentElements);
+            Font parentFont;
+            Paragraph paragraph = parentObject as Paragraph;
+            if (paragraph != null)
+            {
+                ParagraphFormat format = paragraph.Format;
+                parentFont = format._font;
       }
       else //Hyperlink or FormattedText
       {

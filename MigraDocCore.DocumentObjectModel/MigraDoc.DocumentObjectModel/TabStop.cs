@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -60,8 +60,8 @@ namespace MigraDocCore.DocumentObjectModel
     public TabStop(Unit position)
       : this()
     {
-      this.position = position;
-    }
+            _position = position;
+        }
 
     #region Methods
     /// <summary>
@@ -73,80 +73,75 @@ namespace MigraDocCore.DocumentObjectModel
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets the tab stop position.
-    /// </summary>
-    public Unit Position
-    {
-      get { return this.position; }
-    }
-    [DV]
-    internal Unit position = Unit.NullValue;  // always defined
-    // useful enhancement: 'Position = Center' and 'Position = Right'
+        #region Properties
+        /// <summary>
+        /// Gets the tab stop position.
+        /// </summary>
+        public Unit Position
+        {
+            get { return _position; }
+        }
+        [DV]
+        internal Unit _position = Unit.NullValue;  // always defined
+        // useful enhancement: 'Position = Center' and 'Position = Right'
 
-    /// <summary>
-    /// Gets or sets the alignment of the tabstop.
-    /// </summary>
-    public TabAlignment Alignment
-    {
-      get { return (TabAlignment)this.alignment.Value; }
-      set { this.alignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(TabAlignment))]
-    internal NEnum alignment = NEnum.NullValue(typeof(TabAlignment));
+        /// <summary>
+        /// Gets or sets the alignment of the tabstop.
+        /// </summary>
+        public TabAlignment Alignment
+        {
+            get { return (TabAlignment)_alignment.Value; }
+            set { _alignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(TabAlignment))]
+        internal NEnum _alignment = NEnum.NullValue(typeof(TabAlignment));
 
-    /// <summary>
-    /// Gets or sets the character which is used as a leader for the tabstop.
-    /// </summary>
-    public TabLeader Leader
-    {
-      get { return (TabLeader)this.leader.Value; }
-      set { this.leader.Value = (int)value; }
-    }
-    [DV(Type = typeof(TabLeader))]
-    internal NEnum leader = NEnum.NullValue(typeof(TabLeader));
+        /// <summary>
+        /// Gets or sets the character which is used as a leader for the tabstop.
+        /// </summary>
+        public TabLeader Leader
+        {
+            get { return (TabLeader)_leader.Value; }
+            set { _leader.Value = (int)value; }
+        }
+        [DV(Type = typeof(TabLeader))]
+        internal NEnum _leader = NEnum.NullValue(typeof(TabLeader));
 
-    /// <summary>
-    /// Generates a '+=' in DDL if it is true, otherwise '-='.
-    /// </summary>
-    internal bool AddTab = true;
-    #endregion
+        /// <summary>
+        /// Generates a '+=' in DDL if it is true, otherwise '-='.
+        /// </summary>
+        internal bool AddTab = true;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts TabStop into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (this.AddTab)
-      {
-        serializer.WriteLine("TabStops +=");
-        serializer.BeginContent();
-        serializer.WriteSimpleAttribute("Position", this.Position);
-        if (!this.alignment.IsNull)
-          serializer.WriteSimpleAttribute("Alignment", this.Alignment);
-        if (!this.leader.IsNull)
-          serializer.WriteSimpleAttribute("Leader", this.Leader);
-        serializer.EndContent();
-      }
-      else
-        serializer.WriteLine("TabStops -= \"" + this.Position.ToString() + "\"");
-    }
+        #region Internal
+        /// <summary>
+        /// Converts TabStop into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (AddTab)
+            {
+                serializer.WriteLine("TabStops +=");
+                serializer.BeginContent();
+                serializer.WriteSimpleAttribute("Position", Position);
+                if (!_alignment.IsNull)
+                    serializer.WriteSimpleAttribute("Alignment", Alignment);
+                if (!_leader.IsNull)
+                    serializer.WriteSimpleAttribute("Leader", Leader);
+                serializer.EndContent();
+            }
+            else
+                serializer.WriteLine("TabStops -= \"" + Position + "\"");
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(TabStop));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(TabStop))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

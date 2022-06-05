@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -71,8 +71,8 @@ namespace MigraDocCore.DocumentObjectModel
       //Sizes in mm:
       pageWidth = 0;
       pageHeight = 0;
-      int A0Height = 1189;
-      int A0Width = 841;
+            const int A0Height = 1189;
+            const int A0Width = 841;
       int height = 0;
       int width = 0;
       switch (pageFormat)
@@ -139,341 +139,327 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public BreakType SectionStart
     {
-      get { return (BreakType)this.sectionStart.Value; }
-      set { this.sectionStart.Value = (int)value; }
-    }
-    [DV(Type = typeof(BreakType))]
-    internal NEnum sectionStart = NEnum.NullValue(typeof(BreakType));
-
-    /// <summary>
-    /// Gets or sets the page orientation of the section.
-    /// </summary>
-    public Orientation Orientation
-    {
-      get { return (Orientation)this.orientation.Value; }
-      set { this.orientation.Value = (int)value; }
-    }
-    [DV(Type = typeof(Orientation))]
-    internal NEnum orientation = NEnum.NullValue(typeof(Orientation));
-
-    /// <summary>
-    /// Gets or sets the page width.
-    /// </summary>
-    public Unit PageWidth
-    {
-      get { return this.pageWidth; }
-      set { this.pageWidth = value; }
-    }
-    [DV]
-    internal Unit pageWidth = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the starting number for the first section page.
-    /// </summary>
-    public int StartingNumber
-    {
-      get { return this.startingNumber.Value; }
-      set { this.startingNumber.Value = value; }
-    }
-    [DV]
-    internal NInt startingNumber = NInt.NullValue;
-
-    /// <summary>
-    /// Gets or sets the page height.
-    /// </summary>
-    public Unit PageHeight
-    {
-      get { return this.pageHeight; }
-      set { this.pageHeight = value; }
-    }
-    [DV]
-    internal Unit pageHeight = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the top margin of the pages in the section.
-    /// </summary>
-    public Unit TopMargin
-    {
-      get { return this.topMargin; }
-      set { this.topMargin = value; }
-    }
-    [DV]
-    internal Unit topMargin = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the bottom margin of the pages in the section.
-    /// </summary>
-    public Unit BottomMargin
-    {
-      get { return this.bottomMargin; }
-      set { this.bottomMargin = value; }
-    }
-    [DV]
-    internal Unit bottomMargin = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the left margin of the pages in the section.
-    /// </summary>
-    public Unit LeftMargin
-    {
-      get { return this.leftMargin; }
-      set { this.leftMargin = value; }
-    }
-    [DV]
-    internal Unit leftMargin = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the right margin of the pages in the section.
-    /// </summary>
-    public Unit RightMargin
-    {
-      get { return this.rightMargin; }
-      set { this.rightMargin = value; }
-    }
-    [DV]
-    internal Unit rightMargin = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets a value which defines whether the odd and even pages
-    /// of the section have different header and footer.
-    /// </summary>
-    public bool OddAndEvenPagesHeaderFooter
-    {
-      get { return this.oddAndEvenPagesHeaderFooter.Value; }
-      set { this.oddAndEvenPagesHeaderFooter.Value = value; }
-    }
-    [DV]
-    internal NBool oddAndEvenPagesHeaderFooter = NBool.NullValue;
-
-    /// <summary>
-    /// Gets or sets a value which define whether the section has a different
-    /// first page header and footer.
-    /// </summary>
-    public bool DifferentFirstPageHeaderFooter
-    {
-      get { return this.differentFirstPageHeaderFooter.Value; }
-      set { this.differentFirstPageHeaderFooter.Value = value; }
-    }
-    [DV]
-    internal NBool differentFirstPageHeaderFooter = NBool.NullValue;
-
-    /// <summary>
-    /// Gets or sets the distance between the header and the page top
-    /// of the pages in the section.
-    /// </summary>
-    public Unit HeaderDistance
-    {
-      get { return this.headerDistance; }
-      set { this.headerDistance = value; }
-    }
-    [DV]
-    internal Unit headerDistance = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the distance between the footer and the page bottom
-    /// of the pages in the section.
-    /// </summary>
-    public Unit FooterDistance
-    {
-      get { return this.footerDistance; }
-      set { this.footerDistance = value; }
-    }
-    [DV]
-    internal Unit footerDistance = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets a value which defines whether the odd and even pages
-    /// of the section should change left and right margin.
-    /// </summary>
-    public bool MirrorMargins
-    {
-      get { return this.mirrorMargins.Value; }
-      set { this.mirrorMargins.Value = value; }
-    }
-    [DV]
-    internal NBool mirrorMargins = NBool.NullValue;
-
-    /// <summary>
-    /// Gets or sets a value which defines whether a page should break horizontally.
-    /// Currently only tables are supported.
-    /// </summary>
-    public bool HorizontalPageBreak
-    {
-      get { return this.horizontalPageBreak.Value; }
-      set { this.horizontalPageBreak.Value = value; }
-    }
-    [DV]
-    internal NBool horizontalPageBreak = NBool.NullValue;
-
-    /// <summary>
-    /// Gets or sets the page format of the section.
-    /// </summary>
-    public PageFormat PageFormat
-    {
-      get { return (PageFormat)this.pageFormat.Value; }
-      set { this.pageFormat.Value = (int)value; }
-    }
-    [DV(Type = typeof(PageFormat))]
-    internal NEnum pageFormat = NEnum.NullValue(typeof(PageFormat));
-
-    /// <summary>
-    /// Gets or sets a comment associated with this object.
-    /// </summary>
-    public string Comment
-    {
-      get { return this.comment.Value; }
-      set { this.comment.Value = value; }
-    }
-    [DV]
-    internal NString comment = NString.NullValue;
-    #endregion
-
-    /// <summary>
-    /// Gets the PageSetup of the previous section, or null, if the page setup belongs 
-    /// to the first section.
-    /// </summary>
-    public PageSetup PreviousPageSetup()
-    {
-      Section section = Parent as Section;
-      if (section != null)
-      {
-        section = section.PreviousSection();
-        if (section != null)
-          return section.PageSetup;
-      }
-      return null;
-    }
-
-    /// <summary>
-    /// Gets a PageSetup object with default values for all properties.
-    /// </summary>
-    internal static PageSetup DefaultPageSetup
-    {
-      get
-      {
-        if (PageSetup.defaultPageSetup == null)
-        {
-          PageSetup.defaultPageSetup = new PageSetup();
-          PageSetup.defaultPageSetup.PageFormat = PageFormat.A4;
-          PageSetup.defaultPageSetup.SectionStart = BreakType.BreakNextPage;
-          PageSetup.defaultPageSetup.Orientation = Orientation.Portrait;
-          PageSetup.defaultPageSetup.PageWidth = "21cm";
-          PageSetup.defaultPageSetup.PageHeight = "29.7cm";
-          PageSetup.defaultPageSetup.TopMargin = "2.5cm";
-          PageSetup.defaultPageSetup.BottomMargin = "2cm";
-          PageSetup.defaultPageSetup.LeftMargin = "2.5cm";
-          PageSetup.defaultPageSetup.RightMargin = "2.5cm";
-          PageSetup.defaultPageSetup.HeaderDistance = "1.25cm";
-          PageSetup.defaultPageSetup.FooterDistance = "1.25cm";
-          PageSetup.defaultPageSetup.OddAndEvenPagesHeaderFooter = false;
-          PageSetup.defaultPageSetup.DifferentFirstPageHeaderFooter = false;
-          PageSetup.defaultPageSetup.MirrorMargins = false;
-          PageSetup.defaultPageSetup.HorizontalPageBreak = false;
-#if DEBUG
-          PageSetup.defaultPageSetupClone = PageSetup.defaultPageSetup.Clone();
-#endif
+            get { return (BreakType)_sectionStart.Value; }
+            set { _sectionStart.Value = (int)value; }
         }
-#if DEBUG
-        else
+        [DV(Type = typeof(BreakType))]
+        internal NEnum _sectionStart = NEnum.NullValue(typeof(BreakType));
+
+        /// <summary>
+        /// Gets or sets the page orientation of the section.
+        /// </summary>
+        public Orientation Orientation
         {
-          Debug.Assert(PageSetup.defaultPageSetup.PageFormat == PageSetup.defaultPageSetupClone.PageFormat, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.SectionStart == PageSetup.defaultPageSetupClone.SectionStart, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.Orientation == PageSetup.defaultPageSetupClone.Orientation, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.PageWidth == PageSetup.defaultPageSetupClone.PageWidth, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.PageHeight == PageSetup.defaultPageSetupClone.PageHeight, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.TopMargin == PageSetup.defaultPageSetupClone.TopMargin, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.BottomMargin == PageSetup.defaultPageSetupClone.BottomMargin, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.LeftMargin == PageSetup.defaultPageSetupClone.LeftMargin, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.RightMargin == PageSetup.defaultPageSetupClone.RightMargin, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.HeaderDistance == PageSetup.defaultPageSetupClone.HeaderDistance, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.FooterDistance == PageSetup.defaultPageSetupClone.FooterDistance, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.OddAndEvenPagesHeaderFooter == PageSetup.defaultPageSetupClone.OddAndEvenPagesHeaderFooter, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.DifferentFirstPageHeaderFooter == PageSetup.defaultPageSetupClone.DifferentFirstPageHeaderFooter, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.MirrorMargins == PageSetup.defaultPageSetupClone.MirrorMargins, "DefaultPageSetup must not be modified");
-          Debug.Assert(PageSetup.defaultPageSetup.HorizontalPageBreak == PageSetup.defaultPageSetupClone.HorizontalPageBreak, "DefaultPageSetup must not be modified");
+            get { return (Orientation)_orientation.Value; }
+            set { _orientation.Value = (int)value; }
         }
-#endif
-        return defaultPageSetup;
-      }
-    }
-    private static PageSetup defaultPageSetup;
-#if DEBUG
-    private static PageSetup defaultPageSetupClone;
-#endif
+        [DV(Type = typeof(Orientation))]
+        internal NEnum _orientation = NEnum.NullValue(typeof(Orientation));
 
-    #region Internal
-    /// <summary>
-    /// Converts PageSetup into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteComment(this.comment.Value);
-      int pos = serializer.BeginContent("PageSetup");
+        private bool IsLandscape
+        {
+            get { return Orientation == Orientation.Landscape; }
+        }
 
-      if (!this.pageHeight.IsNull)
-        serializer.WriteSimpleAttribute("PageHeight", this.PageHeight);
+        // TODO To be compatible with Word, PageWidth should always return the actual width (e.g. 21 cm for DIN A 4 portrait and 29.7 cm for DIN A 4 landscape).
+        // TODO Pagemargins are also "moving": portrait-left becomes landscape-top
+        /// <summary>
+        /// Gets or sets the page width. If Orientation is set to Landscape, the PageWidth specifies the height of the page.
+        /// </summary>
+        public Unit PageWidth
+        {
+            get { return _pageWidth; }
+            set { _pageWidth = value; }
+        }
+        [DV]
+        internal Unit _pageWidth = Unit.NullValue;
 
-      if (!this.pageWidth.IsNull)
-        serializer.WriteSimpleAttribute("PageWidth", this.PageWidth);
+        /// <summary>
+        /// Gets the effective page width, depending on the Orientation this will either be the height or the width.
+        /// </summary>
+        public Unit EffectivePageWidth
+        {
+            get { return IsLandscape ? PageHeight : PageWidth; }
+        }
 
-      if (!this.orientation.IsNull)
-        serializer.WriteSimpleAttribute("Orientation", this.Orientation);
+        /// <summary>
+        /// Gets or sets the starting number for the first section page.
+        /// </summary>
+        public int? StartingNumber { get; set; }
 
-      if (!this.leftMargin.IsNull)
-        serializer.WriteSimpleAttribute("LeftMargin", this.LeftMargin);
+        /// <summary>
+        /// Gets or sets the page height. If Orientation is set to Landscape, the PageHeight specifies the width of the page.
+        /// </summary>
+        public Unit PageHeight
+        {
+            get { return _pageHeight; }
+            set { _pageHeight = value; }
+        }
+        [DV]
+        internal Unit _pageHeight = Unit.NullValue;
 
-      if (!this.rightMargin.IsNull)
-        serializer.WriteSimpleAttribute("RightMargin", this.RightMargin);
+        /// <summary>
+        /// Gets the effective page height, depending on the Orientation this will either be the height or the width.
+        /// </summary>
+        public Unit EffectivePageHeight
+        {
+            get { return IsLandscape ? PageWidth : PageHeight; }
+        }
 
-      if (!this.topMargin.IsNull)
-        serializer.WriteSimpleAttribute("TopMargin", this.TopMargin);
+        /// <summary>
+        /// Gets or sets the top margin of the pages in the section.
+        /// </summary>
+        public Unit TopMargin
+        {
+            get { return _topMargin; }
+            set { _topMargin = value; }
+        }
+        [DV]
+        internal Unit _topMargin = Unit.NullValue;
 
-      if (!this.bottomMargin.IsNull)
-        serializer.WriteSimpleAttribute("BottomMargin", this.BottomMargin);
+        /// <summary>
+        /// Gets or sets the bottom margin of the pages in the section.
+        /// </summary>
+        public Unit BottomMargin
+        {
+            get { return _bottomMargin; }
+            set { _bottomMargin = value; }
+        }
+        [DV]
+        internal Unit _bottomMargin = Unit.NullValue;
 
-      if (!this.footerDistance.IsNull)
-        serializer.WriteSimpleAttribute("FooterDistance", this.FooterDistance);
+        /// <summary>
+        /// Gets or sets the left margin of the pages in the section.
+        /// </summary>
+        public Unit LeftMargin
+        {
+            get { return _leftMargin; }
+            set { _leftMargin = value; }
+        }
+        [DV]
+        internal Unit _leftMargin = Unit.NullValue;
 
-      if (!this.headerDistance.IsNull)
-        serializer.WriteSimpleAttribute("HeaderDistance", this.HeaderDistance);
+        /// <summary>
+        /// Gets or sets the right margin of the pages in the section.
+        /// </summary>
+        public Unit RightMargin
+        {
+            get { return _rightMargin; }
+            set { _rightMargin = value; }
+        }
+        [DV]
+        internal Unit _rightMargin = Unit.NullValue;
 
-      if (!this.oddAndEvenPagesHeaderFooter.IsNull)
-        serializer.WriteSimpleAttribute("OddAndEvenPagesHeaderFooter", this.OddAndEvenPagesHeaderFooter);
+        /// <summary>
+        /// Gets or sets a value which defines whether the odd and even pages
+        /// of the section have different header and footer.
+        /// </summary>
+        public bool OddAndEvenPagesHeaderFooter
+        {
+            get { return _oddAndEvenPagesHeaderFooter.Value; }
+            set { _oddAndEvenPagesHeaderFooter.Value = value; }
+        }
+        [DV]
+        internal NBool _oddAndEvenPagesHeaderFooter = NBool.NullValue;
 
-      if (!this.differentFirstPageHeaderFooter.IsNull)
-        serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", this.DifferentFirstPageHeaderFooter);
+        /// <summary>
+        /// Gets or sets a value which define whether the section has a different
+        /// first page header and footer.
+        /// </summary>
+        public bool DifferentFirstPageHeaderFooter
+        {
+            get { return _differentFirstPageHeaderFooter.Value; }
+            set { _differentFirstPageHeaderFooter.Value = value; }
+        }
+        [DV]
+        internal NBool _differentFirstPageHeaderFooter = NBool.NullValue;
 
-      if (!this.sectionStart.IsNull)
-        serializer.WriteSimpleAttribute("SectionStart", this.SectionStart);
+        /// <summary>
+        /// Gets or sets the distance between the header and the page top
+        /// of the pages in the section.
+        /// </summary>
+        public Unit HeaderDistance
+        {
+            get { return _headerDistance; }
+            set { _headerDistance = value; }
+        }
+        [DV]
+        internal Unit _headerDistance = Unit.NullValue;
 
-      if (!this.pageFormat.IsNull)
-        serializer.WriteSimpleAttribute("PageFormat", this.PageFormat);
+        /// <summary>
+        /// Gets or sets the distance between the footer and the page bottom
+        /// of the pages in the section.
+        /// </summary>
+        public Unit FooterDistance
+        {
+            get { return _footerDistance; }
+            set { _footerDistance = value; }
+        }
+        [DV]
+        internal Unit _footerDistance = Unit.NullValue;
 
-      if (!this.mirrorMargins.IsNull)
-        serializer.WriteSimpleAttribute("MirrorMargins", this.MirrorMargins);
+        /// <summary>
+        /// Gets or sets a value which defines whether the odd and even pages
+        /// of the section should change left and right margin.
+        /// </summary>
+        public bool MirrorMargins
+        {
+            get { return _mirrorMargins.Value; }
+            set { _mirrorMargins.Value = value; }
+        }
+        [DV]
+        internal NBool _mirrorMargins = NBool.NullValue;
 
-      if (!this.horizontalPageBreak.IsNull)
-        serializer.WriteSimpleAttribute("HorizontalPageBreak", this.HorizontalPageBreak);
+        /// <summary>
+        /// Gets or sets a value which defines whether a page should break horizontally.
+        /// Currently only tables are supported.
+        /// </summary>
+        public bool HorizontalPageBreak
+        {
+            get { return _horizontalPageBreak.Value; }
+            set { _horizontalPageBreak.Value = value; }
+        }
+        [DV]
+        internal NBool _horizontalPageBreak = NBool.NullValue;
 
-      if (!this.startingNumber.IsNull)
-        serializer.WriteSimpleAttribute("StartingNumber", this.StartingNumber);
+        /// <summary>
+        /// Gets or sets the page format of the section.
+        /// </summary>
+        public PageFormat PageFormat
+        {
+            get { return (PageFormat)_pageFormat.Value; }
+            set { _pageFormat.Value = (int)value; }
+        }
+        [DV(Type = typeof(PageFormat))]
+        internal NEnum _pageFormat = NEnum.NullValue(typeof(PageFormat));
 
-      serializer.EndContent(pos);
-    }
+        /// <summary>
+        /// Gets or sets a comment associated with this object.
+        /// </summary>
+        public string Comment
+        {
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
+        }
+        [DV]
+        internal NString _comment = NString.NullValue;
+        #endregion
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(PageSetup));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Gets the PageSetup of the previous section, or null, if the page setup belongs 
+        /// to the first section.
+        /// </summary>
+        public PageSetup PreviousPageSetup()
+        {
+            Section section = Parent as Section;
+            if (section != null)
+            {
+                section = section.PreviousSection();
+                if (section != null)
+                    return section.PageSetup;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets a PageSetup object with default values for all properties.
+        /// </summary>
+        internal static PageSetup DefaultPageSetup
+        {
+            get
+            {
+                if (_defaultPageSetup == null)
+                {
+                    _defaultPageSetup = new PageSetup();
+                    _defaultPageSetup.PageFormat = PageFormat.A4;
+                    _defaultPageSetup.SectionStart = BreakType.BreakNextPage;
+                    _defaultPageSetup.Orientation = Orientation.Portrait;
+                    _defaultPageSetup.PageWidth = "21cm";
+                    _defaultPageSetup.PageHeight = "29.7cm";
+                    _defaultPageSetup.TopMargin = "2.5cm";
+                    _defaultPageSetup.BottomMargin = "2cm";
+                    _defaultPageSetup.LeftMargin = "2.5cm";
+                    _defaultPageSetup.RightMargin = "2.5cm";
+                    _defaultPageSetup.HeaderDistance = "1.25cm";
+                    _defaultPageSetup.FooterDistance = "1.25cm";
+                    _defaultPageSetup.OddAndEvenPagesHeaderFooter = false;
+                    _defaultPageSetup.DifferentFirstPageHeaderFooter = false;
+                    _defaultPageSetup.MirrorMargins = false;
+                    _defaultPageSetup.HorizontalPageBreak = false;
+                }
+                return _defaultPageSetup;
+            }
+        }
+        static PageSetup _defaultPageSetup;
+
+        #region Internal
+        /// <summary>
+        /// Converts PageSetup into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.WriteComment(_comment.Value);
+            int pos = serializer.BeginContent("PageSetup");
+
+            if (!_pageHeight.IsNull)
+                serializer.WriteSimpleAttribute("PageHeight", PageHeight);
+
+            if (!_pageWidth.IsNull)
+                serializer.WriteSimpleAttribute("PageWidth", PageWidth);
+
+            if (!_orientation.IsNull)
+                serializer.WriteSimpleAttribute("Orientation", Orientation);
+
+            if (!_leftMargin.IsNull)
+                serializer.WriteSimpleAttribute("LeftMargin", LeftMargin);
+
+            if (!_rightMargin.IsNull)
+                serializer.WriteSimpleAttribute("RightMargin", RightMargin);
+
+            if (!_topMargin.IsNull)
+                serializer.WriteSimpleAttribute("TopMargin", TopMargin);
+
+            if (!_bottomMargin.IsNull)
+                serializer.WriteSimpleAttribute("BottomMargin", BottomMargin);
+
+            if (!_footerDistance.IsNull)
+                serializer.WriteSimpleAttribute("FooterDistance", FooterDistance);
+
+            if (!_headerDistance.IsNull)
+                serializer.WriteSimpleAttribute("HeaderDistance", HeaderDistance);
+
+            if (!_oddAndEvenPagesHeaderFooter.IsNull)
+                serializer.WriteSimpleAttribute("OddAndEvenPagesHeaderFooter", OddAndEvenPagesHeaderFooter);
+
+            if (!_differentFirstPageHeaderFooter.IsNull)
+                serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", DifferentFirstPageHeaderFooter);
+
+            if (!_sectionStart.IsNull)
+                serializer.WriteSimpleAttribute("SectionStart", SectionStart);
+
+            if (!_pageFormat.IsNull)
+                serializer.WriteSimpleAttribute("PageFormat", PageFormat);
+
+            if (!_mirrorMargins.IsNull)
+                serializer.WriteSimpleAttribute("MirrorMargins", MirrorMargins);
+
+            if (!_horizontalPageBreak.IsNull)
+                serializer.WriteSimpleAttribute("HorizontalPageBreak", HorizontalPageBreak);
+
+            if (StartingNumber.HasValue)
+                serializer.WriteSimpleAttribute("StartingNumber", StartingNumber);
+
+            serializer.EndContent(pos);
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(PageSetup))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -74,44 +74,35 @@ namespace MigraDocCore.DocumentObjectModel
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the text content.
-    /// </summary>
-    public string Content
-    {
-      get { return this.content.Value; }
-      set { this.content.Value = value; }
-    }
-    [DV]
-    internal NString content = NString.NullValue;
-    #endregion
+        /// <summary>
+        /// Gets or sets the text content.
+        /// </summary>
+        public string Content
+        {
+            get { return _content.Value; }
+            set { _content.Value = value; }
+        }
+        [DV]
+        internal NString _content = NString.NullValue;
 
-    #region Internal
-    /// <summary>
-    /// Converts Text into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string text = DdlEncoder.StringToText(content.Value);
-      // To make DDL more readable write soft hypens as keywords.
-      text = text.Replace(new string((char)173, 1), "\\-");
-      serializer.Write(text);
-    }
+        /// <summary>
+        /// Converts Text into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            string text = DdlEncoder.StringToText(_content.Value);
+            // To make DDL more readable write soft hypens as keywords.
+            text = text.Replace(new string((char)173, 1), "\\-");
+            serializer.Write(text);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Text));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Text))); }
+        }
+        static Meta _meta;
   }
 }

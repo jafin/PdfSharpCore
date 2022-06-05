@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -38,195 +38,189 @@ using MigraDocCore.DocumentObjectModel.Visitors;
 
 namespace MigraDocCore.DocumentObjectModel.Tables
 {
-  /// <summary>
-  /// Represents the collection of all rows of a table.
-  /// </summary>
-  public class Rows : DocumentObjectCollection, IVisitable
-  {
     /// <summary>
-    /// Initializes a new instance of the Rows class.
+    /// Represents the collection of all rows of a table.
     /// </summary>
-    public Rows()
+    public class Rows : DocumentObjectCollection, IVisitable
     {
+        /// <summary>
+        /// Initializes a new instance of the Rows class.
+        /// </summary>
+        public Rows()
+        { }
+
+        /// <summary>
+        /// Initializes a new instance of the Rows class with the specified parent.
+        /// </summary>
+        internal Rows(DocumentObject parent) : base(parent) { }
+
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new Rows Clone()
+        {
+            return (Rows)base.DeepCopy();
+        }
+
+        /// <summary>
+        /// Adds a new row to the rows collection. Allowed only if at least one column exists.
+        /// </summary>
+        public Row AddRow()
+        {
+            if (Table.Columns.Count == 0)
+                throw new InvalidOperationException("Cannot add row, because no columns exists.");
+
+            Row row = new Row();
+            Add(row);
+            return row;
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// Gets the table the rows collection belongs to.
+        /// </summary>
+        public Table Table
+        {
+            get { return _parent as Table; }
+        }
+
+        /// <summary>
+        /// Gets a row by its index.
+        /// </summary>
+        public new Row this[int index]
+        {
+            get { return base[index] as Row; }
+        }
+
+        /// <summary>
+        /// Gets or sets the row alignment of the table.
+        /// </summary>
+        public RowAlignment Alignment
+        {
+            get { return (RowAlignment)_alignment.Value; }
+            set { _alignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(RowAlignment))]
+        internal NEnum _alignment = NEnum.NullValue(typeof(RowAlignment));
+
+        /// <summary>
+        /// Gets or sets the left indent of the table. If row alignment is not Left, 
+        /// the value is ignored.
+        /// </summary>
+        public Unit LeftIndent
+        {
+            get { return _leftIndent; }
+            set { _leftIndent = value; }
+        }
+        [DV]
+        internal Unit _leftIndent = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the default vertical alignment for all rows.
+        /// </summary>
+        public VerticalAlignment VerticalAlignment
+        {
+            get { return (VerticalAlignment)_verticalAlignment.Value; }
+            set { _verticalAlignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(VerticalAlignment))]
+        internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+
+        /// <summary>
+        /// Gets or sets the height of the rows.
+        /// </summary>
+        public Unit Height
+        {
+            get { return _height; }
+            set { _height = value; }
+        }
+        [DV]
+        internal Unit _height = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the rule which is used to determine the height of the rows.
+        /// </summary>
+        public RowHeightRule HeightRule
+        {
+            get { return (RowHeightRule)_heightRule.Value; }
+            set { _heightRule.Value = (int)value; }
+        }
+        [DV(Type = typeof(RowHeightRule))]
+        internal NEnum _heightRule = NEnum.NullValue(typeof(RowHeightRule));
+
+        /// <summary>
+        /// Gets or sets a comment associated with this object.
+        /// </summary>
+        public string Comment
+        {
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
+        }
+        [DV]
+        internal NString _comment = NString.NullValue;
+        #endregion
+
+        #region Internal
+        /// <summary>
+        /// Converts Rows into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.WriteComment(_comment.Value);
+            serializer.WriteLine("\\rows");
+
+            int pos = serializer.BeginAttributes();
+
+            if (!_alignment.IsNull)
+                serializer.WriteSimpleAttribute("Alignment", Alignment);
+
+            if (!_height.IsNull)
+                serializer.WriteSimpleAttribute("Height", Height);
+
+            if (!_heightRule.IsNull)
+                serializer.WriteSimpleAttribute("HeightRule", HeightRule);
+
+            if (!_leftIndent.IsNull)
+                serializer.WriteSimpleAttribute("LeftIndent", LeftIndent);
+
+            if (!_verticalAlignment.IsNull)
+                serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
+
+            serializer.EndAttributes(pos);
+
+            serializer.BeginContent();
+            int rows = Count;
+            if (rows > 0)
+            {
+                for (int row = 0; row < rows; row++)
+                    this[row].Serialize(serializer);
+            }
+            else
+                serializer.WriteComment("Invalid - no rows defined. Table will not render.");
+            serializer.EndContent();
+        }
+
+        /// <summary>
+        /// Allows the visitor object to visit the document object and its child objects.
+        /// </summary>
+        void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
+        {
+            visitor.VisitRows(this);
+
+            foreach (Row row in this)
+                ((IVisitable)row).AcceptVisitor(visitor, visitChildren);
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Rows))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-
-    /// <summary>
-    /// Initializes a new instance of the Rows class with the specified parent.
-    /// </summary>
-    internal Rows(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Rows Clone()
-    {
-      return (Rows)base.DeepCopy();
-    }
-
-    /// <summary>
-    /// Adds a new row to the rows collection. Allowed only if at least one column exists.
-    /// </summary>
-    public Row AddRow()
-    {
-      if (Table.Columns.Count == 0)
-        throw new InvalidOperationException("Cannot add row, because no columns exists.");
-
-      Row row = new Row();
-      Add(row);
-      return row;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the table the rows collection belongs to.
-    /// </summary>
-    public Table Table
-    {
-      get { return this.parent as Table; }
-    }
-
-    /// <summary>
-    /// Gets a row by its index.
-    /// </summary>
-    public new Row this[int index]
-    {
-      get { return base[index] as Row; }
-    }
-
-    /// <summary>
-    /// Gets or sets the row alignment of the table.
-    /// </summary>
-    public RowAlignment Alignment
-    {
-      get { return (RowAlignment)this.alignment.Value; }
-      set { this.alignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(RowAlignment))]
-    internal NEnum alignment = NEnum.NullValue(typeof(RowAlignment));
-
-    /// <summary>
-    /// Gets or sets the left indent of the table. If row alignment is not Left, 
-    /// the value is ignored.
-    /// </summary>
-    public Unit LeftIndent
-    {
-      get { return this.leftIndent; }
-      set { this.leftIndent = value; }
-    }
-    [DV]
-    internal Unit leftIndent = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the default vertical alignment for all rows.
-    /// </summary>
-    public VerticalAlignment VerticalAlignment
-    {
-      get { return (VerticalAlignment)this.verticalAlignment.Value; }
-      set { this.verticalAlignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(VerticalAlignment))]
-    internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
-
-    /// <summary>
-    /// Gets or sets the height of the rows.
-    /// </summary>
-    public Unit Height
-    {
-      get { return this.height; }
-      set { this.height = value; }
-    }
-    [DV]
-    internal Unit height = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the rule which is used to determine the height of the rows.
-    /// </summary>
-    public RowHeightRule HeightRule
-    {
-      get { return (RowHeightRule)this.heightRule.Value; }
-      set { this.heightRule.Value = (int)value; }
-    }
-    [DV(Type = typeof(RowHeightRule))]
-    internal NEnum heightRule = NEnum.NullValue(typeof(RowHeightRule));
-
-    /// <summary>
-    /// Gets or sets a comment associated with this object.
-    /// </summary>
-    public string Comment
-    {
-      get { return this.comment.Value; }
-      set { this.comment.Value = value; }
-    }
-    [DV]
-    internal NString comment = NString.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Rows into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteComment(this.comment.Value);
-      serializer.WriteLine("\\rows");
-
-      int pos = serializer.BeginAttributes();
-
-      if (!this.alignment.IsNull)
-        serializer.WriteSimpleAttribute("Alignment", this.Alignment);
-
-      if (!this.height.IsNull)
-        serializer.WriteSimpleAttribute("Height", this.Height);
-
-      if (!this.heightRule.IsNull)
-        serializer.WriteSimpleAttribute("HeightRule", this.HeightRule);
-
-      if (!this.leftIndent.IsNull)
-        serializer.WriteSimpleAttribute("LeftIndent", this.LeftIndent);
-
-      if (!this.verticalAlignment.IsNull)
-        serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
-
-      serializer.EndAttributes(pos);
-
-      serializer.BeginContent();
-      int rows = Count;
-      if (rows > 0)
-      {
-        for (int row = 0; row < rows; row++)
-          this[row].Serialize(serializer);
-      }
-      else
-        serializer.WriteComment("Invalid - no rows defined. Table will not render.");
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Allows the visitor object to visit the document object and it's child objects.
-    /// </summary>
-    void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
-    {
-      visitor.VisitRows(this);
-
-      foreach (Row row in this)
-        ((IVisitable)row).AcceptVisitor(visitor, visitChildren);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Rows));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-  }
 }

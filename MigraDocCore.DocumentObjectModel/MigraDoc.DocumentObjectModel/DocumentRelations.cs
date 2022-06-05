@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -82,14 +82,13 @@ namespace MigraDocCore.DocumentObjectModel
       if (type == null)
         throw new ArgumentNullException("type");
 
-      if (documentObject.parent != null)
-      {
-        if (documentObject.parent.GetType() == type)
-          return documentObject.parent;
-        else
-          return GetParentOfType(documentObject.parent, type);
-      }
-      return null;
-    }
+            if (documentObject._parent != null)
+            {
+                if (documentObject._parent.GetType() == type)
+                    return documentObject._parent;
+                return GetParentOfType(documentObject._parent, type);
+            }
+            return null;
+        }
   }
 }

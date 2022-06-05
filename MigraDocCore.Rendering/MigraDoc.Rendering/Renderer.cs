@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -51,23 +51,23 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MaxElementHeight
     {
-      get { return this.maxElementHeight; }
-      set {this.maxElementHeight = value;}
+            get { return _maxElementHeight; }
+            set { _maxElementHeight = value; }
     }
 
     internal Renderer(XGraphics gfx, DocumentObject documentObject, FieldInfos fieldInfos)
     {
-      this.documentObject = documentObject;
-      this.gfx = gfx;
-      this.fieldInfos = fieldInfos;
+            _documentObject = documentObject;
+            _gfx = gfx;
+            _fieldInfos = fieldInfos;
     }
 
     internal Renderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
     {
-      this.documentObject = renderInfo.DocumentObject;
-      this.gfx = gfx;
-      this.renderInfo = renderInfo;
-      this.fieldInfos = fieldInfos;
+            _documentObject = renderInfo.DocumentObject;
+            _gfx = gfx;
+            _renderInfo = renderInfo;
+            _fieldInfos = fieldInfos;
     }
     /// <summary>
     /// In inherited classes, gets a layout info with only margin and break information set.
@@ -79,10 +79,7 @@ namespace MigraDocCore.Rendering
     /// KeepTogether, KeepWithNext, PagebreakBefore, Floating,
     /// VerticalReference, HorizontalReference.
     /// </remarks>
-    internal abstract LayoutInfo InitialLayoutInfo
-    {
-      get;
-    }
+        internal abstract LayoutInfo InitialLayoutInfo { get; }
 
     /// <summary>
     /// Renders the contents shifted to the given Coordinates.
@@ -101,7 +98,7 @@ namespace MigraDocCore.Rendering
         XUnit savedY = renderInfo.LayoutInfo.ContentArea.Y;
         renderInfo.LayoutInfo.ContentArea.X += xShift;
         renderInfo.LayoutInfo.ContentArea.Y += yShift;
-        Renderer renderer = Renderer.Create(this.gfx, this.documentRenderer, renderInfo, this.fieldInfos);
+                Renderer renderer = Create(_gfx, _documentRenderer, renderInfo, _fieldInfos);
         renderer.Render();
         renderInfo.LayoutInfo.ContentArea.X = savedX;
         renderInfo.LayoutInfo.ContentArea.Y = savedY;
@@ -119,9 +116,9 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal RenderInfo RenderInfo
     {
-      get { return this.renderInfo; }
-    }
-    protected RenderInfo renderInfo;
+            get { return _renderInfo; }
+        }
+        protected RenderInfo _renderInfo;
 
     /// <summary>
     /// Sets the field infos object.
@@ -129,9 +126,9 @@ namespace MigraDocCore.Rendering
     /// <remarks>This property is set by the AreaProvider.</remarks>
     internal FieldInfos FieldInfos
     {
-      set { this.fieldInfos = value; }
-    }
-    protected FieldInfos fieldInfos;
+            set { _fieldInfos = value; }
+        }
+        protected FieldInfos _fieldInfos;
 
     /// <summary>
     /// Renders (draws) the object to the Graphics object.
@@ -171,7 +168,7 @@ namespace MigraDocCore.Rendering
         renderer = new ImageRenderer(gfx, (Image)documentObject, fieldInfos);
 
       if (renderer != null)
-        renderer.documentRenderer = documentRenderer;
+                renderer._documentRenderer = documentRenderer;
 
       return renderer;
     }
@@ -198,23 +195,20 @@ namespace MigraDocCore.Rendering
         renderer = new TextFrameRenderer(gfx, renderInfo, fieldInfos);
       else if (renderInfo.DocumentObject is Chart)
         renderer = new ChartRenderer(gfx, renderInfo, fieldInfos);
-      else if (renderInfo.DocumentObject is Chart)
-        renderer = new ChartRenderer(gfx, renderInfo, fieldInfos);
       else if (renderInfo.DocumentObject is Image)
         renderer = new ImageRenderer(gfx, renderInfo, fieldInfos);
 
       if (renderer != null)
-        renderer.documentRenderer = documentRenderer;
+                renderer._documentRenderer = documentRenderer;
 
       return renderer;
     }
 
-    #region fields
+        //internal readonly static XUnit Tolerance = XUnit.FromPoint(0.001);
+        private XUnit _maxElementHeight = -1;
 
-    protected DocumentObject documentObject;
-    protected DocumentRenderer documentRenderer;
-    protected XGraphics gfx;
-
-    #endregion
-  }
+        protected DocumentObject _documentObject;
+        protected DocumentRenderer _documentRenderer;
+        protected XGraphics _gfx;
+    }
 }

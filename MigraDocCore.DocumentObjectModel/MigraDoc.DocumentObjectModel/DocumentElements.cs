@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -168,14 +168,15 @@ namespace MigraDocCore.DocumentObjectModel
             return chart;
         }
 
-        public MigraDocImage AddImage(IImageSource image)
+        /// <summary>
+        /// Adds a new image to the collection.
+        /// </summary>
+        public Image AddImage(string name)
         {
-            MigraDocImage img = new MigraDocImage()
-            {
-                Source = image,                
-            };
-            Add(img);
-            return img;
+            Image image = new Image();
+            image.Name = name;
+            Add(image);
+            return image;
         }
 
         /// <summary>
@@ -234,14 +235,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(DocumentElements));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(DocumentElements))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

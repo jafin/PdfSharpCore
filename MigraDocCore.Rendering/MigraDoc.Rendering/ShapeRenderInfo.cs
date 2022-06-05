@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -28,26 +28,27 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
-using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Rendering information for shapes.
-  /// </summary>
-  internal abstract class ShapeRenderInfo : RenderInfo
-  {
-    internal ShapeRenderInfo()
+    /// <summary>
+    /// Rendering information for shapes.
+    /// </summary>
+    public abstract class ShapeRenderInfo : RenderInfo
     {
-    }
+        internal ShapeRenderInfo()
+        { }
 
-    internal override DocumentObject DocumentObject
-    {
-      get { return this.shape; }
+        /// <summary>
+        /// Gets the document object to which the layout information applies. Use the Tag property of DocumentObject to identify an object.
+        /// </summary>
+        public override DocumentObject DocumentObject
+        {
+            get { return _shape; }
+            internal set { _shape = (Shape)value; }
+        }
+        Shape _shape;
     }
-    internal Shape shape;
-  }
 }

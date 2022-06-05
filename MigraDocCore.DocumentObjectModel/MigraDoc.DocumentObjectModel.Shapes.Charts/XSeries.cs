@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,100 +35,95 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents a series of data on the X-Axis.
-  /// </summary>
-  public class XSeries : ChartObject
-  {
     /// <summary>
-    /// Initializes a new instance of the XSeries class.
+    /// Represents a series of data on the X-Axis.
     /// </summary>
-    public XSeries()
+    public class XSeries : ChartObject
     {
-      xSeriesElements = new XSeriesElements();
+        /// <summary>
+        /// Initializes a new instance of the XSeries class.
+        /// </summary>
+        public XSeries()
+        {
+            _xSeriesElements = new XSeriesElements();
+        }
+
+        /// <summary>
+        /// The actual value container of the XSeries.
+        /// </summary>
+        [DV]
+        protected internal XSeriesElements _xSeriesElements;
+
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new XSeries Clone()
+        {
+            return (XSeries)DeepCopy();
+        }
+
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            XSeries xSeries = (XSeries)base.DeepCopy();
+            if (xSeries._xSeriesElements != null)
+            {
+                xSeries._xSeriesElements = xSeries._xSeriesElements.Clone();
+                xSeries._xSeriesElements._parent = xSeries;
+            }
+            return xSeries;
+        }
+
+        /// <summary>
+        /// Adds a blank to the XSeries.
+        /// </summary>
+        public void AddBlank()
+        {
+            _xSeriesElements.AddBlank();
+        }
+
+        /// <summary>
+        /// Adds a value to the XSeries.
+        /// </summary>
+        public XValue Add(string value)
+        {
+            return _xSeriesElements.Add(value);
+        }
+
+        /// <summary>
+        /// Adds an array of values to the XSeries.
+        /// </summary>
+        public void Add(params string[] values)
+        {
+            _xSeriesElements.Add(values);
+        }
+        #endregion
+
+        #region Internal
+        /// <summary>
+        /// Converts XSeries into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.WriteLine("\\xvalues");
+
+            serializer.BeginContent();
+            _xSeriesElements.Serialize(serializer);
+            serializer.WriteLine("");
+            serializer.EndContent();
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(XSeries))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-
-    /// <summary>
-    /// The actual value container of the XSeries.
-    /// </summary>
-    [DV]
-    protected XSeriesElements xSeriesElements;
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XSeries Clone()
-    {
-      return (XSeries)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      XSeries xSeries = (XSeries)base.DeepCopy();
-      if (xSeries.xSeriesElements != null)
-      {
-        xSeries.xSeriesElements = xSeries.xSeriesElements.Clone();
-        xSeries.xSeriesElements.parent = xSeries;
-      }
-      return xSeries;
-    }
-
-    /// <summary>
-    /// Adds a blank to the XSeries.
-    /// </summary>
-    public void AddBlank()
-    {
-      this.xSeriesElements.AddBlank();
-    }
-
-    /// <summary>
-    /// Adds a value to the XSeries.
-    /// </summary>
-    public XValue Add(string value)
-    {
-      return this.xSeriesElements.Add(value);
-    }
-
-    /// <summary>
-    /// Adds an array of values to the XSeries.
-    /// </summary>
-    public void Add(params string[] values)
-    {
-      this.xSeriesElements.Add(values);
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts XSeries into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteLine("\\xvalues");
-
-      serializer.BeginContent();
-      this.xSeriesElements.Serialize(serializer);
-      serializer.WriteLine("");
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(XSeries));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-  }
 }

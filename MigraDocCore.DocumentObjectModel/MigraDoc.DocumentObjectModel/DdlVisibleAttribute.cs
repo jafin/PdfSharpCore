@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -40,44 +40,44 @@ namespace MigraDocCore.DocumentObjectModel
   [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
   internal class DdlVisibleAttribute : Attribute
   {
-    /// <summary>
-    /// Initializes a new instance of the DdlVisibleAttribute class.
-    /// </summary>
-    public DdlVisibleAttribute()
-    {
-      visible = true;
-    }
+        /// <summary>
+        /// Initializes a new instance of the DdlVisibleAttribute class.
+        /// </summary>
+        public DdlVisibleAttribute()
+        {
+            _visible = true;
+        }
 
-    /// <summary>
-    /// Initializes a new instance of the DdlVisibleAttribute class with the specified visibility.
-    /// </summary>
-    public DdlVisibleAttribute(bool _visible)
-    {
-      visible = _visible;
-    }
+        /// <summary>
+        /// Initializes a new instance of the DdlVisibleAttribute class with the specified visibility.
+        /// </summary>
+        public DdlVisibleAttribute(bool visible)
+        {
+            _visible = visible;
+        }
 
-    /// <summary>
-    /// Gets or sets the visibility.
-    /// </summary>
-    public bool Visible
-    {
-      get { return visible; }
-      set { visible = value; }
-    }
-    bool visible;
+        /// <summary>
+        /// Gets or sets the visibility.
+        /// </summary>
+        public bool Visible
+        {
+            get { return _visible; }
+            set { _visible = value; }
+        }
+        bool _visible;
 
-    public bool CanAddValue
-    {
-      get { return canAddValue; }
-      set { canAddValue = value; }
-    }
-    bool canAddValue;
+        public bool CanAddValue
+        {
+            get { return _canAddValue; }
+            set { _canAddValue = value; }
+        }
+        bool _canAddValue;
 
-    public bool CanRemoveValue
-    {
-      get { return canRemoveValue; }
-      set { canRemoveValue = value; }
+        public bool CanRemoveValue
+        {
+            get { return _canRemoveValue; }
+            set { _canRemoveValue = value; }
+        }
+        bool _canRemoveValue;
     }
-    bool canRemoveValue;
-  }
 }

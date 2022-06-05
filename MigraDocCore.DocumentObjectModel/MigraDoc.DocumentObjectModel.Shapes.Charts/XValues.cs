@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,78 +35,73 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents the collection of values on the X-Axis.
-  /// </summary>
-  public class XValues : DocumentObjectCollection
-  {
     /// <summary>
-    /// Initializes a new instance of the XValues class.
+    /// Represents the collection of values on the X-Axis.
     /// </summary>
-    public XValues()
+    public class XValues : DocumentObjectCollection
     {
-    }
+        /// <summary>
+        /// Initializes a new instance of the XValues class.
+        /// </summary>
+        public XValues()
+        {
+        }
 
-    /// <summary>
-    /// Initializes a new instance of the XValues class with the specified parent.
-    /// </summary>
-    internal XValues(DocumentObject parent) : base(parent) { }
+        /// <summary>
+        /// Initializes a new instance of the XValues class with the specified parent.
+        /// </summary>
+        internal XValues(DocumentObject parent) : base(parent) { }
 
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XValues Clone()
-    {
-      return (XValues)DeepCopy();
-    }
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new XValues Clone()
+        {
+            return (XValues)DeepCopy();
+        }
 
-    /// <summary>
-    /// Gets an XSeries by its index.
-    /// </summary>
-    public new XSeries this[int index]
-    {
-      get { return base[index] as XSeries; }
-    }
+        /// <summary>
+        /// Gets an XSeries by its index.
+        /// </summary>
+        public new XSeries this[int index]
+        {
+            get { return base[index] as XSeries; }
+        }
 
-    /// <summary>
-    /// Adds a new XSeries to the collection.
-    /// </summary>
-    public XSeries AddXSeries()
-    {
-      XSeries xSeries = new XSeries();
-      Add(xSeries);
-      return xSeries;
-    }
-    #endregion
+        /// <summary>
+        /// Adds a new XSeries to the collection.
+        /// </summary>
+        public XSeries AddXSeries()
+        {
+            XSeries xSeries = new XSeries();
+            Add(xSeries);
+            return xSeries;
+        }
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts XValues into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int count = Count;
-      for (int index = 0; index < count; ++index)
-      {
-        XSeries xSeries = this[index] as XSeries;
-        xSeries.Serialize(serializer);
-      }
-    }
+        #region Internal
+        /// <summary>
+        /// Converts XValues into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int count = Count;
+            for (int index = 0; index < count; ++index)
+            {
+                XSeries xSeries = this[index] as XSeries;
+                xSeries.Serialize(serializer);
+            }
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(XValues));
-        return meta;
-      }
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(XValues))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-    static Meta meta;
-    #endregion
-  }
 }

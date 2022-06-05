@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -28,15 +28,15 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
+using MigraDocCore.Rendering;
 
-namespace MigraDocCore.Rendering
+namespace MigraDoc.Rendering
 {
-  /// <summary>
-  /// Formatting information for textframes.
-  /// </summary>
-  internal class TextFrameFormatInfo : ShapeFormatInfo
-  {
-    internal FormattedTextFrame formattedTextFrame;
-  }
+    /// <summary>
+    /// Formatting information for textframes.
+    /// </summary>
+    internal sealed class TextFrameFormatInfo : ShapeFormatInfo
+    {
+        internal FormattedTextFrame FormattedTextFrame;
+    }
 }

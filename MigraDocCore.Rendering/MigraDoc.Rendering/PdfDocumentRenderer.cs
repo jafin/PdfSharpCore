@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -52,12 +52,23 @@ namespace MigraDocCore.Rendering
         }
 
         /// <summary>
-        /// Initializes a new instance of the PdfDocumentRenderer class.
+        /// Initializes a new instance of the <see cref="PdfDocumentRenderer"/> class.
         /// </summary>
         /// <param name="unicode">If true Unicode encoding is used for all text. If false, WinAnsi encoding is used.</param>
         public PdfDocumentRenderer(bool unicode)
         {
-            this.unicode = unicode;
+            _unicode = unicode;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PdfDocumentRenderer" /> class.
+        /// </summary>
+        /// <param name="unicode">If true Unicode encoding is used for all text. If false, WinAnsi encoding is used.</param>
+        /// <param name="fontEmbedding">Obsolete parameter.</param>
+        [Obsolete("Must not specify an embedding option anymore.")]
+        public PdfDocumentRenderer(bool unicode, PdfFontEmbedding fontEmbedding)
+        {
+            _unicode = unicode;
         }
 
         /// <summary>
@@ -65,9 +76,9 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public bool Unicode
         {
-            get { return this.unicode; }
+            get { return _unicode; }
         }
-        bool unicode;
+        readonly bool _unicode;
 
         /// <summary>
         /// Gets or sets the language.
@@ -75,10 +86,10 @@ namespace MigraDocCore.Rendering
         /// <value>The language.</value>
         public string Language
         {
-            get { return this.language; }
-            set { this.language = value; }
+            get { return _language; }
+            set { _language = value; }
         }
-        string language = String.Empty;
+        string _language = String.Empty;
 
         /// <summary>
         /// Set the MigraDoc document to be rendered by this printer.
@@ -87,12 +98,12 @@ namespace MigraDocCore.Rendering
         {
             set
             {
-                this.document = null;
+                _document = null;
                 value.BindToRenderer(this);
-                this.document = value;
+                _document = value;
             }
         }
-        Document document;
+        Document _document;
 
         /// <summary>
         /// Gets or sets a document renderer.
@@ -105,13 +116,13 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                if (this.documentRenderer == null)
+                if (_documentRenderer == null)
                     PrepareDocumentRenderer();
-                return this.documentRenderer;
+                return _documentRenderer;
             }
-            set { this.documentRenderer = value; }
+            set { _documentRenderer = value; }
         }
-        DocumentRenderer documentRenderer;
+        DocumentRenderer _documentRenderer;
 
         void PrepareDocumentRenderer()
         {
@@ -120,17 +131,17 @@ namespace MigraDocCore.Rendering
 
         void PrepareDocumentRenderer(bool prepareCompletely)
         {
-            if (this.document == null)
+            if (_document == null)
                 throw new InvalidOperationException(string.Format(AppResources.PropertyNotSetBefore, "DocumentRenderer", nameof(PrepareDocumentRenderer)));
 
-            if (this.documentRenderer == null)
+            if (_documentRenderer == null)
             {
-                this.documentRenderer = new DocumentRenderer(this.document);
-                this.documentRenderer.WorkingDirectory = this.workingDirectory;
+                _documentRenderer = new DocumentRenderer(_document);
+                _documentRenderer.WorkingDirectory = _workingDirectory;
             }
-            if (prepareCompletely && this.documentRenderer.formattedDocument == null)
+            if (prepareCompletely && _documentRenderer.FormattedDocument == null)
             {
-                this.documentRenderer.PrepareDocument();
+                _documentRenderer.PrepareDocument();
             }
         }
 
@@ -140,7 +151,7 @@ namespace MigraDocCore.Rendering
         public void RenderDocument()
         {
             PrepareRenderPages();
-            RenderPages(1, this.documentRenderer.FormattedDocument.PageCount);
+            RenderPages(1, _documentRenderer.FormattedDocument.PageCount);
         }
 
         /// <summary>
@@ -151,11 +162,17 @@ namespace MigraDocCore.Rendering
             //if (this.documentRenderer == null)
             PrepareDocumentRenderer(true);
 
-            if (this.pdfDocument == null)
+            if (_pdfDocument == null)
             {
-                this.pdfDocument = CreatePdfDocument();
-                if (this.document.UseCmykColor)
-                    this.pdfDocument.Options.ColorMode = PdfColorMode.Cmyk;
+                _pdfDocument = CreatePdfDocument();
+                if (_document.UseCmykColor)
+                    _pdfDocument.Options.ColorMode = PdfColorMode.Cmyk;
+            }
+
+            // Add embedded files, that are defined in MigraDoc _document to PDFsharp _pdfDocument.
+            foreach (EmbeddedFile embeddedFile in _document.EmbeddedFiles)
+            {
+                _pdfDocument.AddEmbeddedFile(embeddedFile.Name, embeddedFile.Path);
             }
 
             WriteDocumentInformation();
@@ -167,7 +184,7 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public int PageCount
         {
-            get { return this.documentRenderer.FormattedDocument.PageCount; }
+            get { return _documentRenderer.FormattedDocument.PageCount; }
         }
 
         /// <summary>
@@ -178,13 +195,13 @@ namespace MigraDocCore.Rendering
             if (path == null)
                 throw new ArgumentNullException("path");
 
-            else if (path == "")
+            if (path == "")
                 throw new ArgumentException("PDF file Path must not be empty");
 
-            if (this.workingDirectory != null)
-                Path.Combine(this.workingDirectory, path);
+            if (_workingDirectory != null)
+                path = Path.Combine(_workingDirectory, path);
 
-            this.pdfDocument.Save(path);
+            _pdfDocument.Save(path);
         }
 
         /// <summary>
@@ -192,11 +209,11 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public void Save(Stream stream, bool closeStream)
         {
-            this.pdfDocument.Save(stream, closeStream);
+            _pdfDocument.Save(stream, closeStream);
         }
 
         /// <summary>
-        /// Renders the spcified page range.
+        /// Renders the specified page range.
         /// </summary>
         /// <param name="startPage">The first page to print.</param>
         /// <param name="endPage">The last page to print</param>
@@ -205,28 +222,28 @@ namespace MigraDocCore.Rendering
             if (startPage < 1)
                 throw new ArgumentOutOfRangeException("startPage");
 
-            if (endPage > this.documentRenderer.FormattedDocument.PageCount)
+            if (endPage > _documentRenderer.FormattedDocument.PageCount)
                 throw new ArgumentOutOfRangeException("endPage");
 
-            if (this.documentRenderer == null)
+            if (_documentRenderer == null)
                 PrepareDocumentRenderer();
 
-            if (this.pdfDocument == null)
-                this.pdfDocument = CreatePdfDocument();
+            if (_pdfDocument == null)
+                _pdfDocument = CreatePdfDocument();
 
-            this.documentRenderer.printDate = DateTime.Now;
+            _documentRenderer._printDate = DateTime.Now;
             for (int pageNr = startPage; pageNr <= endPage; ++pageNr)
             {
-                PdfPage pdfPage = this.pdfDocument.AddPage();
-                PageInfo pageInfo = this.documentRenderer.FormattedDocument.GetPageInfo(pageNr);
+                PdfPage pdfPage = _pdfDocument.AddPage();
+                PageInfo pageInfo = _documentRenderer.FormattedDocument.GetPageInfo(pageNr);
                 pdfPage.Width = pageInfo.Width;
                 pdfPage.Height = pageInfo.Height;
                 pdfPage.Orientation = pageInfo.Orientation;
 
                 using (XGraphics gfx = XGraphics.FromPdfPage(pdfPage))
                 {
-                    gfx.MUH = this.unicode ? PdfFontEncoding.Unicode : PdfFontEncoding.WinAnsi;
-                    this.documentRenderer.RenderPage(gfx, pageNr);
+                    gfx.MUH = _unicode ? PdfFontEncoding.Unicode : PdfFontEncoding.WinAnsi;
+                    _documentRenderer.RenderPage(gfx, pageNr);
                 }
             }
         }
@@ -236,10 +253,10 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public string WorkingDirectory
         {
-            get { return this.workingDirectory; }
-            set { this.workingDirectory = value; }
+            get { return _workingDirectory; }
+            set { _workingDirectory = value; }
         }
-        string workingDirectory;
+        string _workingDirectory;
 
         /// <summary>
         /// Gets or sets the PDF document to render on.
@@ -247,20 +264,20 @@ namespace MigraDocCore.Rendering
         /// <remarks>A PDF document in memory is automatically created when printing before this property was set.</remarks>
         public PdfDocument PdfDocument
         {
-            get { return this.pdfDocument; }
-            set { this.pdfDocument = value; }
+            get { return _pdfDocument; }
+            set { _pdfDocument = value; }
         }
-        PdfDocument pdfDocument;
+        PdfDocument _pdfDocument;
 
         /// <summary>
         /// Writes document information like author and subject to the PDF document.
         /// </summary>
         public void WriteDocumentInformation()
         {
-            if (!this.document.IsNull("Info"))
+            if (!_document.IsNull("Info"))
             {
-                DocumentInfo docInfo = this.document.Info;
-                PdfDocumentInformation pdfInfo = this.pdfDocument.Info;
+                DocumentInfo docInfo = _document.Info;
+                PdfDocumentInformation pdfInfo = _pdfDocument.Info;
 
                 if (!docInfo.IsNull("Author"))
                     pdfInfo.Author = docInfo.Author;
@@ -282,9 +299,9 @@ namespace MigraDocCore.Rendering
         PdfDocument CreatePdfDocument()
         {
             PdfDocument document = new PdfDocument();
-            document.Info.Creator = "MigraDoc " + typeof(PdfDocumentRenderer).GetTypeInfo().Assembly.GetName().Version;
-            if (this.language != null && this.language.Length != 0)
-                document.Language = this.language;
+            document.Info.Creator = VersionInfo.Creator;
+            if (!String.IsNullOrEmpty(_language))
+                document.Language = _language;
             return document;
         }
     }

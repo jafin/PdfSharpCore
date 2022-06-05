@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -64,100 +64,95 @@ namespace MigraDocCore.DocumentObjectModel
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the document title.
-    /// </summary>
-    public string Title
-    {
-      get { return this.title.Value; }
-      set { this.title.Value = value; }
-    }
-    [DV]
-    internal NString title = NString.NullValue;
+        #region Properties
+        /// <summary>
+        /// Gets or sets the document title.
+        /// </summary>
+        public string Title
+        {
+            get { return _title.Value; }
+            set { _title.Value = value; }
+        }
+        [DV]
+        internal NString _title = NString.NullValue;
 
-    /// <summary>
-    /// Gets or sets the document author.
-    /// </summary>
-    public string Author
-    {
-      get { return this.author.Value; }
-      set { this.author.Value = value; }
-    }
-    [DV]
-    internal NString author = NString.NullValue;
+        /// <summary>
+        /// Gets or sets the document author.
+        /// </summary>
+        public string Author
+        {
+            get { return _author.Value; }
+            set { _author.Value = value; }
+        }
+        [DV]
+        internal NString _author = NString.NullValue;
 
-    /// <summary>
-    /// Gets or sets keywords related to the document.
-    /// </summary>
-    public string Keywords
-    {
-      get { return this.keywords.Value; }
-      set { this.keywords.Value = value; }
-    }
-    [DV]
-    internal NString keywords = NString.NullValue;
+        /// <summary>
+        /// Gets or sets keywords related to the document.
+        /// </summary>
+        public string Keywords
+        {
+            get { return _keywords.Value; }
+            set { _keywords.Value = value; }
+        }
+        [DV]
+        internal NString _keywords = NString.NullValue;
 
-    /// <summary>
-    /// Gets or sets the subject of the document.
-    /// </summary>
-    public string Subject
-    {
-      get { return this.subject.Value; }
-      set { this.subject.Value = value; }
-    }
-    [DV]
-    internal NString subject = NString.NullValue;
+        /// <summary>
+        /// Gets or sets the subject of the document.
+        /// </summary>
+        public string Subject
+        {
+            get { return _subject.Value; }
+            set { _subject.Value = value; }
+        }
+        [DV]
+        internal NString _subject = NString.NullValue;
 
-    /// <summary>
-    /// Gets or sets a comment associated with this object.
-    /// </summary>
-    public string Comment
-    {
-      get { return this.comment.Value; }
-      set { this.comment.Value = value; }
-    }
-    [DV]
-    internal NString comment = NString.NullValue;
-    #endregion
+        /// <summary>
+        /// Gets or sets a comment associated with this object.
+        /// </summary>
+        public string Comment
+        {
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
+        }
+        [DV]
+        internal NString _comment = NString.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts DocumentInfo into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteComment(this.comment.Value);
-      int pos = serializer.BeginContent("Info");
+        #region Internal
+        /// <summary>
+        /// Converts DocumentInfo into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.WriteComment(_comment.Value);
+            int pos = serializer.BeginContent("Info");
 
-      if (this.Title != String.Empty)
-        serializer.WriteSimpleAttribute("Title", this.Title);
+            if (Title != String.Empty)
+                serializer.WriteSimpleAttribute("Title", Title);
 
-      if (this.Subject != String.Empty)
-        serializer.WriteSimpleAttribute("Subject", this.Subject);
+            if (Subject != String.Empty)
+                serializer.WriteSimpleAttribute("Subject", Subject);
 
-      if (this.Author != String.Empty)
-        serializer.WriteSimpleAttribute("Author", this.Author);
+            if (Author != String.Empty)
+                serializer.WriteSimpleAttribute("Author", Author);
 
-      if (this.Keywords != String.Empty)
-        serializer.WriteSimpleAttribute("Keywords", this.Keywords);
+            if (Keywords != String.Empty)
+                serializer.WriteSimpleAttribute("Keywords", Keywords);
 
-      serializer.EndContent(pos);
-    }
+            serializer.EndContent(pos);
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(DocumentInfo));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(DocumentInfo))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

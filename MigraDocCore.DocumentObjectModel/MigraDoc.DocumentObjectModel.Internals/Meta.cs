@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -44,14 +44,14 @@ namespace MigraDocCore.DocumentObjectModel.Internals
     /// <summary>
     /// Meta class for document objects.
     /// </summary>
-    public class Meta
+    public sealed class Meta
     {
         /// <summary>
         /// Initializes a new instance of the DomMeta class.
         /// </summary>
         public Meta(Type documentObjectType)
         {
-            Meta.AddValueDescriptors(this, documentObjectType);
+            AddValueDescriptors(this, documentObjectType);
         }
 
         /// <summary>
@@ -70,29 +70,29 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         {
             int dot = name.IndexOf('.');
             if (dot == 0)
-                throw new ArgumentException(string.Format(AppResources.InvalidValueName, name));
+                throw new ArgumentException(DomSR.InvalidValueName(name));
             string trail = null;
             if (dot > 0)
             {
                 trail = name.Substring(dot + 1);
                 name = name.Substring(0, dot);
             }
-            ValueDescriptor vd = this.vds[name];
+            ValueDescriptor vd = _vds[name];
             if (vd == null)
-                throw new ArgumentException(string.Format(AppResources.InvalidValueName, name));
+                throw new ArgumentException(DomSR.InvalidValueName(name));
 
             object value = vd.GetValue(dom, flags);
-            if (value == null && flags == GV.GetNull)  //??? oder auch GV.ReadOnly?
+            if (value == null && flags == GV.GetNull)  //??? also for GV.ReadOnly?
                 return null;
 
-            //REVIEW DaSt: Sollte beim GV.ReadWrite das Objekt angelegt werden?
+            //REVIEW DaSt: Create object in case of GV.ReadWrite?
             if (trail != null)
             {
                 if (value == null || trail == "")
-                    throw new ArgumentException(string.Format(AppResources.InvalidValueName, name));
+                    throw new ArgumentException(DomSR.InvalidValueName(name));
                 DocumentObject doc = value as DocumentObject;
                 if (doc == null)
-                    throw new ArgumentException(string.Format(AppResources.InvalidValueName, name));
+                    throw new ArgumentException(DomSR.InvalidValueName(name));
                 value = doc.GetValue(trail, flags);
             }
             return value;
@@ -113,15 +113,15 @@ namespace MigraDocCore.DocumentObjectModel.Internals
                 trail = name.Substring(dot + 1);
                 name = name.Substring(0, dot);
             }
-            ValueDescriptor vd = this.vds[name];
+            ValueDescriptor vd = _vds[name];
             if (vd == null)
                 throw new ArgumentException(DomSR.InvalidValueName(name));
 
             if (trail != null)
             {
-                //REVIEW DaSt: dom.GetValue(name) und rekursiv SetValue aufrufen,
-                //             oder dom.GetValue(name.BisVorletzteElement) und erst SetValue aufrufen.
-                DocumentObject doc = dom.GetValue(name) as DocumentObject;
+                //REVIEW DaSt: dom.GetValue(name) and call SetValue recursively,
+                //             or dom.GetValue(name.BisVorletzteElement) and then call SetValue?
+                DocumentObject doc = (DocumentObject)dom.GetValue(name);
                 doc.SetValue(trail, val);
             }
             else
@@ -133,7 +133,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// </summary>
         public bool HasValue(string name)
         {
-            ValueDescriptor vd = this.vds[name];
+            ValueDescriptor vd = _vds[name];
             return vd != null;
         }
 
@@ -143,7 +143,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// </summary>
         public void SetNull(DocumentObject dom, string name)
         {
-            ValueDescriptor vd = vds[name];
+            ValueDescriptor vd = _vds[name];
             if (vd == null)
                 throw new ArgumentException(DomSR.InvalidValueName(name));
 
@@ -154,7 +154,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// Determines whether the member of dom specified by name is null.
         /// If a member with the specified name does not exist an ArgumentException will be thrown.
         /// </summary>
-        public virtual bool IsNull(DocumentObject dom, string name)
+        public /* not virtual */ bool IsNull(DocumentObject dom, string name)
         {
             //bool isNull = false;
             int dot = name.IndexOf('.');
@@ -166,7 +166,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
                 trail = name.Substring(dot + 1);
                 name = name.Substring(0, dot);
             }
-            ValueDescriptor vd = this.vds[name];
+            ValueDescriptor vd = _vds[name];
             if (vd == null)
                 throw new ArgumentException(DomSR.InvalidValueName(name));
 
@@ -181,8 +181,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
                 return true;
             if (trail != null)
                 return docObj.IsNull(trail);
-            else
-                return docObj.IsNull();
+            return docObj.IsNull();
 
             //      DomValueDescriptor vd = vds[name];
             //      if (vd == null)
@@ -194,13 +193,13 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// <summary>
         /// Sets all members of the specified dom to null.
         /// </summary>
-        public virtual void SetNull(DocumentObject dom)
+        public /*virtual*/ void SetNull(DocumentObject dom)
         {
-            int count = vds.Count;
+            int count = _vds.Count;
             for (int index = 0; index < count; index++)
             {
-                if (!vds[index].IsRefOnly)
-                    vds[index].SetNull(dom);
+                if (!_vds[index].IsRefOnly)
+                    _vds[index].SetNull(dom);
             }
         }
 
@@ -210,10 +209,10 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// </summary>
         public bool IsNull(DocumentObject dom)
         {
-            int count = vds.Count;
+            int count = _vds.Count;
             for (int index = 0; index < count; index++)
             {
-                ValueDescriptor vd = vds[index];
+                ValueDescriptor vd = _vds[index];
                 if (vd.IsRefOnly)
                     continue;
                 if (!vd.IsNull(dom))
@@ -227,7 +226,7 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// </summary>
         public ValueDescriptor this[string name]
         {
-            get { return this.vds[name]; }
+            get { return _vds[name]; }
         }
 
         /// <summary>
@@ -235,23 +234,20 @@ namespace MigraDocCore.DocumentObjectModel.Internals
         /// </summary>
         public ValueDescriptorCollection ValueDescriptors
         {
-            get { return this.vds; }
+            get { return _vds; }
         }
-        ValueDescriptorCollection vds = new ValueDescriptorCollection();
+
+        readonly ValueDescriptorCollection _vds = new ValueDescriptorCollection();
 
         /// <summary>
         /// Adds a value descriptor for each field and property found in type to meta.
         /// </summary>
         static void AddValueDescriptors(Meta meta, Type type)
         {
-            var fieldInfos = type.GetRuntimeFields(); //(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var fieldInfos = type.GetTypeInfo().DeclaredFields;
             foreach (FieldInfo fieldInfo in fieldInfos)
             {
-#if DEBUG_
-        string name = fieldInfo.Name;
-        if (name == "parent")
-          name.GetType();
-#endif
+
                 var dvs = fieldInfo.GetCustomAttributes<DVAttribute>(false);
                 if (dvs.Count() == 1)
                 {

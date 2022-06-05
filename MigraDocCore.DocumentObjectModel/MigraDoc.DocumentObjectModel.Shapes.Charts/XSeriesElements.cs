@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -36,85 +36,79 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents the collection of the value in an XSeries.
-  /// </summary>
-  public class XSeriesElements : DocumentObjectCollection
-  {
     /// <summary>
-    /// Initializes a new instance of the XSeriesElements class.
+    /// Represents the collection of the value in an XSeries.
     /// </summary>
-    public XSeriesElements()
+    public class XSeriesElements : DocumentObjectCollection
     {
-    }
+        /// <summary>
+        /// Initializes a new instance of the XSeriesElements class.
+        /// </summary>
+        public XSeriesElements()
+        { }
 
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XSeriesElements Clone()
-    {
-      return (XSeriesElements)base.DeepCopy();
-    }
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new XSeriesElements Clone()
+        {
+            return (XSeriesElements)base.DeepCopy();
+        }
 
-    /// <summary>
-    /// Adds a blank to the XSeries.
-    /// </summary>
-    public void AddBlank()
-    {
-      base.Add((DocumentObject)null);
-    }
+        /// <summary>
+        /// Adds a blank to the XSeries.
+        /// </summary>
+        public void AddBlank()
+        {
+            base.Add(null);
+        }
 
-    /// <summary>
-    /// Adds a value to the XSeries.
-    /// </summary>
-    public XValue Add(string value)
-    {
-      XValue xValue = new XValue(value);
-      Add(xValue);
-      return xValue;
-    }
+        /// <summary>
+        /// Adds a value to the XSeries.
+        /// </summary>
+        public XValue Add(string value)
+        {
+            XValue xValue = new XValue(value);
+            Add(xValue);
+            return xValue;
+        }
 
-    /// <summary>
-    /// Adds an array of values to the XSeries.
-    /// </summary>
-    public void Add(params string[] values)
-    {
-      foreach (string val in values)
-        this.Add(val);
-    }
-    #endregion
+        /// <summary>
+        /// Adds an array of values to the XSeries.
+        /// </summary>
+        public void Add(params string[] values)
+        {
+            foreach (string val in values)
+                Add(val);
+        }
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts XSeriesElements into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int count = Count;
-      for (int index = 0; index < count; index++)
-      {
-        XValue xValue = this[index] as XValue;
-        if (xValue == null)
-          serializer.Write("null, ");
-        else
-          xValue.Serialize(serializer);
-      }
-    }
+        #region Internal
+        /// <summary>
+        /// Converts XSeriesElements into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int count = Count;
+            for (int index = 0; index < count; index++)
+            {
+                XValue xValue = this[index] as XValue;
+                if (xValue == null)
+                    serializer.Write("null, ");
+                else
+                    xValue.Serialize(serializer);
+            }
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(XSeriesElements));
-        return meta;
-      }
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(XSeriesElements))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-    static Meta meta;
-    #endregion
-  }
 }

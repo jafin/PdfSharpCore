@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -46,8 +46,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// Initializes a new instance of the DdlEncoder class.
     /// </summary>
     DdlEncoder()
-    {
-    }
+        { }
 
     /// <summary>
     /// Converts a string into a text phrase.
@@ -58,7 +57,7 @@ namespace MigraDocCore.DocumentObjectModel
         return null;
 
       int length = str.Length;
-      StringBuilder strb = new StringBuilder(length + (int)(length >> 2));
+            StringBuilder strb = new StringBuilder(length + (length >> 2));
       for (int index = 0; index < length; ++index)
       {
         // Don't convert characters into DDL.
@@ -136,7 +135,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal static bool IsDdeIdentifier(string name)
     {
-      if (name == null || name == String.Empty)
+            if (String.IsNullOrEmpty(name))
         return false;
 
       int len = name.Length;

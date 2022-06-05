@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
@@ -49,7 +50,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal DocumentObjectCollection()
     {
-      this.elements = new ArrayList();
+            _elements = new List<object>();
     }
 
     /// <summary>
@@ -58,22 +59,19 @@ namespace MigraDocCore.DocumentObjectModel
     internal DocumentObjectCollection(DocumentObject parent)
       : base(parent)
     {
-      this.elements = new ArrayList();
+            _elements = new List<object>();
     }
 
     /// <summary>
     /// Gets the first value in the Collection, if there is any, otherwise null.
     /// </summary>
     public DocumentObject First
-    {
-      get
-      {
-        if (Count > 0)
-          return this[0];
-        else
-          return null;
-      }
-    }
+        {
+            get
+            {
+                return Count > 0 ? this[0] : null;
+            }
+        }
 
     /// <summary>
     /// Creates a deep copy of this object.
@@ -90,20 +88,20 @@ namespace MigraDocCore.DocumentObjectModel
     {
       DocumentObjectCollection coll = (DocumentObjectCollection)base.DeepCopy();
 
-      int count = Count;
-      coll.elements = new ArrayList(count);
-      for (int index = 0; index < count; ++index)
-      {
-        DocumentObject doc = this[index];
-        if (doc != null)
-        {
-          doc = doc.Clone() as DocumentObject;
-          doc.parent = coll;
+            int count = Count;
+            coll._elements = new List<object>(count);
+            for (int index = 0; index < count; ++index)
+            {
+                DocumentObject doc = this[index];
+                if (doc != null)
+                {
+                    doc = doc.Clone() as DocumentObject;
+                    doc._parent = coll;
+                }
+                coll._elements.Add(doc);
+            }
+            return coll;
         }
-        coll.elements.Add(doc);
-      }
-      return coll;
-    }
 
     /// <summary>
     /// Copies the entire collection to a compatible one-dimensional System.Array,
@@ -111,7 +109,8 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public void CopyTo(Array array, int index)
     {
-      this.elements.CopyTo(array, index);
+      throw new NotImplementedException("TODO");
+      //_elements.CopyTo(array, index);
     }
 
     /// <summary>
@@ -151,7 +150,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public int Count
     {
-      get { return this.elements.Count; }
+            get { return _elements.Count; }
     }
 
     /// <summary>
@@ -191,13 +190,13 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public virtual DocumentObject this[int index]
     {
-      get { return this.elements[index] as DocumentObject; }
-      set
-      {
-        SetParent(value);
-        this.elements[index] = value;
-      }
-    }
+            get { return _elements[index] as DocumentObject; }
+            set
+            {
+                SetParent(value);
+                _elements[index] = value;
+            }
+        }
 
     /// <summary>
     /// Gets the last element or null, if no such element exists.
@@ -206,10 +205,10 @@ namespace MigraDocCore.DocumentObjectModel
     {
       get
       {
-        int count = this.elements.Count;
-        if (count > 0)
-          return (DocumentObject)this.elements[count - 1];
-        return null;
+                int count = _elements.Count;
+                if (count > 0)
+                    return (DocumentObject)_elements[count - 1];
+                return null;
       }
     }
 
@@ -228,14 +227,14 @@ namespace MigraDocCore.DocumentObjectModel
       }
     }
 
-    /// <summary>
-    /// Inserts the object into the collection and sets it's parent.
-    /// </summary>
-    public virtual void Add(DocumentObject value)
-    {
-      SetParent(value);
-      this.elements.Add(value);
-    }
+        /// <summary>
+        /// Inserts the object into the collection and sets its parent.
+        /// </summary>
+        public virtual void Add(DocumentObject value)
+        {
+            SetParent(value);
+            _elements.Add(value);
+        }
 
     /// <summary>
     /// Determines whether this instance is null.
@@ -244,9 +243,9 @@ namespace MigraDocCore.DocumentObjectModel
     {
       if (!Meta.IsNull(this))
         return false;
-      if (this.elements == null)
-        return true;
-      foreach (DocumentObject docObject in elements)
+            if (_elements == null)
+                return true;
+            foreach (DocumentObject docObject in _elements)
       {
         if (docObject != null && !docObject.IsNull())
           return false;
@@ -274,10 +273,10 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public IEnumerator GetEnumerator()
     {
-      return this.elements.GetEnumerator();
-    }
+            return _elements.GetEnumerator();
+        }
 
-    ArrayList elements;
+        List<object> _elements;
 
     #region IList Members
     /// <summary>
@@ -285,8 +284,8 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     object IList.this[int index]
     {
-      get { return this.elements[index]; }
-      set { this.elements[index] = value; }
+            get { return _elements[index]; }
+            set { _elements[index] = value; }
     }
 
     /// <summary>
@@ -294,7 +293,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     void IList.RemoveAt(int index)
     {
-      this.elements.RemoveAt(index);
+            _elements.RemoveAt(index);
     }
 
     /// <summary>
@@ -302,7 +301,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     void IList.Insert(int index, object value)
     {
-      this.elements.Insert(index, value);
+            _elements.Insert(index, value);
     }
 
     /// <summary>
@@ -310,7 +309,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     void IList.Remove(object value)
     {
-      this.elements.Remove(value);
+            _elements.Remove(value);
     }
 
     /// <summary>
@@ -318,7 +317,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     bool IList.Contains(object value)
     {
-      return this.elements.Contains(value);
+            return _elements.Contains(value);
     }
 
     /// <summary>
@@ -326,7 +325,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     int IList.IndexOf(object value)
     {
-      return this.elements.IndexOf(value);
+            return _elements.IndexOf(value);
     }
 
     /// <summary>
@@ -334,7 +333,8 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     int IList.Add(object value)
     {
-      return this.elements.Add(value);
+            _elements.Add(value);
+            return _elements.Count - 1;
     }
 
     /// <summary>
@@ -342,7 +342,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     void IList.Clear()
     {
-      this.elements.Clear();
+            _elements.Clear();
     }
     #endregion
   }

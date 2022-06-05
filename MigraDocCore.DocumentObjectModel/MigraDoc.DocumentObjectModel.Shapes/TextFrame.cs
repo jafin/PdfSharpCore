@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -74,10 +74,10 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         protected override object DeepCopy()
         {
             TextFrame textFrame = (TextFrame)base.DeepCopy();
-            if (textFrame.elements != null)
+            if (textFrame._elements != null)
             {
-                textFrame.elements = textFrame.elements.Clone();
-                textFrame.elements.parent = textFrame;
+                textFrame._elements = textFrame._elements.Clone();
+                textFrame._elements._parent = textFrame;
             }
             return textFrame;
         }
@@ -87,7 +87,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Paragraph AddParagraph()
         {
-            return this.Elements.AddParagraph();
+            return Elements.AddParagraph();
         }
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Paragraph AddParagraph(string _paragraphText)
         {
-            return this.Elements.AddParagraph(_paragraphText);
+            return Elements.AddParagraph(_paragraphText);
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Chart AddChart(ChartType _type)
         {
-            return this.Elements.AddChart(_type);
+            return Elements.AddChart(_type);
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Chart AddChart()
         {
-            return this.Elements.AddChart();
+            return Elements.AddChart();
         }
 
         /// <summary>
@@ -119,15 +119,15 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Table AddTable()
         {
-            return this.Elements.AddTable();
+            return Elements.AddTable();
         }
 
         /// <summary>
         /// Adds a new Image to the text frame.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        public Image AddImage(string _fileName)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddImage(_fileName);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public void Add(Paragraph paragraph)
         {
-            this.Elements.Add(paragraph);
+            Elements.Add(paragraph);
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public void Add(Chart chart)
         {
-            this.Elements.Add(chart);
+            Elements.Add(chart);
         }
 
         /// <summary>
@@ -151,7 +151,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public void Add(Table table)
         {
-            this.Elements.Add(table);
+            Elements.Add(table);
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
         #endregion
 
@@ -169,87 +169,95 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public Unit MarginLeft
         {
-            get { return this.marginLeft; }
-            set { this.marginLeft = value; }
+            get { return _marginLeft; }
+            set { _marginLeft = value; }
         }
         [DV]
-        internal Unit marginLeft = Unit.NullValue;
+        internal Unit _marginLeft = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the Margin between the textframes content and its right edge.
         /// </summary>
         public Unit MarginRight
         {
-            get { return this.marginRight; }
-            set { this.marginRight = value; }
+            get { return _marginRight; }
+            set { _marginRight = value; }
         }
         [DV]
-        internal Unit marginRight = Unit.NullValue;
+        internal Unit _marginRight = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the Margin between the textframes content and its top edge.
         /// </summary>
         public Unit MarginTop
         {
-            get { return this.marginTop; }
-            set { this.marginTop = value; }
+            get { return _marginTop; }
+            set { _marginTop = value; }
         }
         [DV]
-        internal Unit marginTop = Unit.NullValue;
+        internal Unit _marginTop = Unit.NullValue;
 
         /// <summary>
         /// Gets or sets the Margin between the textframes content and its bottom edge.
         /// </summary>
         public Unit MarginBottom
         {
-            get { return this.marginBottom; }
-            set { this.marginBottom = value; }
+            get { return _marginBottom; }
+            set { _marginBottom = value; }
         }
         [DV]
-        internal Unit marginBottom = Unit.NullValue;
+        internal Unit _marginBottom = Unit.NullValue;
+
+        /// <summary>
+        /// Sets all margins in one step with the same value.
+        /// </summary>
+        public Unit Margin
+        {
+            set
+            {
+                _marginLeft = value;
+                _marginRight = value;
+                _marginTop = value;
+                _marginBottom = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the text orientation for the texframe content.
         /// </summary>
         public TextOrientation Orientation
         {
-            get { return (TextOrientation)this.orientation.Value; }
-            set { this.orientation.Value = (int)value; }
+            get { return (TextOrientation)_orientation.Value; }
+            set { _orientation.Value = (int)value; }
         }
         [DV(Type = typeof(TextOrientation))]
-        internal NEnum orientation = NEnum.NullValue(typeof(TextOrientation));
+        internal NEnum _orientation = NEnum.NullValue(typeof(TextOrientation));
 
         /// <summary>
         /// The document elements that build the textframe's content.
         /// </summary>
         public DocumentElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new DocumentElements(this);
-
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV(ItemType = typeof(DocumentObject))]
-        protected DocumentElements elements;
+        private DocumentElements _elements;
         #endregion
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitTextFrame(this);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, true);
         }
 
         #region Internal
@@ -261,21 +269,21 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
             serializer.WriteLine("\\textframe");
             int pos = serializer.BeginAttributes();
             base.Serialize(serializer);
-            if (!this.marginLeft.IsNull)
-                serializer.WriteSimpleAttribute("MarginLeft", this.MarginLeft);
-            if (!this.marginRight.IsNull)
-                serializer.WriteSimpleAttribute("MarginRight", this.MarginRight);
-            if (!this.marginTop.IsNull)
-                serializer.WriteSimpleAttribute("MarginTop", this.MarginTop);
-            if (!this.marginBottom.IsNull)
-                serializer.WriteSimpleAttribute("MarginBottom", this.MarginBottom);
-            if (!this.orientation.IsNull)
-                serializer.WriteSimpleAttribute("Orientation", this.Orientation);
+            if (!_marginLeft.IsNull)
+                serializer.WriteSimpleAttribute("MarginLeft", MarginLeft);
+            if (!_marginRight.IsNull)
+                serializer.WriteSimpleAttribute("MarginRight", MarginRight);
+            if (!_marginTop.IsNull)
+                serializer.WriteSimpleAttribute("MarginTop", MarginTop);
+            if (!_marginBottom.IsNull)
+                serializer.WriteSimpleAttribute("MarginBottom", MarginBottom);
+            if (!_orientation.IsNull)
+                serializer.WriteSimpleAttribute("Orientation", Orientation);
             serializer.EndAttributes(pos);
 
             serializer.BeginContent();
-            if (this.elements != null)
-                this.elements.Serialize(serializer);
+            if (_elements != null)
+                _elements.Serialize(serializer);
             serializer.EndContent();
         }
 
@@ -284,14 +292,9 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(TextFrame));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(TextFrame))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

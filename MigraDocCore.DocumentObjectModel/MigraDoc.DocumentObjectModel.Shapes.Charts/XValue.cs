@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,68 +35,62 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents the actual value on the XSeries.
-  /// </summary>
-  public class XValue : ChartObject
-  {
     /// <summary>
-    /// Initializes a new instance of the XValue class.
+    /// Represents the actual value on the XSeries.
     /// </summary>
-    internal XValue()
+    public class XValue : ChartObject
     {
+        /// <summary>
+        /// Initializes a new instance of the XValue class.
+        /// </summary>
+        internal XValue()
+        { }
+
+        /// <summary>
+        /// Initializes a new instance of the XValue class with the specified value.
+        /// </summary>
+        public XValue(string value)
+            : this()
+        {
+            if (value == null)
+                throw new ArgumentNullException("value");
+
+            Value = value;
+        }
+
+        /// <summary>
+        /// The actual value of the XValue.
+        /// </summary>
+        [DV] // No Get- and Set -Property.
+        protected internal string Value;
+
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new XValue Clone()
+        {
+            return (XValue)DeepCopy();
+        }
+        #endregion
+
+        #region Internal
+        /// <summary>
+        /// Converts XValue into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.Write("\"" + Value + "\", ");
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(XValue))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-
-    /// <summary>
-    /// Initializes a new instance of the XValue class with the specified value.
-    /// </summary>
-    public XValue(string value)
-      : this()
-    {
-      if (value == null)
-        throw new ArgumentNullException("value");
-
-      this.Value = value;
-    }
-
-    /// <summary>
-    /// The actual value of the XValue.
-    /// </summary>
-    [DV] // No Get- and Set -Property.
-    protected string Value;
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XValue Clone()
-    {
-      return (XValue)DeepCopy();
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts XValue into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.Write("\"" + this.Value + "\", ");
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(XValue));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-  }
 }

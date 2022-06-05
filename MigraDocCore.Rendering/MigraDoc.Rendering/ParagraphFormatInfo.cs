@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,154 +35,153 @@ using MigraDocCore.DocumentObjectModel;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Vertical measurements of a paragraph line.
-  /// </summary>
-  internal struct VerticalLineInfo
-  {
-    internal VerticalLineInfo(XUnit height, XUnit descent, XUnit inherentlineSpace)
+    /// <summary>
+    /// Vertical measurements of a paragraph line.
+    /// </summary>
+    internal struct VerticalLineInfo
     {
-      this.height = height;
-      this.descent = descent;
-      this.inherentlineSpace = inherentlineSpace;
-    }
-    internal XUnit height;
-    internal XUnit descent;
-    internal XUnit inherentlineSpace;
-  }
+        internal VerticalLineInfo(XUnit height, XUnit descent, XUnit inherentlineSpace)
+        {
+            Height = height;
+            Descent = descent;
+            InherentlineSpace = inherentlineSpace;
+        }
 
-  /// <summary>
-  /// Line info object used by the paragraph format info.
-  /// </summary>
-  internal struct LineInfo
-  {
-    internal ParagraphIterator startIter;
-    internal ParagraphIterator endIter;
-    internal XUnit wordsWidth;
-    internal XUnit lineWidth;
-    internal int blankCount;
-    internal VerticalLineInfo vertical;
-    internal ArrayList tabOffsets;
-    internal bool reMeasureLine;
-    internal DocumentObject lastTab;
-  }
+        public XUnit Height;
 
-  /// <summary>
-  /// Formatting information for a paragraph.
-  /// </summary>
-  internal class ParagraphFormatInfo : FormatInfo
-  {
-    ArrayList lineInfos = new ArrayList();
+        public XUnit Descent;
 
-    internal ParagraphFormatInfo()
-    {
-    }
-
-    internal LineInfo GetLineInfo(int lineIdx)
-    {
-      return (LineInfo)this.lineInfos[lineIdx];
-    }
-
-    internal LineInfo GetLastLineInfo()
-    {
-      return (LineInfo)this.lineInfos[this.LineCount - 1];
-    }
-
-    internal LineInfo GetFirstLineInfo()
-    {
-      return (LineInfo)this.lineInfos[0];
-    }
-
-    internal void AddLineInfo(LineInfo lineInfo)
-    {
-      this.lineInfos.Add(lineInfo);
-    }
-
-    internal int LineCount
-    {
-      get { return this.lineInfos.Count; }
+        public XUnit InherentlineSpace;
     }
 
     /// <summary>
-    /// 
+    /// Line info object used by the paragraph format info.
     /// </summary>
-    /// <param name="mergeInfo"></param>
-    /// <returns></returns>
-    internal void Append(FormatInfo mergeInfo)
+    internal struct LineInfo
     {
-      ParagraphFormatInfo formatInfo = (ParagraphFormatInfo)mergeInfo;
-      this.lineInfos.AddRange(formatInfo.lineInfos);
+        public ParagraphIterator StartIter;
+        public ParagraphIterator EndIter;
+        public XUnit WordsWidth;
+        public XUnit LineWidth;
+        public int BlankCount;
+        public VerticalLineInfo Vertical;
+        public List<TabOffset> TabOffsets;
+        public bool ReMeasureLine;
+        public DocumentObject LastTab;
     }
 
     /// <summary>
-    /// Indicates whether the paragraph is ending.
+    /// Formatting information for a paragraph.
     /// </summary>
-    /// <returns>True if the paragraph is ending.</returns>
-    internal override bool IsEnding
+    internal sealed class ParagraphFormatInfo : FormatInfo
     {
-      get { return this.isEnding; }
+        internal ParagraphFormatInfo()
+        { }
+
+        internal LineInfo GetLineInfo(int lineIdx)
+        {
+            return _lineInfos[lineIdx];
+        }
+
+        internal LineInfo GetLastLineInfo()
+        {
+            return _lineInfos[LineCount - 1];
+        }
+
+        internal LineInfo GetFirstLineInfo()
+        {
+            return _lineInfos[0];
+        }
+
+        internal void AddLineInfo(LineInfo lineInfo)
+        {
+            _lineInfos.Add(lineInfo);
+        }
+
+        internal int LineCount
+        {
+            get { return _lineInfos.Count; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="mergeInfo"></param>
+        /// <returns></returns>
+        internal void Append(FormatInfo mergeInfo)
+        {
+            ParagraphFormatInfo formatInfo = (ParagraphFormatInfo)mergeInfo;
+            _lineInfos.AddRange(formatInfo._lineInfos);
+        }
+
+        /// <summary>
+        /// Indicates whether the paragraph is ending.
+        /// </summary>
+        /// <returns>True if the paragraph is ending.</returns>
+        internal override bool IsEnding
+        {
+            get { return _isEnding; }
+        }
+        internal bool _isEnding;
+
+        /// <summary>
+        /// Indicates whether the paragraph is starting.
+        /// </summary>
+        /// <returns>True if the paragraph is starting.</returns>
+        internal override bool IsStarting
+        {
+            get { return _isStarting; }
+        }
+        internal bool _isStarting;
+
+        internal override bool IsComplete
+        {
+            get { return _isStarting && _isEnding; }
+        }
+
+        internal override bool IsEmpty
+        {
+            get { return _lineInfos.Count == 0; }
+        }
+
+        internal override bool StartingIsComplete
+        {
+            get
+            {
+                if (_widowControl)
+                    return (IsComplete || (_isStarting && _lineInfos.Count >= 2));
+                return _isStarting;
+            }
+        }
+
+        internal bool _widowControl;
+
+        internal override bool EndingIsComplete
+        {
+            get
+            {
+                if (_widowControl)
+                    return (IsComplete || (_isEnding && _lineInfos.Count >= 2));
+                return _isEnding;
+            }
+        }
+
+        internal void RemoveEnding()
+        {
+            if (!IsEmpty)
+            {
+                if (_widowControl && _isEnding && LineCount >= 2)
+                    _lineInfos.RemoveAt(LineCount - 2);
+                if (LineCount > 0)
+                    _lineInfos.RemoveAt(LineCount - 1);
+
+                _isEnding = false;
+            }
+        }
+
+        internal string ListSymbol;
+        internal XFont ListFont;
+        internal Dictionary<Image, RenderInfo> ImageRenderInfos;
+        readonly List<LineInfo> _lineInfos = new List<LineInfo>();
     }
-    internal bool isEnding;
-
-    /// <summary>
-    /// Indicates whether the paragraph is starting.
-    /// </summary>
-    /// <returns>True if the paragraph is starting.</returns>
-    internal override bool IsStarting
-    {
-      get { return this.isStarting; }
-    }
-    internal bool isStarting;
-
-    internal override bool IsComplete
-    {
-      get { return this.isStarting && this.isEnding; }
-    }
-
-    internal override bool IsEmpty
-    {
-      get { return this.lineInfos.Count == 0; }
-    }
-
-    internal override bool StartingIsComplete
-    {
-      get
-      {
-        if (this.widowControl)
-          return (this.IsComplete || (this.isStarting && this.lineInfos.Count >= 2));
-        else
-          return this.isStarting;
-      }
-    }
-
-    internal bool widowControl;
-
-    internal override bool EndingIsComplete
-    {
-      get
-      {
-        if (this.widowControl)
-          return (this.IsComplete || (this.isEnding && this.lineInfos.Count >= 2));
-        else
-          return this.isEnding;
-      }
-    }
-
-    internal void RemoveEnding()
-    {
-      if (!this.IsEmpty)
-      {
-        if (this.widowControl && this.isEnding && this.LineCount >= 2)
-          this.lineInfos.RemoveAt(this.LineCount - 2);
-        if (this.LineCount > 0)
-          this.lineInfos.RemoveAt(this.LineCount - 1);
-
-        this.isEnding = false;
-      }
-    }
-
-    internal string listSymbol;
-    internal XFont listFont;
-    internal Hashtable imageRenderInfos;
-  }
 }

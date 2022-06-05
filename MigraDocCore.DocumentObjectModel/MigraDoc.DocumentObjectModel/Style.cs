@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -68,8 +68,8 @@ namespace MigraDocCore.DocumentObjectModel
       if (name == "")
         throw new ArgumentException("name");
 
-      this.name.Value = name;
-      this.baseStyle.Value = baseStyleName;
+            _name.Value = name;
+            _baseStyle.Value = baseStyleName;
     }
 
     #region Methods
@@ -81,19 +81,19 @@ namespace MigraDocCore.DocumentObjectModel
       return (Style)DeepCopy();
     }
 
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Style style = (Style)base.DeepCopy();
-      if (style.paragraphFormat != null)
-      {
-        style.paragraphFormat = style.paragraphFormat.Clone();
-        style.paragraphFormat.parent = style;
-      }
-      return style;
-    }
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            Style style = (Style)base.DeepCopy();
+            if (style._paragraphFormat != null)
+            {
+                style._paragraphFormat = style._paragraphFormat.Clone();
+                style._paragraphFormat._parent = style;
+            }
+            return style;
+        }
     #endregion
 
     /// <summary>
@@ -117,11 +117,12 @@ namespace MigraDocCore.DocumentObjectModel
     /// <summary>
     /// Indicates whether the style is read-only. 
     /// </summary>
-    public bool IsReadOnly
-    {
-      get { return this.readOnly; }
-    }
-    internal bool readOnly;
+        public bool IsReadOnly
+        {
+            get { return _readOnly; }
+            internal set { _readOnly = value; }
+        }
+        bool _readOnly;
 
     /// <summary>
     /// Gets the font of ParagraphFormat. 
@@ -140,10 +141,10 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public string Name
     {
-      get { return this.name.Value; }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
+            get { return _name.Value; }
+        }
+        [DV]
+        internal NString _name = NString.NullValue;
 
     /// <summary>
     /// Gets the ParagraphFormat. To prevent read-only styles from being modified, a copy of its ParagraphFormat
@@ -153,47 +154,47 @@ namespace MigraDocCore.DocumentObjectModel
     {
       get
       {
-        if (this.paragraphFormat == null)
-          this.paragraphFormat = new ParagraphFormat(this);
-        if (this.readOnly)
-          return this.paragraphFormat.Clone();
-        return this.paragraphFormat;
+                if (_paragraphFormat == null)
+                    _paragraphFormat = new ParagraphFormat(this);
+                if (_readOnly)
+                    return _paragraphFormat.Clone();
+                return _paragraphFormat;
       }
       set
       {
         SetParent(value);
-        this.paragraphFormat = value;
+                _paragraphFormat = value;
       }
     }
     [DV]
-    internal ParagraphFormat paragraphFormat;
+        internal ParagraphFormat _paragraphFormat;
 
     /// <summary>
     /// Gets or sets the name of the base style.
     /// </summary>
     public string BaseStyle
     {
-      get { return baseStyle.Value; }
+            get { return _baseStyle.Value; }
       set
       {
-        if (value == null || value == "" && baseStyle.Value != "") //!!!modTHHO 17.07.2007: Self assignment is allowed
-          throw new ArgumentException(AppResources.EmptyBaseStyle);
+                if (value == null || value == "" && _baseStyle.Value != "")
+                    throw new ArgumentException(DomSR.EmptyBaseStyle);
 
         // Self assignment is allowed
-        if (String.Compare(baseStyle.Value, value, true) == 0)
-        {
-          baseStyle.Value = value;  // character case may change...
+                if (String.Compare(_baseStyle.Value, value, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    _baseStyle.Value = value;  // character case may change...
           return;
         }
 
-        if (String.Compare(this.name.Value, Style.DefaultParagraphName, true) == 0 ||
-            String.Compare(this.name.Value, Style.DefaultParagraphFontName, true) == 0)
-        {
-          string msg = String.Format("Style '{0}' has no base style and that cannot be altered.", this.name);
-          throw new ArgumentException(msg);
+                if (String.Compare(_name.Value, DefaultParagraphName, StringComparison.OrdinalIgnoreCase) == 0 ||
+                    String.Compare(_name.Value, DefaultParagraphFontName, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    string msg = String.Format("Style '{0}' has no base style and that cannot be altered.", _name);
+                    throw new ArgumentException(msg);
         }
 
-        Styles styles = (Styles)this.parent;
+                Styles styles = (Styles)_parent;
         // The base style must exists
         int idxBaseStyle = styles.GetIndex(value);
         if (idxBaseStyle == -1)
@@ -217,11 +218,11 @@ namespace MigraDocCore.DocumentObjectModel
         }
 
         // Now setting new base style is save
-        baseStyle.Value = value;
+                _baseStyle.Value = value;
       }
     }
     [DV]
-    internal NString baseStyle = NString.NullValue;
+        internal NString _baseStyle = NString.NullValue;
 
     /// <summary>
     /// Gets the StyleType of the style.
@@ -246,24 +247,24 @@ namespace MigraDocCore.DocumentObjectModel
         //}
         //return styleType;
 
-        if (this.styleType.IsNull)
-        {
-          if (String.Compare(this.baseStyle.Value, DefaultParagraphFontName, true) == 0)
-            this.styleType.Value = (int)StyleType.Character;
+                if (_styleType.IsNull)
+                {
+                    if (String.Compare(_baseStyle.Value, DefaultParagraphFontName, StringComparison.OrdinalIgnoreCase) == 0)
+                        _styleType.Value = (int)StyleType.Character;
           else
           {
             Style baseStyle = GetBaseStyle();
             if (baseStyle == null)
               throw new InvalidOperationException("User defined style has no valid base Style.");
 
-            this.styleType.Value = (int)baseStyle.Type;
+                        _styleType.Value = (int)baseStyle.Type;
           }
         }
-        return (StyleType)this.styleType.Value;
+                return (StyleType)_styleType.Value;
       }
     }
     [DV(Type = typeof(StyleType))]
-    internal NEnum styleType = NEnum.NullValue(typeof(StyleType));
+        internal NEnum _styleType = NEnum.NullValue(typeof(StyleType));
 
     /// <summary>
     /// Determines whether the style is the style Normal or DefaultParagraphFont.
@@ -272,8 +273,8 @@ namespace MigraDocCore.DocumentObjectModel
     {
       get
       {
-        return String.Compare(this.Name, DefaultParagraphFontName, true) == 0 ||
-               String.Compare(this.Name, DefaultParagraphName, true) == 0;
+                return String.Compare(Name, DefaultParagraphFontName, StringComparison.OrdinalIgnoreCase) == 0 ||
+                       String.Compare(Name, DefaultParagraphName, StringComparison.OrdinalIgnoreCase) == 0;
       }
     }
 
@@ -287,17 +288,16 @@ namespace MigraDocCore.DocumentObjectModel
 
       Styles styles = Parent as Styles;
       if (styles == null)
-        //??? 'owner of a parent'? eher 'owned by a parent' oder einfach: "A parent object is required for this operation."
-        throw new InvalidOperationException("This instance of 'style' is currently not owner of a parent; access failed");
-      if (this.baseStyle.Value == "")
+                throw new InvalidOperationException("A parent object is required for this operation; access failed");
+            if (_baseStyle.Value == "")
         throw new ArgumentException("User defined Style defined without a BaseStyle");
 
       //REVIEW KlPo4StLa Spezialbehandlung f¸r den DefaultParagraphFont kr¸ppelig(DefaultParagraphFont wird bei zugrif ¸ber styles["name"] nicht zur¸ckgeliefert).
       //Da hast Du Recht -> siehe IsReadOnly
-      if (this.baseStyle.Value == DefaultParagraphFontName)
-        return styles[0];
+            if (_baseStyle.Value == DefaultParagraphFontName)
+                return styles[0];
 
-      return styles[this.baseStyle.Value];
+            return styles[_baseStyle.Value];
     }
 
     /// <summary>
@@ -305,22 +305,22 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     public bool BuildIn
     {
-      get { return this.buildIn.Value; }
-    }
-    [DV]
-    internal NBool buildIn = NBool.NullValue;
-    // THHO: muss dass nicht builtIn heiﬂen?!?!?!?
+            get { return _buildIn.Value; }
+        }
+        [DV]
+        internal NBool _buildIn = NBool.NullValue;
+        // TODO: rename to builtIn.
 
     /// <summary>
     /// Gets or sets a comment associated with this object.
     /// </summary>
     public string Comment
     {
-      get { return this.comment.Value; }
-      set { this.comment.Value = value; }
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
     }
     [DV]
-    internal NString comment = NString.NullValue;
+        internal NString _comment = NString.NullValue;
     #endregion
 
     // Names of the root styles. Root styles have no BaseStyle.
@@ -328,12 +328,12 @@ namespace MigraDocCore.DocumentObjectModel
     /// <summary>
     /// Name of the default character style.
     /// </summary>
-    public const string DefaultParagraphFontName = "DefaultParagraphFont";
+        public const string DefaultParagraphFontName = StyleNames.DefaultParagraphFont;
 
     /// <summary>
     /// Name of the default paragraph style.
     /// </summary>
-    public const string DefaultParagraphName = "Normal";
+        public const string DefaultParagraphName = StyleNames.Normal;
 
     #region Internal
     /// <summary>
@@ -351,80 +351,80 @@ namespace MigraDocCore.DocumentObjectModel
       Font refFont = null;
       ParagraphFormat refFormat = null;
 
-      serializer.WriteComment(this.comment.Value);
-      if (this.buildIn.Value)
-      {
-        // BaseStyle is never null, but empty only for "Normal" and "DefaultParagraphFont"
-        if (this.BaseStyle == "")
-        {
-          // case: style is "Normal"
-          if (String.Compare(this.name.Value, Style.DefaultParagraphName, true) != 0)
-            throw new ArgumentException("Internal Error: BaseStyle not set.");
+            serializer.WriteComment(_comment.Value);
+            if (_buildIn.Value)
+            {
+                // BaseStyle is never null, but empty only for "Normal" and "DefaultParagraphFont"
+                if (BaseStyle == "")
+                {
+                    // case: style is "Normal"
+                    if (String.Compare(_name.Value, DefaultParagraphName, StringComparison.OrdinalIgnoreCase) != 0)
+                        throw new ArgumentException("Internal Error: BaseStyle not set.");
 
-          refStyle = buildInStyles[buildInStyles.GetIndex(this.Name)];
-          refFormat = refStyle.ParagraphFormat;
-          refFont = refFormat.Font;
-          string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-          serializer.WriteLineNoCommit(name);
-        }
-        else
-        {
-          // case: any build-in style except "Normal"
-          refStyle = buildInStyles[buildInStyles.GetIndex(this.Name)];
-          refFormat = refStyle.ParagraphFormat;
-          refFont = refFormat.Font;
-          if (String.Compare(this.BaseStyle, refStyle.BaseStyle, true) == 0)
-          {
-            // case: build-in style with unmodified base style name
-            string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-            serializer.WriteLineNoCommit(name);
-            // It's fine if we have the predefined base style, but ...
-            // ... the base style may have been modified or may even have a modified base style.
-            // Methinks it's wrong to compare with the built-in style, so let's compare with the
-            // real base style:
-            refStyle = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
-            refFormat = refStyle.ParagraphFormat;
-            refFont = refFormat.Font;
-            // Note: we must write "Underline = none" if the base style has "Underline = single" - we cannot
-            // detect this if we compare with the built-in style that has no underline.
-            // Known problem: Default values like "OutlineLevel = Level1" will now be serialized
-            // TODO: optimize...
-          }
-          else
-          {
-            // case: build-in style with modified base style name
-            string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-            string baseName = DdlEncoder.QuoteIfNameContainsBlanks(this.BaseStyle);
-            serializer.WriteLine(name + " : " + baseName);
-            refStyle = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
-            refFormat = refStyle.ParagraphFormat;
-            refFont = refFormat.Font;
-          }
-        }
-      }
-      else
-      {
-        // case: user-defined style; base style always exists
+                    refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
+                    refFormat = refStyle.ParagraphFormat;
+                    refFont = refFormat.Font;
+                    string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+                    serializer.WriteLineNoCommit(name);
+                }
+                else
+                {
+                    // case: any build-in style except "Normal"
+                    refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
+                    refFormat = refStyle.ParagraphFormat;
+                    refFont = refFormat.Font;
+                    if (String.Compare(BaseStyle, refStyle.BaseStyle, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        // case: build-in style with unmodified base style name
+                        string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+                        serializer.WriteLineNoCommit(name);
+                        // It's fine if we have the predefined base style, but ...
+                        // ... the base style may have been modified or may even have a modified base style.
+                        // Methinks it's wrong to compare with the built-in style, so let's compare with the
+                        // real base style:
+                        refStyle = Document.Styles[Document.Styles.GetIndex(_baseStyle.Value)];
+                        refFormat = refStyle.ParagraphFormat;
+                        refFont = refFormat.Font;
+                        // Note: we must write "Underline = none" if the base style has "Underline = single" - we cannot
+                        // detect this if we compare with the built-in style that has no underline.
+                        // Known problem: Default values like "OutlineLevel = Level1" will now be serialized
+                        // TODO: optimize...
+                    }
+                    else
+                    {
+                        // case: build-in style with modified base style name
+                        string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+                        string baseName = DdlEncoder.QuoteIfNameContainsBlanks(BaseStyle);
+                        serializer.WriteLine(name + " : " + baseName);
+                        refStyle = Document.Styles[Document.Styles.GetIndex(_baseStyle.Value)];
+                        refFormat = refStyle.ParagraphFormat;
+                        refFont = refFormat.Font;
+                    }
+                }
+            }
+            else
+            {
+                // case: user-defined style; base style always exists
 
-        string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-        string baseName = DdlEncoder.QuoteIfNameContainsBlanks(this.BaseStyle);
-        serializer.WriteLine(name + " : " + baseName);
-        Style refStyle0 = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
-        refStyle = Document.Styles[this.baseStyle.Value];
+                string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+                string baseName = DdlEncoder.QuoteIfNameContainsBlanks(BaseStyle);
+                serializer.WriteLine(name + " : " + baseName);
+                Style refStyle0 = Document.Styles[Document.Styles.GetIndex(_baseStyle.Value)];
+                refStyle = Document.Styles[_baseStyle.Value];
         refFormat = refStyle != null ? refStyle.ParagraphFormat : null;
         refFont = refStyle.Font;
       }
 
-      serializer.BeginContent();
+            serializer.BeginContent();
 
-      if (!this.IsNull("ParagraphFormat"))
-      {
-        if (!this.ParagraphFormat.IsNull("Font"))
-          this.Font.Serialize(serializer, refFormat != null ? refFormat.Font : null);
+            if (!IsNull("ParagraphFormat"))
+            {
+                if (!ParagraphFormat.IsNull("Font"))
+                    Font.Serialize(serializer, refFormat != null ? refFormat.Font : null);
 
-        if (this.Type == StyleType.Paragraph)
-          this.ParagraphFormat.Serialize(serializer, "ParagraphFormat", refFormat);
-      }
+                if (Type == StyleType.Paragraph)
+                    ParagraphFormat.Serialize(serializer, "ParagraphFormat", refFormat);
+            }
 
       serializer.EndContent();
     }
@@ -449,15 +449,10 @@ namespace MigraDocCore.DocumentObjectModel
     /// Returns the meta object of this instance.
     /// </summary>
     internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Style));
-        return meta;
-      }
-    }
-    static Meta meta;
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Style))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

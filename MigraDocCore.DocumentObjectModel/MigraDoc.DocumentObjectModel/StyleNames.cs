@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -48,6 +48,8 @@ namespace MigraDocCore.DocumentObjectModel
     public const string Heading7 = "Heading7";
     public const string Heading8 = "Heading8";
     public const string Heading9 = "Heading9";
+        // TODO Verify if "List" exists with Word.
+        public const string List = "List";
     public const string Footnote = "Footnote";
     public const string Header = "Header";
     public const string Footer = "Footer";

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -33,6 +33,7 @@
 using System;
 using System.Diagnostics;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
@@ -51,9 +52,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Color(uint argb)
         {
-            this.isCmyk = false;
-            this.argb = argb;
-            this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+            _isCmyk = false;
+            _argb = argb;
+            _a = _c = _m = _y = _k = 0f; // Compiler enforces this line of code
             InitCmykFromRgb();
         }
 
@@ -62,9 +63,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Color(byte r, byte g, byte b)
         {
-            this.isCmyk = false;
-            this.argb = 0xFF000000 | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
-            this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+            _isCmyk = false;
+            _argb = 0xFF000000 | ((uint)r << 16) | ((uint)g << 8) | b;
+            _a = _c = _m = _y = _k = 0f; // Compiler enforces this line of code
             InitCmykFromRgb();
         }
 
@@ -73,9 +74,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Color(byte a, byte r, byte g, byte b)
         {
-            this.isCmyk = false;
-            this.argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
-            this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+            _isCmyk = false;
+            _argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | b;
+            _a = _c = _m = _y = _k = 0f; // Compiler enforces this line of code
             InitCmykFromRgb();
         }
 
@@ -85,13 +86,13 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Color(double alpha, double cyan, double magenta, double yellow, double black)
         {
-            this.isCmyk = true;
-            this.a = (float)(alpha > 100 ? 100 : (alpha < 0 ? 0 : alpha));
-            this.c = (float)(cyan > 100 ? 100 : (cyan < 0 ? 0 : cyan));
-            this.m = (float)(magenta > 100 ? 100 : (magenta < 0 ? 0 : magenta));
-            this.y = (float)(yellow > 100 ? 100 : (yellow < 0 ? 0 : yellow));
-            this.k = (float)(black > 100 ? 100 : (black < 0 ? 0 : black));
-            this.argb = 0; // Compiler enforces this line of code
+            _isCmyk = true;
+            _a = (float)(alpha > 100 ? 100 : (alpha < 0 ? 0 : alpha));
+            _c = (float)(cyan > 100 ? 100 : (cyan < 0 ? 0 : cyan));
+            _m = (float)(magenta > 100 ? 100 : (magenta < 0 ? 0 : magenta));
+            _y = (float)(yellow > 100 ? 100 : (yellow < 0 ? 0 : yellow));
+            _k = (float)(black > 100 ? 100 : (black < 0 ? 0 : black));
+            _argb = 0; // Compiler enforces this line of code
             InitRgbFromCmyk();
         }
 
@@ -100,41 +101,41 @@ namespace MigraDocCore.DocumentObjectModel
         /// All values must be in a range between 0 to 100 percent.
         /// </summary>
         public Color(double cyan, double magenta, double yellow, double black)
-          : this(100, cyan, magenta, yellow, black)
+            : this(100, cyan, magenta, yellow, black)
         { }
 
         void InitCmykFromRgb()
         {
             // Similar formula as in PDFsharp
-            this.isCmyk = false;
+            _isCmyk = false;
             int c = 255 - (int)R;
             int m = 255 - (int)G;
             int y = 255 - (int)B;
             int k = Math.Min(c, Math.Min(m, y));
             if (k == 255)
-                this.c = this.m = this.y = 0;
+                _c = _m = _y = 0;
             else
             {
                 float black = 255f - k;
-                this.c = 100f * (c - k) / black;
-                this.m = 100f * (m - k) / black;
-                this.y = 100f * (y - k) / black;
+                _c = 100f * (c - k) / black;
+                _m = 100f * (m - k) / black;
+                _y = 100f * (y - k) / black;
             }
-            this.k = 100f * k / 255f;
-            this.a = A / 2.55f;
+            _k = 100f * k / 255f;
+            _a = A / 2.55f;
         }
 
         void InitRgbFromCmyk()
         {
             // Similar formula as in PDFsharp
-            this.isCmyk = true;
-            float black = this.k * 2.55f + 0.5f;
+            _isCmyk = true;
+            float black = _k * 2.55f + 0.5f;
             float factor = (255f - black) / 100f;
-            byte a = (byte)(this.a * 2.55 + 0.5);
-            byte r = (byte)(255 - Math.Min(255f, this.c * factor + black));
-            byte g = (byte)(255 - Math.Min(255f, this.m * factor + black));
-            byte b = (byte)(255 - Math.Min(255f, this.y * factor + black));
-            this.argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+            byte a = (byte)(_a * 2.55 + 0.5);
+            byte r = (byte)(255 - Math.Min(255f, _c * factor + black));
+            byte g = (byte)(255 - Math.Min(255f, _m * factor + black));
+            byte b = (byte)(255 - Math.Min(255f, _y * factor + black));
+            _argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | b;
         }
 
         /// <summary>
@@ -142,7 +143,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsCmyk
         {
-            get { return this.isCmyk; }
+            get { return _isCmyk; }
         }
 
         /// <summary>
@@ -150,7 +151,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsEmpty
         {
-            get { return this == Color.Empty; }
+            get { return this == Empty; }
         }
 
         /// <summary>
@@ -167,9 +168,9 @@ namespace MigraDocCore.DocumentObjectModel
         void INullableValue.SetValue(object value)
         {
             if (value is uint)
-                this.argb = (uint)value;
+                _argb = (uint)value;
             else
-                this = Color.Parse(value.ToString());
+                this = Parse(value.ToString());
         }
 
         /// <summary>
@@ -177,23 +178,15 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         void INullableValue.SetNull()
         {
-            this = Color.Empty;
+            this = Empty;
         }
 
         /// <summary>
         /// Determines whether this instance is null (not set).
         /// </summary>
-        bool INullableValue.IsNull
+        public  bool IsNull
         {
-            get { return this == Color.Empty; }
-        }
-
-        /// <summary>
-        /// Determines whether this instance is null (not set).
-        /// </summary>
-        internal bool IsNull
-        {
-            get { return this == Color.Empty; }
+            get { return this == Empty; }
         }
 
         /// <summary>
@@ -201,12 +194,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint Argb
         {
-            get { return argb; }
+            get { return _argb; }
             set
             {
-                if (this.isCmyk)
+                if (_isCmyk)
                     throw new InvalidOperationException("Cannot change a CMYK color.");
-                argb = value;
+                _argb = value;
                 InitCmykFromRgb();
             }
         }
@@ -216,12 +209,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint RGB
         {
-            get { return argb; }
+            get { return _argb; }
             set
             {
-                if (this.isCmyk)
+                if (_isCmyk)
                     throw new InvalidOperationException("Cannot change a CMYK color.");
-                argb = value;
+                _argb = value;
                 InitCmykFromRgb();
             }
         }
@@ -234,12 +227,11 @@ namespace MigraDocCore.DocumentObjectModel
             if (obj is Color)
             {
                 Color color = (Color)obj;
-                if (this.isCmyk ^ color.isCmyk)
+                if (_isCmyk ^ color._isCmyk)
                     return false;
-                if (this.isCmyk)
-                    return this.a == color.a && this.c == color.c && this.m == color.m && this.y == color.y && this.k == color.k;
-                else
-                    return this.argb == color.argb;
+                if (_isCmyk)
+                    return _a == color._a && _c == color._c && _m == color._m && _y == color._y && _k == color._k;
+                return _argb == color._argb;
             }
             return false;
         }
@@ -249,7 +241,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public override int GetHashCode()
         {
-            return (int)this.argb ^ this.a.GetHashCode() ^ this.c.GetHashCode() ^ this.m.GetHashCode() ^ this.y.GetHashCode() ^ this.k.GetHashCode();
+            return (int)_argb ^ _a.GetHashCode() ^ _c.GetHashCode() ^ _m.GetHashCode() ^ _y.GetHashCode() ^ _k.GetHashCode();
         }
 
         /// <summary>
@@ -257,12 +249,11 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public static bool operator ==(Color color1, Color color2)
         {
-            if (color1.isCmyk ^ color2.isCmyk)
+            if (color1._isCmyk ^ color2._isCmyk)
                 return false;
-            if (color1.isCmyk)
-                return color1.a == color2.a && color1.c == color2.c && color1.m == color2.m && color1.y == color2.y && color1.k == color2.k;
-            else
-                return color1.argb == color2.argb;
+            if (color1._isCmyk)
+                return color1._a == color2._a && color1._c == color2._c && color1._m == color2._m && color1._y == color2._y && color1._k == color2._k;
+            return color1._argb == color2._argb;
         }
 
         /// <summary>
@@ -276,6 +267,11 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Parses the string and returns a color object.
         /// Throws ArgumentException if color is invalid.
+        /// Supports four different formats for hex colors.
+        /// Format 1: uses prefix "0x", followed by as many hex digits as needed. Important: do not forget the opacity, so use 7 or 8 digits.
+        /// Format 2: uses prefix "#", followed by exactly 8 digits including opacity.
+        /// Format 3: uses prefix "#", followed by exactly 6 digits; opacity will be 0xff.
+        /// Format 4: uses prefix "#", followed by exactly 3 digits; opacity will be 0xff; "#ccc" will be treated as "#ffcccccc", "#d24" will be treated as "#ffdd2244".
         /// </summary>
         /// <param name="color">integer, hex or color name.</param>
         public static Color Parse(string color)
@@ -287,7 +283,7 @@ namespace MigraDocCore.DocumentObjectModel
 
             try
             {
-                uint clr = 0;
+                uint clr;
                 // Must use Enum.Parse because Enum.IsDefined is case sensitive
                 try
                 {
@@ -297,15 +293,35 @@ namespace MigraDocCore.DocumentObjectModel
                 }
                 catch
                 {
-                    //ignore exception cause it's not a ColorName.
+                    // Ignore exception because it's not a ColorName.
                 }
 
-                System.Globalization.NumberStyles numberStyle = System.Globalization.NumberStyles.Integer;
+                NumberStyles numberStyle = NumberStyles.Integer;
                 string number = color.ToLower();
                 if (number.StartsWith("0x"))
                 {
-                    numberStyle = System.Globalization.NumberStyles.HexNumber;
+                    numberStyle = NumberStyles.HexNumber;
                     number = color.Substring(2);
+                }
+                else if (number.StartsWith("#"))
+                {
+                    numberStyle = NumberStyles.HexNumber;
+                    switch (color.Length)
+                    {
+                        case 9:
+                            number = color.Substring(1);
+                            break;
+                        case 7:
+                            number = "ff" + color.Substring(1);
+                            break;
+                        case 4:
+                            number = "ff" + color.Substring(1,1) + color.Substring(1, 1) + 
+                                     color.Substring(2, 1) + color.Substring(2, 1) + 
+                                     color.Substring(3, 1) + color.Substring(3, 1);
+                            break;
+                        default:
+                            throw new ArgumentException(DomSR.InvalidColorString(color), "color");
+                    }
                 }
                 clr = uint.Parse(number, numberStyle);
                 return new Color(clr);
@@ -322,7 +338,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint A
         {
-            get { return (this.argb & 0xFF000000) >> 24; }
+            get { return (_argb & 0xFF000000) >> 24; }
         }
 
         /// <summary>
@@ -331,7 +347,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint R
         {
-            get { return (this.argb & 0xFF0000) >> 16; }
+            get { return (_argb & 0xFF0000) >> 16; }
         }
 
         /// <summary>
@@ -340,7 +356,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint G
         {
-            get { return (this.argb & 0x00FF00) >> 8; }
+            get { return (_argb & 0x00FF00) >> 8; }
         }
 
         /// <summary>
@@ -349,7 +365,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public uint B
         {
-            get { return this.argb & 0x0000FF; }
+            get { return _argb & 0x0000FF; }
         }
 
         /// <summary>
@@ -358,7 +374,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double Alpha
         {
-            get { return this.a; }
+            get { return _a; }
         }
 
         /// <summary>
@@ -367,7 +383,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double C
         {
-            get { return this.c; }
+            get { return _c; }
         }
 
         /// <summary>
@@ -376,7 +392,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double M
         {
-            get { return this.m; }
+            get { return _m; }
         }
 
         /// <summary>
@@ -385,7 +401,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double Y
         {
-            get { return this.y; }
+            get { return _y; }
         }
 
         /// <summary>
@@ -394,7 +410,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double K
         {
-            get { return this.k; }
+            get { return _k; }
         }
 
         /// <summary>
@@ -424,12 +440,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public override string ToString()
         {
-            if (stdColors == null)
+            if (_stdColors == null)
             {
                 Array colorNames = Enum.GetNames(typeof(ColorName));
                 Array colorValues = Enum.GetValues(typeof(ColorName));
                 int count = colorNames.GetLength(0);
-                stdColors = new Hashtable(count);
+                _stdColors = new Dictionary<uint, string>(count);
                 for (int index = 0; index < count; index++)
                 {
                     string c = (string)colorNames.GetValue(index);
@@ -437,11 +453,11 @@ namespace MigraDocCore.DocumentObjectModel
                     // Some color are double named...
                     // Aqua == Cyan
                     // Fuchsia == Magenta
-                    if (!stdColors.ContainsKey(d))
-                        stdColors.Add(d, c);
+                    if (!_stdColors.ContainsKey(d))
+                        _stdColors.Add(d, c);
                 }
             }
-            if (this.isCmyk)
+            if (_isCmyk)
             {
                 string s;
                 if (Alpha == 100.0)
@@ -452,21 +468,21 @@ namespace MigraDocCore.DocumentObjectModel
             }
             else
             {
-                if (stdColors.ContainsKey(argb))
-                    return (string)stdColors[argb];
+                if (_stdColors.ContainsKey(_argb))
+                    return _stdColors[_argb];
                 else
                 {
-                    if ((this.argb & 0xFF000000) == 0xFF000000)
+                if ((_argb & 0xFF000000) == 0xFF000000)
                         return "RGB(" +
-                          ((this.argb & 0xFF0000) >> 16).ToString(CultureInfo.InvariantCulture) + "," +
-                          ((this.argb & 0x00FF00) >> 8).ToString(CultureInfo.InvariantCulture) + "," +
-                          (this.argb & 0x0000FF).ToString(CultureInfo.InvariantCulture) + ")";
+                          ((_argb & 0xFF0000) >> 16).ToString(CultureInfo.InvariantCulture) + "," +
+                          ((_argb & 0x00FF00) >> 8).ToString(CultureInfo.InvariantCulture) + "," +
+                          (_argb & 0x0000FF).ToString(CultureInfo.InvariantCulture) + ")";
                     else
-                        return "0x" + argb.ToString("X");
+                        return "0x" + _argb.ToString("X");
                 }
             }
         }
-        static Hashtable stdColors;
+        static Dictionary<uint, string> _stdColors;
 
         /// <summary>
         /// Creates an RGB color from an existing color with a new alpha (transparency) value.
@@ -474,6 +490,22 @@ namespace MigraDocCore.DocumentObjectModel
         public static Color FromRgbColor(byte a, Color color)
         {
             return new Color(a, (byte)color.R, (byte)color.G, (byte)color.B);
+        }
+
+        /// <summary>
+        /// Creates an RGB color from red, green, and blue.
+        /// </summary>
+        public static Color FromRgb(byte r, byte g, byte b)
+        {
+            return new Color(255, r, g, b);
+        }
+
+        /// <summary>
+        /// Creates an RGB color from alpha, red, green, and blue.
+        /// </summary>
+        public static Color FromArgb(byte alpha, byte r, byte g, byte b)
+        {
+            return new Color(alpha, r, g, b);
         }
 
         /// <summary>
@@ -502,13 +534,13 @@ namespace MigraDocCore.DocumentObjectModel
             return new Color(alpha, color.C, color.M, color.Y, color.K);
         }
 
-        uint argb; // ARGB
-        bool isCmyk;
-        private float a; // \
-        private float c; // |
-        private float m; // |--- alpha + CMYK
-        private float y; // |
-        private float k; // /
+        uint _argb; // ARGB
+        bool _isCmyk;
+        private float _a; // \
+        private float _c; // |
+        private float _m; // |--- alpha + CMYK
+        private float _y; // |
+        private float _k; // /
 
         /// <summary>
         /// Represents a null color.

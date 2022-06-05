@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -34,85 +34,84 @@ using System;
 
 namespace MigraDocCore.DocumentObjectModel.Internals
 {
-  /// <summary>
-  /// Represents a nullable string value.
-  /// </summary>
-  internal struct NString : INullableValue
-  {
     /// <summary>
-    /// Gets or sets the value of the instance.
+    /// Represents a nullable string value.
     /// </summary>
-    public string Value
+    internal struct NString : INullableValue
     {
-      get { return this.val != null ? this.val : ""; }
-      set { this.val = value; }
+        /// <summary>
+        /// Gets or sets the value of the instance.
+        /// </summary>
+        public string Value
+        {
+            get { return _value ?? String.Empty; }
+            set { _value = value; }
+        }
+
+        /// <summary>
+        /// Returns the value of the instance.
+        /// </summary>
+        object INullableValue.GetValue()
+        {
+            return Value;
+        }
+
+        /// <summary>
+        /// Sets the value of the instance.
+        /// </summary>
+        void INullableValue.SetValue(object value)
+        {
+            _value = (String)value;
+        }
+
+        /// <summary>
+        /// Resets this instance,
+        /// i.e. IsNull() will return true afterwards.
+        /// </summary>
+        public void SetNull()
+        {
+            _value = null;
+        }
+
+        /// <summary>
+        /// Determines whether this instance is null (not set).
+        /// </summary>
+        public bool IsNull
+        {
+            get { return _value == null; }
+        }
+
+        /// <summary>
+        /// Returns a value indicating whether this instance is equal to the specified object.
+        /// </summary>
+        public override bool Equals(object value)
+        {
+            if (value is NString)
+                return this == (NString)value;
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return _value == null ? 0 : _value.GetHashCode();
+        }
+
+        public static bool operator ==(NString l, NString r)
+        {
+            if (l.IsNull)
+                return r.IsNull;
+            if (r.IsNull)
+                return false;
+            return l.Value == r.Value;
+        }
+
+        public static bool operator !=(NString l, NString r)
+        {
+            return !(l == r);
+        }
+
+        public static readonly NString NullValue = new NString();
+
+        string _value;
     }
-
-    /// <summary>
-    /// Returns the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
-
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (String)value;
-    }
-
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = null;
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return this.val == null; }
-    }
-
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NString)
-        return this == (NString)value;
-      return false;
-    }
-
-    public override int GetHashCode()
-    {
-      return this.val == null ? 0 : this.val.GetHashCode();
-    }
-
-    public static bool operator ==(NString l, NString r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
-
-    public static bool operator !=(NString l, NString r)
-    {
-      return !(l == r);
-    }
-
-    public static readonly NString NullValue = new NString();
-
-    string val;
-  }
 }

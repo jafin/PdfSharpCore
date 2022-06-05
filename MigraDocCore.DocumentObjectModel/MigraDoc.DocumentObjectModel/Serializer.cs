@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -58,9 +58,9 @@ namespace MigraDocCore.DocumentObjectModel
       if (textWriter == null)
         throw new ArgumentNullException("textWriter");
 
-      this.textWriter = textWriter;
-      this.indent = indent;
-      this.writeIndent = initialIndent;
+            _textWriter = textWriter;
+            _indent = indent;
+            _writeIndent = initialIndent;
       if (textWriter is StreamWriter)
         WriteStamp();
     }
@@ -75,50 +75,50 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal Serializer(TextWriter textWriter, int indent) : this(textWriter, indent, 0) { }
 
-    protected TextWriter textWriter;
+        readonly TextWriter _textWriter;
 
     /// <summary>
     /// Gets or sets the indentation for a new indentation level.
     /// </summary>
     internal int Indent
     {
-      get { return this.indent; }
-      set { this.indent = value; }
-    }
-    protected int indent = 2;
+            get { return _indent; }
+            set { _indent = value; }
+        }
+        int _indent = 2;
 
     /// <summary>
     /// Gets or sets the initial indentation which precede every line.
     /// </summary>
     internal int InitialIndent
     {
-      get { return this.writeIndent; }
-      set { this.writeIndent = value; }
-    }
-    protected int writeIndent = 0;
+            get { return _writeIndent; }
+            set { _writeIndent = value; }
+        }
+        int _writeIndent;
 
     /// <summary>
     /// Increases indent of DDL code.
     /// </summary>
     void IncreaseIndent()
     {
-      writeIndent += indent;
-    }
+            _writeIndent += _indent;
+        }
 
-    /// <summary>
-    /// Decreases indent of DDL code.
-    /// </summary>
-    void DecreaseIndent()
-    {
-      writeIndent -= indent;
-    }
+        /// <summary>
+        /// Decreases indent of DDL code.
+        /// </summary>
+        void DecreaseIndent()
+        {
+            _writeIndent -= _indent;
+        }
 
-    /// <summary>
-    /// Writes the header for a DDL file containing copyright and creation time information.
-    /// </summary>
-    internal void WriteStamp()
-    {
-      if (this.fWriteStamp)
+        /// <summary>
+        /// Writes the header for a DDL file containing copyright and creation time information.
+        /// </summary>
+        internal void WriteStamp()
+        {
+            if (_fWriteStamp)
       {
         WriteComment("Created by empira MigraDoc Document Object Model");
         WriteComment(String.Format("generated file created {0:d} at {0:t}", DateTime.Now));
@@ -163,19 +163,19 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     string DoWordWrap(string str)
     {
-      if (str.Length + this.writeIndent < this.lineBreakBeyond)
-        return str;
+            if (str.Length + _writeIndent <= LineBreakBeyond)
+                return str;
 
-      int idxCRLF = str.IndexOf("\x0D\x0A");
-      if (idxCRLF > 0 && idxCRLF + this.writeIndent <= this.lineBreakBeyond)
-        return str.Substring(0, idxCRLF + 1);
+            int idxCRLF = str.IndexOf("\x0D\x0A", StringComparison.Ordinal);
+            if (idxCRLF > 0 && idxCRLF + _writeIndent <= LineBreakBeyond)
+                return str.Substring(0, idxCRLF + 1);
 
-      int splitIndexBlank = str.Substring(0, this.lineBreakBeyond - this.writeIndent).LastIndexOf(" ");
-      int splitIndexCRLF = str.Substring(0, this.lineBreakBeyond - this.writeIndent).LastIndexOf("\x0D\x0A");
-      int splitIndex = System.Math.Max(splitIndexBlank, splitIndexCRLF);
-      if (splitIndex == -1)
-        splitIndex = System.Math.Min(str.IndexOf(" ", this.lineBreakBeyond - this.writeIndent + 1),
-                                     str.IndexOf("\x0D\x0A", this.lineBreakBeyond - this.writeIndent + 1));
+            int splitIndexBlank = str.Substring(0, LineBreakBeyond - _writeIndent).LastIndexOf(" ", StringComparison.Ordinal);
+            int splitIndexCRLF = str.Substring(0, LineBreakBeyond - _writeIndent).LastIndexOf("\x0D\x0A", StringComparison.Ordinal);
+            int splitIndex = Math.Max(splitIndexBlank, splitIndexCRLF);
+            if (splitIndex == -1)
+                splitIndex = Math.Min(str.IndexOf(" ", LineBreakBeyond - _writeIndent + 1, StringComparison.Ordinal),
+                                             str.IndexOf("\x0D\x0A", LineBreakBeyond - _writeIndent + 1, StringComparison.Ordinal));
       return splitIndex > 0 ? str.Substring(0, splitIndex) : str;
 
     }
@@ -209,11 +209,11 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal void WriteComment(string comment)
     {
-      if (comment == null || comment == String.Empty)
+            if (String.IsNullOrEmpty(comment))
         return;
 
       // if string contains CR/LF, split up recursively
-      int crlf = comment.IndexOf("\x0D\x0A");
+            int crlf = comment.IndexOf("\x0D\x0A", StringComparison.Ordinal);
       if (crlf != -1)
       {
         WriteComment(comment.Substring(0, crlf));
@@ -222,7 +222,7 @@ namespace MigraDocCore.DocumentObjectModel
       }
       CloseUpLine();
       int len;
-      int chopBeyond = this.lineBreakBeyond - this.indent - "// ".Length;
+            int chopBeyond = LineBreakBeyond - _indent - "// ".Length;
       while ((len = comment.Length) > 0)
       {
         string wrt;
@@ -257,7 +257,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal void CloseUpLine()
     {
-      if (this.linePos > 0)
+            if (_linePos > 0)
         WriteLine();
     }
 
@@ -269,7 +269,7 @@ namespace MigraDocCore.DocumentObjectModel
     void WriteToStream(string text, bool fLineBreak, bool fAutoIndent)
     {
       // if string contains CR/LF, split up recursively
-      int crlf = text.IndexOf("\x0D\x0A");
+            int crlf = text.IndexOf("\x0D\x0A", StringComparison.Ordinal);
       if (crlf != -1)
       {
         WriteToStream(text.Substring(0, crlf), true, fAutoIndent);
@@ -280,7 +280,7 @@ namespace MigraDocCore.DocumentObjectModel
       int len = text.Length;
       if (len > 0)
       {
-        if (this.linePos > 0)
+                if (_linePos > 0)
         {
           // does not work
           // if (IsBlankRequired(this.lastChar, _text[0]))
@@ -291,26 +291,26 @@ namespace MigraDocCore.DocumentObjectModel
           if (fAutoIndent)
           {
             text = Indentation + text;
-            len += this.writeIndent;
+                        len += _writeIndent;
           }
         }
-        this.textWriter.Write(text);
-        this.linePos += len;
+                _textWriter.Write(text);
+                _linePos += len;
         // wordwrap required?
-        if (this.linePos > this.lineBreakBeyond)
+                if (_linePos > LineBreakBeyond)
         {
           fLineBreak = true;
           //this.textWriter.Write("//¶");  // for debugging only
         }
         else
-          this.lastChar = text[len - 1];
+                    _lastChar = text[len - 1];
       }
 
       if (fLineBreak)
       {
-        this.textWriter.WriteLine(String.Empty);  // what a line break is may depend on encoding
-        this.linePos = 0;
-        this.lastChar = '\x0A';
+                _textWriter.WriteLine(String.Empty);  // what a line break is may depend on encoding
+                _linePos = 0;
+                _lastChar = '\x0A';
       }
     }
 
@@ -354,7 +354,7 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal int BeginAttributes()
     {
-      int pos = this.Position;
+            int pos = Position;
       WriteLineNoCommit("[");
       IncreaseIndent();
       BeginBlock();
@@ -495,11 +495,11 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal int BeginBlock()
     {
-      int pos = this.Position;
-      if (stackIdx + 1 >= commitTextStack.Length)
-        throw new ArgumentException("Block nesting level exhausted.");
-      stackIdx += 1;
-      commitTextStack[stackIdx] = false;
+            int pos = Position;
+            if (_stackIdx + 1 >= _commitTextStack.Length)
+                throw new ArgumentException("Block nesting level exhausted.");
+            _stackIdx += 1;
+            _commitTextStack[_stackIdx] = false;
       return pos;
     }
 
@@ -508,12 +508,12 @@ namespace MigraDocCore.DocumentObjectModel
     /// </summary>
     internal bool EndBlock()
     {
-      if (stackIdx <= 0)
-        throw new ArgumentException("Block nesting level underflow.");
-      stackIdx -= 1;
-      if (commitTextStack[stackIdx + 1])
-        commitTextStack[stackIdx] = commitTextStack[stackIdx + 1];
-      return commitTextStack[stackIdx + 1];
+            if (_stackIdx <= 0)
+                throw new ArgumentException("Block nesting level underflow.");
+            _stackIdx -= 1;
+            if (_commitTextStack[_stackIdx + 1])
+                _commitTextStack[_stackIdx] = _commitTextStack[_stackIdx + 1];
+            return _commitTextStack[_stackIdx + 1];
     }
 
     /// <summary>
@@ -523,7 +523,7 @@ namespace MigraDocCore.DocumentObjectModel
     {
       bool commit = EndBlock();
       if (!commit)
-        this.Position = pos;
+                Position = pos;
       return commit;
     }
 
@@ -534,61 +534,70 @@ namespace MigraDocCore.DocumentObjectModel
     {
       get
       {
-        textWriter.Flush();
-        if (textWriter is StreamWriter)
-          return (int)((StreamWriter)textWriter).BaseStream.Position;
-        else if (textWriter is StringWriter)
-          return ((StringWriter)textWriter).GetStringBuilder().Length;
-        return 0;
-      }
-      set
-      {
-        textWriter.Flush();
-        if (textWriter is StreamWriter)
-          ((StreamWriter)textWriter).BaseStream.SetLength(value);
-        else if (textWriter is StringWriter)
-          ((StringWriter)textWriter).GetStringBuilder().Length = value;
-      }
-    }
+                _textWriter.Flush();
+                StreamWriter streamWriter = _textWriter as StreamWriter;
+                if (streamWriter != null)
+                    return (int)streamWriter.BaseStream.Position;
+
+                StringWriter stringWriter = _textWriter as StringWriter;
+                if (stringWriter != null)
+                    return stringWriter.GetStringBuilder().Length;
+
+                return 0;
+            }
+            set
+            {
+                _textWriter.Flush();
+                StreamWriter streamWriter = _textWriter as StreamWriter;
+                if (streamWriter != null)
+                    streamWriter.BaseStream.SetLength(value);
+                else
+                {
+                    StringWriter stringWriter = _textWriter as StringWriter;
+                    if (stringWriter != null)
+                        stringWriter.GetStringBuilder().Length = value;
+                }
+            }
+        }
 
     /// <summary>
     /// Flushes the buffers of the underlying text writer.
     /// </summary>
     internal void Flush()
     {
-      textWriter.Flush();
+            _textWriter.Flush();
     }
 
-    /// <summary>
-    /// Returns an indent string of blanks.
-    /// </summary>
-    static string Ind(int indent)
-    {
-      return new String(' ', indent);
-    }
+        /// <summary>
+        /// Returns an indent string of blanks.
+        /// </summary>
+        static string Ind(int indent)
+        {
+            return new String(' ', indent);
+        }
 
-    /// <summary>
-    /// Gets an indent string of current indent.
-    /// </summary>
-    string Indentation
-    {
-      get { return Ind(writeIndent); }
-    }
+        /// <summary>
+        /// Gets an indent string of current indent.
+        /// </summary>
+        string Indentation
+        {
+            get { return Ind(_writeIndent); }
+        }
 
-    /// <summary>
-    /// Marks the current block as 'committed'. That means the block contains
-    /// serialized data.
-    /// </summary>
-    private void CommitText()
-    {
-      commitTextStack[stackIdx] = true;
-    }
-    private int stackIdx = 0;
-    private bool[] commitTextStack = new bool[32];
+        /// <summary>
+        /// Marks the current block as 'committed'. That means the block contains
+        /// serialized data.
+        /// </summary>
+        private void CommitText()
+        {
+            _commitTextStack[_stackIdx] = true;
+        }
+        int _stackIdx;
+        readonly bool[] _commitTextStack = new bool[32];
 
-    int linePos;
-    int lineBreakBeyond = 200;
-    char lastChar;
-    bool fWriteStamp = false;
-  }
+        int _linePos;
+        const int LineBreakBeyond = 200;
+        char _lastChar;
+        bool _fWriteStamp = false;
+    }
 }

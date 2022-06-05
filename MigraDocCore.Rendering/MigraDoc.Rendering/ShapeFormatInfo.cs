@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -36,47 +36,43 @@ namespace MigraDocCore.Rendering
   /// Format information for all shapes.
   /// </summary>
   internal class ShapeFormatInfo : FormatInfo
-  {
-    internal ShapeFormatInfo()
     {
-    }
+        internal override bool IsStarting
+        {
+            get { return Fits; }
+        }
 
-    internal override bool IsStarting
-    {
-      get { return this.fits; }
-    }
+        internal override bool IsEnding
+        {
+            get { return Fits; }
+        }
 
-    internal override bool IsEnding
-    {
-      get { return this.fits; }
-    }
+        internal override bool IsComplete
+        {
+            get { return Fits; }
+        }
 
-    internal override bool IsComplete
-    {
-      get { return this.fits; }
-    }
+        /// <summary>
+        /// Indicates that the starting of the element is completed
+        /// </summary>
+        internal override bool StartingIsComplete
+        {
+            get { return Fits; }
+        }
 
-    /// <summary>
-    /// Indicates that the starting of the element is completed
-    /// </summary>
-    internal override bool StartingIsComplete
-    {
-      get { return this.fits; }
-    }
+        /// <summary>
+        /// Indicates that the ending of the element is completed
+        /// </summary>
+        internal override bool EndingIsComplete
+        {
+            get { return Fits; }
+        }
 
-    /// <summary>
-    /// Indicates that the ending of the element is completed
-    /// </summary>
-    internal override bool EndingIsComplete
-    {
-      get { return this.fits; }
-    }
+        internal override bool IsEmpty
+        {
+            get { return !Fits; }
+        }
 
-    internal override bool IsEmpty
-    {
-      get { return !this.fits; }
+        internal bool Fits;
     }
-
-    internal bool fits;
-  }
 }

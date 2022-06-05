@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
@@ -37,143 +38,136 @@ using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Represents a formatted text area.
-  /// </summary>
-  internal class FormattedTextArea : IAreaProvider
-  {
-    internal FormattedTextArea(DocumentRenderer documentRenderer, TextArea textArea, FieldInfos fieldInfos)
+    /// <summary>
+    /// Represents a formatted text area.
+    /// </summary>
+    internal class FormattedTextArea : IAreaProvider
     {
-      this.textArea = textArea;
-      this.fieldInfos = fieldInfos;
-      this.documentRenderer = documentRenderer;
-    }
-
-    internal void Format(XGraphics gfx)
-    {
-      this.gfx = gfx;
-      this.isFirstArea = true;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.textArea.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-    }
-
-    internal XUnit InnerWidth
-    {
-      set { this.innerWidth = value; }
-      get
-      {
-        if (double.IsNaN(this.innerWidth))
+        internal FormattedTextArea(DocumentRenderer documentRenderer, TextArea textArea, FieldInfos fieldInfos)
         {
-          if (!this.textArea.IsNull("Width"))
-            this.innerWidth = textArea.Width.Point;
-          else
-            this.innerWidth = CalcInherentWidth();
+            TextArea = textArea;
+            _fieldInfos = fieldInfos;
+            _documentRenderer = documentRenderer;
         }
-        return this.innerWidth;
-      }
-    }
-    XUnit innerWidth = double.NaN;
 
-    internal XUnit InnerHeight
-    {
-      get
-      {
-        if (this.textArea.IsNull("Height"))
-          return this.ContentHeight + this.textArea.TopPadding + this.textArea.BottomPadding;
-        return this.textArea.Height.Point;
-      }
-    }
-
-
-    XUnit CalcInherentWidth()
-    {
-      XUnit inherentWidth = 0;
-      foreach (DocumentObject obj in this.textArea.Elements)
-      {
-        Renderer renderer = Renderer.Create(this.gfx, this.documentRenderer, obj, this.fieldInfos);
-        if (renderer != null)
+        internal void Format(XGraphics gfx)
         {
-          renderer.Format(new Rectangle(0, 0, double.MaxValue, double.MaxValue), null);
-          inherentWidth = Math.Max(renderer.RenderInfo.LayoutInfo.MinWidth, inherentWidth);
+            _gfx = gfx;
+            _isFirstArea = true;
+            _formatter = new TopDownFormatter(this, _documentRenderer, TextArea.Elements);
+            _formatter.FormatOnAreas(gfx, false);
         }
-      }
-      inherentWidth += this.textArea.LeftPadding;
-      inherentWidth += this.textArea.RightPadding;
-      return inherentWidth;
+
+        internal XUnit InnerWidth
+        {
+            set { _innerWidth = value; }
+            get
+            {
+                if (double.IsNaN(_innerWidth))
+                {
+                    if (!TextArea._width.IsNull)
+                        _innerWidth = TextArea.Width.Point;
+                    else
+                        _innerWidth = CalcInherentWidth();
+                }
+                return _innerWidth;
+            }
+        }
+        XUnit _innerWidth = double.NaN;
+
+        internal XUnit InnerHeight
+        {
+            get
+            {
+                if (!TextArea.Height.HasValue)
+                    return ContentHeight + TextArea.TopPadding + TextArea.BottomPadding;
+                return TextArea.Height.Value.Point;
+            }
+        }
+
+
+        XUnit CalcInherentWidth()
+        {
+            XUnit inherentWidth = 0;
+            foreach (DocumentObject obj in TextArea.Elements)
+            {
+                Renderer renderer = Renderer.Create(_gfx, _documentRenderer, obj, _fieldInfos);
+                if (renderer != null)
+                {
+                    renderer.Format(new Rectangle(0, 0, double.MaxValue, double.MaxValue), null);
+                    inherentWidth = Math.Max(renderer.RenderInfo.LayoutInfo.MinWidth, inherentWidth);
+                }
+            }
+            inherentWidth += TextArea.LeftPadding;
+            inherentWidth += TextArea.RightPadding;
+            return inherentWidth;
+        }
+
+        Area IAreaProvider.GetNextArea()
+        {
+            if (_isFirstArea)
+                return CalcContentRect();
+
+            return null;
+        }
+
+        Area IAreaProvider.ProbeNextArea()
+        {
+            return null;
+        }
+
+        FieldInfos IAreaProvider.AreaFieldInfos
+        {
+            get { return _fieldInfos; }
+        }
+
+        void IAreaProvider.StoreRenderInfos(List<RenderInfo> renderInfos)
+        {
+            _renderInfos = renderInfos;
+        }
+
+        bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        internal RenderInfo[] GetRenderInfos()
+        {
+            if (_renderInfos != null)
+                return _renderInfos.ToArray();
+
+            return null;
+        }
+
+        internal XUnit ContentHeight
+        {
+            get { return RenderInfo.GetTotalHeight(GetRenderInfos()); }
+        }
+
+        Rectangle CalcContentRect()
+        {
+            XUnit width = InnerWidth - TextArea.LeftPadding - TextArea.RightPadding;
+            XUnit height = double.MaxValue;
+            return new Rectangle(0, 0, width, height);
+        }
+
+        bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        internal readonly TextArea TextArea;
+
+        readonly FieldInfos _fieldInfos;
+        TopDownFormatter _formatter;
+        List<RenderInfo> _renderInfos;
+        XGraphics _gfx;
+        bool _isFirstArea;
+        readonly DocumentRenderer _documentRenderer;
     }
-
-
-    Area IAreaProvider.GetNextArea()
-    {
-      if (this.isFirstArea)
-        return CalcContentRect();
-
-      return null;
-    }
-
-    Area IAreaProvider.ProbeNextArea()
-    {
-      return null;
-    }
-
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get
-      {
-        return this.fieldInfos;
-      }
-    }
-
-    void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
-    {
-      this.renderInfos = renderInfos;
-    }
-
-    bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-
-    internal RenderInfo[] GetRenderInfos()
-    {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
-
-      return null;
-    }
-
-    internal XUnit ContentHeight
-    {
-      get
-      {
-        return RenderInfo.GetTotalHeight(this.GetRenderInfos());
-      }
-    }
-
-    Rectangle CalcContentRect()
-    {
-      XUnit width = this.InnerWidth - this.textArea.LeftPadding - this.textArea.RightPadding;
-      XUnit height = double.MaxValue;
-      return new Rectangle(0, 0, width, height);
-    }
-
-    bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-    bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-    internal TextArea textArea;
-    private FieldInfos fieldInfos;
-    private TopDownFormatter formatter;
-    private ArrayList renderInfos;
-    private XGraphics gfx;
-    private bool isFirstArea;
-    DocumentRenderer documentRenderer;
-  }
 }

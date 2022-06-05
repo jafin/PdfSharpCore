@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,125 +35,113 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents the format of the label of each value on the axis.
-  /// </summary>
-  public class TickLabels : ChartObject
-  {
     /// <summary>
-    /// Initializes a new instance of the TickLabels class.
+    /// Represents the format of the label of each value on the axis.
     /// </summary>
-    public TickLabels()
+    public class TickLabels : ChartObject
     {
+        /// <summary>
+        /// Initializes a new instance of the TickLabels class.
+        /// </summary>
+        public TickLabels()
+        { }
+
+        /// <summary>
+        /// Initializes a new instance of the TickLabels class with the specified parent.
+        /// </summary>
+        internal TickLabels(DocumentObject parent) : base(parent) { }
+
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new TickLabels Clone()
+        {
+            return (TickLabels)DeepCopy();
+        }
+
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            TickLabels tickLabels = (TickLabels)base.DeepCopy();
+            if (tickLabels._font != null)
+            {
+                tickLabels._font = tickLabels._font.Clone();
+                tickLabels._font._parent = tickLabels;
+            }
+            return tickLabels;
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// Gets or sets the style name of the label.
+        /// </summary>
+        public string Style
+        {
+            get { return _style.Value; }
+            set { _style.Value = value; }
+        }
+        [DV]
+        internal NString _style = NString.NullValue;
+
+        /// <summary>
+        /// Gets or sets the label's number format.
+        /// </summary>
+        public string Format
+        {
+            get { return _format.Value; }
+            set { _format.Value = value; }
+        }
+        [DV]
+        internal NString _format = NString.NullValue;
+
+        /// <summary>
+        /// Gets the font of the label.
+        /// </summary>
+        public Font Font
+        {
+            get { return _font ?? (_font = new Font(this)); }
+            set
+            {
+                SetParent(value);
+                _font = value;
+            }
+        }
+        [DV]
+        internal Font _font;
+        #endregion
+
+        #region Internal
+        /// <summary>
+        /// Converts TickLabels into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int pos = serializer.BeginContent("TickLabels");
+
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
+
+            if (_font != null)
+                _font.Serialize(serializer);
+
+            if (!_format.IsNull)
+                serializer.WriteSimpleAttribute("Format", Format);
+
+            serializer.EndContent();
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(TickLabels))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-
-    /// <summary>
-    /// Initializes a new instance of the TickLabels class with the specified parent.
-    /// </summary>
-    internal TickLabels(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new TickLabels Clone()
-    {
-      return (TickLabels)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      TickLabels tickLabels = (TickLabels)base.DeepCopy();
-      if (tickLabels.font != null)
-      {
-        tickLabels.font = tickLabels.font.Clone();
-        tickLabels.font.parent = tickLabels;
-      }
-      return tickLabels;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the style name of the label.
-    /// </summary>
-    public string Style
-    {
-      get { return this.style.Value; }
-      set { this.style.Value = value; }
-    }
-    [DV]
-    internal NString style = NString.NullValue;
-
-    /// <summary>
-    /// Gets or sets the label's number format.
-    /// </summary>
-    public string Format
-    {
-      get { return this.format.Value; }
-      set { this.format.Value = value; }
-    }
-    [DV]
-    internal NString format = NString.NullValue;
-
-    /// <summary>
-    /// Gets the font of the label.
-    /// </summary>
-    public Font Font
-    {
-      get
-      {
-        if (this.font == null)
-          this.font = new Font(this);
-
-        return this.font;
-      }
-      set
-      {
-        SetParent(value);
-        this.font = value;
-      }
-    }
-    [DV]
-    internal Font font;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts TickLabels into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int pos = serializer.BeginContent("TickLabels");
-
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-
-      if (this.font != null)
-        this.font.Serialize(serializer);
-
-      if (!this.format.IsNull)
-        serializer.WriteSimpleAttribute("Format", this.Format);
-
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(TickLabels));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-  }
 }

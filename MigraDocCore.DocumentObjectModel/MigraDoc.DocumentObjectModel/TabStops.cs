@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -186,70 +186,65 @@ namespace MigraDocCore.DocumentObjectModel
       tab.AddTab = false;
     }
 
-    /// <summary>
-    /// Clears all TabStop objects from the collection. Additionally 'TabStops = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public void ClearAll()
-    {
-      Clear();
-      this.fClearAll = true;
-    }
-    #endregion
+        /// <summary>
+        /// Clears all TabStop objects from the collection. Additionally 'TabStops = null'
+        /// is written to the DDL stream when serialized.
+        /// </summary>
+        public void ClearAll()
+        {
+            Clear();
+            _fClearAll = true;
+        }
+        #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets the information if the collection is marked as cleared. Additionally 'TabStops = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public bool TabsCleared
-    {
-      get { return this.fClearAll; }
-    }
-    internal bool fClearAll = false;
-    #endregion
+        #region Properties
+        /// <summary>
+        /// Gets the information if the collection is marked as cleared. Additionally 'TabStops = null'
+        /// is written to the DDL stream when serialized.
+        /// </summary>
+        public bool TabsCleared
+        {
+            get { return _fClearAll; }
+        }
+        internal bool _fClearAll = false;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts TabStops into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (fClearAll)
-        serializer.WriteLine("TabStops = null");
+        #region Internal
+        /// <summary>
+        /// Converts TabStops into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            if (_fClearAll)
+                serializer.WriteLine("TabStops = null");
 
-      int count = Count;
-      for (int index = 0; index < count; index++)
-      {
-        TabStop tabstop = (TabStop)this[index];
-        tabstop.Serialize(serializer);
-      }
-    }
+            int count = Count;
+            for (int index = 0; index < count; index++)
+            {
+                TabStop tabstop = this[index];
+                tabstop.Serialize(serializer);
+            }
+        }
 
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public override bool IsNull()
-    {
-      // Only non empty and not cleared tabstops (TabStops = null) are null.
-      if (base.IsNull())
-        return !this.fClearAll;
-      return false;
-    }
+        /// <summary>
+        /// Determines whether this instance is null (not set).
+        /// </summary>
+        public override bool IsNull()
+        {
+            // Only non empty and not cleared tabstops (TabStops = null) are null.
+            if (base.IsNull())
+                return !_fClearAll;
+            return false;
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(TabStops));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(TabStops))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

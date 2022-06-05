@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -34,98 +34,97 @@ using System;
 
 namespace MigraDocCore.DocumentObjectModel.Internals
 {
-  /// <summary>
-  /// Represents a nullable boolean value.
-  /// </summary>
-  internal struct NBool : INullableValue
-  {
-    public NBool(bool value)
-    {
-      this.val = value ? (sbyte)1 : (sbyte)0;
-    }
-
-    NBool(sbyte value)
-    {
-      this.val = value;
-    }
-
     /// <summary>
-    /// Gets or sets the value of the instance.
+    /// Represents a nullable boolean value.
     /// </summary>
-    public bool Value
+    internal struct NBool : INullableValue
     {
-      get { return this.val == 1; }
-      set { this.val = value ? (sbyte)1 : (sbyte)0; }
-    }
+        public NBool(bool value)
+        {
+            _value = value ? (sbyte)1 : (sbyte)0;
+        }
 
-    /// <summary>
-    /// Gets the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
+        NBool(sbyte value)
+        {
+            _value = value;
+        }
 
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (bool)value ? (sbyte)1 : (sbyte)0;
-    }
+        /// <summary>
+        /// Gets or sets the value of the instance.
+        /// </summary>
+        public bool Value
+        {
+            get { return _value == 1; }
+            set { _value = value ? (sbyte)1 : (sbyte)0; }
+        }
 
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = -1;
-    }
+        /// <summary>
+        /// Gets the value of the instance.
+        /// </summary>
+        object INullableValue.GetValue()
+        {
+            return Value;
+        }
 
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return this.val == -1; }
-    }
+        /// <summary>
+        /// Sets the value of the instance.
+        /// </summary>
+        void INullableValue.SetValue(object value)
+        {
+            _value = (bool)value ? (sbyte)1 : (sbyte)0;
+        }
 
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NBool)
-        return this == (NBool)value;
-      return false;
-    }
+        /// <summary>
+        /// Resets this instance,
+        /// i.e. IsNull() will return true afterwards.
+        /// </summary>
+        public void SetNull()
+        {
+            _value = -1;
+        }
 
-    public override int GetHashCode()
-    {
-      return this.val.GetHashCode();
-    }
+        /// <summary>
+        /// Determines whether this instance is null (not set).
+        /// </summary>
+        public bool IsNull
+        {
+            get { return _value == -1; }
+        }
 
-    public static bool operator ==(NBool l, NBool r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
+        /// <summary>
+        /// Returns a value indicating whether this instance is equal to the specified object.
+        /// </summary>
+        public override bool Equals(object value)
+        {
+            if (value is NBool)
+                return this == (NBool)value;
+            return false;
+        }
 
-    public static bool operator !=(NBool l, NBool r)
-    {
-      return !(l == r);
-    }
+        public override int GetHashCode()
+        {
+            return _value.GetHashCode();
+        }
 
-    public static readonly NBool NullValue = new NBool(-1);
+        public static bool operator ==(NBool l, NBool r)
+        {
+            if (l.IsNull)
+                return r.IsNull;
+            if (r.IsNull)
+                return false;
+            return l.Value == r.Value;
+        }
 
-    /// <summary>
-    /// -1 (undefined), 0 (false), or 1 (true).
-    /// </summary>
-    sbyte val;
+        public static bool operator !=(NBool l, NBool r)
+        {
+            return !(l == r);
+        }
+
+        public static readonly NBool NullValue = new NBool(-1);
+
+        /// <summary>
+        /// -1 (undefined), 0 (false), or 1 (true).
+        /// </summary>
+        sbyte _value;
   }
 }

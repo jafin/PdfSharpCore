@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,64 +32,63 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 
 namespace MigraDocCore.DocumentObjectModel.Internals
 {
-  /// <summary>
-  /// A collection that manages ValueDescriptors.
-  /// </summary>
-  public class ValueDescriptorCollection : IEnumerable
-  {
     /// <summary>
-    /// Gets the count of ValueDescriptors.
+    /// A collection that manages ValueDescriptors.
     /// </summary>
-    public int Count
+    public class ValueDescriptorCollection : IEnumerable
     {
-      get { return this.arrayList.Count; }
-    }
+        /// <summary>
+        /// Gets the count of ValueDescriptors.
+        /// </summary>
+        public int Count
+        {
+            get { return _list.Count; }
+        }
 
-    /// <summary>
-    /// Adds the specified ValueDescriptor.
-    /// </summary>
-    public int Add(ValueDescriptor vd)
-    {
-      this.hashTable.Add(vd.ValueName, vd);
-      return this.arrayList.Add(vd);
-    }
+        /// <summary>
+        /// Adds the specified ValueDescriptor.
+        /// </summary>
+        public void Add(ValueDescriptor vd)
+        {
+            _dictionary.Add(vd.ValueName, vd);
+            _list.Add(vd);
+        }
 
-    /// <summary>
-    /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> at the specified index.
-    /// </summary>
-    /// <value></value>
-    public ValueDescriptor this[int index]
-    {
-      get { return this.arrayList[index] as ValueDescriptor; }
-    }
+        /// <summary>
+        /// Gets the <see cref="ValueDescriptor"/> at the specified index.
+        /// </summary>
+        public ValueDescriptor this[int index]
+        {
+            get { return _list[index]; }
+        }
 
-    /// <summary>
-    /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> with the specified name.
-    /// </summary>
-    /// <value></value>
-    public ValueDescriptor this[string name]
-    {
-      get { return this.hashTable[name] as ValueDescriptor; }
-    }
+        /// <summary>
+        /// Gets the <see cref="ValueDescriptor"/> with the specified name.
+        /// </summary>
+        public ValueDescriptor this[string name]
+        {
+            get { return _dictionary[name]; }
+        }
 
-    /// <summary>
-    /// Returns an enumerator that iterates through a collection.
-    /// </summary>
-    /// <returns>
-    /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
-    /// </returns>
-    public IEnumerator GetEnumerator()
-    {
-      return this.arrayList.GetEnumerator();
-    }
+        /// <summary>
+        /// Returns an enumerator that iterates through a collection.
+        /// </summary>
+        /// <returns>
+        /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
+        /// </returns>
+        public IEnumerator GetEnumerator()
+        {
+            return _list.GetEnumerator();
+        }
 
-    ArrayList arrayList = new ArrayList();
-    Hashtable hashTable = new Hashtable(StringComparer.CurrentCultureIgnoreCase);
-  }
+        readonly List<ValueDescriptor> _list = new List<ValueDescriptor>();
+        readonly Dictionary<string, ValueDescriptor> _dictionary = new Dictionary<string, ValueDescriptor>(StringComparer.OrdinalIgnoreCase);
+    }
 }

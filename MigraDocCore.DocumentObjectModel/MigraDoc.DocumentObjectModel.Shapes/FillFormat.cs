@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -63,57 +63,52 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the color of the filling.
-    /// </summary>
-    public Color Color
-    {
-      get { return this.color; }
-      set { this.color = value; }
-    }
-    [DV]
-    internal Color color = Color.Empty;
+        #region Properties
+        /// <summary>
+        /// Gets or sets the color of the filling.
+        /// </summary>
+        public Color Color
+        {
+            get { return _color; }
+            set { _color = value; }
+        }
+        [DV]
+        internal Color _color = Color.Empty;
 
-    /// <summary>
-    /// Gets or sets a value indicating whether the background color should be visible.
-    /// </summary>
-    public bool Visible
-    {
-      get { return this.visible.Value; }
-      set { this.visible.Value = value; }
-    }
-    [DV]
-    internal NBool visible = NBool.NullValue;
-    #endregion
+        /// <summary>
+        /// Gets or sets a value indicating whether the background color should be visible.
+        /// </summary>
+        public bool Visible
+        {
+            get { return _visible.Value; }
+            set { _visible.Value = value; }
+        }
+        [DV]
+        internal NBool _visible = NBool.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts FillFormat into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int pos = serializer.BeginContent("FillFormat");
-      if (!this.visible.IsNull)
-        serializer.WriteSimpleAttribute("Visible", this.Visible);
-      if (!this.color.IsNull)
-        serializer.WriteSimpleAttribute("Color", this.Color);
-      serializer.EndContent();
-    }
+        #region Internal
+        /// <summary>
+        /// Converts FillFormat into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.BeginContent("FillFormat");
+            if (!_visible.IsNull)
+                serializer.WriteSimpleAttribute("Visible", Visible);
+            if (!_color.IsNull)
+                serializer.WriteSimpleAttribute("Color", Color);
+            serializer.EndContent();
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(FillFormat));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(FillFormat))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

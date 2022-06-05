@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -30,7 +30,7 @@
 
 using System;
 using System.Collections;
-
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 
@@ -38,100 +38,95 @@ using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Represents a formatted header or footer.
-  /// </summary>
-  internal class FormattedHeaderFooter : IAreaProvider
-  {
-    internal FormattedHeaderFooter(HeaderFooter headerFooter, DocumentRenderer documentRenderer, FieldInfos fieldInfos)
+    /// <summary>
+    /// Represents a formatted header or footer.
+    /// </summary>
+    internal class FormattedHeaderFooter : IAreaProvider
     {
-      this.headerFooter = headerFooter;
-      this.fieldInfos = fieldInfos;
-      this.documentRenderer = documentRenderer;
+        internal FormattedHeaderFooter(HeaderFooter headerFooter, DocumentRenderer documentRenderer, FieldInfos fieldInfos)
+        {
+            _headerFooter = headerFooter;
+            _fieldInfos = fieldInfos;
+            _documentRenderer = documentRenderer;
+        }
+
+        internal void Format(XGraphics gfx)
+        {
+            _gfx = gfx;
+            _isFirstArea = true;
+            _formatter = new TopDownFormatter(this, _documentRenderer, _headerFooter.Elements);
+            _formatter.FormatOnAreas(gfx, false);
+            _contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
+        }
+
+        Area IAreaProvider.GetNextArea()
+        {
+            if (_isFirstArea)
+                return new Rectangle(ContentRect.X, ContentRect.Y, ContentRect.Width, double.MaxValue);
+
+            return null;
+        }
+
+        Area IAreaProvider.ProbeNextArea()
+        {
+            return null;
+        }
+
+        FieldInfos IAreaProvider.AreaFieldInfos
+        {
+            get { return _fieldInfos; }
+        }
+
+        void IAreaProvider.StoreRenderInfos(List<RenderInfo> renderInfos)
+        {
+            _renderInfos = renderInfos;
+        }
+
+        bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        internal RenderInfo[] GetRenderInfos()
+        {
+            if (_renderInfos != null)
+                return _renderInfos.ToArray();
+
+            return new RenderInfo[0];
+        }
+
+        internal Rectangle ContentRect
+        {
+            get { return _contentRect; }
+            set { _contentRect = value; }
+        }
+        private Rectangle _contentRect;
+
+        XUnit ContentHeight
+        {
+            get { return _contentHeight; }
+        }
+        private XUnit _contentHeight;
+
+
+        bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
+        {
+            IAreaProvider formattedDoc = _documentRenderer.FormattedDocument;
+            return formattedDoc.PositionVertically(layoutInfo);
+        }
+
+        bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
+        {
+            IAreaProvider formattedDoc = _documentRenderer.FormattedDocument;
+            return formattedDoc.PositionHorizontally(layoutInfo);
+        }
+
+        HeaderFooter _headerFooter;
+        FieldInfos _fieldInfos;
+        TopDownFormatter _formatter;
+        List<RenderInfo> _renderInfos;
+        XGraphics _gfx;
+        bool _isFirstArea;
+        readonly DocumentRenderer _documentRenderer;
     }
-
-    internal void Format(XGraphics gfx)
-    {
-      this.gfx = gfx;
-      this.isFirstArea = true;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.headerFooter.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-      this.contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
-    }
-
-    Area IAreaProvider.GetNextArea()
-    {
-      if (this.isFirstArea)
-        return new Rectangle(this.ContentRect.X, this.ContentRect.Y, this.ContentRect.Width, double.MaxValue);
-
-      return null;
-    }
-
-    Area IAreaProvider.ProbeNextArea()
-    {
-      return null;
-    }
-
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get { return this.fieldInfos; }
-    }
-
-    void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
-    {
-      this.renderInfos = renderInfos;
-    }
-
-    bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-
-    internal RenderInfo[] GetRenderInfos()
-    {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
-
-      return new RenderInfo[0];
-    }
-
-    internal Rectangle ContentRect
-    {
-      get
-      { return this.contentRect; }
-      set
-      { this.contentRect = value; }
-    }
-    private Rectangle contentRect;
-
-    XUnit ContentHeight
-    {
-      get
-      {
-        return this.contentHeight;
-      }
-    }
-
-    bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
-    {
-      IAreaProvider formattedDoc = (IAreaProvider)this.documentRenderer.FormattedDocument;
-      return formattedDoc.PositionVertically(layoutInfo);
-    }
-
-    bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
-    {
-      IAreaProvider formattedDoc = (IAreaProvider)this.documentRenderer.FormattedDocument;
-      return formattedDoc.PositionHorizontally(layoutInfo); ;
-    }
-
-    private HeaderFooter headerFooter;
-    private FieldInfos fieldInfos;
-    private TopDownFormatter formatter;
-    private ArrayList renderInfos;
-    private XGraphics gfx;
-    private bool isFirstArea;
-    private XUnit contentHeight;
-    private DocumentRenderer documentRenderer;
-  }
 }

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -38,607 +38,518 @@ using MigraDocCore.DocumentObjectModel.Visitors;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// Represents charts with different types.
-  /// </summary>
-  public class Chart : Shape, IVisitable
-  {
     /// <summary>
-    /// Initializes a new instance of the Chart class.
+    /// Represents charts with different types.
     /// </summary>
-    public Chart()
+    public class Chart : Shape, IVisitable
     {
-    }
+        /// <summary>
+        /// Initializes a new instance of the Chart class.
+        /// </summary>
+        public Chart()
+        {
+        }
 
-    /// <summary>
-    /// Initializes a new instance of the Chart class with the specified parent.
-    /// </summary>
-    internal Chart(DocumentObject parent) : base(parent) { }
+        /// <summary>
+        /// Initializes a new instance of the Chart class with the specified parent.
+        /// </summary>
+        internal Chart(DocumentObject parent) : base(parent) { }
 
-    /// <summary>
-    /// Initializes a new instance of the Chart class with the specified chart type.
-    /// </summary>
-    public Chart(ChartType type)
-      : this()
-    {
-      this.Type = type;
-    }
+        /// <summary>
+        /// Initializes a new instance of the Chart class with the specified chart type.
+        /// </summary>
+        public Chart(ChartType type)
+            : this()
+        {
+            Type = type;
+        }
 
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Chart Clone()
-    {
-      return (Chart)DeepCopy();
-    }
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new Chart Clone()
+        {
+            return (Chart)DeepCopy();
+        }
 
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Chart chart = (Chart)base.DeepCopy();
-      if (chart.format != null)
-      {
-        chart.format = chart.format.Clone();
-        chart.format.parent = chart;
-      }
-      if (chart.xAxis != null)
-      {
-        chart.xAxis = chart.xAxis.Clone();
-        chart.xAxis.parent = chart;
-      }
-      if (chart.yAxis != null)
-      {
-        chart.yAxis = chart.yAxis.Clone();
-        chart.yAxis.parent = chart;
-      }
-      if (chart.zAxis != null)
-      {
-        chart.zAxis = chart.zAxis.Clone();
-        chart.zAxis.parent = chart;
-      }
-      if (chart.seriesCollection != null)
-      {
-        chart.seriesCollection = chart.seriesCollection.Clone();
-        chart.seriesCollection.parent = chart;
-      }
-      if (chart.xValues != null)
-      {
-        chart.xValues = chart.xValues.Clone();
-        chart.xValues.parent = chart;
-      }
-      if (chart.headerArea != null)
-      {
-        chart.headerArea = chart.headerArea.Clone();
-        chart.headerArea.parent = chart;
-      }
-      if (chart.bottomArea != null)
-      {
-        chart.bottomArea = chart.bottomArea.Clone();
-        chart.bottomArea.parent = chart;
-      }
-      if (chart.topArea != null)
-      {
-        chart.topArea = chart.topArea.Clone();
-        chart.topArea.parent = chart;
-      }
-      if (chart.footerArea != null)
-      {
-        chart.footerArea = chart.footerArea.Clone();
-        chart.footerArea.parent = chart;
-      }
-      if (chart.leftArea != null)
-      {
-        chart.leftArea = chart.leftArea.Clone();
-        chart.leftArea.parent = chart;
-      }
-      if (chart.rightArea != null)
-      {
-        chart.rightArea = chart.rightArea.Clone();
-        chart.rightArea.parent = chart;
-      }
-      if (chart.plotArea != null)
-      {
-        chart.plotArea = chart.plotArea.Clone();
-        chart.plotArea.parent = chart;
-      }
-      if (chart.dataLabel != null)
-      {
-        chart.dataLabel = chart.dataLabel.Clone();
-        chart.dataLabel.parent = chart;
-      }
-      return chart;
-    }
-    #endregion
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            Chart chart = (Chart)base.DeepCopy();
+            if (chart._format != null)
+            {
+                chart._format = chart._format.Clone();
+                chart._format._parent = chart;
+            }
+            if (chart._xAxis != null)
+            {
+                chart._xAxis = chart._xAxis.Clone();
+                chart._xAxis._parent = chart;
+            }
+            if (chart._yAxis != null)
+            {
+                chart._yAxis = chart._yAxis.Clone();
+                chart._yAxis._parent = chart;
+            }
+            if (chart._zAxis != null)
+            {
+                chart._zAxis = chart._zAxis.Clone();
+                chart._zAxis._parent = chart;
+            }
+            if (chart._seriesCollection != null)
+            {
+                chart._seriesCollection = chart._seriesCollection.Clone();
+                chart._seriesCollection._parent = chart;
+            }
+            if (chart._xValues != null)
+            {
+                chart._xValues = chart._xValues.Clone();
+                chart._xValues._parent = chart;
+            }
+            if (chart._headerArea != null)
+            {
+                chart._headerArea = chart._headerArea.Clone();
+                chart._headerArea._parent = chart;
+            }
+            if (chart._bottomArea != null)
+            {
+                chart._bottomArea = chart._bottomArea.Clone();
+                chart._bottomArea._parent = chart;
+            }
+            if (chart._topArea != null)
+            {
+                chart._topArea = chart._topArea.Clone();
+                chart._topArea._parent = chart;
+            }
+            if (chart._footerArea != null)
+            {
+                chart._footerArea = chart._footerArea.Clone();
+                chart._footerArea._parent = chart;
+            }
+            if (chart._leftArea != null)
+            {
+                chart._leftArea = chart._leftArea.Clone();
+                chart._leftArea._parent = chart;
+            }
+            if (chart._rightArea != null)
+            {
+                chart._rightArea = chart._rightArea.Clone();
+                chart._rightArea._parent = chart;
+            }
+            if (chart._plotArea != null)
+            {
+                chart._plotArea = chart._plotArea.Clone();
+                chart._plotArea._parent = chart;
+            }
+            if (chart._dataLabel != null)
+            {
+                chart._dataLabel = chart._dataLabel.Clone();
+                chart._dataLabel._parent = chart;
+            }
+            return chart;
+        }
+        #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the base type of the chart.
-    /// ChartType of the series can be overwritten.
-    /// </summary>
-    public ChartType Type
-    {
-      get { return (ChartType)this.type.Value; }
-      set { this.type.Value = (int)value; }
-    }
-    [DV(Type = typeof(ChartType))]
-    internal NEnum type = NEnum.NullValue(typeof(ChartType));
+        #region Properties
+        /// <summary>
+        /// Gets or sets the base type of the chart.
+        /// ChartType of the series can be overwritten.
+        /// </summary>
+        public ChartType Type
+        {
+            get { return (ChartType)_type.Value; }
+            set { _type.Value = (int)value; }
+        }
+        [DV(Type = typeof(ChartType))]
+        internal NEnum _type = NEnum.NullValue(typeof(ChartType));
 
-    /// <summary>
-    /// Gets or sets the default style name of the whole chart.
-    /// </summary>
-    public string Style
-    {
-      get { return this.style.Value; }
-      set { this.style.Value = value; }
-    }
-    [DV]
-    internal NString style = NString.NullValue;
+        /// <summary>
+        /// Gets or sets the default style name of the whole chart.
+        /// </summary>
+        public string Style
+        {
+            get { return _style.Value; }
+            set { _style.Value = value; }
+        }
+        [DV]
+        internal NString _style = NString.NullValue;
 
-    /// <summary>
-    /// Gets the default paragraph format of the whole chart.
-    /// </summary>
-    public ParagraphFormat Format
-    {
-      get
-      {
-        if (this.format == null)
-          this.format = new ParagraphFormat(this);
+        /// <summary>
+        /// Gets the default paragraph format of the whole chart.
+        /// </summary>
+        public ParagraphFormat Format
+        {
+            get { return _format ?? (_format = new ParagraphFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _format = value;
+            }
+        }
+        [DV]
+        internal ParagraphFormat _format;
 
-        return this.format;
-      }
-      set
-      {
-        SetParent(value);
-        this.format = value;
-      }
-    }
-    [DV]
-    internal ParagraphFormat format;
+        /// <summary>
+        /// Gets the X-Axis of the Chart.
+        /// </summary>
+        public Axis XAxis
+        {
+            get { return _xAxis ?? (_xAxis = new Axis(this)); }
+            set
+            {
+                SetParent(value);
+                _xAxis = value;
+            }
+        }
+        [DV]
+        internal Axis _xAxis;
 
-    /// <summary>
-    /// Gets the X-Axis of the Chart.
-    /// </summary>
-    public Axis XAxis
-    {
-      get
-      {
-        if (this.xAxis == null)
-          this.xAxis = new Axis(this);
+        /// <summary>
+        /// Gets the Y-Axis of the Chart.
+        /// </summary>
+        public Axis YAxis
+        {
+            get { return _yAxis ?? (_yAxis = new Axis(this)); }
+            set
+            {
+                SetParent(value);
+                _yAxis = value;
+            }
+        }
+        [DV]
+        internal Axis _yAxis;
 
-        return this.xAxis;
-      }
-      set
-      {
-        SetParent(value);
-        this.xAxis = value;
-      }
-    }
-    [DV]
-    internal Axis xAxis;
+        /// <summary>
+        /// Gets the Z-Axis of the Chart.
+        /// </summary>
+        public Axis ZAxis
+        {
+            get { return _zAxis ?? (_zAxis = new Axis(this)); }
+            set
+            {
+                SetParent(value);
+                _zAxis = value;
+            }
+        }
+        [DV]
+        internal Axis _zAxis;
 
-    /// <summary>
-    /// Gets the Y-Axis of the Chart.
-    /// </summary>
-    public Axis YAxis
-    {
-      get
-      {
-        if (this.yAxis == null)
-          this.yAxis = new Axis(this);
+        /// <summary>
+        /// Gets the collection of the data series.
+        /// </summary>
+        public SeriesCollection SeriesCollection
+        {
+            get { return _seriesCollection ?? (_seriesCollection = new SeriesCollection(this)); }
+            set
+            {
+                SetParent(value);
+                _seriesCollection = value;
+            }
+        }
+        [DV(ItemType = typeof(Series))]
+        internal SeriesCollection _seriesCollection;
 
-        return this.yAxis;
-      }
-      set
-      {
-        SetParent(value);
-        this.yAxis = value;
-      }
-    }
-    [DV]
-    internal Axis yAxis;
+        /// <summary>
+        /// Gets the collection of the values written on the X-Axis.
+        /// </summary>
+        public XValues XValues
+        {
+            get { return _xValues ?? (_xValues = new XValues(this)); }
+            set
+            {
+                SetParent(value);
+                _xValues = value;
+            }
+        }
+        [DV(ItemType = typeof(Series))]
+        internal XValues _xValues;
 
-    /// <summary>
-    /// Gets the Z-Axis of the Chart.
-    /// </summary>
-    public Axis ZAxis
-    {
-      get
-      {
-        if (this.zAxis == null)
-          this.zAxis = new Axis(this);
+        /// <summary>
+        /// Gets the header area of the chart.
+        /// </summary>
+        public TextArea HeaderArea
+        {
+            get { return _headerArea ?? (_headerArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _headerArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _headerArea;
 
-        return this.zAxis;
-      }
-      set
-      {
-        SetParent(value);
-        this.zAxis = value;
-      }
-    }
-    [DV]
-    internal Axis zAxis;
+        /// <summary>
+        /// Gets the bottom area of the chart.
+        /// </summary>
+        public TextArea BottomArea
+        {
+            get { return _bottomArea ?? (_bottomArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _bottomArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _bottomArea;
 
-    /// <summary>
-    /// Gets the collection of the data series.
-    /// </summary>
-    public SeriesCollection SeriesCollection
-    {
-      get
-      {
-        if (this.seriesCollection == null)
-          this.seriesCollection = new SeriesCollection(this);
+        /// <summary>
+        /// Gets the top area of the chart.
+        /// </summary>
+        public TextArea TopArea
+        {
+            get { return _topArea ?? (_topArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _topArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _topArea;
 
-        return this.seriesCollection;
-      }
-      set
-      {
-        SetParent(value);
-        this.seriesCollection = value;
-      }
-    }
-    [DV(ItemType = typeof(Series))]
-    internal SeriesCollection seriesCollection;
+        /// <summary>
+        /// Gets the footer area of the chart.
+        /// </summary>
+        public TextArea FooterArea
+        {
+            get { return _footerArea ?? (_footerArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _footerArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _footerArea;
 
-    /// <summary>
-    /// Gets the collection of the values written on the X-Axis.
-    /// </summary>
-    public XValues XValues
-    {
-      get
-      {
-        if (this.xValues == null)
-          this.xValues = new XValues(this);
+        /// <summary>
+        /// Gets the left area of the chart.
+        /// </summary>
+        public TextArea LeftArea
+        {
+            get { return _leftArea ?? (_leftArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _leftArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _leftArea;
 
-        return this.xValues;
-      }
-      set
-      {
-        SetParent(value);
-        this.xValues = value;
-      }
-    }
-    [DV(ItemType = typeof(Series))]
-    internal XValues xValues;
+        /// <summary>
+        /// Gets the right area of the chart.
+        /// </summary>
+        public TextArea RightArea
+        {
+            get { return _rightArea ?? (_rightArea = new TextArea(this)); }
+            set
+            {
+                SetParent(value);
+                _rightArea = value;
+            }
+        }
+        [DV]
+        internal TextArea _rightArea;
 
-    /// <summary>
-    /// Gets the header area of the chart.
-    /// </summary>
-    public TextArea HeaderArea
-    {
-      get
-      {
-        if (this.headerArea == null)
-          this.headerArea = new TextArea(this);
+        /// <summary>
+        /// Gets the plot (drawing) area of the chart.
+        /// </summary>
+        public PlotArea PlotArea
+        {
+            get { return _plotArea ?? (_plotArea = new PlotArea(this)); }
+            set
+            {
+                SetParent(value);
+                _plotArea = value;
+            }
+        }
+        [DV]
+        internal PlotArea _plotArea;
 
-        return this.headerArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.headerArea = value;
-      }
-    }
-    [DV]
-    internal TextArea headerArea;
+        /// <summary>
+        /// Gets or sets a value defining how blanks in the data series should be shown.
+        /// </summary>
+        public BlankType DisplayBlanksAs
+        {
+            get { return (BlankType)_displayBlanksAs.Value; }
+            set { _displayBlanksAs.Value = (int)value; }
+        }
+        [DV(Type = typeof(BlankType))]
+        internal NEnum _displayBlanksAs = NEnum.NullValue(typeof(BlankType));
 
-    /// <summary>
-    /// Gets the bottom area of the chart.
-    /// </summary>
-    public TextArea BottomArea
-    {
-      get
-      {
-        if (this.bottomArea == null)
-          this.bottomArea = new TextArea(this);
+        /// <summary>
+        /// Gets or sets whether XAxis Labels should be merged.
+        /// </summary>
+        public bool PivotChart
+        {
+            get { return _pivotChart.Value; }
+            set { _pivotChart.Value = value; }
+        }
+        [DV]
+        internal NBool _pivotChart = NBool.NullValue;
 
-        return this.bottomArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.bottomArea = value;
-      }
-    }
-    [DV]
-    internal TextArea bottomArea;
+        /// <summary>
+        /// Gets the DataLabel of the chart.
+        /// </summary>
+        public DataLabel DataLabel
+        {
+            get { return _dataLabel ?? (_dataLabel = new DataLabel(this)); }
+            set
+            {
+                SetParent(value);
+                _dataLabel = value;
+            }
+        }
+        [DV]
+        internal DataLabel _dataLabel;
 
-    /// <summary>
-    /// Gets the top area of the chart.
-    /// </summary>
-    public TextArea TopArea
-    {
-      get
-      {
-        if (this.topArea == null)
-          this.topArea = new TextArea(this);
+        /// <summary>
+        /// Gets or sets whether the chart has a DataLabel.
+        /// </summary>
+        public bool HasDataLabel
+        {
+            get { return _hasDataLabel.Value; }
+            set { _hasDataLabel.Value = value; }
+        }
+        [DV]
+        internal NBool _hasDataLabel = NBool.NullValue;
+        #endregion
 
-        return this.topArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.topArea = value;
-      }
-    }
-    [DV]
-    internal TextArea topArea;
+        /// <summary>
+        /// Determines the type of the given axis.
+        /// </summary>
+        internal string CheckAxis(Axis axis)
+        {
+            if ((_xAxis != null) && (axis == _xAxis))
+                return "xaxis";
+            if ((_yAxis != null) && (axis == _yAxis))
+                return "yaxis";
+            if ((_zAxis != null) && (axis == _zAxis))
+                return "zaxis";
 
-    /// <summary>
-    /// Gets the footer area of the chart.
-    /// </summary>
-    public TextArea FooterArea
-    {
-      get
-      {
-        if (this.footerArea == null)
-          this.footerArea = new TextArea(this);
+            return "";
+        }
 
-        return this.footerArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.footerArea = value;
-      }
-    }
-    [DV]
-    internal TextArea footerArea;
+        /// <summary>
+        /// Determines the type of the given textarea.
+        /// </summary>
+        internal string CheckTextArea(TextArea textArea)
+        {
+            if ((_headerArea != null) && (textArea == _headerArea))
+                return "headerarea";
+            if ((_footerArea != null) && (textArea == _footerArea))
+                return "footerarea";
+            if ((_leftArea != null) && (textArea == _leftArea))
+                return "leftarea";
+            if ((_rightArea != null) && (textArea == _rightArea))
+                return "rightarea";
+            if ((_topArea != null) && (textArea == _topArea))
+                return "toparea";
+            if ((_bottomArea != null) && (textArea == _bottomArea))
+                return "bottomarea";
 
-    /// <summary>
-    /// Gets the left area of the chart.
-    /// </summary>
-    public TextArea LeftArea
-    {
-      get
-      {
-        if (this.leftArea == null)
-          this.leftArea = new TextArea(this);
+            return "";
+        }
 
-        return this.leftArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.leftArea = value;
-      }
-    }
-    [DV]
-    internal TextArea leftArea;
+        #region Internal
+        /// <summary>
+        /// Converts Chart into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            serializer.WriteLine("\\chart(" + Type + ")");
+            int pos = serializer.BeginAttributes();
 
-    /// <summary>
-    /// Gets the right area of the chart.
-    /// </summary>
-    public TextArea RightArea
-    {
-      get
-      {
-        if (this.rightArea == null)
-          this.rightArea = new TextArea(this);
+            base.Serialize(serializer);
+            if (!_displayBlanksAs.IsNull)
+                serializer.WriteSimpleAttribute("DisplayBlanksAs", DisplayBlanksAs);
+            if (!_pivotChart.IsNull)
+                serializer.WriteSimpleAttribute("PivotChart", PivotChart);
+            if (!_hasDataLabel.IsNull)
+                serializer.WriteSimpleAttribute("HasDataLabel", HasDataLabel);
 
-        return this.rightArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.rightArea = value;
-      }
-    }
-    [DV]
-    internal TextArea rightArea;
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
+            if (!IsNull("Format"))
+                _format.Serialize(serializer, "Format", null);
+            if (!IsNull("DataLabel"))
+                _dataLabel.Serialize(serializer);
+            serializer.EndAttributes(pos);
 
-    /// <summary>
-    /// Gets the plot (drawing) area of the chart.
-    /// </summary>
-    public PlotArea PlotArea
-    {
-      get
-      {
-        if (this.plotArea == null)
-          this.plotArea = new PlotArea(this);
+            serializer.BeginContent();
 
-        return this.plotArea;
-      }
-      set
-      {
-        SetParent(value);
-        this.plotArea = value;
-      }
-    }
-    [DV]
-    internal PlotArea plotArea;
+            if (!IsNull("PlotArea"))
+                _plotArea.Serialize(serializer);
+            if (!IsNull("HeaderArea"))
+                _headerArea.Serialize(serializer);
+            if (!IsNull("FooterArea"))
+                _footerArea.Serialize(serializer);
+            if (!IsNull("TopArea"))
+                _topArea.Serialize(serializer);
+            if (!IsNull("BottomArea"))
+                _bottomArea.Serialize(serializer);
+            if (!IsNull("LeftArea"))
+                _leftArea.Serialize(serializer);
+            if (!IsNull("RightArea"))
+                _rightArea.Serialize(serializer);
 
-    /// <summary>
-    /// Gets or sets a value defining how blanks in the data series should be shown.
-    /// </summary>
-    public BlankType DisplayBlanksAs
-    {
-      get { return (BlankType)this.displayBlanksAs.Value; }
-      set { this.displayBlanksAs.Value = (int)value; }
-    }
-    [DV(Type = typeof(BlankType))]
-    internal NEnum displayBlanksAs = NEnum.NullValue(typeof(BlankType));
+            if (!IsNull("XAxis"))
+                _xAxis.Serialize(serializer);
+            if (!IsNull("YAxis"))
+                _yAxis.Serialize(serializer);
+            if (!IsNull("ZAxis"))
+                _zAxis.Serialize(serializer);
 
-    /// <summary>
-    /// Gets or sets whether XAxis Labels should be merged.
-    /// </summary>
-    public bool PivotChart
-    {
-      get { return this.pivotChart.Value; }
-      set { this.pivotChart.Value = value; }
-    }
-    [DV]
-    internal NBool pivotChart = NBool.NullValue;
+            if (!IsNull("SeriesCollection"))
+                _seriesCollection.Serialize(serializer);
+            if (!IsNull("XValues"))
+                _xValues.Serialize(serializer);
 
-    /// <summary>
-    /// Gets the DataLabel of the chart.
-    /// </summary>
-    public DataLabel DataLabel
-    {
-      get
-      {
-        if (this.dataLabel == null)
-          this.dataLabel = new DataLabel(this);
+            serializer.EndContent();
+        }
 
-        return this.dataLabel;
-      }
-      set
-      {
-        SetParent(value);
-        this.dataLabel = value;
-      }
-    }
-    [DV]
-    internal DataLabel dataLabel;
+        /// <summary>
+        /// Allows the visitor object to visit the document object and its child objects.
+        /// </summary>
+        void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
+        {
+            visitor.VisitChart(this);
+            if (visitChildren)
+            {
+                if (_bottomArea != null)
+                    ((IVisitable)_bottomArea).AcceptVisitor(visitor, true);
 
-    /// <summary>
-    /// Gets or sets whether the chart has a DataLabel.
-    /// </summary>
-    public bool HasDataLabel
-    {
-      get { return this.hasDataLabel.Value; }
-      set { this.hasDataLabel.Value = value; }
-    }
-    [DV]
-    internal NBool hasDataLabel = NBool.NullValue;
-    #endregion
+                if (_footerArea != null)
+                    ((IVisitable)_footerArea).AcceptVisitor(visitor, true);
 
-    /// <summary>
-    /// Determines the type of the given axis.
-    /// </summary>
-    internal string CheckAxis(Axis axis)
-    {
-      if ((this.xAxis != null) && (axis == this.xAxis))
-        return "xaxis";
-      if ((this.yAxis != null) && (axis == this.yAxis))
-        return "yaxis";
-      if ((this.zAxis != null) && (axis == this.zAxis))
-        return "zaxis";
+                if (_headerArea != null)
+                    ((IVisitable)_headerArea).AcceptVisitor(visitor, true);
 
-      return "";
-    }
+                if (_leftArea != null)
+                    ((IVisitable)_leftArea).AcceptVisitor(visitor, true);
 
-    /// <summary>
-    /// Determines the type of the given textarea.
-    /// </summary>
-    internal string CheckTextArea(TextArea textArea)
-    {
-      if ((this.headerArea != null) && (textArea == this.headerArea))
-        return "headerarea";
-      if ((this.footerArea != null) && (textArea == this.footerArea))
-        return "footerarea";
-      if ((this.leftArea != null) && (textArea == this.leftArea))
-        return "leftarea";
-      if ((this.rightArea != null) && (textArea == this.rightArea))
-        return "rightarea";
-      if ((this.topArea != null) && (textArea == this.topArea))
-        return "toparea";
-      if ((this.bottomArea != null) && (textArea == this.bottomArea))
-        return "bottomarea";
+                if (_rightArea != null)
+                    ((IVisitable)_rightArea).AcceptVisitor(visitor, true);
 
-      return "";
-    }
+                if (_topArea != null)
+                    ((IVisitable)_topArea).AcceptVisitor(visitor, true);
+            }
+        }
 
-    #region Internal
-    /// <summary>
-    /// Converts Chart into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteLine("\\chart(" + this.Type + ")");
-      int pos = serializer.BeginAttributes();
-
-      base.Serialize(serializer);
-      if (!this.displayBlanksAs.IsNull)
-        serializer.WriteSimpleAttribute("DisplayBlanksAs", this.DisplayBlanksAs);
-      if (!this.pivotChart.IsNull)
-        serializer.WriteSimpleAttribute("PivotChart", this.PivotChart);
-      if (!this.hasDataLabel.IsNull)
-        serializer.WriteSimpleAttribute("HasDataLabel", this.HasDataLabel);
-
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-      if (!this.IsNull("Format"))
-        this.format.Serialize(serializer, "Format", null);
-      if (!this.IsNull("DataLabel"))
-        this.dataLabel.Serialize(serializer);
-      serializer.EndAttributes(pos);
-
-      serializer.BeginContent();
-
-      if (!this.IsNull("PlotArea"))
-        this.plotArea.Serialize(serializer);
-      if (!this.IsNull("HeaderArea"))
-        this.headerArea.Serialize(serializer);
-      if (!this.IsNull("FooterArea"))
-        this.footerArea.Serialize(serializer);
-      if (!this.IsNull("TopArea"))
-        this.topArea.Serialize(serializer);
-      if (!this.IsNull("BottomArea"))
-        this.bottomArea.Serialize(serializer);
-      if (!this.IsNull("LeftArea"))
-        this.leftArea.Serialize(serializer);
-      if (!this.IsNull("RightArea"))
-        this.rightArea.Serialize(serializer);
-
-      if (!this.IsNull("XAxis"))
-        this.xAxis.Serialize(serializer);
-      if (!this.IsNull("YAxis"))
-        this.yAxis.Serialize(serializer);
-      if (!this.IsNull("ZAxis"))
-        this.zAxis.Serialize(serializer);
-
-      if (!this.IsNull("SeriesCollection"))
-        this.seriesCollection.Serialize(serializer);
-      if (!this.IsNull("XValues"))
-        this.xValues.Serialize(serializer);
-
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Allows the visitor object to visit the document object and it's child objects.
-    /// </summary>
-    void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
-    {
-      visitor.VisitChart(this);
-      if (visitChildren)
-      {
-        if (this.bottomArea != null)
-          ((IVisitable)this.bottomArea).AcceptVisitor(visitor, visitChildren);
-
-        if (this.footerArea != null)
-          ((IVisitable)this.footerArea).AcceptVisitor(visitor, visitChildren);
-
-        if (this.headerArea != null)
-          ((IVisitable)this.headerArea).AcceptVisitor(visitor, visitChildren);
-
-        if (this.leftArea != null)
-          ((IVisitable)this.leftArea).AcceptVisitor(visitor, visitChildren);
-
-        if (this.rightArea != null)
-          ((IVisitable)this.rightArea).AcceptVisitor(visitor, visitChildren);
-
-        if (this.topArea != null)
-          ((IVisitable)this.topArea).AcceptVisitor(visitor, visitChildren);
-      }
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Chart));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Chart))); }
+        }
+        static Meta _meta;
+        #endregion
   }
 }

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -40,374 +40,338 @@ using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shape
 
 namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
 {
-  /// <summary>
-  /// An area object in the chart which contain text or legend.
-  /// </summary>
-  public class TextArea : ChartObject, IVisitable
-  {
     /// <summary>
-    /// Initializes a new instance of the TextArea class.
+    /// An area object in the chart which contain text or legend.
     /// </summary>
-    internal TextArea()
+    public class TextArea : ChartObject, IVisitable
     {
+        /// <summary>
+        /// Initializes a new instance of the TextArea class.
+        /// </summary>
+        internal TextArea()
+        { }
+
+        /// <summary>
+        /// Initializes a new instance of the TextArea class with the specified parent.
+        /// </summary>
+        internal TextArea(DocumentObject parent) : base(parent) { }
+
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new TextArea Clone()
+        {
+            return (TextArea)DeepCopy();
+        }
+
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            TextArea textArea = (TextArea)base.DeepCopy();
+            if (textArea._format != null)
+            {
+                textArea._format = textArea._format.Clone();
+                textArea._format._parent = textArea;
+            }
+            if (textArea._lineFormat != null)
+            {
+                textArea._lineFormat = textArea._lineFormat.Clone();
+                textArea._lineFormat._parent = textArea;
+            }
+            if (textArea._fillFormat != null)
+            {
+                textArea._fillFormat = textArea._fillFormat.Clone();
+                textArea._fillFormat._parent = textArea;
+            }
+            if (textArea._elements != null)
+            {
+                textArea._elements = textArea._elements.Clone();
+                textArea._elements._parent = textArea;
+            }
+            return textArea;
+        }
+
+        /// <summary>
+        /// Adds a new paragraph to the text area.
+        /// </summary>
+        public Paragraph AddParagraph()
+        {
+            return Elements.AddParagraph();
+        }
+
+        /// <summary>
+        /// Adds a new paragraph with the specified text to the text area.
+        /// </summary>
+        public Paragraph AddParagraph(string paragraphText)
+        {
+            return Elements.AddParagraph(paragraphText);
+        }
+
+        /// <summary>
+        /// Adds a new table to the text area.
+        /// </summary>
+        public Table AddTable()
+        {
+            return Elements.AddTable();
+        }
+
+        /// <summary>
+        /// Adds a new Image to the text area.
+        /// </summary>
+        public Image AddImage(string fileName)
+        {
+            return Elements.AddImage(fileName);
+        }
+
+        /// <summary>
+        /// Adds a new legend to the text area.
+        /// </summary>
+        public Legend AddLegend()
+        {
+            return Elements.AddLegend();
+        }
+
+        /// <summary>
+        /// Adds a new paragraph to the text area.
+        /// </summary>
+        public void Add(Paragraph paragraph)
+        {
+            Elements.Add(paragraph);
+        }
+
+        /// <summary>
+        /// Adds a new table to the text area.
+        /// </summary>
+        public void Add(Table table)
+        {
+            Elements.Add(table);
+        }
+
+        /// <summary>
+        /// Adds a new image to the text area.
+        /// </summary>
+        public void Add(Image image)
+        {
+            Elements.Add(image);
+        }
+
+        /// <summary>
+        /// Adds a new legend to the text area.
+        /// </summary>
+        public void Add(Legend legend)
+        {
+            Elements.Add(legend);
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// Gets or sets the height of the area.
+        /// </summary>
+        public Unit? Height { get; set; }
+
+        /// <summary>
+        /// Gets or sets the width of the area.
+        /// </summary>
+        public Unit Width
+        {
+            get { return _width; }
+            set { _width = value; }
+        }
+        [DV]
+        public Unit _width = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the default style name of the area.
+        /// </summary>
+        public string Style
+        {
+            get { return _style.Value; }
+            set { _style.Value = value; }
+        }
+        [DV]
+        internal NString _style = NString.NullValue;
+
+        /// <summary>
+        /// Gets or sets the default paragraph format of the area.
+        /// </summary>
+        public ParagraphFormat Format
+        {
+            get { return _format ?? (_format = new ParagraphFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _format = value;
+            }
+        }
+        [DV]
+        internal ParagraphFormat _format;
+
+        /// <summary>
+        /// Gets the line format of the area's border.
+        /// </summary>
+        public LineFormat LineFormat
+        {
+            get { return _lineFormat ?? (_lineFormat = new LineFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _lineFormat = value;
+            }
+        }
+        [DV]
+        internal LineFormat _lineFormat;
+
+        /// <summary>
+        /// Gets the background filling of the area.
+        /// </summary>
+        public FillFormat FillFormat
+        {
+            get { return _fillFormat ?? (_fillFormat = new FillFormat(this)); }
+            set
+            {
+                SetParent(value);
+                _fillFormat = value;
+            }
+        }
+        [DV]
+        internal FillFormat _fillFormat;
+
+        /// <summary>
+        /// Gets or sets the left padding of the area.
+        /// </summary>
+        public Unit LeftPadding
+        {
+            get { return _leftPadding; }
+            set { _leftPadding = value; }
+        }
+        [DV]
+        internal Unit _leftPadding = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the right padding of the area.
+        /// </summary>
+        public Unit RightPadding
+        {
+            get { return _rightPadding; }
+            set { _rightPadding = value; }
+        }
+        [DV]
+        internal Unit _rightPadding = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the top padding of the area.
+        /// </summary>
+        public Unit TopPadding
+        {
+            get { return _topPadding; }
+            set { _topPadding = value; }
+        }
+        [DV]
+        internal Unit _topPadding = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the bottom padding of the area.
+        /// </summary>
+        public Unit BottomPadding
+        {
+            get { return _bottomPadding; }
+            set { _bottomPadding = value; }
+        }
+        [DV]
+        internal Unit _bottomPadding = Unit.NullValue;
+
+        /// <summary>
+        /// Gets or sets the Vertical alignment of the area.
+        /// </summary>
+        public VerticalAlignment VerticalAlignment
+        {
+            get { return (VerticalAlignment)_verticalAlignment.Value; }
+            set { _verticalAlignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(VerticalAlignment))]
+        internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+
+        /// <summary>
+        /// Gets the document objects that creates the text area.
+        /// </summary>
+        public DocumentElements Elements
+        {
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
+            set
+            {
+                SetParent(value);
+                _elements = value;
+            }
+        }
+        [DV(ItemType = typeof(DocumentObject))]
+        internal DocumentElements _elements;
+        #endregion
+
+        #region Internal
+        /// <summary>
+        /// Converts TextArea into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            Chart chartObject = _parent as Chart;
+
+            serializer.WriteLine("\\" + chartObject.CheckTextArea(this));
+            int pos = serializer.BeginAttributes();
+
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
+            if (!IsNull("Format"))
+                _format.Serialize(serializer, "Format", null);
+
+            if (!_topPadding.IsNull)
+                serializer.WriteSimpleAttribute("TopPadding", TopPadding);
+            if (!_leftPadding.IsNull)
+                serializer.WriteSimpleAttribute("LeftPadding", LeftPadding);
+            if (!_rightPadding.IsNull)
+                serializer.WriteSimpleAttribute("RightPadding", RightPadding);
+            if (!_bottomPadding.IsNull)
+                serializer.WriteSimpleAttribute("BottomPadding", BottomPadding);
+
+            if (!_width.IsNull)
+                serializer.WriteSimpleAttribute("Width", Width);
+            if (Height.HasValue)
+                serializer.WriteSimpleAttribute("Height", Height);
+
+            if (!_verticalAlignment.IsNull)
+                serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
+
+            if (!IsNull("LineFormat"))
+                _lineFormat.Serialize(serializer);
+            if (!IsNull("FillFormat"))
+                _fillFormat.Serialize(serializer);
+
+            serializer.EndAttributes(pos);
+
+            serializer.BeginContent();
+            if (_elements != null)
+                _elements.Serialize(serializer);
+            serializer.EndContent();
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(TextArea))); }
+        }
+        static Meta _meta;
+        #endregion
+
+        void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
+        {
+            visitor.VisitTextArea(this);
+            if (_elements != null && visitChildren)
+                ((IVisitable)_elements).AcceptVisitor(visitor, visitChildren);
+        }
     }
-
-    /// <summary>
-    /// Initializes a new instance of the TextArea class with the specified parent.
-    /// </summary>
-    internal TextArea(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new TextArea Clone()
-    {
-      return (TextArea)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      TextArea textArea = (TextArea)base.DeepCopy();
-      if (textArea.format != null)
-      {
-        textArea.format = textArea.format.Clone();
-        textArea.format.parent = textArea;
-      }
-      if (textArea.lineFormat != null)
-      {
-        textArea.lineFormat = textArea.lineFormat.Clone();
-        textArea.lineFormat.parent = textArea;
-      }
-      if (textArea.fillFormat != null)
-      {
-        textArea.fillFormat = textArea.fillFormat.Clone();
-        textArea.fillFormat.parent = textArea;
-      }
-      if (textArea.elements != null)
-      {
-        textArea.elements = textArea.elements.Clone();
-        textArea.elements.parent = textArea;
-      }
-      return textArea;
-    }
-
-    /// <summary>
-    /// Adds a new paragraph to the text area.
-    /// </summary>
-    public Paragraph AddParagraph()
-    {
-      return this.Elements.AddParagraph();
-    }
-
-    /// <summary>
-    /// Adds a new paragraph with the specified text to the text area.
-    /// </summary>
-    public Paragraph AddParagraph(string paragraphText)
-    {
-      return this.Elements.AddParagraph(paragraphText);
-    }
-
-    /// <summary>
-    /// Adds a new table to the text area.
-    /// </summary>
-    public Table AddTable()
-    {
-      return this.Elements.AddTable();
-    }
-
-    /// <summary>
-    /// Adds a new Image to the text area.
-    /// </summary>
-    public Image AddImage(IImageSource imageSource)
-    {
-      return this.Elements.AddImage(imageSource);
-    }
-
-    /// <summary>
-    /// Adds a new legend to the text area.
-    /// </summary>
-    public Legend AddLegend()
-    {
-      return this.Elements.AddLegend();
-    }
-
-    /// <summary>
-    /// Adds a new paragraph to the text area.
-    /// </summary>
-    public void Add(Paragraph paragraph)
-    {
-      this.Elements.Add(paragraph);
-    }
-
-    /// <summary>
-    /// Adds a new table to the text area.
-    /// </summary>
-    public void Add(Table table)
-    {
-      this.Elements.Add(table);
-    }
-
-    /// <summary>
-    /// Adds a new image to the text area.
-    /// </summary>
-    public void Add(Image image)
-    {
-      this.Elements.Add(image);
-    }
-
-    /// <summary>
-    /// Adds a new legend to the text area.
-    /// </summary>
-    public void Add(Legend legend)
-    {
-      this.Elements.Add(legend);
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the height of the area.
-    /// </summary>
-    public Unit Height
-    {
-      get { return this.height; }
-      set { this.height = value; }
-    }
-    [DV]
-    internal Unit height = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the width of the area.
-    /// </summary>
-    public Unit Width
-    {
-      get { return this.width; }
-      set { this.width = value; }
-    }
-    [DV]
-    internal Unit width = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the default style name of the area.
-    /// </summary>
-    public string Style
-    {
-      get { return this.style.Value; }
-      set { this.style.Value = value; }
-    }
-    [DV]
-    internal NString style = NString.NullValue;
-
-    /// <summary>
-    /// Gets or sets the default paragraph format of the area.
-    /// </summary>
-    public ParagraphFormat Format
-    {
-      get
-      {
-        if (this.format == null)
-          this.format = new ParagraphFormat(this);
-
-        return this.format;
-      }
-      set
-      {
-        SetParent(value);
-        this.format = value;
-      }
-    }
-    [DV]
-    internal ParagraphFormat format;
-
-    /// <summary>
-    /// Gets the line format of the area's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.lineFormat = value;
-      }
-    }
-    [DV]
-    internal LineFormat lineFormat;
-
-    /// <summary>
-    /// Gets the background filling of the area.
-    /// </summary>
-    public FillFormat FillFormat
-    {
-      get
-      {
-        if (this.fillFormat == null)
-          this.fillFormat = new FillFormat(this);
-
-        return this.fillFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.fillFormat = value;
-      }
-    }
-    [DV]
-    internal FillFormat fillFormat;
-
-    /// <summary>
-    /// Gets or sets the left padding of the area.
-    /// </summary>
-    public Unit LeftPadding
-    {
-      get { return this.leftPadding; }
-      set { this.leftPadding = value; }
-    }
-    [DV]
-    internal Unit leftPadding = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the right padding of the area.
-    /// </summary>
-    public Unit RightPadding
-    {
-      get { return this.rightPadding; }
-      set { this.rightPadding = value; }
-    }
-    [DV]
-    internal Unit rightPadding = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the top padding of the area.
-    /// </summary>
-    public Unit TopPadding
-    {
-      get { return this.topPadding; }
-      set { this.topPadding = value; }
-    }
-    [DV]
-    internal Unit topPadding = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the bottom padding of the area.
-    /// </summary>
-    public Unit BottomPadding
-    {
-      get { return this.bottomPadding; }
-      set { this.bottomPadding = value; }
-    }
-    [DV]
-    internal Unit bottomPadding = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets the Vertical alignment of the area.
-    /// </summary>
-    public VerticalAlignment VerticalAlignment
-    {
-      get { return (VerticalAlignment)this.verticalAlignment.Value; }
-      set { this.verticalAlignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(VerticalAlignment))]
-    internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
-
-    /// <summary>
-    /// Gets the document objects that creates the text area.
-    /// </summary>
-    public DocumentElements Elements
-    {
-      get
-      {
-        if (this.elements == null)
-          this.elements = new DocumentElements(this);
-
-        return this.elements;
-      }
-      set
-      {
-        SetParent(value);
-        this.elements = value;
-      }
-    }
-    [DV(ItemType = typeof(DocumentObject))]
-    internal DocumentElements elements;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts TextArea into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      Chart chartObject = this.parent as Chart;
-
-      serializer.WriteLine("\\" + chartObject.CheckTextArea(this));
-      int pos = serializer.BeginAttributes();
-
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-      if (!this.IsNull("Format"))
-        this.format.Serialize(serializer, "Format", null);
-
-      if (!this.topPadding.IsNull)
-        serializer.WriteSimpleAttribute("TopPadding", this.TopPadding);
-      if (!this.leftPadding.IsNull)
-        serializer.WriteSimpleAttribute("LeftPadding", this.LeftPadding);
-      if (!this.rightPadding.IsNull)
-        serializer.WriteSimpleAttribute("RightPadding", this.RightPadding);
-      if (!this.bottomPadding.IsNull)
-        serializer.WriteSimpleAttribute("BottomPadding", this.BottomPadding);
-
-      if (!this.width.IsNull)
-        serializer.WriteSimpleAttribute("Width", this.Width);
-      if (!this.height.IsNull)
-        serializer.WriteSimpleAttribute("Height", this.Height);
-
-      if (!this.verticalAlignment.IsNull)
-        serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
-
-      if (!this.IsNull("LineFormat"))
-        this.lineFormat.Serialize(serializer);
-      if (!this.IsNull("FillFormat"))
-        this.fillFormat.Serialize(serializer);
-
-      serializer.EndAttributes(pos);
-
-      serializer.BeginContent();
-      if (this.elements != null)
-        this.elements.Serialize(serializer);
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(TextArea));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-
-    void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
-    {
-      visitor.VisitTextArea(this);
-      if (this.elements != null && visitChildren)
-        ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
-    }
-  }
 }

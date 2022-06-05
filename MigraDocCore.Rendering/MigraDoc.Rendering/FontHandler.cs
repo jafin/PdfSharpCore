@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -48,21 +48,16 @@ namespace MigraDocCore.Rendering
     internal static int CreateFontCounter;
 #endif
 
-    /// <summary>
-    /// Converts an DOM Font to an XFont.
-    /// </summary>
-    internal static XFont FontToXFont(Font font, XPrivateFontCollection pfc, 
-      PdfFontEncoding encoding)
-    {
-      XFont xFont = null;
-
-      // #PFC
-      XPdfFontOptions options = null;
-      options = new XPdfFontOptions(encoding);
-      XFontStyle style = GetXStyle(font);
+        /// <summary>
+        /// Converts a DOM Font to an XFont.
+        /// </summary>
+        internal static XFont FontToXFont(Font font, PdfFontEncoding encoding)
+        {
+            XPdfFontOptions options = new XPdfFontOptions(encoding);
+            XFontStyle style = GetXStyle(font);
 
       if (xFont == null)
-        xFont = new XFont(font.Name, font.Size, style, options);
+            XFont xFont = new XFont(font.Name, font.Size, style, options);
 #if DEBUG
       CreateFontCounter++;
 #endif
@@ -72,13 +67,8 @@ namespace MigraDocCore.Rendering
     internal static XFontStyle GetXStyle(Font font)
     {
       XFontStyle style = XFontStyle.Regular;
-      if (font.Bold)
-      {
-        if (font.Italic)
-          style = XFontStyle.BoldItalic;
-        else
-          style = XFontStyle.Bold;
-      }
+            if (font.Bold)
+                style = font.Italic ? XFontStyle.BoldItalic : XFontStyle.Bold;
       else if (font.Italic)
         style = XFontStyle.Italic;
 

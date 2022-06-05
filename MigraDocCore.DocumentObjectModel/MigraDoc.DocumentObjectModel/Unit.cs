@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -39,8 +39,8 @@ using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 namespace MigraDocCore.DocumentObjectModel
 {
     /// <summary>
-    /// An Unit consist of a numerical value and an UnitType like Centimeter, Millimeter or Inch.
-    /// Several conversion between different measures are supported.
+    /// A Unit consists of a numerical value and a UnitType like Centimeter, Millimeter, or Inch.
+    /// Several conversions between different measures are supported.
     /// </summary>
     public struct Unit : IFormattable, INullableValue
     {
@@ -49,9 +49,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Unit(double point)
         {
-            this.value = (float)point;
-            this.type = UnitType.Point;
-            this.initialized = true;
+            _value = (float)point;
+            _type = UnitType.Point;
+            _initialized = true;
         }
 
         /// <summary>
@@ -61,11 +61,11 @@ namespace MigraDocCore.DocumentObjectModel
         public Unit(double value, UnitType type)
         {
             if (!Enum.IsDefined(typeof(UnitType), type))
-                //throw new InvalidEnumArgumentException("type", (int)type, type.GetType());
-                throw new ArgumentException("type");
-            this.value = (float)value;
-            this.type = type;
-            this.initialized = true;
+                throw new /*InvalidEnum*/ArgumentException(DomSR.InvalidEnumValue(type), "type");
+
+            _value = (float)value;
+            _type = type;
+            _initialized = true;
         }
 
         /// <summary>
@@ -104,28 +104,17 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         void INullableValue.SetNull()
         {
-            this.value = 0;
-            this.type = UnitType.Point;
-            this.initialized = false;
-        }
-
-        // Explicit interface implementations cannot contain access specifiers, i.e. they are accessible by a
-        // cast operator only, e.g. ((IDomValue)obj).IsNull.
-        // Therefore the second IsNull-Property is used as a handy shortcut.
-        /// <summary>
-        /// Determines whether this instance is null (not set).
-        /// </summary>
-        bool INullableValue.IsNull
-        {
-            get { return IsNull; }
+            _value = 0;
+            _type = UnitType.Point;
+            _initialized = false;
         }
 
         /// <summary>
         /// Determines whether this instance is null (not set).
         /// </summary>
-        internal bool IsNull
+        public bool IsNull
         {
-            get { return !this.initialized; }
+            get { return !_initialized; }
         }
 
         #region Properties
@@ -135,11 +124,11 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public double Value
         {
-            get { return (IsNull ? 0 : this.value); }
+            get { return (IsNull ? 0 : _value); }
             set
             {
-                this.value = (float)value;
-                this.initialized = true;
+                _value = (float)value;
+                _initialized = true;
             }
         }
 
@@ -148,7 +137,8 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public UnitType Type
         {
-            get { return this.type; }
+            get { return _type; }
+            set { _type = value; }
         }
 
         /// <summary>
@@ -161,22 +151,22 @@ namespace MigraDocCore.DocumentObjectModel
                 if (IsNull)
                     return 0;
 
-                switch (this.type)
+                switch (_type)
                 {
                     case UnitType.Centimeter:
-                        return this.value * 72 / 2.54;
+                        return _value * 72 / 2.54;
 
                     case UnitType.Inch:
-                        return this.value * 72;
+                        return _value * 72;
 
                     case UnitType.Millimeter:
-                        return this.value * 72 / 25.4;
+                        return _value * 72 / 25.4;
 
                     case UnitType.Pica:
-                        return this.value * 12;
+                        return _value * 12;
 
                     case UnitType.Point:
-                        return this.value;
+                        return _value;
 
                     default:
                         Debug.Assert(false, "Missing unit type.");
@@ -185,9 +175,9 @@ namespace MigraDocCore.DocumentObjectModel
             }
             set
             {
-                this.value = (float)value;
-                this.type = UnitType.Point;
-                this.initialized = true;
+                _value = (float)value;
+                _type = UnitType.Point;
+                _initialized = true;
             }
         }
 
@@ -201,22 +191,22 @@ namespace MigraDocCore.DocumentObjectModel
                 if (IsNull)
                     return 0;
 
-                switch (this.type)
+                switch (_type)
                 {
                     case UnitType.Centimeter:
-                        return this.value;
+                        return _value;
 
                     case UnitType.Inch:
-                        return this.value * 2.54;
+                        return _value * 2.54;
 
                     case UnitType.Millimeter:
-                        return this.value / 10;
+                        return _value / 10;
 
                     case UnitType.Pica:
-                        return this.value * 12 * 2.54 / 72;
+                        return _value * 12 * 2.54 / 72;
 
                     case UnitType.Point:
-                        return this.value * 2.54 / 72;
+                        return _value * 2.54 / 72;
 
                     default:
                         Debug.Assert(false, "Missing unit type");
@@ -225,9 +215,9 @@ namespace MigraDocCore.DocumentObjectModel
             }
             set
             {
-                this.value = (float)value;
-                this.type = UnitType.Centimeter;
-                this.initialized = true;
+                _value = (float)value;
+                _type = UnitType.Centimeter;
+                _initialized = true;
             }
         }
 
@@ -241,22 +231,22 @@ namespace MigraDocCore.DocumentObjectModel
                 if (IsNull)
                     return 0;
 
-                switch (this.type)
+                switch (_type)
                 {
                     case UnitType.Centimeter:
-                        return this.value / 2.54;
+                        return _value / 2.54;
 
                     case UnitType.Inch:
-                        return this.value;
+                        return _value;
 
                     case UnitType.Millimeter:
-                        return this.value / 25.4;
+                        return _value / 25.4;
 
                     case UnitType.Pica:
-                        return this.value * 12 / 72;
+                        return _value * 12 / 72;
 
                     case UnitType.Point:
-                        return this.value / 72;
+                        return _value / 72;
 
                     default:
                         Debug.Assert(false, "Missing unit type");
@@ -265,9 +255,9 @@ namespace MigraDocCore.DocumentObjectModel
             }
             set
             {
-                this.value = (float)value;
-                this.type = UnitType.Inch;
-                this.initialized = true;
+                _value = (float)value;
+                _type = UnitType.Inch;
+                _initialized = true;
             }
         }
 
@@ -281,22 +271,22 @@ namespace MigraDocCore.DocumentObjectModel
                 if (IsNull)
                     return 0;
 
-                switch (this.type)
+                switch (_type)
                 {
                     case UnitType.Centimeter:
-                        return this.value * 10;
+                        return _value * 10;
 
                     case UnitType.Inch:
-                        return this.value * 25.4;
+                        return _value * 25.4;
 
                     case UnitType.Millimeter:
-                        return this.value;
+                        return _value;
 
                     case UnitType.Pica:
-                        return this.value * 12 * 25.4 / 72;
+                        return _value * 12 * 25.4 / 72;
 
                     case UnitType.Point:
-                        return this.value * 25.4 / 72;
+                        return _value * 25.4 / 72;
 
                     default:
                         Debug.Assert(false, "Missing unit type");
@@ -305,9 +295,9 @@ namespace MigraDocCore.DocumentObjectModel
             }
             set
             {
-                this.value = (float)value;
-                this.type = UnitType.Millimeter;
-                this.initialized = true;
+                _value = (float)value;
+                _type = UnitType.Millimeter;
+                _initialized = true;
             }
         }
 
@@ -321,22 +311,22 @@ namespace MigraDocCore.DocumentObjectModel
                 if (IsNull)
                     return 0;
 
-                switch (this.type)
+                switch (_type)
                 {
                     case UnitType.Centimeter:
-                        return this.value * 72 / 2.54 / 12;
+                        return _value * 72 / 2.54 / 12;
 
                     case UnitType.Inch:
-                        return this.value * 72 / 12;
+                        return _value * 72 / 12;
 
                     case UnitType.Millimeter:
-                        return this.value * 72 / 25.4 / 12;
+                        return _value * 72 / 25.4 / 12;
 
                     case UnitType.Pica:
-                        return this.value;
+                        return _value;
 
                     case UnitType.Point:
-                        return this.value / 12;
+                        return _value / 12;
 
                     default:
                         Debug.Assert(false, "Missing unit type");
@@ -345,9 +335,9 @@ namespace MigraDocCore.DocumentObjectModel
             }
             set
             {
-                this.value = (float)value;
-                this.type = UnitType.Pica;
-                this.initialized = true;
+                _value = (float)value;
+                _type = UnitType.Pica;
+                _initialized = true;
             }
         }
         #endregion
@@ -362,8 +352,7 @@ namespace MigraDocCore.DocumentObjectModel
             if (IsNull)
                 return 0.ToString(formatProvider); // TODO: ?? can it be anything other than "0"??
 
-            string valuestring;
-            valuestring = this.value.ToString(formatProvider) + GetSuffix();
+            string valuestring = _value.ToString(formatProvider) + GetSuffix();
             return valuestring;
         }
 
@@ -376,8 +365,7 @@ namespace MigraDocCore.DocumentObjectModel
             if (IsNull)
                 return 0.ToString(format); // TODO: ?? can it be anything other than "0"??
 
-            string valuestring;
-            valuestring = this.value.ToString(format) + GetSuffix();
+            string valuestring = _value.ToString(format) + GetSuffix();
             return valuestring;
         }
 
@@ -385,13 +373,12 @@ namespace MigraDocCore.DocumentObjectModel
         /// Returns the object as string using the specified format and format information.
         /// Measure will be added to the end of the string.
         /// </summary>
-        string System.IFormattable.ToString(string format, IFormatProvider formatProvider)
+        string IFormattable.ToString(string format, IFormatProvider formatProvider)
         {
             if (IsNull)
                 return 0.ToString(format, formatProvider);
 
-            string valuestring;
-            valuestring = this.value.ToString(format, formatProvider) + GetSuffix();
+            string valuestring = _value.ToString(format, formatProvider) + GetSuffix();
             return valuestring;
         }
 
@@ -403,8 +390,7 @@ namespace MigraDocCore.DocumentObjectModel
             if (IsNull)
                 return 0.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            string valuestring;
-            valuestring = this.value.ToString(System.Globalization.CultureInfo.InvariantCulture) + GetSuffix();
+            string valuestring = _value.ToString(System.Globalization.CultureInfo.InvariantCulture) + GetSuffix();
             return valuestring;
         }
 
@@ -413,7 +399,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         string GetSuffix()
         {
-            switch (this.type)
+            switch (_type)
             {
                 case UnitType.Centimeter:
                     return "cm";
@@ -443,8 +429,8 @@ namespace MigraDocCore.DocumentObjectModel
         public static Unit FromCentimeter(double value)
         {
             Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Centimeter;
+            unit._value = (float)value;
+            unit._type = UnitType.Centimeter;
             return unit;
         }
 
@@ -454,8 +440,8 @@ namespace MigraDocCore.DocumentObjectModel
         public static Unit FromMillimeter(double value)
         {
             Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Millimeter;
+            unit._value = (float)value;
+            unit._type = UnitType.Millimeter;
             return unit;
         }
 
@@ -465,8 +451,8 @@ namespace MigraDocCore.DocumentObjectModel
         public static Unit FromPoint(double value)
         {
             Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Point;
+            unit._value = (float)value;
+            unit._type = UnitType.Point;
             return unit;
         }
 
@@ -476,8 +462,8 @@ namespace MigraDocCore.DocumentObjectModel
         public static Unit FromInch(double value)
         {
             Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Inch;
+            unit._value = (float)value;
+            unit._type = UnitType.Inch;
             return unit;
         }
 
@@ -487,8 +473,8 @@ namespace MigraDocCore.DocumentObjectModel
         public static Unit FromPica(double value)
         {
             Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Pica;
+            unit._value = (float)value;
+            unit._type = UnitType.Pica;
             return unit;
         }
         #endregion
@@ -500,7 +486,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public static implicit operator Unit(string value)
         {
-            Unit unit = Unit.Zero;
+            Unit unit = Zero;
             value = value.Trim();
 
             // For Germans...
@@ -517,10 +503,10 @@ namespace MigraDocCore.DocumentObjectModel
                     break;
             }
 
-            unit.value = 1;
+            unit._value = 1;
             try
             {
-                unit.value = float.Parse(value.Substring(0, valLen).Trim(), System.Globalization.CultureInfo.InvariantCulture);
+                unit._value = float.Parse(value.Substring(0, valLen).Trim(), System.Globalization.CultureInfo.InvariantCulture);
             }
             catch (FormatException ex)
             {
@@ -528,28 +514,28 @@ namespace MigraDocCore.DocumentObjectModel
             }
 
             string typeStr = value.Substring(valLen).Trim().ToLower();
-            unit.type = UnitType.Point;
+            unit._type = UnitType.Point;
             switch (typeStr)
             {
                 case "cm":
-                    unit.type = UnitType.Centimeter;
+                    unit._type = UnitType.Centimeter;
                     break;
 
                 case "in":
-                    unit.type = UnitType.Inch;
+                    unit._type = UnitType.Inch;
                     break;
 
                 case "mm":
-                    unit.type = UnitType.Millimeter;
+                    unit._type = UnitType.Millimeter;
                     break;
 
                 case "pc":
-                    unit.type = UnitType.Pica;
+                    unit._type = UnitType.Pica;
                     break;
 
                 case "":
                 case "pt":
-                    unit.type = UnitType.Point;
+                    unit._type = UnitType.Point;
                     break;
 
                 default:
@@ -560,35 +546,35 @@ namespace MigraDocCore.DocumentObjectModel
         }
 
         /// <summary>
-        /// Converts an int to an Unit object with type set to point.
+        /// Converts an int to a Unit object with type set to point.
         /// </summary>
         public static implicit operator Unit(int value)
         {
-            Unit unit = Unit.Zero;
-            unit.value = value;
-            unit.type = UnitType.Point;
+            Unit unit = Zero;
+            unit._value = value;
+            unit._type = UnitType.Point;
             return unit;
         }
 
         /// <summary>
-        /// Converts a float to an Unit object with type set to point.
+        /// Converts a float to a Unit object with type set to point.
         /// </summary>
         public static implicit operator Unit(float value)
         {
-            Unit unit = Unit.Zero;
-            unit.value = value;
-            unit.type = UnitType.Point;
+            Unit unit = Zero;
+            unit._value = value;
+            unit._type = UnitType.Point;
             return unit;
         }
 
         /// <summary>
-        /// Converts a double to an Unit object with type set to point.
+        /// Converts a double to a Unit object with type set to point.
         /// </summary>
         public static implicit operator Unit(double value)
         {
-            Unit unit = Unit.Zero;
-            unit.value = (float)value;
-            unit.type = UnitType.Point;
+            Unit unit = Zero;
+            unit._value = (float)value;
+            unit._type = UnitType.Point;
             return unit;
         }
 
@@ -614,7 +600,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public static bool operator ==(Unit l, Unit r)
         {
-            return (l.initialized == r.initialized && l.type == r.type && l.value == r.value);
+            return (l._initialized == r._initialized && l._type == r._type && l._value == r._value);
         }
 
         /// <summary>
@@ -657,41 +643,41 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void ConvertType(UnitType type)
         {
-            if (this.type == type)
+            if (_type == type)
                 return;
-
-            if (!Enum.IsDefined(typeof(UnitType), type))
-                throw new ArgumentException(DomSR.InvalidUnitType(type.ToString()));
 
             switch (type)
             {
                 case UnitType.Centimeter:
-                    this.value = (float)this.Centimeter;
-                    this.type = UnitType.Centimeter;
+                    _value = (float)Centimeter;
+                    _type = UnitType.Centimeter;
                     break;
 
                 case UnitType.Inch:
-                    this.value = (float)this.Inch;
-                    this.type = UnitType.Inch;
+                    _value = (float)Inch;
+                    _type = UnitType.Inch;
                     break;
 
                 case UnitType.Millimeter:
-                    this.value = (float)this.Millimeter;
-                    this.type = UnitType.Millimeter;
+                    _value = (float)Millimeter;
+                    _type = UnitType.Millimeter;
                     break;
 
                 case UnitType.Pica:
-                    this.value = (float)this.Pica;
-                    this.type = UnitType.Pica;
+                    _value = (float)Pica;
+                    _type = UnitType.Pica;
                     break;
 
                 case UnitType.Point:
-                    this.value = (float)this.Point;
-                    this.type = UnitType.Point;
+                    _value = (float)Point;
+                    _type = UnitType.Point;
                     break;
 
                 default:
-                    //Remember missing unit type!!!
+                    if (!Enum.IsDefined(typeof(UnitType), type))
+                        throw new ArgumentException(DomSR.InvalidUnitType(type.ToString()));
+
+                    // Remember missing unit type.
                     Debug.Assert(false, "Missing unit type");
                     break;
             }
@@ -710,10 +696,10 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Represents the uninitialized Unit object. Same as Unit.Empty.
         /// </summary>
-        internal static readonly Unit NullValue = Unit.Empty;
+        internal static readonly Unit NullValue = Empty;
 
-        bool initialized;
-        float value;
-        UnitType type;
+        bool _initialized;
+        float _value;
+        UnitType _type;
     }
 }

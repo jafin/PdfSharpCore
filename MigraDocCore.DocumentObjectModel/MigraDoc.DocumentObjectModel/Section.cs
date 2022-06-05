@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -77,25 +77,25 @@ namespace MigraDocCore.DocumentObjectModel
         protected override object DeepCopy()
         {
             Section section = (Section)base.DeepCopy();
-            if (section.pageSetup != null)
+            if (section._pageSetup != null)
             {
-                section.pageSetup = section.pageSetup.Clone();
-                section.pageSetup.parent = section;
+                section._pageSetup = section._pageSetup.Clone();
+                section._pageSetup._parent = section;
             }
-            if (section.headers != null)
+            if (section._headers != null)
             {
-                section.headers = section.headers.Clone();
-                section.headers.parent = section;
+                section._headers = section._headers.Clone();
+                section._headers._parent = section;
             }
-            if (section.footers != null)
+            if (section._footers != null)
             {
-                section.footers = section.footers.Clone();
-                section.footers.parent = section;
+                section._footers = section._footers.Clone();
+                section._footers._parent = section;
             }
-            if (section.elements != null)
+            if (section._elements != null)
             {
-                section.elements = section.elements.Clone();
-                section.elements.parent = section;
+                section._elements = section._elements.Clone();
+                section._elements._parent = section;
             }
             return section;
         }
@@ -117,7 +117,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph()
         {
-            return this.Elements.AddParagraph();
+            return Elements.AddParagraph();
         }
 
         /// <summary>
@@ -125,7 +125,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph(string paragraphText)
         {
-            return this.Elements.AddParagraph(paragraphText);
+            return Elements.AddParagraph(paragraphText);
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph(string paragraphText, string style)
         {
-            return this.Elements.AddParagraph(paragraphText, style);
+            return Elements.AddParagraph(paragraphText, style);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Chart AddChart(ChartType type)
         {
-            return this.Elements.AddChart(type);
+            return Elements.AddChart(type);
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Chart AddChart()
         {
-            return this.Elements.AddChart();
+            return Elements.AddChart();
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Table AddTable()
         {
-            return this.Elements.AddTable();
+            return Elements.AddTable();
         }
 
         /// <summary>
@@ -165,15 +165,15 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void AddPageBreak()
         {
-            this.Elements.AddPageBreak();
+            Elements.AddPageBreak();
         }
 
         /// <summary>
         /// Adds a new Image to the section.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        public Image AddImage(string fileName)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddImage(fileName);
         }
 
         /// <summary>
@@ -181,7 +181,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public TextFrame AddTextFrame()
         {
-            return this.Elements.AddTextFrame();
+            return Elements.AddTextFrame();
         }
 
         /// <summary>
@@ -189,7 +189,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Paragraph paragraph)
         {
-            this.Elements.Add(paragraph);
+            Elements.Add(paragraph);
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Chart chart)
         {
-            this.Elements.Add(chart);
+            Elements.Add(chart);
         }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Table table)
         {
-            this.Elements.Add(table);
+            Elements.Add(table);
         }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
 
         /// <summary>
@@ -221,7 +221,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(TextFrame textFrame)
         {
-            this.Elements.Add(textFrame);
+            Elements.Add(textFrame);
         }
         #endregion
 
@@ -231,95 +231,71 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public PageSetup PageSetup
         {
-            get
-            {
-                if (this.pageSetup == null)
-                    this.pageSetup = new PageSetup(this);
-
-                return this.pageSetup;
-            }
+            get { return _pageSetup ?? (_pageSetup = new PageSetup(this)); }
             set
             {
                 SetParent(value);
-                this.pageSetup = value;
+                _pageSetup = value;
             }
         }
         [DV]
-        internal PageSetup pageSetup;
+        internal PageSetup _pageSetup;
 
         /// <summary>
         /// Gets the HeadersFooters collection containing the headers.
         /// </summary>
         public HeadersFooters Headers
         {
-            get
-            {
-                if (this.headers == null)
-                    this.headers = new HeadersFooters(this);
-
-                return this.headers;
-            }
+            get { return _headers ?? (_headers = new HeadersFooters(this)); }
             set
             {
                 SetParent(value);
-                this.headers = value;
+                _headers = value;
             }
         }
         [DV]
-        internal HeadersFooters headers;
+        internal HeadersFooters _headers;
 
         /// <summary>
         /// Gets the HeadersFooters collection containing the footers.
         /// </summary>
         public HeadersFooters Footers
         {
-            get
-            {
-                if (this.footers == null)
-                    this.footers = new HeadersFooters(this);
-
-                return this.footers;
-            }
+            get { return _footers ?? (_footers = new HeadersFooters(this)); }
             set
             {
                 SetParent(value);
-                this.footers = value;
+                _footers = value;
             }
         }
         [DV]
-        internal HeadersFooters footers;
+        internal HeadersFooters _footers;
 
         /// <summary>
         /// Gets the document elements that build the section's content.
         /// </summary>
         public DocumentElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new DocumentElements(this);
-
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV]
-        internal DocumentElements elements;
+        internal DocumentElements _elements;
 
         /// <summary>
         /// Gets or sets a comment associated with this object.
         /// </summary>
         public string Comment
         {
-            get { return this.comment.Value; }
-            set { this.comment.Value = value; }
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
         }
         [DV]
-        internal NString comment = NString.NullValue;
+        internal NString _comment = NString.NullValue;
 
         /// <summary>
         /// Gets the last paragraph of this section, or null, if no paragraph exists is this section.
@@ -328,11 +304,11 @@ namespace MigraDocCore.DocumentObjectModel
         {
             get
             {
-                int count = this.elements.Count;
+                int count = _elements.Count;
                 for (int idx = count - 1; idx >= 0; idx--)
                 {
-                    if (this.elements[idx] is Paragraph)
-                        return (Paragraph)this.elements[idx];
+                    if (_elements[idx] is Paragraph)
+                        return (Paragraph)_elements[idx];
                 }
                 return null;
             }
@@ -345,11 +321,11 @@ namespace MigraDocCore.DocumentObjectModel
         {
             get
             {
-                int count = this.elements.Count;
+                int count = _elements.Count;
                 for (int idx = count - 1; idx >= 0; idx--)
                 {
-                    if (this.elements[idx] is Table)
-                        return (Table)this.elements[idx];
+                    if (_elements[idx] is Table)
+                        return (Table)_elements[idx];
                 }
                 return null;
             }
@@ -362,39 +338,39 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override void Serialize(Serializer serializer)
         {
-            serializer.WriteComment(this.comment.Value);
+            serializer.WriteComment(_comment.Value);
             serializer.WriteLine("\\section");
 
             int pos = serializer.BeginAttributes();
-            if (!this.IsNull("PageSetup"))
-                this.PageSetup.Serialize(serializer);
+            if (!IsNull("PageSetup"))
+                PageSetup.Serialize(serializer);
             serializer.EndAttributes(pos);
 
             serializer.BeginContent();
-            if (!this.IsNull("headers"))
-                this.headers.Serialize(serializer);
-            if (!this.IsNull("footers"))
-                this.footers.Serialize(serializer);
-            if (!this.IsNull("elements"))
-                this.elements.Serialize(serializer);
+            if (!IsNull("headers"))
+                _headers.Serialize(serializer);
+            if (!IsNull("footers"))
+                _footers.Serialize(serializer);
+            if (!IsNull("elements"))
+                _elements.Serialize(serializer);
 
             serializer.EndContent();
         }
 
         /// <summary>
-        /// Allows the visitor object to visit the document object and it's child objects.
+        /// Allows the visitor object to visit the document object and its child objects.
         /// </summary>
         void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
         {
             visitor.VisitSection(this);
 
-            if (visitChildren && this.headers != null)
-                ((IVisitable)this.headers).AcceptVisitor(visitor, visitChildren);
-            if (visitChildren && this.footers != null)
-                ((IVisitable)this.footers).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _headers != null)
+                ((IVisitable)_headers).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _footers != null)
+                ((IVisitable)_footers).AcceptVisitor(visitor, visitChildren);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, visitChildren);
         }
 
         /// <summary>
@@ -402,14 +378,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Section));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Section))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

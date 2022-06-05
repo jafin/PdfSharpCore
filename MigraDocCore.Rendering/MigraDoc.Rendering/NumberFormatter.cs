@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -54,16 +54,15 @@ namespace MigraDocCore.Rendering
                 case "alphabetic":
                     return AsLetters(number, true);
             }
-            return number.ToString();
+            return number.ToString(CultureInfo.InvariantCulture);
         }
-
 
         static string AsRoman(int number, bool lowercase)
         {
             if (Math.Abs(number) > 32768)
             {
                 Debug.WriteLine(string.Format(AppResources.NumberTooLargeForRoman, number), "warning");
-                return number.ToString();
+                return number.ToString(CultureInfo.InvariantCulture);
             }
             if (number == 0)
                 return "0";
@@ -115,7 +114,7 @@ namespace MigraDocCore.Rendering
             else
                 cr = (char)('A' + (number - 1) % 26);
 
-            for (int n = 0; n <= (int)((number - 1) / 26); ++n)
+            for (int n = 0; n <= (number - 1) / 26; ++n)
                 str += cr;
 
             return str;

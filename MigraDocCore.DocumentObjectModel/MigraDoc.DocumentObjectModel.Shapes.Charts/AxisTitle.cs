@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -63,141 +63,130 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
       return (AxisTitle)DeepCopy();
     }
 
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      AxisTitle axisTitle = (AxisTitle)base.DeepCopy();
-      if (axisTitle.font != null)
-      {
-        axisTitle.font = axisTitle.font.Clone();
-        axisTitle.font.parent = axisTitle;
-      }
-      return axisTitle;
-    }
-    #endregion
+        /// <summary>
+        /// Implements the deep copy of the object.
+        /// </summary>
+        protected override object DeepCopy()
+        {
+            AxisTitle axisTitle = (AxisTitle)base.DeepCopy();
+            if (axisTitle._font != null)
+            {
+                axisTitle._font = axisTitle._font.Clone();
+                axisTitle._font._parent = axisTitle;
+            }
+            return axisTitle;
+        }
+        #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the style name of the axis.
-    /// </summary>
-    public string Style
-    {
-      get { return this.style.Value; }
-      set { this.style.Value = value; }
-    }
-    [DV]
-    internal NString style = NString.NullValue;
+        #region Properties
+        /// <summary>
+        /// Gets or sets the style name of the axis.
+        /// </summary>
+        public string Style
+        {
+            get { return _style.Value; }
+            set { _style.Value = value; }
+        }
+        [DV]
+        internal NString _style = NString.NullValue;
 
-    /// <summary>
-    /// Gets or sets the caption of the title.
-    /// </summary>
-    public string Caption
-    {
-      get { return this.caption.Value; }
-      set { this.caption.Value = value; }
-    }
-    [DV]
-    internal NString caption = NString.NullValue;
+        /// <summary>
+        /// Gets or sets the caption of the title.
+        /// </summary>
+        public string Caption
+        {
+            get { return _caption.Value; }
+            set { _caption.Value = value; }
+        }
+        [DV]
+        internal NString _caption = NString.NullValue;
 
-    /// <summary>
-    /// Gets the font object of the title.
-    /// </summary>
-    public Font Font
-    {
-      get
-      {
-        if (this.font == null)
-          this.font = new Font(this);
+        /// <summary>
+        /// Gets the font object of the title.
+        /// </summary>
+        public Font Font
+        {
+            get { return _font ?? (_font = new Font(this)); }
+            set
+            {
+                SetParent(value);
+                _font = value;
+            }
+        }
+        [DV]
+        internal Font _font;
 
-        return this.font;
-      }
-      set
-      {
-        SetParent(value);
-        this.font = value;
-      }
-    }
-    [DV]
-    internal Font font;
+        /// <summary>
+        /// Gets or sets the orientation of the caption.
+        /// </summary>
+        public Unit Orientation
+        {
+            get { return _orientation; }
+            set { _orientation = value; }
+        }
+        [DV]
+        internal Unit _orientation = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets the orientation of the caption.
-    /// </summary>
-    public Unit Orientation
-    {
-      get { return this.orientation; }
-      set { this.orientation = value; }
-    }
-    [DV]
-    internal Unit orientation = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the alignment of the caption.
+        /// </summary>
+        public HorizontalAlignment Alignment
+        {
+            get { return (HorizontalAlignment)_alignment.Value; }
+            set { _alignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(HorizontalAlignment))]
+        internal NEnum _alignment = NEnum.NullValue(typeof(HorizontalAlignment));
 
-    /// <summary>
-    /// Gets or sets the alignment of the caption.
-    /// </summary>
-    public HorizontalAlignment Alignment
-    {
-      get { return (HorizontalAlignment)this.alignment.Value; }
-      set { this.alignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(HorizontalAlignment))]
-    internal NEnum alignment = NEnum.NullValue(typeof(HorizontalAlignment));
+        /// <summary>
+        /// Gets or sets the alignment of the caption.
+        /// </summary>
+        public VerticalAlignment VerticalAlignment
+        {
+            get { return (VerticalAlignment)_verticalAlignment.Value; }
+            set { _verticalAlignment.Value = (int)value; }
+        }
+        [DV(Type = typeof(VerticalAlignment))]
+        internal NEnum _verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+        #endregion
 
-    /// <summary>
-    /// Gets or sets the alignment of the caption.
-    /// </summary>
-    public VerticalAlignment VerticalAlignment
-    {
-      get { return (VerticalAlignment)this.verticalAlignment.Value; }
-      set { this.verticalAlignment.Value = (int)value; }
-    }
-    [DV(Type = typeof(VerticalAlignment))]
-    internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
-    #endregion
+        #region Internal
+        /// <summary>
+        /// Converts AxisTitle into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int pos = serializer.BeginContent("Title");
 
-    #region Internal
-    /// <summary>
-    /// Converts AxisTitle into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int pos = serializer.BeginContent("Title");
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
 
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
+            if (!IsNull("Font"))
+                _font.Serialize(serializer);
 
-      if (!this.IsNull("Font"))
-        this.font.Serialize(serializer);
+            if (!_orientation.IsNull)
+                serializer.WriteSimpleAttribute("Orientation", Orientation);
 
-      if (!this.orientation.IsNull)
-        serializer.WriteSimpleAttribute("Orientation", this.Orientation);
+            if (!_alignment.IsNull)
+                serializer.WriteSimpleAttribute("Alignment", Alignment);
 
-      if (!this.alignment.IsNull)
-        serializer.WriteSimpleAttribute("Alignment", this.Alignment);
+            if (!_verticalAlignment.IsNull)
+                serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
-      if (!this.verticalAlignment.IsNull)
-        serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
+            if (!_caption.IsNull)
+                serializer.WriteSimpleAttribute("Caption", Caption);
 
-      if (!this.caption.IsNull)
-        serializer.WriteSimpleAttribute("Caption", this.Caption);
+            serializer.EndContent();
+        }
 
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(AxisTitle));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(AxisTitle))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

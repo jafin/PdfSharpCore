@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -76,15 +76,15 @@ namespace MigraDocCore.DocumentObjectModel
         protected override object DeepCopy()
         {
             HeaderFooter headerFooter = (HeaderFooter)base.DeepCopy();
-            if (headerFooter.format != null)
+            if (headerFooter._format != null)
             {
-                headerFooter.format = headerFooter.format.Clone();
-                headerFooter.format.parent = headerFooter;
+                headerFooter._format = headerFooter._format.Clone();
+                headerFooter._format._parent = headerFooter;
             }
-            if (headerFooter.elements != null)
+            if (headerFooter._elements != null)
             {
-                headerFooter.elements = headerFooter.elements.Clone();
-                headerFooter.elements.parent = headerFooter;
+                headerFooter._elements = headerFooter._elements.Clone();
+                headerFooter._elements._parent = headerFooter;
             }
             return headerFooter;
         }
@@ -94,7 +94,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph()
         {
-            return this.Elements.AddParagraph();
+            return Elements.AddParagraph();
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Paragraph AddParagraph(string paragraphText)
         {
-            return this.Elements.AddParagraph(paragraphText);
+            return Elements.AddParagraph(paragraphText);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Chart AddChart(ChartType type)
         {
-            return this.Elements.AddChart(type);
+            return Elements.AddChart(type);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Chart AddChart()
         {
-            return this.Elements.AddChart();
+            return Elements.AddChart();
         }
 
         /// <summary>
@@ -126,15 +126,15 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public Table AddTable()
         {
-            return this.Elements.AddTable();
+            return Elements.AddTable();
         }
 
         /// <summary>
         /// Adds a new Image to the header or footer.
         /// </summary>
-        public Image AddImage(IImageSource imageSource)
+        public Image AddImage(string fileName)
         {
-            return this.Elements.AddImage(imageSource);
+            return Elements.AddImage(fileName);
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public TextFrame AddTextFrame()
         {
-            return this.Elements.AddTextFrame();
+            return Elements.AddTextFrame();
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Paragraph paragraph)
         {
-            this.Elements.Add(paragraph);
+            Elements.Add(paragraph);
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Chart chart)
         {
-            this.Elements.Add(chart);
+            Elements.Add(chart);
         }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Table table)
         {
-            this.Elements.Add(table);
+            Elements.Add(table);
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(Image image)
         {
-            this.Elements.Add(image);
+            Elements.Add(image);
         }
 
         /// <summary>
@@ -182,7 +182,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public void Add(TextFrame textFrame)
         {
-            this.Elements.Add(textFrame);
+            Elements.Add(textFrame);
         }
         #endregion
 
@@ -192,7 +192,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsHeader
         {
-            get { return ((HeadersFooters)parent).IsHeader; }
+            get { return ((HeadersFooters)_parent).IsHeader; }
         }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsFooter
         {
-            get { return ((HeadersFooters)parent).IsFooter; }
+            get { return ((HeadersFooters)_parent).IsFooter; }
         }
 
         /// <summary>
@@ -208,7 +208,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsFirstPage
         {
-            get { return ((HeadersFooters)this.parent).firstPage == this; }
+            get { return ((HeadersFooters)_parent)._firstPage == this; }
         }
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsEvenPage
         {
-            get { return ((HeadersFooters)this.parent).evenPage == this; }
+            get { return ((HeadersFooters)_parent)._evenPage == this; }
         }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public bool IsPrimary
         {
-            get { return ((HeadersFooters)this.parent).primary == this; }
+            get { return ((HeadersFooters)_parent)._primary == this; }
         }
 
         /// <summary>
@@ -232,70 +232,60 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         public string Style
         {
-            get { return this.style.Value; }
+            get { return _style.Value; }
             set
             {
                 // Just save style name. 
                 Style style = Document.Styles[value];
                 if (style != null)
-                    this.style.Value = value;
+                    _style.Value = value;
                 else
                     throw new ArgumentException("Invalid style name '" + value + "'.");
             }
         }
         [DV]
-        internal NString style = NString.NullValue;
+        internal NString _style = NString.NullValue;
 
         /// <summary>
         /// Gets or sets the paragraph format.
         /// </summary>
         public ParagraphFormat Format
         {
-            get
-            {
-                if (this.format == null)
-                    this.format = new ParagraphFormat(this);
-                return this.format;
-            }
+            get { return _format ?? (_format = new ParagraphFormat(this)); }
             set
             {
                 SetParent(value);
-                this.format = value;
+                _format = value;
             }
         }
         [DV]
-        internal ParagraphFormat format;
+        internal ParagraphFormat _format;
 
         /// <summary>
         /// Gets the collection of document objects that defines the header or footer.
         /// </summary>
         public DocumentElements Elements
         {
-            get
-            {
-                if (this.elements == null)
-                    this.elements = new DocumentElements(this);
-                return this.elements;
-            }
+            get { return _elements ?? (_elements = new DocumentElements(this)); }
             set
             {
                 SetParent(value);
-                this.elements = value;
+                _elements = value;
             }
         }
         [DV(ItemType = typeof(DocumentObject))]
-        internal DocumentElements elements;
+        internal DocumentElements _elements;
 
         /// <summary>
         /// Gets or sets a comment associated with this object.
         /// </summary>
         public string Comment
         {
-            get { return this.comment.Value; }
-            set { this.comment.Value = value; }
+            get { return _comment.Value; }
+            set { _comment.Value = value; }
         }
         [DV]
-        internal NString comment = NString.NullValue;
+        internal NString _comment = NString.NullValue;
         #endregion
 
         #region Internal
@@ -304,13 +294,13 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override void Serialize(Serializer serializer)
         {
-            HeadersFooters headersfooters = this.parent as HeadersFooters;
+            HeadersFooters headersfooters = (HeadersFooters)_parent;
             if (headersfooters.Primary == this)
-                this.Serialize(serializer, "primary");
+                Serialize(serializer, "primary");
             else if (headersfooters.EvenPage == this)
-                this.Serialize(serializer, "evenpage");
+                Serialize(serializer, "evenpage");
             else if (headersfooters.FirstPage == this)
-                this.Serialize(serializer, "firstpage");
+                Serialize(serializer, "firstpage");
         }
 
         /// <summary>
@@ -318,17 +308,17 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal void Serialize(Serializer serializer, string prefix)
         {
-            serializer.WriteComment(this.comment.Value);
+            serializer.WriteComment(_comment.Value);
             serializer.WriteLine("\\" + prefix + (IsHeader ? "header" : "footer"));
 
             int pos = serializer.BeginAttributes();
             if (!IsNull("Format"))
-                this.format.Serialize(serializer, "Format", null);
+                _format.Serialize(serializer, "Format", null);
             serializer.EndAttributes(pos);
 
             serializer.BeginContent();
             if (!IsNull("Elements"))
-                this.elements.Serialize(serializer);
+                _elements.Serialize(serializer);
             serializer.EndContent();
         }
 
@@ -339,8 +329,8 @@ namespace MigraDocCore.DocumentObjectModel
         {
             visitor.VisitHeaderFooter(this);
 
-            if (visitChildren && this.elements != null)
-                ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+            if (visitChildren && _elements != null)
+                ((IVisitable)_elements).AcceptVisitor(visitor, visitChildren);
         }
 
         /// <summary>
@@ -356,14 +346,9 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(HeaderFooter));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(HeaderFooter))); }
         }
-        static Meta meta;
+        static Meta _meta;
         #endregion
     }
 }

@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -71,18 +71,18 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     /// </summary>
     public string Name
     {
-      get { return this.name.Value; }
-      set
-      {
-        if (IsValidName(value))
-          this.name.Value = value;
-        else
-          throw new ArgumentException(DomSR.InvalidInfoFieldName(value));
-      }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
+            get { return _name.Value; }
+            set
+            {
+                if (IsValidName(value))
+                    _name.Value = value;
+                else
+                    throw new ArgumentException(DomSR.InvalidInfoFieldName(value));
+            }
+        }
+        [DV]
+        internal NString _name = NString.NullValue;
+        #endregion
 
     /// <summary>
     /// Determines whether the name is a valid InfoFieldType.
@@ -123,15 +123,10 @@ namespace MigraDocCore.DocumentObjectModel.Fields
     /// Returns the meta object of this instance.
     /// </summary>
     internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(InfoField));
-        return meta;
-      }
-    }
-    static Meta meta;
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(InfoField))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

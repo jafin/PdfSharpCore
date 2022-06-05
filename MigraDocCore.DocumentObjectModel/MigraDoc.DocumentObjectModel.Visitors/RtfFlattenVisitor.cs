@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -54,28 +54,28 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
       Document document = formattedText.Document;
       ParagraphFormat format = null;
 
-      Style style = document.styles[formattedText.style.Value];
-      if (style != null)
-        format = style.paragraphFormat;
-      else if (formattedText.style.Value != "")
-        format = document.styles["InvalidStyleName"].paragraphFormat;
+            Style style = document._styles[formattedText._style.Value];
+            if (style != null)
+                format = style._paragraphFormat;
+            else if (formattedText._style.Value != "")
+                format = document._styles[StyleNames.InvalidStyleName]._paragraphFormat;
 
-      if (format != null)
-      {
-        if (formattedText.font == null)
-          formattedText.Font = format.font.Clone();
-        else if (format.font != null)
-          FlattenFont(formattedText.font, format.font);
-      }
-    }
+            if (format != null)
+            {
+                if (formattedText._font == null)
+                    formattedText.Font = format._font.Clone();
+                else if (format._font != null)
+                    FlattenFont(formattedText._font, format._font);
+            }
+        }
 
-    internal override void VisitHyperlink(Hyperlink hyperlink)
-    {
-      Font styleFont = hyperlink.Document.Styles["Hyperlink"].Font;
-      if (hyperlink.font == null)
-        hyperlink.Font = styleFont.Clone();
-      else
-        FlattenFont(hyperlink.font, styleFont);
+        internal override void VisitHyperlink(Hyperlink hyperlink)
+        {
+            Font styleFont = hyperlink.Document.Styles[StyleNames.Hyperlink].Font;
+            if (hyperlink._font == null)
+                hyperlink.Font = styleFont.Clone();
+            else
+                FlattenFont(hyperlink._font, styleFont);
+        }
     }
-  }
 }

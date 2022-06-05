@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -37,116 +37,116 @@ using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Tables
 {
-  /// <summary>
-  /// Represents the collection of all cells of a row.
-  /// </summary>
-  public class Cells : DocumentObjectCollection
-  {
     /// <summary>
-    /// Initializes a new instance of the Cells class.
+    /// Represents the collection of all cells of a row.
     /// </summary>
-    public Cells()
+    public class Cells : DocumentObjectCollection
     {
-    }
+        /// <summary>
+        /// Initializes a new instance of the Cells class.
+        /// </summary>
+        public Cells()
+        { }
 
-    /// <summary>
-    /// Initializes a new instance of the Cells class with the specified parent.
-    /// </summary>
-    internal Cells(DocumentObject parent) : base(parent) { }
+        /// <summary>
+        /// Initializes a new instance of the Cells class with the specified parent.
+        /// </summary>
+        internal Cells(DocumentObject parent) : base(parent) { }
 
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Cells Clone()
-    {
-      return (Cells)base.DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the table the cells collection belongs to.
-    /// </summary>
-    public Table Table
-    {
-      get
-      {
-        if (this.table == null)
+        #region Methods
+        /// <summary>
+        /// Creates a deep copy of this object.
+        /// </summary>
+        public new Cells Clone()
         {
-          Row rw = this.Parent as Row;
-          if (rw != null)
-            this.table = rw.Table;
+            Cells cells = (Cells)base.DeepCopy();
+            cells.ResetCachedValues();
+            return cells;
         }
-        return this.table;
-      }
+
+        /// <summary>
+        /// Resets the cached values.
+        /// </summary>
+        internal override void ResetCachedValues()
+        {
+            base.ResetCachedValues();
+            _row = null;
+            _table = null;
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// Gets the table the cells collection belongs to.
+        /// </summary>
+        public Table Table
+        {
+            get
+            {
+                if (_table == null)
+                {
+                    Row rw = Parent as Row;
+                    if (rw != null)
+                        _table = rw.Table;
+                }
+                return _table;
+            }
+        }
+        Table _table;
+
+        /// <summary>
+        /// Gets the row the cells collection belongs to.
+        /// </summary>
+        public Row Row
+        {
+            get { return _row ?? (_row = Parent as Row); }
+        }
+        Row _row;
+
+        /// <summary>
+        /// Gets a cell by its index. The first cell has the index 0.
+        /// </summary>
+        public new Cell this[int index]
+        {
+            get
+            {
+                if (index < 0 || (Table != null && index >= Table.Columns.Count))
+                    throw new ArgumentOutOfRangeException("index");
+
+                Resize(index);
+                return base[index] as Cell;
+            }
+        }
+        #endregion
+
+        /// <summary>
+        /// Resizes this cells' list if necessary.
+        /// </summary>
+        private void Resize(int index)
+        {
+            for (int currentIndex = Count; currentIndex <= index; currentIndex++)
+                Add(new Cell());
+        }
+
+        #region Internal
+        /// <summary>
+        /// Converts Cells into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int cells = Count;
+            for (int cell = 0; cell < cells; cell++)
+                this[cell].Serialize(serializer);
+        }
+
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(Cells))); }
+        }
+        static Meta _meta;
+        #endregion
     }
-    Table table;
-
-    /// <summary>
-    /// Gets the row the cells collection belongs to.
-    /// </summary>
-    public Row Row
-    {
-      get
-      {
-        if (this.row == null)
-          this.row = this.Parent as Row;
-
-        return this.row;
-      }
-    }
-    Row row;
-
-    /// <summary>
-    /// Gets a cell by its index. The first cell has the index 0.
-    /// </summary>
-    public new Cell this[int index]
-    {
-      get
-      {
-        if (index < 0 || (this.Table != null && index >= this.Table.Columns.Count))
-          throw new ArgumentOutOfRangeException("index");
-
-        Resize(index);
-        return base[index] as Cell;
-      }
-    }
-    #endregion
-
-    /// <summary>
-    /// Resizes this cells' list if necessary.
-    /// </summary>
-    private void Resize(int index)
-    {
-      for (int currentIndex = this.Count; currentIndex <= index; currentIndex++)
-        Add(new Cell());
-    }
-
-    #region Internal
-    /// <summary>
-    /// Converts Cells into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int cells = Count;
-      for (int cell = 0; cell < cells; cell++)
-        this[cell].Serialize(serializer);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Cells));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-  }
 }

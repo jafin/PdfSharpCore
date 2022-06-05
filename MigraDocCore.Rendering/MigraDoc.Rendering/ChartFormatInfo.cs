@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -33,17 +33,17 @@ using PdfSharpCore.Charting;
 
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Formatting information for a chart.
-  /// </summary>
-  internal class ChartFormatInfo : ShapeFormatInfo
-  {
-    internal ChartFrame chartFrame;
-    internal FormattedTextArea formattedHeader;
-    internal FormattedTextArea formattedLeft;
-    internal FormattedTextArea formattedTop;
-    internal FormattedTextArea formattedBottom;
-    internal FormattedTextArea formattedRight;
-    internal FormattedTextArea formattedFooter;
-  }
+    /// <summary>
+    /// Formatting information for a chart.
+    /// </summary>
+    internal sealed class ChartFormatInfo : ShapeFormatInfo
+    {
+        internal ChartFrame ChartFrame;
+        internal FormattedTextArea FormattedHeader;
+        internal FormattedTextArea FormattedLeft;
+        internal FormattedTextArea FormattedTop;
+        internal FormattedTextArea FormattedBottom;
+        internal FormattedTextArea FormattedRight;
+        internal FormattedTextArea FormattedFooter;
+    }
 }

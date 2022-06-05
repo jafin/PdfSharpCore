@@ -1,11 +1,12 @@
 #region MigraDoc - Creating Documents on the Fly
+
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -28,13 +29,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
 using System.Diagnostics;
 using System.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes
@@ -48,13 +49,21 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// Initializes a new instance of the Image class.
         /// </summary>
         public Image()
-        {
-        }
+        { }
 
         /// <summary>
         /// Initializes a new instance of the Image class with the specified parent.
         /// </summary>
         internal Image(DocumentObject parent) : base(parent) { }
+
+        /// <summary>
+        /// Initializes a new instance of the Image class from the specified (file) name.
+        /// </summary>
+        public Image(string name)
+            : this()
+        {
+            Name = name;
+        }
 
         //#region Methods
         /// <summary>
@@ -70,19 +79,27 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         protected override object DeepCopy()
         {
-            Image image = (Image)base.DeepCopy();
-            if (image.pictureFormat != null)
+            var image = (Image)base.DeepCopy();
+            if (image._pictureFormat != null)
             {
-                image.pictureFormat = image.pictureFormat.Clone();
-                image.pictureFormat.parent = image;
+                image._pictureFormat = image._pictureFormat.Clone();
+                image._pictureFormat._parent = image;
             }
+
             return image;
         }
-        //#endregion
-        [DV]
-        internal NString name = NString.NullValue;
 
-        public IImageSource Source { get; set; }
+        //#endregion
+        /// <summary>
+        /// Gets or sets the name of the image.
+        /// </summary>
+        public string Name
+        {
+            get { return _name.Value; }
+            set { _name.Value = value; }
+        }
+        [DV]
+        internal NString _name = NString.NullValue;
 
         /// <summary>
         /// Gets or sets the ScaleWidth of the image.
@@ -90,11 +107,11 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public double ScaleWidth
         {
-            get { return this.scaleWidth.Value; }
-            set { this.scaleWidth.Value = value; }
+            get { return _scaleWidth.Value; }
+            set { _scaleWidth.Value = value; }
         }
         [DV]
-        internal NDouble scaleWidth = NDouble.NullValue;
+        internal NDouble _scaleWidth = NDouble.NullValue;
 
         /// <summary>
         /// Gets or sets the ScaleHeight of the image.
@@ -102,11 +119,11 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public double ScaleHeight
         {
-            get { return this.scaleHeight.Value; }
-            set { this.scaleHeight.Value = value; }
+            get { return _scaleHeight.Value; }
+            set { _scaleHeight.Value = value; }
         }
         [DV]
-        internal NDouble scaleHeight = NDouble.NullValue;
+        internal NDouble _scaleHeight = NDouble.NullValue;
 
         /// <summary>
         /// Gets or sets whether the AspectRatio of the image is kept unchanged.
@@ -114,65 +131,58 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public bool LockAspectRatio
         {
-            get { return this.lockAspectRatio.Value; }
-            set { this.lockAspectRatio.Value = value; }
+            get { return _lockAspectRatio.Value; }
+            set { _lockAspectRatio.Value = value; }
         }
         [DV]
-        internal NBool lockAspectRatio = NBool.NullValue;
+        internal NBool _lockAspectRatio = NBool.NullValue;
 
         /// <summary>
         /// Gets or sets the PictureFormat for the image
         /// </summary>
         public PictureFormat PictureFormat
         {
-            get
-            {
-                if (this.pictureFormat == null)
-                    this.pictureFormat = new PictureFormat(this);
-                return this.pictureFormat;
-            }
+            get { return _pictureFormat ?? (_pictureFormat = new PictureFormat(this)); }
             set
             {
                 SetParent(value);
-                this.pictureFormat = value;
+                _pictureFormat = value;
             }
         }
         [DV]
-        internal PictureFormat pictureFormat;
+        internal PictureFormat _pictureFormat;
 
         /// <summary>
         /// Gets or sets a user defined resolution for the image in dots per inch.
         /// </summary>
         public double Resolution
         {
-            get { return this.resolution.Value; }
-            set { this.resolution.Value = value; }
+            get { return _resolution.Value; }
+            set { _resolution.Value = value; }
         }
         [DV]
-        internal NDouble resolution = NDouble.NullValue;
-        //#endregion
+        internal NDouble _resolution = NDouble.NullValue;
 
-        #region Internal
         /// <summary>
         /// Converts Image into DDL.
         /// </summary>
         internal override void Serialize(Serializer serializer)
         {
-            serializer.WriteLine("\\image(\"" + this.name.Value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
+            serializer.WriteLine("\\image(\"" + _name.Value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
 
             int pos = serializer.BeginAttributes();
 
             base.Serialize(serializer);
-            if (!this.scaleWidth.IsNull)
-                serializer.WriteSimpleAttribute("ScaleWidth", this.ScaleWidth);
-            if (!this.scaleHeight.IsNull)
-                serializer.WriteSimpleAttribute("ScaleHeight", this.ScaleHeight);
-            if (!this.lockAspectRatio.IsNull)
-                serializer.WriteSimpleAttribute("LockAspectRatio", this.LockAspectRatio);
-            if (!this.resolution.IsNull)
-                serializer.WriteSimpleAttribute("Resolution", this.Resolution);
-            if (!this.IsNull("PictureFormat"))
-                this.pictureFormat.Serialize(serializer);
+            if (!_scaleWidth.IsNull)
+                serializer.WriteSimpleAttribute("ScaleWidth", ScaleWidth);
+            if (!_scaleHeight.IsNull)
+                serializer.WriteSimpleAttribute("ScaleHeight", ScaleHeight);
+            if (!_lockAspectRatio.IsNull)
+                serializer.WriteSimpleAttribute("LockAspectRatio", LockAspectRatio);
+            if (!_resolution.IsNull)
+                serializer.WriteSimpleAttribute("Resolution", Resolution);
+            if (!IsNull("PictureFormat"))
+                _pictureFormat.Serialize(serializer);
 
             serializer.EndAttributes(pos);
         }
@@ -183,7 +193,10 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         public string GetFilePath(string workingDir)
         {
-            string filePath = "";
+            if (Name.StartsWith("base64:")) // The file is stored in the string here, so we don't have to add a path.
+                return Name;
+
+            string filePath;
 
             try
             {
@@ -194,14 +207,14 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
 
                 if (!Document.IsNull("ImagePath"))
                 {
-                    string foundfile = ImageHelper.GetImageName(filePath, Source.Name, Document.ImagePath);
+                    var foundfile = ImageHelper.GetImageName(filePath, Name, Document.ImagePath);
                     if (foundfile != null)
                         filePath = foundfile;
                     else
-                        filePath = Path.Combine(filePath, Source.Name);
+                        filePath = Path.Combine(filePath, Name);
                 }
                 else
-                    filePath = Path.Combine(filePath, Source.Name);
+                    filePath = Path.Combine(filePath, Name);
             }
             catch (Exception ex)
             {
@@ -218,16 +231,8 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(Image));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(Image))); }
         }
-
-
-        static Meta meta;
-        #endregion
+        static Meta _meta;
     }
 }

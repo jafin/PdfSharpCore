@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Tables;
@@ -40,158 +41,163 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Represents a formatted cell.
   /// </summary>
-  internal class FormattedCell : IAreaProvider
+    public class FormattedCell : IAreaProvider
   {
-    internal FormattedCell(Cell cell, DocumentRenderer documentRenderer, Borders cellBorders, FieldInfos fieldInfos, XUnit xOffset, XUnit yOffset)
-    {
-      this.cell = cell;
-      this.fieldInfos = fieldInfos;
-      this.yOffset = yOffset;
-      this.xOffset = xOffset;
-      this.bordersRenderer = new BordersRenderer(cellBorders, null);
-      this.documentRenderer = documentRenderer;
-    }
-
-    bool isFirstArea = true;
-    Area IAreaProvider.GetNextArea()
-    {
-      if (this.isFirstArea)
-      {
-        Rectangle rect = CalcContentRect();
-        this.isFirstArea = false;
-        return rect;
-      }
-      return null;
-    }
-
-    Area IAreaProvider.ProbeNextArea()
-    {
-      return null;
-    }
-
-    internal void Format(XGraphics gfx)
-    {
-      this.gfx = gfx;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.cell.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-      this.contentHeight = CalcContentHeight(this.documentRenderer);
-    }
-
-    private Rectangle CalcContentRect()
-    {
-      Column column = this.cell.Column;
-      XUnit width = InnerWidth;
-      width -= column.LeftPadding.Point;
-      Column rightColumn = this.cell.Table.Columns[column.Index + this.cell.MergeRight];
-      width -= rightColumn.RightPadding.Point;
-
-      XUnit height = double.MaxValue;
-      return new Rectangle(this.xOffset, this.yOffset, width, height);
-    }
-
-    internal XUnit ContentHeight
-    {
-      get { return this.contentHeight; }
-    }
-
-    internal XUnit InnerHeight
-    {
-      get
-      {
-        Row row = this.cell.Row;
-        XUnit verticalPadding = row.TopPadding.Point;
-        verticalPadding += row.BottomPadding.Point;
-
-        switch (row.HeightRule)
+        internal FormattedCell(Cell cell, DocumentRenderer documentRenderer, Borders cellBorders, FieldInfos fieldInfos, XUnit xOffset, XUnit yOffset)
         {
-          case RowHeightRule.Exactly:
-            return row.Height.Point;
-
-          case RowHeightRule.Auto:
-            return verticalPadding + this.contentHeight;
-
-          case RowHeightRule.AtLeast:
-          default:
-            return Math.Max(row.Height, verticalPadding + this.contentHeight);
+            _cell = cell;
+            _fieldInfos = fieldInfos;
+            _yOffset = yOffset;
+            _xOffset = xOffset;
+            _bordersRenderer = new BordersRenderer(cellBorders, null);
+            _documentRenderer = documentRenderer;
         }
-      }
-    }
 
-    internal XUnit InnerWidth
-    {
-      get
-      {
-        XUnit width = 0;
-        int cellColumnIdx = this.cell.Column.Index;
-        for (int toRight = 0; toRight <= this.cell.MergeRight; ++toRight)
+        Area IAreaProvider.GetNextArea()
         {
-          int columnIdx = cellColumnIdx + toRight;
-          width += this.cell.Table.Columns[columnIdx].Width;
+            if (_isFirstArea)
+            {
+                Rectangle rect = CalcContentRect();
+                _isFirstArea = false;
+                return rect;
+            }
+            return null;
         }
-        width -= this.bordersRenderer.GetWidth(BorderType.Right);
+        bool _isFirstArea = true;
 
-        return width;
-      }
+        Area IAreaProvider.ProbeNextArea()
+        {
+            return null;
+        }
+
+        internal void Format(XGraphics gfx)
+        {
+            _gfx = gfx;
+            _formatter = new TopDownFormatter(this, _documentRenderer, _cell.Elements);
+            _formatter.FormatOnAreas(gfx, false);
+            _contentHeight = CalcContentHeight(_documentRenderer);
+        }
+
+        private Rectangle CalcContentRect()
+        {
+            Column column = _cell.Column;
+            XUnit width = InnerWidth;
+            width -= column.LeftPadding.Point;
+            Column rightColumn = _cell.Table.Columns[column.Index + _cell.MergeRight];
+            width -= rightColumn.RightPadding.Point;
+
+            XUnit height = double.MaxValue;
+            return new Rectangle(_xOffset, _yOffset, width, height);
+        }
+
+        internal XUnit ContentHeight
+        {
+            get { return _contentHeight; }
+        }
+
+        internal XUnit InnerHeight
+        {
+            get
+            {
+                Row row = _cell.Row;
+                XUnit verticalPadding = row.TopPadding.Point;
+                verticalPadding += row.BottomPadding.Point;
+
+                switch (row.HeightRule)
+                {
+                    case RowHeightRule.Exactly:
+                        return row.Height.Point;
+
+                    case RowHeightRule.Auto:
+                        return verticalPadding + _contentHeight;
+
+                    case RowHeightRule.AtLeast:
+                    default:
+                        return Math.Max(row.Height, verticalPadding + _contentHeight);
+                }
+            }
+        }
+
+        internal XUnit InnerWidth
+        {
+            get
+            {
+                XUnit width = 0;
+                int cellColumnIdx = _cell.Column.Index;
+                for (int toRight = 0; toRight <= _cell.MergeRight; ++toRight)
+                {
+                    int columnIdx = cellColumnIdx + toRight;
+                    width += _cell.Table.Columns[columnIdx].Width;
+                }
+                width -= _bordersRenderer.GetWidth(BorderType.Right);
+
+                return width;
+            }
+        }
+
+        FieldInfos IAreaProvider.AreaFieldInfos
+        {
+            get { return _fieldInfos; }
+        }
+
+        void IAreaProvider.StoreRenderInfos(List<RenderInfo> renderInfos)
+        {
+            _renderInfos = renderInfos;
+        }
+
+        bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
+        {
+            return false;
+        }
+
+        private XUnit CalcContentHeight(DocumentRenderer documentRenderer)
+        {
+            XUnit height = RenderInfo.GetTotalHeight(GetRenderInfos());
+            if (height == 0)
+            {
+                height = ParagraphRenderer.GetLineHeight(_cell.Format, _gfx, documentRenderer);
+                height += _cell.Format.SpaceBefore;
+                height += _cell.Format.SpaceAfter;
+            }
+            return height;
+        }
+
+        XUnit _contentHeight = 0;
+
+        internal RenderInfo[] GetRenderInfos()
+        {
+            if (_renderInfos != null)
+                return _renderInfos.ToArray();
+
+            return null;
+        }
+
+        readonly FieldInfos _fieldInfos;
+        List<RenderInfo> _renderInfos;
+        readonly XUnit _xOffset;
+        readonly XUnit _yOffset;
+
+        /// <summary>
+        /// Gets the cell the formatting information refers to.
+        /// </summary>
+        public Cell Cell
+        {
+            get { return _cell;}
+        }
+        readonly Cell _cell;
+        TopDownFormatter _formatter;
+        readonly BordersRenderer _bordersRenderer;
+        XGraphics _gfx;
+        readonly DocumentRenderer _documentRenderer;
     }
-
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get
-      {
-        return this.fieldInfos;
-      }
-    }
-
-    void IAreaProvider.StoreRenderInfos(System.Collections.ArrayList renderInfos)
-    {
-      this.renderInfos = renderInfos;
-    }
-
-    bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-    bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-    bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-    private XUnit CalcContentHeight(DocumentRenderer documentRenderer)
-    {
-      XUnit height = RenderInfo.GetTotalHeight(GetRenderInfos());
-      if (height == 0)
-      {
-        height = ParagraphRenderer.GetLineHeight(this.cell.Format, this.gfx, documentRenderer);
-        height += this.cell.Format.SpaceBefore;
-        height += this.cell.Format.SpaceAfter;
-      }
-      return height;
-    }
-
-    XUnit contentHeight = 0;
-
-    internal RenderInfo[] GetRenderInfos()
-    {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
-
-      return null;
-    }
-
-    private FieldInfos fieldInfos;
-    private ArrayList renderInfos;
-    private XUnit xOffset;
-    private XUnit yOffset;
-    private Cell cell;
-    private TopDownFormatter formatter;
-    BordersRenderer bordersRenderer;
-    XGraphics gfx;
-    DocumentRenderer documentRenderer;
-  }
 }

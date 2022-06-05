@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,21 +35,16 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Rendering information for charts.
   /// </summary>
-  internal class ChartRenderInfo : ShapeRenderInfo
-  {
-    internal ChartRenderInfo()
+    internal sealed class ChartRenderInfo : ShapeRenderInfo
     {
-    }
+        internal ChartRenderInfo()
+        { }
 
-    internal override FormatInfo FormatInfo
-    {
-      get
-      {
-        if (this.formatInfo == null)
-          this.formatInfo = new ChartFormatInfo();
-        return this.formatInfo;
-      }
+        public override FormatInfo FormatInfo
+        {
+            get { return _formatInfo ?? (_formatInfo = new ChartFormatInfo()); }
+            internal set { _formatInfo = (ChartFormatInfo)value; }
+        }
+        ChartFormatInfo _formatInfo;
     }
-    ChartFormatInfo formatInfo;
-  }
 }

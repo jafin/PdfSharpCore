@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -32,33 +32,40 @@ using System;
 using MigraDocCore.DocumentObjectModel;
 namespace MigraDocCore.Rendering
 {
-  /// <summary>
-  /// Represents rendering information for a paragraph.
-  /// </summary>
-  internal class ParagraphRenderInfo : RenderInfo
-  {
-    internal ParagraphRenderInfo()
+    /// <summary>
+    /// Represents rendering information for a paragraph.
+    /// </summary>
+    public sealed class ParagraphRenderInfo : RenderInfo
     {
-    }
+        internal ParagraphRenderInfo()
+        { }
 
-    internal override FormatInfo FormatInfo
-    {
-      get { return this.formatInfo; }
-    }
-    ParagraphFormatInfo formatInfo = new ParagraphFormatInfo();
+        /// <summary>
+        /// Gets the format information in a specific derived type. For a table, for example, this will be a TableFormatInfo with information about the first and last row showing on a page.
+        /// </summary>
+        public override FormatInfo FormatInfo
+        {
+            get { return _formatInfo; }
+            internal set { _formatInfo = (ParagraphFormatInfo)value; }
+        }
+        ParagraphFormatInfo _formatInfo = new ParagraphFormatInfo();
 
-    internal override DocumentObject DocumentObject
-    {
-      get { return this.paragraph; }
-    }
-    internal Paragraph paragraph;
+        /// <summary>
+        /// Gets the document object to which the layout information applies. Use the Tag property of DocumentObject to identify an object.
+        /// </summary>
+        public override DocumentObject DocumentObject
+        {
+            get { return _paragraph; }
+            internal set { _paragraph = (Paragraph)value; }
+        }
+        Paragraph _paragraph;
 
-    internal override void RemoveEnding()
-    {
-      ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)this.FormatInfo;
-      pfInfo.RemoveEnding();
-      Area contentArea = this.LayoutInfo.ContentArea;
-      contentArea.Height -= this.LayoutInfo.TrailingHeight;
+        internal override void RemoveEnding()
+        {
+            ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)FormatInfo;
+            pfInfo.RemoveEnding();
+            Area contentArea = LayoutInfo.ContentArea;
+            contentArea.Height -= LayoutInfo.TrailingHeight;
+        }
     }
-  }
 }

@@ -1,9 +1,9 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
+//   Klaus Potzesny
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -35,21 +35,16 @@ namespace MigraDocCore.Rendering
   /// <summary>
   /// Summary description for TextFrameRenderInfo.
   /// </summary>
-  internal class TextFrameRenderInfo : ShapeRenderInfo
-  {
-    internal TextFrameRenderInfo()
+    public sealed class TextFrameRenderInfo : ShapeRenderInfo
     {
+        /// <summary>
+        /// Gets the format information in a specific derived type. For a table, for example, this will be a TableFormatInfo with information about the first and last row showing on a page.
+        /// </summary>
+        public override FormatInfo FormatInfo
+        {
+            get { return _formatInfo ?? (_formatInfo = new TextFrameFormatInfo()); }
+            internal set { _formatInfo = (TextFrameFormatInfo)value; }
+        }
+        TextFrameFormatInfo _formatInfo;
     }
-    internal override FormatInfo FormatInfo
-    {
-      get
-      {
-        if (this.formatInfo == null)
-          this.formatInfo = new TextFrameFormatInfo();
-
-        return this.formatInfo;
-      }
-    }
-    private TextFrameFormatInfo formatInfo;
-  }
 }

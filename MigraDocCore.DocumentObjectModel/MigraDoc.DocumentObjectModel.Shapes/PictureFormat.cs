@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -47,8 +47,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     /// Initializes a new instance of the PictureFormat class.
     /// </summary>
     public PictureFormat()
-    {
-    }
+        { }
 
     /// <summary>
     /// Initializes a new instance of the PictureFormat class with the specified parent.
@@ -71,44 +70,44 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     /// </summary>
     public Unit CropLeft
     {
-      get { return this.cropLeft; }
-      set { this.cropLeft = value; }
-    }
-    [DV]
-    protected Unit cropLeft = Unit.NullValue;
+            get { return _cropLeft; }
+            set { _cropLeft = value; }
+        }
+        [DV]
+        protected Unit _cropLeft = Unit.NullValue;
 
     /// <summary>
     /// Gets or sets the part cropped from the right of the image.
     /// </summary>
     public Unit CropRight
     {
-      get { return this.cropRight; }
-      set { this.cropRight = value; }
-    }
-    [DV]
-    protected Unit cropRight = Unit.NullValue;
+            get { return _cropRight; }
+            set { _cropRight = value; }
+        }
+        [DV]
+        protected Unit _cropRight = Unit.NullValue;
 
     /// <summary>
     /// Gets or sets the part cropped from the top of the image.
     /// </summary>
     public Unit CropTop
     {
-      get { return this.cropTop; }
-      set { this.cropTop = value; }
-    }
-    [DV]
-    protected Unit cropTop = Unit.NullValue;
+            get { return _cropTop; }
+            set { _cropTop = value; }
+        }
+        [DV]
+        protected Unit _cropTop = Unit.NullValue;
 
     /// <summary>
     /// Gets or sets the part cropped from the bottom of the image.
     /// </summary>
     public Unit CropBottom
     {
-      get { return this.cropBottom; }
-      set { this.cropBottom = value; }
+            get { return _cropBottom; }
+            set { _cropBottom = value; }
     }
     [DV]
-    protected Unit cropBottom = Unit.NullValue;
+        protected Unit _cropBottom = Unit.NullValue;
     #endregion
 
     #region Internal
@@ -118,30 +117,25 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     internal override void Serialize(Serializer serializer)
     {
       serializer.BeginContent("PictureFormat");
-      if (!this.cropLeft.IsNull)
-        serializer.WriteSimpleAttribute("CropLeft", this.CropLeft);
-      if (!this.cropRight.IsNull)
-        serializer.WriteSimpleAttribute("CropRight", this.CropRight);
-      if (!this.cropTop.IsNull)
-        serializer.WriteSimpleAttribute("CropTop", this.CropTop);
-      if (!this.cropBottom.IsNull)
-        serializer.WriteSimpleAttribute("CropBottom", this.CropBottom);
-      serializer.EndContent();
-    }
+            if (!_cropLeft.IsNull)
+                serializer.WriteSimpleAttribute("CropLeft", CropLeft);
+            if (!_cropRight.IsNull)
+                serializer.WriteSimpleAttribute("CropRight", CropRight);
+            if (!_cropTop.IsNull)
+                serializer.WriteSimpleAttribute("CropTop", CropTop);
+            if (!_cropBottom.IsNull)
+                serializer.WriteSimpleAttribute("CropBottom", CropBottom);
+            serializer.EndContent();
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(PictureFormat));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(PictureFormat))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

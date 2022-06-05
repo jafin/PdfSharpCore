@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -62,96 +62,91 @@ namespace MigraDocCore.DocumentObjectModel.Shapes
     }
     #endregion
 
-    #region Properties
-    /// <summary>
-    /// Gets or sets the wrapping style.
-    /// </summary>
-    public WrapStyle Style
-    {
-      get { return (WrapStyle)this.style.Value; }
-      set { this.style.Value = (int)value; }
-    }
-    [DV(Type = typeof(WrapStyle))]
-    internal NEnum style = NEnum.NullValue(typeof(WrapStyle));
+        #region Properties
+        /// <summary>
+        /// Gets or sets the wrapping style.
+        /// </summary>
+        public WrapStyle Style
+        {
+            get { return (WrapStyle)_style.Value; }
+            set { _style.Value = (int)value; }
+        }
+        [DV(Type = typeof(WrapStyle))]
+        internal NEnum _style = NEnum.NullValue(typeof(WrapStyle));
 
-    /// <summary>
-    /// Gets or sets the distance between the top side of the shape with the adjacent text.
-    /// </summary>
-    public Unit DistanceTop
-    {
-      get { return this.distanceTop; }
-      set { this.distanceTop = value; }
-    }
-    [DV]
-    protected Unit distanceTop = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the distance between the top side of the shape with the adjacent text.
+        /// </summary>
+        public Unit DistanceTop
+        {
+            get { return _distanceTop; }
+            set { _distanceTop = value; }
+        }
+        [DV]
+        Unit _distanceTop = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets the distance between the bottom side of the shape with the adjacent text.
-    /// </summary>
-    public Unit DistanceBottom
-    {
-      get { return this.distanceBottom; }
-      set { this.distanceBottom = value; }
-    }
-    [DV]
-    protected Unit distanceBottom = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the distance between the bottom side of the shape with the adjacent text.
+        /// </summary>
+        public Unit DistanceBottom
+        {
+            get { return _distanceBottom; }
+            set { _distanceBottom = value; }
+        }
+        [DV]
+        Unit _distanceBottom = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets the distance between the left side of the shape with the adjacent text.
-    /// </summary>
-    public Unit DistanceLeft
-    {
-      get { return this.distanceLeft; }
-      set { this.distanceLeft = value; }
-    }
-    [DV]
-    protected Unit distanceLeft = Unit.NullValue;
+        /// <summary>
+        /// Gets or sets the distance between the left side of the shape with the adjacent text.
+        /// </summary>
+        public Unit DistanceLeft
+        {
+            get { return _distanceLeft; }
+            set { _distanceLeft = value; }
+        }
+        [DV]
+        Unit _distanceLeft = Unit.NullValue;
 
-    /// <summary>
-    /// Gets or sets the distance between the right side of the shape with the adjacent text.
-    /// </summary>
-    public Unit DistanceRight
-    {
-      get { return this.distanceRight; }
-      set { this.distanceRight = value; }
-    }
-    [DV]
-    protected Unit distanceRight = Unit.NullValue;
-    #endregion
+        /// <summary>
+        /// Gets or sets the distance between the right side of the shape with the adjacent text.
+        /// </summary>
+        public Unit DistanceRight
+        {
+            get { return _distanceRight; }
+            set { _distanceRight = value; }
+        }
+        [DV]
+        Unit _distanceRight = Unit.NullValue;
+        #endregion
 
-    #region Internal
-    /// <summary>
-    /// Converts WrapFormat into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int pos = serializer.BeginContent("WrapFormat");
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-      if (!this.distanceTop.IsNull)
-        serializer.WriteSimpleAttribute("DistanceTop", this.DistanceTop);
-      if (!this.distanceLeft.IsNull)
-        serializer.WriteSimpleAttribute("DistanceLeft", this.DistanceLeft);
-      if (!this.distanceRight.IsNull)
-        serializer.WriteSimpleAttribute("DistanceRight", this.DistanceRight);
-      if (!this.distanceBottom.IsNull)
-        serializer.WriteSimpleAttribute("DistanceBottom", this.DistanceBottom);
-      serializer.EndContent();
-    }
+        #region Internal
+        /// <summary>
+        /// Converts WrapFormat into DDL.
+        /// </summary>
+        internal override void Serialize(Serializer serializer)
+        {
+            int pos = serializer.BeginContent("WrapFormat");
+            if (!_style.IsNull)
+                serializer.WriteSimpleAttribute("Style", Style);
+            if (!_distanceTop.IsNull)
+                serializer.WriteSimpleAttribute("DistanceTop", DistanceTop);
+            if (!_distanceLeft.IsNull)
+                serializer.WriteSimpleAttribute("DistanceLeft", DistanceLeft);
+            if (!_distanceRight.IsNull)
+                serializer.WriteSimpleAttribute("DistanceRight", DistanceRight);
+            if (!_distanceBottom.IsNull)
+                serializer.WriteSimpleAttribute("DistanceBottom", DistanceBottom);
+            serializer.EndContent();
+        }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(WrapFormat));
-        return meta;
-      }
-    }
-    static Meta meta;
+        /// <summary>
+        /// Returns the meta object of this instance.
+        /// </summary>
+        internal override Meta Meta
+        {
+            get { return _meta ?? (_meta = new Meta(typeof(WrapFormat))); }
+        }
+        static Meta _meta;
     #endregion
   }
 }

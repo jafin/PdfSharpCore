@@ -1,11 +1,11 @@
 #region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
-//   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
-//   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
-//   David Stephensen (mailto:David.Stephensen@PdfSharpCore.com)
+//   Stefan Lange
+//   Klaus Potzesny
+//   David Stephensen
 //
-// Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
+// Copyright (c) 2001-2019 empira Software GmbH, Cologne Area (Germany)
 //
 // http://www.PdfSharpCore.com
 // http://www.migradoc.com
@@ -37,6 +37,7 @@ using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using System.IO;
+using MigraDocCore.DocumentObjectModel;
 using MigraDocImage = MigraDocCore.DocumentObjectModel.Shapes.Image;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
@@ -68,7 +69,6 @@ namespace MigraDocCore.DocumentObjectModel
             get { return base[index] as DocumentObject; }
         }
 
-        #region Methods
         /// <summary>
         /// Creates a deep copy of this object.
         /// </summary>
@@ -271,36 +271,105 @@ namespace MigraDocCore.DocumentObjectModel
         }
 
         /// <summary>
-        /// Adds a new Hyperlink of Type "Local", i.e. the Target is a Bookmark within the Document
+        /// Adds a new Hyperlink of Type "Local", i.e. the target is a Bookmark within the Document.
         /// </summary>
-        public Hyperlink AddHyperlink(string name)
+        public Hyperlink AddHyperlink(string bookmarkName)
         {
             Hyperlink hyperlink = new Hyperlink();
-            hyperlink.Name = name;
-            this.Add(hyperlink);
+            hyperlink.BookmarkName = bookmarkName;
+            Add(hyperlink);
             return hyperlink;
         }
 
         /// <summary>
-        /// Adds a new Hyperlink
+        /// Adds a new Hyperlink.
         /// </summary>
         public Hyperlink AddHyperlink(string name, HyperlinkType type)
         {
+            if (type == HyperlinkType.Bookmark)
+                return AddHyperlink(name);
+            
+            if (type == HyperlinkType.ExternalBookmark || type == HyperlinkType.EmbeddedDocument)
+                throw new NotSupportedException("No bookmarkName defined. " +
+                                                "Please use AddHyperlink(string filename, string bookmarkName, bool? newWindow) " +
+                                                "or one of the AddHyperlinkToEmbeddedDocument() functions.");
+
+            // HyperlinkTypes File and Web/Url:
             Hyperlink hyperlink = new Hyperlink();
-            hyperlink.Name = name;
+            hyperlink.Filename = name;
             hyperlink.Type = type;
-            this.Add(hyperlink);
+            Add(hyperlink);
+            return hyperlink;
+        }
+
+        /// <summary>
+        /// Adds a new Hyperlink of Type "ExternalBookmark", i.e. the target is a Bookmark in an external PDF Document.
+        /// </summary>
+        /// <param name="filename">The path to the target document.</param>
+        /// <param name="bookmarkName">The Named Destination's name in the target document.</param>
+        /// <param name="newWindow">Defines if the HyperlinkType ExternalBookmark shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlink(string filename, string bookmarkName, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
+        {
+            Hyperlink hyperlink = new Hyperlink();
+            hyperlink.Filename = filename;
+            hyperlink.BookmarkName = bookmarkName;
+            hyperlink.NewWindow = newWindow;
+            hyperlink.Type = HyperlinkType.ExternalBookmark;
+            Add(hyperlink);
+            return hyperlink;
+        }
+
+        /// <summary>
+        /// Adds a new Hyperlink of Type "EmbeddedDocument".
+        /// The target is a Bookmark in an embedded Document in this Document.
+        /// </summary>
+        /// <param name="destinationPath">The path to the named destination through the embedded documents.
+        /// The path is separated by '\' and the last segment is the name of the named destination.
+        /// The other segments describe the route from the current (root or embedded) document to the embedded document holding the destination.
+        /// ".." references to the parent, other strings refer to a child with this name in the EmbeddedFiles name dictionary.</param>
+        /// <param name="newWindow">Defines if the HyperlinkType ExternalBookmark shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlinkToEmbeddedDocument(string destinationPath, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
+        {
+            return AddHyperlinkToEmbeddedDocument(null, destinationPath, newWindow);
+        }
+
+        /// <summary>
+        /// Adds a new Hyperlink of Type "EmbeddedDocument".
+        /// The target is a Bookmark in an embedded Document in an external PDF Document.
+        /// </summary>
+        /// <param name="filename">The path to the target document.</param>
+        /// <param name="destinationPath">The path to the named destination through the embedded documents in the target document.
+        /// The path is separated by '\' and the last segment is the name of the named destination.
+        /// The other segments describe the route from the root document to the embedded document.
+        /// Each segment name refers to a child with this name in the EmbeddedFiles name dictionary.</param>
+        /// <param name="newWindow">Defines if the HyperlinkType ExternalBookmark shall be opened in a new window.
+        /// If not set, the viewer application should behave in accordance with the current user preference.</param>
+        public Hyperlink AddHyperlinkToEmbeddedDocument(string filename, string destinationPath, HyperlinkTargetWindow newWindow = HyperlinkTargetWindow.UserPreference)
+        {
+            Hyperlink hyperlink = new Hyperlink();
+            hyperlink.Name = filename;
+            hyperlink.BookmarkName = destinationPath;
+            hyperlink.NewWindow = newWindow;
+            hyperlink.Type = HyperlinkType.EmbeddedDocument;
+            Add(hyperlink);
             return hyperlink;
         }
 
         /// <summary>
         /// Adds a new Bookmark.
         /// </summary>
-        public BookmarkField AddBookmark(string name)
+        /// <param name="name">The name of the bookmark.</param>
+        /// <param name="prepend">True, if the bookmark shall be inserted at the beginning of the paragraph.</param>
+        public BookmarkField AddBookmark(string name, bool prepend = true)
         {
             BookmarkField fieldBookmark = new BookmarkField();
             fieldBookmark.Name = name;
-            this.Add(fieldBookmark);
+            if (prepend)
+                InsertObject(0, fieldBookmark);
+            else
+            Add(fieldBookmark);
             return fieldBookmark;
         }
 
@@ -413,12 +482,10 @@ namespace MigraDocCore.DocumentObjectModel
         /// <summary>
         /// Adds a new Image.
         /// </summary>
-        public MigraDocImage AddImage(IImageSource source)
+        public Image AddImage(string name)
         {
-            MigraDocImage image = new MigraDocImage()
-            {
-                Source = source
-            };
+            Image image = new Image();
+            image.Name = name;
             Add(image);
             return image;
         }
@@ -430,9 +497,7 @@ namespace MigraDocCore.DocumentObjectModel
         {
             base.Add(docObj);
         }
-        #endregion
 
-        #region Internal
         /// <summary>
         /// Converts ParagraphElements into DDL.
         /// </summary>
@@ -451,14 +516,8 @@ namespace MigraDocCore.DocumentObjectModel
         /// </summary>
         internal override Meta Meta
         {
-            get
-            {
-                if (meta == null)
-                    meta = new Meta(typeof(ParagraphElements));
-                return meta;
-            }
+            get { return _meta ?? (_meta = new Meta(typeof(ParagraphElements))); }
         }
-        static Meta meta;
-        #endregion
+        static Meta _meta;
     }
 }
