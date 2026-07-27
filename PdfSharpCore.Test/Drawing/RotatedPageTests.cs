@@ -71,6 +71,60 @@ namespace PdfSharpCore.Test.Drawing
             drawnAt.Y.Should().BeInRange(-0.001, MediaBoxHeight + 0.001);
         }
 
+        [Theory]
+        [MemberData(nameof(TopLeftCorners))]
+        public void APageTurnedAfterItWasCreatedBehavesLikeAnImportedOne(int rotate, double x, double y)
+        {
+            // /Rotate is read when a page is imported, but it can also be set on a page in hand.
+            var document = new PdfDocument();
+            var page = document.AddPage();
+            page.Width = MediaBoxWidth;
+            page.Height = MediaBoxHeight;
+            page.Rotate = rotate;
+
+            using (var gfx = XGraphics.FromPdfPage(page))
+                gfx.DrawString("X", new XFont("Arial", 12), XBrushes.Black, new XPoint(0, 0));
+
+            var drawnAt = WhereTheTextLandedInTheStoredPage(page);
+            drawnAt.X.Should().BeApproximately(x, 0.001);
+            drawnAt.Y.Should().BeApproximately(y, 0.001);
+        }
+
+        [Theory]
+        [InlineData(0, MediaBoxWidth, MediaBoxHeight)]
+        [InlineData(90, MediaBoxHeight, MediaBoxWidth)]
+        [InlineData(180, MediaBoxWidth, MediaBoxHeight)]
+        [InlineData(270, MediaBoxHeight, MediaBoxWidth)]
+        public void APageReportsTheSizeTheViewerShows(int rotate, double width, double height)
+        {
+            var document = new PdfDocument();
+            var page = document.AddPage();
+            page.Width = MediaBoxWidth;
+            page.Height = MediaBoxHeight;
+            page.Rotate = rotate;
+
+            page.Width.Point.Should().BeApproximately(width, 0.001);
+            page.Height.Point.Should().BeApproximately(height, 0.001);
+            // Whichever way it is turned, the media box keeps the size it was given.
+            page.StoredSizeOfMediaBox().Should().Be(new XSize(MediaBoxWidth, MediaBoxHeight));
+        }
+
+        [Fact]
+        public void SettingTheSizeOfATurnedPageSetsTheSizeTheViewerShows()
+        {
+            var document = new PdfDocument();
+            var page = document.AddPage();
+            page.Rotate = 90;
+
+            page.Width = 1000;
+            page.Height = 500;
+
+            page.Width.Point.Should().BeApproximately(1000, 0.001);
+            page.Height.Point.Should().BeApproximately(500, 0.001);
+            // The viewer turns the page, so the media box holds the two the other way round.
+            page.StoredSizeOfMediaBox().Should().Be(new XSize(500, 1000));
+        }
+
         [Fact]
         public void AnUnrotatedPageIsDrawnOnExactlyAsBefore()
         {
@@ -160,6 +214,18 @@ namespace PdfSharpCore.Test.Drawing
         private static double Number(CObject operand)
         {
             return operand is CReal real ? real.Value : ((CInteger)operand).Value;
+        }
+    }
+
+    internal static class PdfPageExtensions
+    {
+        /// <summary>
+        ///   The size the media box entry holds, which is not the size the page reports when it is
+        ///   turned.
+        /// </summary>
+        public static XSize StoredSizeOfMediaBox(this PdfPage page)
+        {
+            return new XSize(page.MediaBox.Width, page.MediaBox.Height);
         }
     }
 }

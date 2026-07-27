@@ -1499,37 +1499,21 @@ namespace PdfSharpCore.Drawing.Pdf
         }
 
         /// <summary>
-        /// Gets the size of the media box of this page or form as it is written to the file. A page
-        /// in landscape orientation is stored with a media box that is turned, unless it already
-        /// carries a /Rotate entry that turns it.
+        /// Gets the size of this page or form as it is written to the file. It is the area drawing
+        /// ends up in, before the viewer turns the page.
         /// </summary>
         XSize StoredPageSize
         {
-            get
-            {
-                if (_page == null)
-                    return _form.Size;
-
-                PdfRectangle mediaBox = _page.MediaBox;
-                bool mediaBoxIsTurnedWhenWritten =
-                    _page.Orientation == PageOrientation.Landscape && PageRotation % 180 == 0;
-                return mediaBoxIsTurnedWhenWritten
-                    ? new XSize(mediaBox.Height, mediaBox.Width)
-                    : new XSize(mediaBox.Width, mediaBox.Height);
-            }
+            get { return _page != null ? _page.StoredSize : _form.Size; }
         }
 
         /// <summary>
         /// Gets the size of this page or form as the viewer shows it, which is the size the caller
-        /// draws on. It differs from the stored size when the page is rotated by 90 or 270 degrees.
+        /// draws on. It differs from the stored size when the page is turned by a quarter.
         /// </summary>
         XSize VisiblePageSize
         {
-            get
-            {
-                XSize stored = StoredPageSize;
-                return PageRotation % 180 == 0 ? stored : new XSize(stored.Height, stored.Width);
-            }
+            get { return _page != null ? new XSize(_page.Width, _page.Height) : _form.Size; }
         }
 
         /// <summary>

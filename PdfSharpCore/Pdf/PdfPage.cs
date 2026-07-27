@@ -264,15 +264,15 @@ namespace PdfSharpCore.Pdf
             get
             {
                 PdfRectangle rect = MediaBox;
-                return _orientation == PageOrientation.Portrait ? rect.Height : rect.Width;
+                return VisibleSizeIsTurned ? rect.Width : rect.Height;
             }
             set
             {
                 PdfRectangle rect = MediaBox;
-                if (_orientation == PageOrientation.Portrait)
-                    MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value);
-                else
+                if (VisibleSizeIsTurned)
                     MediaBox = new PdfRectangle(0, rect.Y1, value, rect.Y2);
+                else
+                    MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value);
                 _pageSize = PageSize.Undefined;
             }
         }
@@ -286,15 +286,15 @@ namespace PdfSharpCore.Pdf
             get
             {
                 PdfRectangle rect = MediaBox;
-                return _orientation == PageOrientation.Portrait ? rect.Width : rect.Height;
+                return VisibleSizeIsTurned ? rect.Height : rect.Width;
             }
             set
             {
                 PdfRectangle rect = MediaBox;
-                if (_orientation == PageOrientation.Portrait)
-                    MediaBox = new PdfRectangle(0, rect.Y1, value, rect.Y2);
-                else
+                if (VisibleSizeIsTurned)
                     MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value);
+                else
+                    MediaBox = new PdfRectangle(0, rect.Y1, value, rect.Y2);
                 _pageSize = PageSize.Undefined;
             }
         }
@@ -314,6 +314,49 @@ namespace PdfSharpCore.Pdf
                 if (value / 90 * 90 != value)
                     throw new ArgumentException("Value must be a multiple of 90.");
                 _elements.SetInteger(InheritablePageKeys.Rotate, value);
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the /Rotate entry turns the page by a quarter, which
+        /// makes the viewer show the width of the page where its height is stored.
+        /// </summary>
+        bool IsTurnedByAQuarter
+        {
+            get { return Math.Abs(Rotate / 90) % 2 == 1; }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the media box is turned when the page is written. It is
+        /// always held in portrait, so a landscape page is turned on the way out - unless the
+        /// /Rotate entry already turns it, which the viewer does on its own.
+        /// </summary>
+        bool MediaBoxIsTurnedWhenWritten
+        {
+            get { return _orientation == PageOrientation.Landscape && !IsTurnedByAQuarter; }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the page the viewer shows is as wide as the media box
+        /// held here is high, which is the case when either of the two turns applies to it.
+        /// </summary>
+        bool VisibleSizeIsTurned
+        {
+            get { return MediaBoxIsTurnedWhenWritten || IsTurnedByAQuarter; }
+        }
+
+        /// <summary>
+        /// Gets the size of the media box of this page as it is written to the file. It is the
+        /// area drawing on the page ends up in, before the viewer turns it.
+        /// </summary>
+        internal XSize StoredSize
+        {
+            get
+            {
+                PdfRectangle rect = MediaBox;
+                return MediaBoxIsTurnedWhenWritten
+                    ? new XSize(rect.Height, rect.Width)
+                    : new XSize(rect.Width, rect.Height);
             }
         }
 
@@ -591,7 +634,7 @@ namespace PdfSharpCore.Pdf
         {
             // HACK: temporarily flip media box if Landscape
             PdfRectangle mediaBox = MediaBox;
-            if (_orientation == PageOrientation.Landscape && Math.Abs(Rotate / 90) % 2 == 0)
+            if (MediaBoxIsTurnedWhenWritten)
                 MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
 
 #if true
@@ -622,7 +665,7 @@ namespace PdfSharpCore.Pdf
 #endif
             base.WriteObject(writer);
 
-            if (_orientation == PageOrientation.Landscape)
+            if (MediaBoxIsTurnedWhenWritten)
                 MediaBox = mediaBox;
         }
 
