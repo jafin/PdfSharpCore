@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace PdfSharpCore.Test.IO
 {
@@ -43,7 +42,7 @@ namespace PdfSharpCore.Test.IO
             };
             objects.AddRange(annotations);
 
-            return Build(objects);
+            return RawPdf.Build(objects);
         }
 
         /// <summary>A link annotation carrying the destination entries given.</summary>
@@ -65,40 +64,14 @@ namespace PdfSharpCore.Test.IO
 
         private static string Image()
         {
-            var data = new string('A', ImageLength);
-            return "<</Type/XObject/Subtype/Image/Width 100/Height 100/ColorSpace/DeviceGray" +
-                   "/BitsPerComponent 8/Length " + ImageLength + ">>stream\n" + data + "\nendstream";
+            return RawPdf.Stream("/Type/XObject/Subtype/Image/Width 100/Height 100" +
+                                 "/ColorSpace/DeviceGray/BitsPerComponent 8",
+                                 new string('A', ImageLength));
         }
 
         private static string Content(string name)
         {
-            var content = "q 100 0 0 100 10 10 cm /" + name + " Do Q";
-            return "<</Length " + content.Length + ">>stream\n" + content + "\nendstream";
-        }
-
-        /// <summary>
-        ///   Wraps the objects given in a header, a cross reference table and a trailer.
-        /// </summary>
-        private static byte[] Build(IReadOnlyList<string> objects)
-        {
-            var pdf = new StringBuilder("%PDF-1.7\n");
-            var offsets = new List<int>();
-            for (var i = 0; i < objects.Count; i++)
-            {
-                offsets.Add(pdf.Length);
-                pdf.Append(i + 1).Append(" 0 obj\n").Append(objects[i]).Append("\nendobj\n");
-            }
-
-            var startOfCrossReferenceTable = pdf.Length;
-            pdf.Append("xref\n0 ").Append(objects.Count + 1).Append('\n');
-            pdf.Append("0000000000 65535 f \n");
-            foreach (var offset in offsets)
-                pdf.Append(offset.ToString("D10")).Append(" 00000 n \n");
-            pdf.Append("trailer\n<</Size ").Append(objects.Count + 1).Append("/Root 1 0 R>>\n");
-            pdf.Append("startxref\n").Append(startOfCrossReferenceTable).Append("\n%%EOF\n");
-
-            // The document is plain ASCII, so a byte is a character and the offsets above hold.
-            return Encoding.Latin1.GetBytes(pdf.ToString());
+            return RawPdf.Stream("", "q 100 0 0 100 10 10 cm /" + name + " Do Q");
         }
     }
 }

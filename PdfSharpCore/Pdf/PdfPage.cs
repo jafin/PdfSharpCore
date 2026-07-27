@@ -551,6 +551,16 @@ namespace PdfSharpCore.Pdf
         PdfResources _resources;
 
         /// <summary>
+        /// Gives the page a resource dictionary in place of the one it has. The page reads its
+        /// resources but once and keeps them, so the two have to be replaced together.
+        /// </summary>
+        internal void ReplaceResources(PdfResources resources)
+        {
+            Elements[Keys.Resources] = resources;
+            _resources = null;
+        }
+
+        /// <summary>
         /// Implements the interface because the primary function is internal.
         /// </summary>
         PdfResources IContentStream.Resources
