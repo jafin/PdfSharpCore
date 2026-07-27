@@ -1,10 +1,16 @@
 name: dotnet package
 
 on:
+  # A branch with a pull request open is covered by the pull_request trigger below. Building it
+  # here as well would run everything twice for the same commit.
   push:
+    branches:
+      - master
   pull_request:
     branches:
       - master
+  # So that a branch with no pull request open can still be built, on request.
+  workflow_dispatch:
 
 jobs:
   build:
