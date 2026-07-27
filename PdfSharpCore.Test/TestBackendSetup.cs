@@ -17,7 +17,9 @@ namespace PdfSharpCore.Test
         internal static void Initialize()
         {
             ImageSource.ImageSourceImpl = new SkiaImageSource();
-            GlobalFontSettings.FontResolver = new SkiaFontResolver();
+            // Not the resolver the library ships: that one picks a font off the machine, which
+            // lays a document out differently on each of them. See PinnedFontResolver.
+            GlobalFontSettings.FontResolver = new PinnedFontResolver();
             GhostscriptSetup.Configure();
         }
     }
