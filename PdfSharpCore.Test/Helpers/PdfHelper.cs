@@ -72,13 +72,24 @@ namespace PdfSharpCore.Test.Helpers
 
         // Note: For diff to function properly, it requires the underlying image to be in the proper format
         //   For instance, actual and expected must both be sourced from .png files
-        public static DiffOutput Diff(string actualImagePath, string expectedImagePath, string outputPath = null, string filePrefix = null, int fuzzPct = 4)
+        /// <summary>
+        /// How much the pages are shrunk before they are compared. Two rasterizers disagree about
+        /// the pixels along the edge of a glyph, and that disagreement is as fine as the pixels
+        /// themselves, so shrinking the pages averages it away. Text that sits in the wrong place
+        /// is a difference the width of a line or the height of one, which survives.
+        /// </summary>
+        private const int ComparedAtPercent = 25;
+
+        // Note: For diff to function properly, it requires the underlying image to be in the proper format
+        //   For instance, actual and expected must both be sourced from .png files
+        public static DiffOutput Diff(string actualImagePath, string expectedImagePath, string outputPath = null, string filePrefix = null)
         {
             var actual = new MagickImage(actualImagePath);
             var expected = new MagickImage(expectedImagePath);
 
-            // Allow for subtle differences due to cross-platform rendering of the PDF fonts
-            actual.ColorFuzz = new Percentage(fuzzPct);
+            actual.Resize(new Percentage(ComparedAtPercent));
+            expected.Resize(new Percentage(ComparedAtPercent));
+
             // Root mean squared rather than a count, so the answer is a share of how far a page
             // can differ at all, and does not grow with the size of the page.
             var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
@@ -87,7 +98,7 @@ namespace PdfSharpCore.Test.Helpers
             {
                 WriteImage(diffImg, outputPath, $"{filePrefix}_diff");
             }
-            
+
             return new DiffOutput
             {
                 DiffValue = diffVal,
