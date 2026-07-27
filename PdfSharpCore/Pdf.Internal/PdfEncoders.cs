@@ -306,6 +306,23 @@ namespace PdfSharpCore.Pdf.Internal
 
             Debug.Assert(!unicode || bytes.Length % 2 == 0, "Odd number of bytes in Unicode string.");
 
+            // The byte order mark belongs to the value of the string, not to its syntax, so it has to
+            // be part of what gets encrypted. Written outside the ciphertext it would be decrypted as
+            // if it were text, which shifts everything after it and leaves the whole string unreadable
+            // to every reader but this one. Putting it into the bytes here writes the same characters
+            // as before when nothing is encrypted.
+            int byteOrderMarkLength = 0;
+            if (unicode && prefix)
+            {
+                var withByteOrderMark = new byte[bytes.Length + 2];
+                withByteOrderMark[0] = 0xFE;
+                withByteOrderMark[1] = 0xFF;
+                Array.Copy(bytes, 0, withByteOrderMark, 2, bytes.Length);
+                bytes = withByteOrderMark;
+                byteOrderMarkLength = 2;
+                prefix = false;
+            }
+
             bool encrypted = false;
             if (securityHandler != null)
             {
@@ -405,7 +422,10 @@ namespace PdfSharpCore.Pdf.Internal
                     for (int idx = 0; idx < count; idx += 2)
                     {
                         pdf.AppendFormat("{0:X2}{1:X2}", bytes[idx], bytes[idx + 1]);
-                        if (idx != 0 && (idx % 48) == 0)
+                        // The mark is part of the bytes now, so count from the text that follows it
+                        // and the lines break where they always did.
+                        int positionInText = idx - byteOrderMarkLength;
+                        if (positionInText != 0 && (positionInText % 48) == 0)
                             pdf.Append("\n");
                     }
                     pdf.Append(">");

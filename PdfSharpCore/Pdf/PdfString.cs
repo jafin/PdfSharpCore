@@ -200,7 +200,8 @@ namespace PdfSharpCore.Pdf
         {
             get { return _flags; }
         }
-        readonly PdfStringFlags _flags;
+        // Not readonly: decrypting a string can reveal that it is UTF-16BE, see EncryptionValue.
+        PdfStringFlags _flags;
 
         /// <summary>
         /// Gets the string value.
@@ -221,6 +222,17 @@ namespace PdfSharpCore.Pdf
             // BUG: May lead to trouble with the value semantics of PdfString
             set
             {
+                // A text string keeps its byte order mark inside the encrypted bytes, so whether it is
+                // UTF-16BE only becomes apparent once it has been decrypted. The flags were decided by
+                // the lexer, which saw the ciphertext and had nothing to go by, so the mark decides
+                // here and the flags are corrected to match what the value now holds.
+                if (value.Length >= 2 && value[0] == 0xFE && value[1] == 0xFF)
+                {
+                    _value = PdfEncoders.RawUnicodeEncoding.GetString(value, 2, value.Length - 2);
+                    _flags = (_flags & ~PdfStringFlags.EncodingMask) | PdfStringFlags.Unicode;
+                    return;
+                }
+
                 var encoding = (PdfStringEncoding)(_flags & PdfStringFlags.EncodingMask);
                 switch (encoding)
                 {
