@@ -1,5 +1,5 @@
 ﻿using System.IO;
-using FluentAssertions;
+using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using Xunit;

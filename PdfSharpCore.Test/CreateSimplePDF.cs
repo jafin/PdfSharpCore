@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
-using FluentAssertions;
+using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Test.Helpers;

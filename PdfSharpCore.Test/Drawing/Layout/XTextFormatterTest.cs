@@ -1,5 +1,5 @@
 using System.IO;
-using FluentAssertions;
+using AwesomeAssertions;
 using ImageMagick;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
