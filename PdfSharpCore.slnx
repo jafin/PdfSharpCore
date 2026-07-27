@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="MigraDocCore.DocumentObjectModel/MigraDocCore.DocumentObjectModel.csproj" />
+  <Project Path="MigraDocCore.Rendering/MigraDocCore.Rendering.csproj" />
+  <Project Path="PdfSharpCore.Charting/PdfSharpCore.Charting.csproj" />
+  <Project Path="PdfSharpCore.ImageSharp/PdfSharpCore.ImageSharp.csproj" />
+  <Project Path="PdfSharpCore.Skia/PdfSharpCore.Skia.csproj" />
+  <Project Path="PdfSharpCore.Test/PdfSharpCore.Test.csproj" />
+  <Project Path="PdfSharpCore/PdfSharpCore.csproj" />
+  <Project Path="SampleApp/SampleApp.csproj" />
+</Solution>
