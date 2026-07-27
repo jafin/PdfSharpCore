@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
@@ -842,7 +841,7 @@ namespace PdfSharpCore.Pdf
             public PdfDictionary XObject { get; }
             public string XObjectMD5 { get; }
 
-            private static readonly MD5 Hasher = MD5.Create();
+            private static readonly MD5Managed Hasher = new MD5Managed();
             
             public ImageInfo(PdfDictionary xObjects, KeyValuePair<string, PdfItem> item, PdfDictionary xObject)
             {

@@ -5,6 +5,7 @@ using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Security;
 using PdfSharpCore.Test.Helpers;
 using System.IO;
+using System.Reflection;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -43,6 +44,25 @@ namespace PdfSharpCore.Test.Security
             loadDocument.PageCount.Should().Be(1);
             loadDocument.Outlines[0].Title.Should().Be("The only page");
             loadDocument.Info.Producer.Should().Contain("PDFsharp");
+        }
+
+        [Fact]
+        public void SavingAnUnencryptedDocumentDoesNotCreateAHashAlgorithm()
+        {
+            var document = new PdfDocument();
+            document.AddPage();
+            // Saving reads this property whenever the trailer is a cross-reference stream, whether
+            // or not the document is encrypted, so constructing the handler must stay harmless.
+            var securityHandler = document.SecurityHandler;
+
+            using var ms = new MemoryStream();
+            document.Save(ms, false);
+
+            document.SecuritySettings.DocumentSecurityLevel.Should().Be(PdfDocumentSecurityLevel.None);
+            var md5 = securityHandler.GetType()
+                .GetField("_md5Instance", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(securityHandler);
+            md5.Should().BeNull("nothing is encrypted, so no hash algorithm should have been created");
         }
 
         [Fact]

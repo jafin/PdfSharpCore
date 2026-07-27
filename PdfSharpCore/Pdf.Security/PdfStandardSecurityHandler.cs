@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security.Cryptography;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
@@ -594,7 +593,13 @@ namespace PdfSharpCore.Pdf.Security
         /// </summary>
         byte[] _encryptionKey;
 
-        readonly MD5 _md5 = MD5.Create();
+        /// <summary>
+        /// The MD5 implementation the standard security handler is built on. It is created on
+        /// first use, because a handler is also instantiated for documents that are not encrypted.
+        /// </summary>
+        MD5Managed _md5 => _md5Instance ?? (_md5Instance = new MD5Managed());
+        MD5Managed _md5Instance;
+
         /// <summary>
         /// Bytes used for RC4 encryption.
         /// </summary>
