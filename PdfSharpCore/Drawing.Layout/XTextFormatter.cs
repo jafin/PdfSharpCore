@@ -215,14 +215,16 @@ namespace PdfSharpCore.Drawing.Layout
                      _cyDescent;
             }
 
-            int count = _blocks.Count;
             foreach (var line in lines)
             {
                 var lineBlocks = line as Block[] ?? line.ToArray();
-                if (Alignment == XParagraphAlignment.Justify)
+                // The last line of a paragraph keeps its natural width. Stretching it over the
+                // full width of the layout rectangle would tear the few words it holds apart.
+                if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
                 {
                     var locationX = dx;
-                    var gapSize = (layoutRectangle.Width - lineBlocks.Select(l => l.Width).Sum())/ (lineBlocks.Count() - 1);
+                    var gaps = lineBlocks.Length - 1;
+                    var gapSize = gaps > 0 ? (layoutRectangle.Width - lineBlocks.Select(l => l.Width).Sum()) / gaps : 0;
                     foreach (var block in lineBlocks)
                     {
                         _gfx.DrawString(block.Text.Trim(), font, brush, locationX, dy + lineBlocks.First().Location.Y, XStringFormats.TopLeft);
@@ -244,7 +246,17 @@ namespace PdfSharpCore.Drawing.Layout
 
         private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
         {
-            return blocks.GroupBy(b => b.Location.Y);
+            return GetLaidOutBlocks(blocks).GroupBy(b => b.Location.Y);
+        }
+
+        /// <summary>
+        /// Gets the blocks that carry text and were given a location by <see cref="CreateLayout"/>.
+        /// Line breaks have neither, and the blocks from the first one marked with <see cref="Block.Stop"/>
+        /// onwards did not fit into the layout rectangle and were left unpositioned.
+        /// </summary>
+        private static IEnumerable<Block> GetLaidOutBlocks(List<Block> blocks)
+        {
+            return blocks.TakeWhile(b => !b.Stop).Where(b => b.Type != BlockType.LineBreak);
         }
 
         void CreateBlocks()
@@ -317,6 +329,8 @@ namespace PdfSharpCore.Drawing.Layout
                 Block block = _blocks[idx];
                 if (block.Type == BlockType.LineBreak)
                 {
+                    if (idx > firstIndex)
+                        _blocks[idx - 1].EndsParagraph = true;
                     if (Alignment == XParagraphAlignment.Justify)
                         _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
                     HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
@@ -357,10 +371,19 @@ namespace PdfSharpCore.Drawing.Layout
             if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
                 HorizontalAlignLine(firstIndex, count - 1, rectWidth);
             
-            var minY = _blocks.Min(b => b.Location.Y);
-            var maxY = _blocks.Max(b => b.Location.Y + _lineHeight);
-            var minX = _blocks.Min(b => b.Location.X);
-            var maxX = _blocks.Max(b => b.Location.X + b.Width);
+            var laidOutBlocks = GetLaidOutBlocks(_blocks).ToArray();
+            if (laidOutBlocks.Length == 0)
+            {
+                _layoutRectangle = new XRect();
+                return;
+            }
+
+            laidOutBlocks[laidOutBlocks.Length - 1].EndsParagraph = true;
+
+            var minY = laidOutBlocks.Min(b => b.Location.Y);
+            var maxY = laidOutBlocks.Max(b => b.Location.Y + _lineHeight);
+            var minX = laidOutBlocks.Min(b => b.Location.X);
+            var maxX = laidOutBlocks.Max(b => b.Location.X + b.Width);
             _layoutRectangle = new XRect
             {
                 X = minX,

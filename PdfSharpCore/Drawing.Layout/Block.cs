@@ -60,6 +60,12 @@ namespace PdfSharpCore.Drawing.Layout
 		public bool Stop { get; set; }
 
 		/// <summary>
+		/// A flag indicating that this is the last block of a paragraph, because the text ends
+		/// here or an explicit line break follows. Justified text does not stretch such a line.
+		/// </summary>
+		public bool EndsParagraph { get; set; }
+
+		/// <summary>
 		/// Contains information about spacing of the font
 		/// </summary>
 		public FormatterEnvironment Environment { get; set; }

@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
@@ -483,6 +482,7 @@ namespace PdfSharpCore.Pdf
 
         /// <summary>
         /// Gets or sets the PDF version number. Return value 14 e.g. means PDF 1.4 / Acrobat 5 etc.
+        /// Return value 20 means PDF 2.0.
         /// </summary>
         public int Version
         {
@@ -491,7 +491,7 @@ namespace PdfSharpCore.Pdf
             {
                 if (!CanModify)
                     throw new InvalidOperationException(PSSR.CannotModify);
-                if (value < 12 || value > 17) // TODO not really implemented
+                if ((value < 12 || value > 17) && value != 20) // TODO not really implemented
                     throw new ArgumentException(PSSR.InvalidVersionNumber, "value");
                 _version = value;
             }
@@ -841,7 +841,7 @@ namespace PdfSharpCore.Pdf
             public PdfDictionary XObject { get; }
             public string XObjectMD5 { get; }
 
-            private static readonly MD5 Hasher = MD5.Create();
+            private static readonly MD5Managed Hasher = new MD5Managed();
             
             public ImageInfo(PdfDictionary xObjects, KeyValuePair<string, PdfItem> item, PdfDictionary xObject)
             {

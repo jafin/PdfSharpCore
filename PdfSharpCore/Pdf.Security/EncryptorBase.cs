@@ -1,12 +1,16 @@
 ﻿using PdfSharpCore.Pdf.Internal;
 using System;
-using System.Security.Cryptography;
 
 namespace PdfSharpCore.Pdf.Security
 {
     internal abstract class EncryptorBase
     {
-        protected readonly MD5 md5 = MD5.Create();
+        /// <summary>
+        /// The MD5 implementation the standard security handler is built on. It is created on
+        /// first use, because revision 5 and 6 encryption does not need it at all.
+        /// </summary>
+        protected MD5Managed md5 => md5Instance ?? (md5Instance = new MD5Managed());
+        private MD5Managed md5Instance;
 
         /// <summary>
         /// The encryption key for the owner.
@@ -27,6 +31,16 @@ namespace PdfSharpCore.Pdf.Security
         /// The global encryption key.
         /// </summary>
         protected byte[] encryptionKey;
+
+        /// <summary>
+        /// The file encryption key. A document has a single one, even when its strings and
+        /// streams are covered by different crypt filters.
+        /// </summary>
+        public byte[] EncryptionKey
+        {
+            get { return encryptionKey; }
+            set { encryptionKey = value; }
+        }
 
         /// <summary>
         /// The /O value as read from the input document
@@ -108,11 +122,6 @@ namespace PdfSharpCore.Pdf.Security
             if (keyLength <= 0)
                 keyLength = 5;
             keySize = keyLength;
-        }
-
-        public void SetEncryptionKey(byte[] encKey)
-        {
-            encryptionKey = encKey;
         }
 
         /// <summary>

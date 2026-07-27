@@ -1,10 +1,12 @@
 ﻿using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Security;
 using PdfSharpCore.Test.Helpers;
 using System.IO;
+using System.Reflection;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -43,6 +45,25 @@ namespace PdfSharpCore.Test.Security
             loadDocument.PageCount.Should().Be(1);
             loadDocument.Outlines[0].Title.Should().Be("The only page");
             loadDocument.Info.Producer.Should().Contain("PDFsharp");
+        }
+
+        [Fact]
+        public void SavingAnUnencryptedDocumentDoesNotCreateAHashAlgorithm()
+        {
+            var document = new PdfDocument();
+            document.AddPage();
+            // Saving reads this property whenever the trailer is a cross-reference stream, whether
+            // or not the document is encrypted, so constructing the handler must stay harmless.
+            var securityHandler = document.SecurityHandler;
+
+            using var ms = new MemoryStream();
+            document.Save(ms, false);
+
+            document.SecuritySettings.DocumentSecurityLevel.Should().Be(PdfDocumentSecurityLevel.None);
+            var md5 = securityHandler.GetType()
+                .GetField("_md5Instance", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(securityHandler);
+            md5.Should().BeNull("nothing is encrypted, so no hash algorithm should have been created");
         }
 
         [Fact]
@@ -121,6 +142,37 @@ namespace PdfSharpCore.Test.Security
             doc.PageCount.Should().BeGreaterThan(0);
             output.WriteLine("Creator : {0}", doc.Info.Creator);
             output.WriteLine("Producer: {0}", doc.Info.Producer);
+        }
+
+        // 128 bit AES, /V 4 /R 4. The owner password only serves to recover the user password,
+        // which the file encryption key is derived from, so both have to decrypt the document.
+        // The file was contributed for the test suite in issue #467.
+        [Theory]
+        [InlineData("jinglebob8")] // user password
+        [InlineData("pigsfly2")]   // owner password
+        public void CanReadAnEncryptedPdfWithEitherOfItsPasswords(string password)
+        {
+            var path = PathHelper.GetInstance().GetAssetPath("protected-user-and-owner-password.pdf");
+
+            var doc = Pdf.IO.PdfReader.Open(path, password, PdfDocumentOpenMode.Import);
+
+            doc.PageCount.Should().Be(1);
+            // Strings and streams are decrypted by two separate encryptors, and both need the
+            // file encryption key. The strings ...
+            doc.Info.Producer.Should().Contain("Word");
+            // ... and the streams, which only decompress when they were decrypted correctly.
+            ContentReader.ReadContent(doc.Pages[0]).Count.Should().BeGreaterThan(0);
+        }
+
+        [Fact]
+        public void ReadingAnEncryptedPdfWithTheWrongPasswordIsRejected()
+        {
+            var path = PathHelper.GetInstance().GetAssetPath("protected-user-and-owner-password.pdf");
+
+            var ex = Assert.Throws<PdfReaderException>(
+                () => Pdf.IO.PdfReader.Open(path, "not the password", PdfDocumentOpenMode.Import));
+
+            ex.Message.Should().Contain("password is invalid");
         }
     }
 }

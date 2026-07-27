@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security.Cryptography;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
@@ -248,15 +247,19 @@ namespace PdfSharpCore.Pdf.Security
 
             EncryptorFactory.Create(_document, this, out stringEncryptor, out streamEncryptor);
             stringEncryptor.InitEncryptionKey(inputPassword);
-            streamEncryptor.InitEncryptionKey(inputPassword);
+            if (!stringEncryptor.ValidatePassword(inputPassword))
+                return PasswordValidity.Invalid;
 
-            stringEncryptor.ValidatePassword(inputPassword);
+            // Strings and streams can be covered by different crypt filters, but the document has
+            // a single file encryption key, so the stream encryptor is given the key that was just
+            // validated. Deriving it from the input password a second time would break an owner
+            // password up to revision 4: the key belongs to the user password, which validation
+            // recovers from the /O entry.
+            streamEncryptor.EncryptionKey = stringEncryptor.EncryptionKey;
 
-            if (stringEncryptor.PasswordValid && stringEncryptor.HaveOwnerPermission)
-                return PasswordValidity.OwnerPassword;
-            if (stringEncryptor.PasswordValid)
-                return PasswordValidity.UserPassword;
-            return PasswordValidity.Invalid;
+            return stringEncryptor.HaveOwnerPermission
+                ? PasswordValidity.OwnerPassword
+                : PasswordValidity.UserPassword;
         }
 
         [Conditional("DEBUG")]
@@ -594,7 +597,13 @@ namespace PdfSharpCore.Pdf.Security
         /// </summary>
         byte[] _encryptionKey;
 
-        readonly MD5 _md5 = MD5.Create();
+        /// <summary>
+        /// The MD5 implementation the standard security handler is built on. It is created on
+        /// first use, because a handler is also instantiated for documents that are not encrypted.
+        /// </summary>
+        MD5Managed _md5 => _md5Instance ?? (_md5Instance = new MD5Managed());
+        MD5Managed _md5Instance;
+
         /// <summary>
         /// Bytes used for RC4 encryption.
         /// </summary>
