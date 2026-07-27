@@ -4,7 +4,7 @@ What the investigation of issue #461 turned up beyond the defect the issue was r
 
 | item | what | status |
 |---|---|---|
-| 1 | Unused resources are copied with an imported page | open |
+| 1 | Unused resources are copied with an imported page | done, `feat/prune-unused-resources` |
 | 2 | `InsertRange` throws on a page carrying a resolvable link | done, `fix/insert-range-duplicate-annots` |
 | 3 | `InsertRange` keeps only one shape of destination | done, with item 2 |
 
@@ -14,6 +14,10 @@ which `fix/insert-range-duplicate-annots` builds on.
 ---
 
 ## Item 1 — Unused resources are copied with an imported page
+
+**Done** on `feat/prune-unused-resources`, as `PdfSharpCore/Pdf.Advanced/PdfResourcePruner.cs`.
+What follows is the design as built; the two notes marked *changed* are where it departs from what
+was drafted.
 
 ### The defect
 
@@ -54,9 +58,10 @@ a document call it before `Save`.
 Per page:
 
 1. Resolve the page's effective `/Resources`.
-2. Parse the content with `ContentReader.ReadContent(page)` (`Pdf.Content/ContentReader.cs`).
-   `CParser(PdfPage)` already concatenates a `/Contents` array and unfilters it via
-   `PdfContents.CreateSingleContent()`, and does not mutate the page.
+2. Read the content and parse it with `ContentReader.ReadContent(byte[])`.
+   *Changed*: the drafted `ContentReader.ReadContent(page)` goes through `page.Contents`, which
+   rewrites the page's `/Contents` into an array as a side effect of being read. An analysis pass
+   should not alter the document it is looking at, so the pruner concatenates the streams itself.
 3. Walk the `CSequence` collecting (category, name) pairs from the operators that name a resource:
 
    | operator | category | operand |
@@ -90,6 +95,11 @@ Per page:
   and `PdfDocument.PrepareForSave` → `_irefTable.Compact()` (`PdfDocument.cs:423`) drops it.
 - Preserve entries that are not name-keyed resource categories (`/ProcSet`, and anything the
   scanner does not model) untouched.
+- **A page reads its resources but once.** `PdfPage.Resources` caches into `_resources`, so setting
+  `Elements["/Resources"]` alone leaves a page that was asked for its resources beforehand still
+  answering with the ones it started with. `PdfPage.ReplaceResources` sets both together.
+- Give the page its own indirect `PdfResources` rather than a direct dictionary, which is how the
+  dictionary it stands in for was held, and what the rest of the library expects to find.
 
 ### Failure mode: when in doubt, keep everything
 
@@ -101,31 +111,43 @@ corrupt. So any of the following leaves that page's `/Resources` **exactly as it
   (`Pdf.Content/CLexer.cs:149`) is explicitly `NYI: Just scans over it`, and for non-ASCII85 data it
   finds the end by scanning for the literal bytes `E`,`I`, which can match inside binary image data.
   A false match desynchronises the parse, after which a real `/Name Do` can be missed entirely;
-- a used form XObject cannot be resolved, or the cycle guard or depth cap trips;
-- a resource category is present that the scanner does not model.
+- a stream the content draws cannot be read, or the depth cap trips.
 
-Prune per category, not all-or-nothing: uncertainty about `/ColorSpace` should still leave
-`/XObject` and `/Font` prunable, which is where nearly all the bytes are.
+*Changed*: a **cycle does not bail**. A form drawing itself is read once and pruning goes ahead —
+the visited set makes the reading terminate with the used names complete, so there is nothing to be
+uncertain about. Likewise, content naming a resource the dictionary does not hold is ignored rather
+than bailed on: a name that is not there cannot be dropped.
+
+Categories the scanner does not model, and entries that are not written as a dictionary of names,
+are carried over untouched rather than bailing the page — so uncertainty about one category still
+leaves `/XObject` and `/Font` prunable, which is where nearly all the bytes are.
 
 ### Verification
 
-- Unit tests over hand-crafted documents — reuse the `BuildDocument` helper in
-  `PdfSharpCore.Test/IO/SplitTests.cs`:
-  - shared inherited `/Resources` naming three images, one drawn per page → each split file holds one;
-  - form XObject without `/Resources` using a page font → font kept;
-  - image reached only through a nested form → kept;
-  - cyclic form → resources kept, terminates;
-  - inline image present → resources kept unchanged;
-  - unparsable content → resources kept unchanged;
-  - one dictionary shared by two pages → pruning page 1 leaves page 2 whole.
-- Rendered-output equivalence on the real assets (`FamilyTree.pdf`, `test.pdf`, `Pdf20.pdf`) using
-  the existing golden-image harness — `[GoldenImageFact]`, `PdfHelper.Rasterize`, `PdfHelper.Diff`
-  in `PdfSharpCore.Test/Helpers`. Pruning must not change a single rendered page.
+`PdfSharpCore.Test/IO/PruneUnusedResourcesTests.cs`, over documents built by
+`SharedResourceFixtures` on the raw-PDF assembler in `RawPdf.cs`:
+
+- three pages sharing one dictionary that names all three images → each page keeps its own, which
+  fails outright if pruning one page reaches into the dictionary the other two are holding;
+- the same document split → each file under the weight of two images, against over three without
+  pruning, which is the state of affairs the issue reports;
+- a form without `/Resources` → the page font and image it draws are kept, the unused ones dropped;
+- a form with `/Resources` of its own → the page's entry of the same name is not kept alive by it;
+- a form drawing itself → read once, pruned all the same;
+- an inline image, and content behind a filter that cannot be undone → the page left untouched;
+- a page asked for its resources before pruning → answers with the pruned ones afterwards;
+- pruning twice → the same as pruning once.
+
+`PdfSharpCore.Test/IO/PruneUnusedResourcesRenderingTests.cs` renders `FamilyTree.pdf`, `test.pdf`
+and `Pdf20.pdf` before and after pruning through the golden-image harness and compares page by page.
+Not vacuous: `test.pdf` and `Pdf20.pdf` go from 14,187 to 13,048 bytes with the rendering identical.
+
+Whole suite green on net8.0 and net10.0, 139 passed over four runs.
 
 ### Cost
 
-The largest of the three. The scanner and the form-recursion are the bulk; the conservative bail-outs
-are what keep it safe. Worth doing behind an explicit method; not worth doing implicitly on import.
+525 lines, the largest of the three. The scanner and following what is drawn are the bulk; the
+bail-outs are what keep it safe.
 
 ---
 
@@ -201,6 +223,18 @@ The gate was `destArray.Elements.Count == 5`, so `[page /Fit]`, `[page /FitH t]`
 Fixed for free by item 2: the shared path keys off "is the first element of the destination array a
 reference to a page", which is true of every explicit destination form, and it handles `/A` go-to
 actions as well.
+
+---
+
+---
+
+## Turned up on the way
+
+`ImageMagick` drives Ghostscript in process, and one process holds one Ghostscript. Adding a second
+test class that rasterizes made the two run at once, and the one that lost fell back to running
+Ghostscript as a command, which is not there to run on a machine without an installation of its own.
+Every test that rasterizes now sits in one collection that does not run alongside the others —
+`PdfSharpCore.Test/Helpers/RasterizingCollection.cs`, committed separately.
 
 ---
 
