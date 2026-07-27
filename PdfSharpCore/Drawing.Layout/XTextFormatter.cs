@@ -136,11 +136,15 @@ namespace PdfSharpCore.Drawing.Layout
         /// <param name="brush">The text brush.</param>
         /// <param name="layoutRectangle">The layout rectangle.</param>
         /// <param name="lineHeight">The line height.</param>
+        /// <remarks>
+        /// The text is drawn with the alignment the formatter has been given, which is to the top
+        /// left until <see cref="SetAlignment"/> or the properties behind it say otherwise.
+        /// </remarks>
         public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XUnit? lineHeight = null)
         {
             DrawString(text, font, brush, layoutRectangle, new TextFormatAlignment()
             {
-                Horizontal = XParagraphAlignment.Justify, Vertical = XVerticalAlignment.Top
+                Horizontal = Alignment, Vertical = VerticalAlignment
             }, lineHeight);
         }
 
@@ -211,8 +215,9 @@ namespace PdfSharpCore.Drawing.Layout
             }
             else if (VerticalAlignment == XVerticalAlignment.Bottom)
             {
-                dy = layoutRectangle.Location.Y + layoutRectangle.Height - _layoutRectangle.Height + _lineHeight -
-                     _cyDescent;
+                // A line is placed by its top, so the last one ends on the bottom of the rectangle
+                // once the text as a whole is put that far down.
+                dy = layoutRectangle.Location.Y + layoutRectangle.Height - _layoutRectangle.Height;
             }
 
             foreach (var line in lines)
