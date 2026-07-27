@@ -33,6 +33,16 @@ namespace PdfSharpCore.Pdf.Security
         protected byte[] encryptionKey;
 
         /// <summary>
+        /// The file encryption key. A document has a single one, even when its strings and
+        /// streams are covered by different crypt filters.
+        /// </summary>
+        public byte[] EncryptionKey
+        {
+            get { return encryptionKey; }
+            set { encryptionKey = value; }
+        }
+
+        /// <summary>
         /// The /O value as read from the input document
         /// </summary>
         protected byte[] ownerValue;
@@ -112,11 +122,6 @@ namespace PdfSharpCore.Pdf.Security
             if (keyLength <= 0)
                 keyLength = 5;
             keySize = keyLength;
-        }
-
-        public void SetEncryptionKey(byte[] encKey)
-        {
-            encryptionKey = encKey;
         }
 
         /// <summary>

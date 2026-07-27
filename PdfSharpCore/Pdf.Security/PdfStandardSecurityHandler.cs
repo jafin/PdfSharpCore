@@ -247,15 +247,19 @@ namespace PdfSharpCore.Pdf.Security
 
             EncryptorFactory.Create(_document, this, out stringEncryptor, out streamEncryptor);
             stringEncryptor.InitEncryptionKey(inputPassword);
-            streamEncryptor.InitEncryptionKey(inputPassword);
+            if (!stringEncryptor.ValidatePassword(inputPassword))
+                return PasswordValidity.Invalid;
 
-            stringEncryptor.ValidatePassword(inputPassword);
+            // Strings and streams can be covered by different crypt filters, but the document has
+            // a single file encryption key, so the stream encryptor is given the key that was just
+            // validated. Deriving it from the input password a second time would break an owner
+            // password up to revision 4: the key belongs to the user password, which validation
+            // recovers from the /O entry.
+            streamEncryptor.EncryptionKey = stringEncryptor.EncryptionKey;
 
-            if (stringEncryptor.PasswordValid && stringEncryptor.HaveOwnerPermission)
-                return PasswordValidity.OwnerPassword;
-            if (stringEncryptor.PasswordValid)
-                return PasswordValidity.UserPassword;
-            return PasswordValidity.Invalid;
+            return stringEncryptor.HaveOwnerPermission
+                ? PasswordValidity.OwnerPassword
+                : PasswordValidity.UserPassword;
         }
 
         [Conditional("DEBUG")]
