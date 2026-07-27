@@ -1,10 +1,15 @@
 # Spec — remaining page-import defects after issue #461
 
-Status: draft for review. Branch `fix/imported-annotations-copy-linked-pages` already fixes the
-link-destination cause of #461; everything below is what that investigation turned up and left.
+What the investigation of issue #461 turned up beyond the defect the issue was raised about.
 
-Three items, independent, listed in the order I would do them. Item 2 is a crash and is cheap.
-Item 3 falls out of item 2. Item 1 is the large one.
+| item | what | status |
+|---|---|---|
+| 1 | Unused resources are copied with an imported page | open |
+| 2 | `InsertRange` throws on a page carrying a resolvable link | done, `fix/insert-range-duplicate-annots` |
+| 3 | `InsertRange` keeps only one shape of destination | done, with item 2 |
+
+The link destinations of #461 itself are fixed on `fix/imported-annotations-copy-linked-pages`,
+which `fix/insert-range-duplicate-annots` builds on.
 
 ---
 
@@ -126,6 +131,8 @@ are what keep it safe. Worth doing behind an explicit method; not worth doing im
 
 ## Item 2 — `PdfPages.InsertRange` throws on a page that carries a resolvable link
 
+**Done** on `fix/insert-range-duplicate-annots`.
+
 ### The defect
 
 Confirmed by direct probe:
@@ -147,10 +154,10 @@ loop only ever adds an annotation that is a `/Link` **and** whose `/Dest` is a 5
 the crash does not happen. Hit all three — an ordinary `[page /XYZ l t z]` link between two pages
 being inserted together — and it throws.
 
-### Proposed fix
+### The fix
 
-Delete the second loop entirely and let the import path handle annotations, adding the call the
-first loop is missing:
+The second loop is gone and the import path handles annotations, with the calls the first loop was
+missing added to it:
 
 ```csharp
 PdfAnnotations.FixImportedAnnotation(page);
@@ -165,25 +172,35 @@ This also stops `InsertRange` silently discarding every annotation that is not a
 key handling is a whitelist (`/BS`, `/F`, `/Rect`, `/StructParent`, `/Subtype`, `/Dest`) that drops
 everything else on the floor.
 
+Net effect on the library: 125 lines gone, 6 added. `RemapReference` had no other caller and went
+with the loop.
+
 ### Verification
 
-- A page with a 5-element `/Dest` link inserted via `InsertRange` no longer throws.
-- Links between two pages inserted together still point at the inserted pages.
-- Non-link annotations survive `InsertRange` (new behaviour, worth an explicit test).
-- The existing `Merge` tests stay green.
+`PdfSharpCore.Test/IO/InsertRangeTests.cs`, all of which failed before the change:
+
+- a 5-element `/Dest` link no longer throws;
+- a link to a page of the range points at the inserted page rather than at a second copy of it,
+  over `/XYZ`, `/Fit`, `/FitH`, `/FitR` and a `/A` go-to action;
+- a link to a page left out of the range loses its destination, and that page is not copied in;
+- an annotation that is not a link survives, as does every annotation of a page with more than one.
+
+The fixtures moved to `PdfSharpCore.Test/IO/ImportedPageFixtures.cs` so the split tests and these
+share them. Whole suite green on net8.0 and net10.0, 126 passed.
 
 ---
 
 ## Item 3 — `InsertRange` drops every destination that is not `[page /XYZ l t z]`
 
-`PdfPages.cs:315` gates on `destArray.Elements.Count == 5`, so `[page /Fit]`, `[page /FitH t]`,
-`[page /FitB]`, `[page /FitR l b r t]` and friends are all discarded, along with the whole
-annotation. `/A << /S /GoTo /D … >>` actions are not looked at at all, and neither are named
-destinations.
+**Done**, with item 2.
 
-Resolved for free by item 2: the shared path keys off "is the first element of the destination array
-a reference to a page", which is true of every explicit destination form, and it handles `/A`
-go-to actions as well. No separate work.
+The gate was `destArray.Elements.Count == 5`, so `[page /Fit]`, `[page /FitH t]`, `[page /FitB]`,
+`[page /FitR l b r t]` and friends were all discarded, along with the whole annotation.
+`/A << /S /GoTo /D … >>` actions were not looked at at all, and neither were named destinations.
+
+Fixed for free by item 2: the shared path keys off "is the first element of the destination array a
+reference to a page", which is true of every explicit destination form, and it handles `/A` go-to
+actions as well.
 
 ---
 
