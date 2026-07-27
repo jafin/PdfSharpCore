@@ -82,6 +82,20 @@ gfx.DrawString("Hello World!", font, textColor, layout, format);
 document.Save("helloworld.pdf");
 ```
 
+## Running the tests
+
+`dotnet test` needs no setup. Ghostscript, used to rasterize PDFs for the visual comparison tests,
+comes from the `Ghostscript.NativeAssets` package, so there is nothing to install on Windows.
+On Linux and macOS ImageMagick invokes the system `gs` delegate instead, so install Ghostscript
+through your package manager (`apt-get install ghostscript`, `brew install ghostscript`) if you
+want those tests to run.
+
+The visual comparison tests in `XTextFormatterTest` compare against reference images rendered on
+Linux. Text rasterizes differently elsewhere because a different set of system fonts is installed,
+so on other platforms they report as skipped with the reason rather than failing. CI runs on Linux
+and remains the authority on rendering; if you change text layout, check its result.
+
+
 ## Contributing
 
 We appreciate feedback and contribution to this repo!

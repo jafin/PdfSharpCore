@@ -21,6 +21,9 @@ jobs:
       - name: DotNetBuild
         shell: pwsh
         run: ./ci-build.ps1
+      # The Ghostscript.NativeAssets package covers Windows, where ImageMagick loads the
+      # Ghostscript DLL in process. On Linux it shells out to the system "gs" delegate instead,
+      # so the visual comparison tests still need Ghostscript installed here.
       - name: Install Ghostscript
         run: sudo apt-get install -y ghostscript
       - name: Test

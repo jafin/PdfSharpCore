@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.Test.Helpers;
 using PdfSharpCore.Utils;
 
 namespace PdfSharpCore.Test
@@ -17,6 +18,7 @@ namespace PdfSharpCore.Test
         {
             ImageSource.ImageSourceImpl = new SkiaImageSource();
             GlobalFontSettings.FontResolver = new SkiaFontResolver();
+            GhostscriptSetup.Configure();
         }
     }
 }
