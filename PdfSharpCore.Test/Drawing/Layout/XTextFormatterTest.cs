@@ -1,10 +1,15 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AwesomeAssertions;
 using ImageMagick;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Drawing.Layout.enums;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.Pdf.Content;
+using PdfSharpCore.Pdf.Content.Objects;
 using PdfSharpCore.Test.Helpers;
 using Xunit;
 
@@ -16,16 +21,17 @@ namespace PdfSharpCore.Test.Drawing.Layout
         private static readonly string _expectedImagesPath = Path.Combine("Drawing", "Layout");
 
         private PdfDocument _document;
+        private PdfPage _page;
         private XGraphics _renderer;
         private XTextFormatter _textFormatter;
-        
+
         // Run before each test
         public XTextFormatterTest()
         {
             _document = new PdfDocument();
-            var page = _document.AddPage();
-            page.Size = PageSize.A6; // 295 x 417 pts
-            _renderer = XGraphics.FromPdfPage(page);
+            _page = _document.AddPage();
+            _page.Size = PageSize.A6; // 295 x 417 pts
+            _renderer = XGraphics.FromPdfPage(_page);
             _textFormatter = new XTextFormatter(_renderer);
         }
         
@@ -114,6 +120,112 @@ namespace PdfSharpCore.Test.Drawing.Layout
             var diffResult = DiffPage(_document, "DrawMultiLineStringsWithLineHeight", 1);
             
             diffResult.DiffValue.Should().Be(0);
+        }
+
+        [Theory]
+        [InlineData("Line1\r\nLine2")] // Windows
+        [InlineData("Line1\nLine2")]   // Unix
+        [InlineData("Line1\rLine2")]   // classic Mac
+        public void DrawStringPutsEachLineOfABreakedTextOnItsOwnLine(string text)
+        {
+            var font = new XFont("Arial", 12);
+            var layout = new XRect(12, 12, 200, 50);
+
+            _textFormatter.DrawString(text, font, XBrushes.Black, layout);
+
+            var shownText = GetShownText();
+            shownText.Should().HaveCount(2, "each line is drawn with a single show operation");
+            shownText[0].Position.X.Should().Be(shownText[1].Position.X);
+            LineDistance(shownText).Should().BeApproximately(font.GetHeight(), 0.001);
+        }
+
+        [Fact]
+        public void DrawStringDoesNotDrawTextThatDoesNotFitTheLayoutRectangle()
+        {
+            var font = new XFont("Arial", 12);
+            // Room for two lines only.
+            var layout = new XRect(12, 12, 200, 2 * font.GetHeight());
+
+            _textFormatter.DrawString("Line1\nLine2\nLine3", font, XBrushes.Black, layout);
+
+            var shownText = GetShownText();
+            shownText.Should().HaveCount(2);
+            shownText.Select(t => t.Position.Y).Distinct().Should().HaveCount(2);
+        }
+
+        [Fact]
+        public void DrawStringKeepsBlankLines()
+        {
+            var font = new XFont("Arial", 12);
+            var layout = new XRect(12, 12, 200, 100);
+
+            _textFormatter.DrawString("Line1\n\nLine3", font, XBrushes.Black, layout);
+
+            var shownText = GetShownText();
+            shownText.Should().HaveCount(2, "the blank line has nothing to show");
+            LineDistance(shownText).Should().BeApproximately(2 * font.GetHeight(), 0.001);
+        }
+
+        [Fact]
+        public void GetLayoutReportsOneLineHeightPerLineOfABreakedText()
+        {
+            var font = new XFont("Arial", 12);
+            var layout = new XRect(12, 12, 200, 100);
+
+            var required = _textFormatter.GetLayout("Line1\r\nLine2", font, XBrushes.Black, layout);
+
+            required.Height.Should().BeApproximately(2 * font.GetHeight(), 0.001);
+        }
+
+        /// <summary>
+        ///   Gets the distance between the first two shown lines. The Y axis of the PDF user space
+        ///   points up, so a line further down the page has the lower Y coordinate.
+        /// </summary>
+        private static double LineDistance(IReadOnlyList<(string Text, XPoint Position)> shownText)
+        {
+            return shownText[0].Position.Y - shownText[1].Position.Y;
+        }
+
+        /// <summary>
+        ///   Extracts the text-showing operations from the page, in the order they were written.
+        ///   Td offsets are relative to the previous text position, so they are accumulated to
+        ///   give the absolute position of each shown string.
+        /// </summary>
+        private IReadOnlyList<(string Text, XPoint Position)> GetShownText()
+        {
+            _renderer.Dispose(); // flush the content stream
+
+            var result = new List<(string, XPoint)>();
+            var position = new XPoint();
+            foreach (var op in ContentReader.ReadContent(_page).OfType<COperator>())
+            {
+                switch (op.OpCode.OpCodeName)
+                {
+                    case OpCodeName.BT:
+                        position = new XPoint();
+                        break;
+                    case OpCodeName.Td:
+                        position += new XVector(GetNumber(op.Operands[0]), GetNumber(op.Operands[1]));
+                        break;
+                    case OpCodeName.Tj:
+                        result.Add((((CString)op.Operands[0]).Value, position));
+                        break;
+                }
+            }
+            return result;
+        }
+
+        private static double GetNumber(CObject operand)
+        {
+            switch (operand)
+            {
+                case CReal real:
+                    return real.Value;
+                case CInteger integer:
+                    return integer.Value;
+                default:
+                    throw new InvalidOperationException($"Expected a number, got {operand.GetType().Name}.");
+            }
         }
 
         private static DiffOutput DiffPage(PdfDocument document, string filePrefix, int pageNum)
