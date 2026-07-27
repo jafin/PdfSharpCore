@@ -65,7 +65,7 @@ namespace PdfSharpCore.Drawing
                 throw new ArgumentException("Stream is too large.", "stream");
             _length = (int)_stream.Length;
             _data = new byte[_length];
-            _stream.Read(_data, 0, _length);
+            PdfSharpCore.Internal.StreamHelper.ReadUpTo(_stream, _data, 0, _length);
         }
 
         internal byte GetByte(int offset)

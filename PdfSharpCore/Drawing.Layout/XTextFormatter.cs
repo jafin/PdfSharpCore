@@ -92,9 +92,6 @@ namespace PdfSharpCore.Drawing.Layout
         double _spaceWidth;
         double _lineHeight;
 
-        // Bounding box of the formatted text after layout
-        private XRect _textLayout;
-
         /// <summary>
         /// Gets or sets the bounding box of the layout.
         /// </summary>

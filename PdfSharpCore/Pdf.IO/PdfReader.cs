@@ -83,7 +83,8 @@ namespace PdfSharpCore.Pdf.IO
                 {
                     stream = new FileStream(realPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     byte[] bytes = new byte[1024];
-                    stream.Read(bytes, 0, 1024);
+                    // A file shorter than the buffer is normal here; the remainder stays zero.
+                    PdfSharpCore.Internal.StreamHelper.ReadUpTo(stream, bytes, 0, 1024);
                     return GetPdfFileVersion(bytes);
                 }
             }
@@ -119,7 +120,8 @@ namespace PdfSharpCore.Pdf.IO
             {
                 pos = stream.Position;
                 byte[] bytes = new byte[1024];
-                stream.Read(bytes, 0, 1024);
+                // A file shorter than the buffer is normal here; the remainder stays zero.
+                PdfSharpCore.Internal.StreamHelper.ReadUpTo(stream, bytes, 0, 1024);
                 return GetPdfFileVersion(bytes);
             }
             // ReSharper disable once EmptyGeneralCatchClause
@@ -383,7 +385,8 @@ namespace PdfSharpCore.Pdf.IO
                 // Get file version.
                 byte[] header = new byte[1024];
                 stream.Position = 0;
-                stream.Read(header, 0, 1024);
+                // A file shorter than the buffer is normal here; the remainder stays zero.
+                PdfSharpCore.Internal.StreamHelper.ReadUpTo(stream, header, 0, 1024);
                 document._version = GetPdfFileVersion(header);
                 if (document._version == 0)
                     throw new InvalidOperationException(PSSR.InvalidPdf);
