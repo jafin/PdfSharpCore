@@ -1342,7 +1342,7 @@ namespace PdfSharpCore.Drawing.Pdf
                 if (_gfx.PageDirection == XPageDirection.Downwards)
                 {
                     // Take TrimBox into account.
-                    PageHeightPt = Size.Height;
+                    PageHeightPt = VisiblePageSize.Height;
                     XPoint trimOffset = new XPoint();
                     if (_page != null && _page.TrimMargins.AreSet)
                     {
@@ -1383,6 +1383,11 @@ namespace PdfSharpCore.Drawing.Pdf
 
                     // Save initial graphic state.
                     SaveState();
+
+                    // Turn the page the way the viewer will show it, so that the origin is the
+                    // corner the reader sees first. It has to be concatenated before the matrix
+                    // below, because that one still works in the units of the caller.
+                    AppendPageRotation();
 
                     // Set default page transformation, if any.
                     if (!DefaultViewMatrix.IsIdentity)
@@ -1429,6 +1434,7 @@ namespace PdfSharpCore.Drawing.Pdf
 
                     // Save initial graphic state.
                     SaveState();
+                    AppendPageRotation();
                     // Set page transformation.
                     const string format = Config.SignificantFigures7;
                     double[] cm = DefaultViewMatrix.GetElements();
@@ -1436,6 +1442,78 @@ namespace PdfSharpCore.Drawing.Pdf
                         cm[0], cm[1], cm[2], cm[3], cm[4], cm[5]);
                 }
             }
+        }
+
+        /// <summary>
+        /// Concatenates the matrix that maps the page as the viewer shows it onto the page as it is
+        /// stored, undoing the /Rotate entry of the page. Without it everything drawn on a rotated
+        /// page ends up turned, and on a page rotated by 90 or 270 degrees it is also displaced,
+        /// because such a page reports the width and the height the viewer shows, not the ones the
+        /// media box holds.
+        /// </summary>
+        void AppendPageRotation()
+        {
+            XMatrix rotation = PageRotationMatrix();
+            if (rotation.IsIdentity)
+                return;
+
+            const string format = Config.SignificantFigures7;
+            double[] cm = rotation.GetElements();
+            AppendFormatArgs("{0:" + format + "} {1:" + format + "} {2:" + format + "} {3:" + format + "} {4:" + format + "} {5:" + format + "} cm ",
+                cm[0], cm[1], cm[2], cm[3], cm[4], cm[5]);
+        }
+
+        /// <summary>
+        /// Gets the matrix that turns the page the way the viewer shows it. The corners of the
+        /// visible page are mapped onto the corners of the media box that the /Rotate entry sends
+        /// them to.
+        /// </summary>
+        XMatrix PageRotationMatrix()
+        {
+            XSize mediaBox = StoredPageSize;
+            switch (PageRotation)
+            {
+                case 90:
+                    return new XMatrix(0, 1, -1, 0, mediaBox.Width, 0);
+                case 180:
+                    return new XMatrix(-1, 0, 0, -1, mediaBox.Width, mediaBox.Height);
+                case 270:
+                    return new XMatrix(0, -1, 1, 0, 0, mediaBox.Height);
+                default:
+                    return new XMatrix();
+            }
+        }
+
+        /// <summary>
+        /// Gets the /Rotate entry of the page, normalized to 0, 90, 180 or 270.
+        /// </summary>
+        int PageRotation
+        {
+            get
+            {
+                if (_page == null)
+                    return 0;
+                int rotation = _page.Rotate % 360;
+                return rotation < 0 ? rotation + 360 : rotation;
+            }
+        }
+
+        /// <summary>
+        /// Gets the size of this page or form as it is written to the file. It is the area drawing
+        /// ends up in, before the viewer turns the page.
+        /// </summary>
+        XSize StoredPageSize
+        {
+            get { return _page != null ? _page.StoredSize : _form.Size; }
+        }
+
+        /// <summary>
+        /// Gets the size of this page or form as the viewer shows it, which is the size the caller
+        /// draws on. It differs from the stored size when the page is turned by a quarter.
+        /// </summary>
+        XSize VisiblePageSize
+        {
+            get { return _page != null ? new XSize(_page.Width, _page.Height) : _form.Size; }
         }
 
         /// <summary>
@@ -1657,19 +1735,6 @@ namespace PdfSharpCore.Drawing.Pdf
                 if (_page != null)
                     return _page.Resources;
                 return _form.Resources;
-            }
-        }
-
-        /// <summary>
-        /// Gets the size of this page or form.
-        /// </summary>
-        internal XSize Size
-        {
-            get
-            {
-                if (_page != null)
-                    return new XSize(_page.Width, _page.Height);
-                return _form.Size;
             }
         }
 
