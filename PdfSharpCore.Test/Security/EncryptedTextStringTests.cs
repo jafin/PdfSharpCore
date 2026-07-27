@@ -83,23 +83,41 @@ namespace PdfSharpCore.Test.Security
             reread.Info.Title.Should().Be(Title);
         }
 
-        [Fact]
-        public void AnUnencryptedDocumentSpellsOutTheByteOrderMarkAsBefore()
+        [Theory]
+        [InlineData(Title)]
+        // Long enough for the hexadecimal string to break across lines, which happens every 48
+        // bytes of text. The mark now travels with those bytes, so it must not carry the count
+        // with it and move every break two bytes along.
+        [InlineData("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd")]
+        public void AnUnencryptedDocumentIsWrittenExactlyAsBefore(string title)
         {
             var document = new PdfDocument();
             document.AddPage();
-            document.Info.Title = Title;
+            document.Info.Title = title;
 
             using var output = new MemoryStream();
             document.Save(output, false);
 
-            // Nothing is encrypted, so the bytes are what they always were.
-            var expected = new StringBuilder("/Title <FEFF");
-            foreach (byte b in Encoding.BigEndianUnicode.GetBytes(Title))
-                expected.AppendFormat("{0:X2}", b);
-            expected.Append('>');
+            Encoding.Latin1.GetString(output.ToArray())
+                .Should().Contain("/Title " + HexStringAsItWasWrittenBefore(title));
+        }
 
-            Encoding.Latin1.GetString(output.ToArray()).Should().Contain(expected.ToString());
+        /// <summary>
+        ///   The hexadecimal string the writer produced before the byte order mark moved into the
+        ///   bytes: the mark spelled out, then the text, broken after every 48 bytes of that text.
+        /// </summary>
+        private static string HexStringAsItWasWrittenBefore(string text)
+        {
+            var bytes = Encoding.BigEndianUnicode.GetBytes(text);
+            var hex = new StringBuilder("<FEFF");
+            for (var idx = 0; idx < bytes.Length; idx += 2)
+            {
+                hex.AppendFormat("{0:X2}{1:X2}", bytes[idx], bytes[idx + 1]);
+                if (idx != 0 && idx % 48 == 0)
+                    hex.Append('\n');
+            }
+            hex.Append('>');
+            return hex.ToString();
         }
 
         private static byte[] SaveEncryptedDocument(PdfDocumentSecurityLevel level)
