@@ -217,7 +217,7 @@ namespace PdfSharpCore
 
         public static string InvalidVersionNumber
         {
-            get { return "Invalid version number. Valid values are 12, 13, and 14."; }
+            get { return "Invalid version number. Valid values are 12 to 17 and 20."; }
         }
 
         public static string CannotHandleXRefStreams
