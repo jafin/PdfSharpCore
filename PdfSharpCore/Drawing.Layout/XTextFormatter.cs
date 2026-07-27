@@ -218,7 +218,9 @@ namespace PdfSharpCore.Drawing.Layout
             foreach (var line in lines)
             {
                 var lineBlocks = line as Block[] ?? line.ToArray();
-                if (Alignment == XParagraphAlignment.Justify)
+                // The last line of a paragraph keeps its natural width. Stretching it over the
+                // full width of the layout rectangle would tear the few words it holds apart.
+                if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
                 {
                     var locationX = dx;
                     var gaps = lineBlocks.Length - 1;
@@ -327,6 +329,8 @@ namespace PdfSharpCore.Drawing.Layout
                 Block block = _blocks[idx];
                 if (block.Type == BlockType.LineBreak)
                 {
+                    if (idx > firstIndex)
+                        _blocks[idx - 1].EndsParagraph = true;
                     if (Alignment == XParagraphAlignment.Justify)
                         _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
                     HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
@@ -373,6 +377,8 @@ namespace PdfSharpCore.Drawing.Layout
                 _layoutRectangle = new XRect();
                 return;
             }
+
+            laidOutBlocks[laidOutBlocks.Length - 1].EndsParagraph = true;
 
             var minY = laidOutBlocks.Min(b => b.Location.Y);
             var maxY = laidOutBlocks.Max(b => b.Location.Y + _lineHeight);

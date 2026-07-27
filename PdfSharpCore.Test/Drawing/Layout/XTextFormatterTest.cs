@@ -177,6 +177,39 @@ namespace PdfSharpCore.Test.Drawing.Layout
             required.Height.Should().BeApproximately(2 * font.GetHeight(), 0.001);
         }
 
+        [Fact]
+        public void DrawStringStretchesJustifiedLinesButNotTheLastOneOfTheText()
+        {
+            var font = new XFont("Arial", 12);
+            var layout = new XRect(12, 12, 200, 100);
+
+            _textFormatter.DrawString(
+                "This is a long piece of text that needs more than a single line to fit, and ends short.",
+                font, XBrushes.Black, layout, Justified);
+
+            var lines = GetShownText().GroupBy(t => t.Position.Y).ToArray();
+            lines.Length.Should().BeGreaterThan(2);
+            lines.First().Should().HaveCountGreaterThan(1, "a stretched line is drawn word by word");
+            lines.Last().Should().HaveCount(1, "the last line of the text is not stretched");
+        }
+
+        [Fact]
+        public void DrawStringDoesNotStretchTheJustifiedLineBeforeALineBreak()
+        {
+            var font = new XFont("Arial", 12);
+            var layout = new XRect(12, 12, 200, 100);
+
+            _textFormatter.DrawString("Two words\nTwo words", font, XBrushes.Black, layout, Justified);
+
+            var shownText = GetShownText();
+            shownText.Should().HaveCount(2, "neither line is stretched, so each is drawn in one go");
+            shownText[0].Position.X.Should().Be(shownText[1].Position.X);
+            LineDistance(shownText).Should().BeApproximately(font.GetHeight(), 0.001);
+        }
+
+        private static TextFormatAlignment Justified =>
+            new TextFormatAlignment { Horizontal = XParagraphAlignment.Justify, Vertical = XVerticalAlignment.Top };
+
         /// <summary>
         ///   Gets the distance between the first two shown lines. The Y axis of the PDF user space
         ///   points up, so a line further down the page has the lower Y coordinate.
