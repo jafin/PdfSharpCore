@@ -79,7 +79,9 @@ namespace PdfSharpCore.Test.Helpers
 
             // Allow for subtle differences due to cross-platform rendering of the PDF fonts
             actual.ColorFuzz = new Percentage(fuzzPct);
-            var diffImg = actual.Compare(expected, ErrorMetric.Absolute, out var diffVal);
+            // Root mean squared rather than a count, so the answer is a share of how far a page
+            // can differ at all, and does not grow with the size of the page.
+            var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
 
             if (diffVal > 0 && outputPath != null && filePrefix != null)
             {
@@ -110,6 +112,12 @@ namespace PdfSharpCore.Test.Helpers
     public class DiffOutput
     {
         public IMagickImage DiffImage;
+
+        /// <summary>
+        /// How far the two images stand apart, from 0 for a pair that matches to 1 for black
+        /// against white. Text that moved shows up here in the percents, while the edges of glyphs
+        /// drawn by one rasterizer rather than another stay far below.
+        /// </summary>
         public double DiffValue;
     }
 }
