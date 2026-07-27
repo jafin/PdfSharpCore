@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,6 +19,16 @@ namespace PdfSharpCore.Test.Drawing.Layout
     {
         private static readonly string _outDir = "TestResults/XTextFormatterTest";
         private static readonly string _expectedImagesPath = Path.Combine("Drawing", "Layout");
+
+        /// <summary>
+        ///   How far a page may stand from its reference image before the comparison fails.
+        ///   The font is shipped with the tests, so the text is laid out identically wherever they
+        ///   run and only the drawing of the edges of the glyphs is left to the rasterizer of the
+        ///   machine. That lands two orders of magnitude below this. Text that moved does not:
+        ///   the defects these images caught while they were being remade measured between 0.05
+        ///   and 0.16.
+        /// </summary>
+        private const double MaxDifference = 0.02;
 
         private PdfDocument _document;
         private PdfPage _page;
@@ -43,7 +53,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
 
             var diffResult = DiffPage(_document, "DrawSingleLineString", 1);
             
-            diffResult.DiffValue.Should().Be(0);
+            diffResult.DiffValue.Should().BeLessThan(MaxDifference);
         }
         
         [GoldenImageFact]
@@ -55,7 +65,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
 
             var diffResult = DiffPage(_document, "DrawMultilineStringWithTruncate", 1);
             
-            diffResult.DiffValue.Should().Be(0);
+            diffResult.DiffValue.Should().BeLessThan(MaxDifference);
         }
         
         [GoldenImageFact]
@@ -68,7 +78,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
 
             var diffResult = DiffPage(_document, "DrawMultiLineStringWithOverflow", 1);
             
-            diffResult.DiffValue.Should().Be(0);
+            diffResult.DiffValue.Should().BeLessThan(MaxDifference);
         }
         
         [GoldenImageFact]
@@ -90,7 +100,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
 
             var diffResult = DiffPage(_document, "DrawMultiLineStringsWithAlignment", 1);
             
-            diffResult.DiffValue.Should().Be(0);
+            diffResult.DiffValue.Should().BeLessThan(MaxDifference);
         }
         
         [GoldenImageFact]
@@ -119,7 +129,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
 
             var diffResult = DiffPage(_document, "DrawMultiLineStringsWithLineHeight", 1);
             
-            diffResult.DiffValue.Should().Be(0);
+            diffResult.DiffValue.Should().BeLessThan(MaxDifference);
         }
 
         [Theory]
