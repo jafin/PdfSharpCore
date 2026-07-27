@@ -20,7 +20,7 @@ Image support has been implemented with [SixLabors.ImageSharp](https://github.co
 ## Example
 
 The following code snippet creates a simple PDF-file with the text 'Hello World!'.
-The code is written for a .NET 6 console app with top level statements.
+The code is written for a .NET 8 console app with top level statements.
 
 ```csharp
 using PdfSharpCore.Drawing;
