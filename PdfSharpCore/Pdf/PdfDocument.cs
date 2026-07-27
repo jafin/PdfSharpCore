@@ -812,6 +812,25 @@ namespace PdfSharpCore.Pdf
             }
         }
 
+        /// <summary>
+        /// Drops from each page the resources it does not draw with.
+        /// <para>
+        /// Pages of a document commonly share one resource dictionary naming every font and image in
+        /// it, whether or not a given page draws with them. Importing such a page brings all of them
+        /// along, which is why splitting a document into one file per page can give every file the
+        /// weight of the whole document. Call this on the document that is about to be saved.
+        /// </para>
+        /// <para>
+        /// A page whose content cannot be read in full is left as it stands, so this never drops a
+        /// resource a page turns out to need.
+        /// </para>
+        /// </summary>
+        public void PruneUnusedResources()
+        {
+            foreach (PdfPage page in Pages)
+                PdfResourcePruner.Prune(page);
+        }
+
         public void ConsolidateImages()
         {
             var images = ImageInfo.FindAll(this);
