@@ -280,7 +280,7 @@ namespace PdfSharpCore.Pdf.IO
 #else
                 var startOfStream = _lexer.Position;
                 int length = GetStreamLength(dict);
-                byte[] bytes = _lexer.ReadStream(length);
+                byte[] bytes = length < 0 ? null : _lexer.ReadStream(length);
 #if true_
                 if (dict.Elements.GetString("/Filter") == "/FlateDecode")
                 {
@@ -306,22 +306,25 @@ namespace PdfSharpCore.Pdf.IO
                 End: ;
                 }
 #endif
-                PdfDictionary.PdfStream stream = new PdfDictionary.PdfStream(bytes, dict);
-                dict.Stream = stream;
-                try
+                if (bytes == null)
                 {
-                    ReadSymbol(Symbol.EndStream);
+                    // The dictionary does not say how long its stream is.
+                    if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
+                        throw new InvalidOperationException("Cannot retrieve stream length.");
                 }
-                catch (PdfReaderException)
+                else
                 {
-                    // stream length may be incorrect, scan byte by byte up to the "endstream" keyword
-                    _lexer.Position = startOfStream;
-                    _lexer.Position = _lexer.MoveToStartOfStream();
-                    bytes = _lexer.ScanUntilMarker(PdfEncoders.RawEncoding.GetBytes("\nendstream"), out var markerFound);
-                    if (!markerFound)
-                        throw;
-                    stream = new PdfDictionary.PdfStream(bytes, dict);
-                    dict.Stream = stream;
+                    dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
+                    try
+                    {
+                        ReadSymbol(Symbol.EndStream);
+                    }
+                    catch (PdfReaderException)
+                    {
+                        // The stream length is incorrect, look for the end of the stream instead.
+                        if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
+                            throw;
+                    }
                 }
                 symbol = ScanNextToken();
 #endif
@@ -344,13 +347,40 @@ namespace PdfSharpCore.Pdf.IO
         {
             Symbol symbol = _lexer.Symbol;
             Debug.Assert(symbol == Symbol.BeginStream);
-            int length = GetStreamLength(dict);
-            byte[] bytes = _lexer.ReadStream(length);
-            PdfDictionary.PdfStream stream = new PdfDictionary.PdfStream(bytes, dict);
             Debug.Assert(dict.Stream == null, "Dictionary already has a stream.");
-            dict.Stream = stream;
+            var startOfStream = _lexer.Position;
+            int length = GetStreamLength(dict);
+            if (length < 0)
+            {
+                if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
+                    throw new InvalidOperationException("Cannot retrieve stream length.");
+                ScanNextToken();
+                return;
+            }
+            byte[] bytes = _lexer.ReadStream(length);
+            dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
             ReadSymbol(Symbol.EndStream);
             ScanNextToken();
+        }
+
+        /// <summary>
+        /// Reads the stream of a dictionary by looking for the keyword that ends it, for the
+        /// documents whose /Length entry is missing or does not describe the stream.
+        /// </summary>
+        /// <returns>False when the document does not hold the keyword at all.</returns>
+        private bool TryReadStreamUpToEndOfStream(PdfDictionary dict, long startOfStream)
+        {
+            _lexer.Position = startOfStream;
+            _lexer.Position = _lexer.MoveToStartOfStream();
+            var bytes = _lexer.ScanUntilMarker(PdfEncoders.RawEncoding.GetBytes("\nendstream"), out var markerFound);
+            if (!markerFound)
+                return false;
+
+            dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
+            // Record what was read. The dictionary has to describe its stream correctly once
+            // the document is written again.
+            dict.Elements.SetInteger(PdfDictionary.PdfStream.Keys.Length, bytes.Length);
+            return true;
         }
 
         // HACK: Solve problem more general.
@@ -372,7 +402,10 @@ namespace PdfSharpCore.Pdf.IO
 
             if (!(value is PdfReference reference))
             {
-                throw new InvalidOperationException("Cannot retrieve stream length.");
+                // The /Length entry is required, but it is missing in real world documents,
+                // e.g. from the XMP metadata AutoCAD writes. Report that the length is unknown
+                // and let the caller recover by looking for the end of the stream.
+                return -1;
             }
 
             var state = SaveState();
