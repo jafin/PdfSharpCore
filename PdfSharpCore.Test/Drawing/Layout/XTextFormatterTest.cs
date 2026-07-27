@@ -15,6 +15,7 @@ using Xunit;
 
 namespace PdfSharpCore.Test.Drawing.Layout
 {
+    [Collection(RasterizingCollection.Name)]
     public class XTextFormatterTest
     {
         private static readonly string _outDir = "TestResults/XTextFormatterTest";
