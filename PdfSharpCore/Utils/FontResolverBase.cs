@@ -56,6 +56,17 @@ namespace PdfSharpCore.Utils
 
 
         /// <summary>
+        /// Reports a font file that could not be used. Compiled out of release builds, which also
+        /// keeps the caught exception "used" as far as the compiler is concerned.
+        /// </summary>
+        [Conditional("DEBUG")]
+        private static void LogError(string message)
+        {
+            System.Console.Error.WriteLine(message);
+        }
+
+
+        /// <summary>
         /// Scans the platform font directories on first use. Deferred rather than done in the
         /// constructor so that <see cref="ReadFontMetadata"/> is never called on a half-built
         /// derived instance.
@@ -150,9 +161,7 @@ namespace PdfSharpCore.Utils
                 }
                 catch (System.Exception e)
                 {
-#if DEBUG
-                    System.Console.Error.WriteLine(e);
-#endif
+                    LogError(e.ToString());
                 }
             }
 
@@ -166,9 +175,7 @@ namespace PdfSharpCore.Utils
                 }
                 catch (System.Exception e)
                 {
-#if DEBUG
-                    System.Console.Error.WriteLine(e);
-#endif
+                    LogError(e.ToString());
                 }
 
             lock (_initLock)
