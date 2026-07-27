@@ -306,6 +306,21 @@ namespace PdfSharpCore.Pdf.Internal
 
             Debug.Assert(!unicode || bytes.Length % 2 == 0, "Odd number of bytes in Unicode string.");
 
+            // The byte order mark belongs to the value of the string, not to its syntax, so it has to
+            // be part of what gets encrypted. Written outside the ciphertext it would be decrypted as
+            // if it were text, which shifts everything after it and leaves the whole string unreadable
+            // to every reader but this one. Putting it into the bytes here writes the same characters
+            // as before when nothing is encrypted.
+            if (unicode && prefix)
+            {
+                var withByteOrderMark = new byte[bytes.Length + 2];
+                withByteOrderMark[0] = 0xFE;
+                withByteOrderMark[1] = 0xFF;
+                Array.Copy(bytes, 0, withByteOrderMark, 2, bytes.Length);
+                bytes = withByteOrderMark;
+                prefix = false;
+            }
+
             bool encrypted = false;
             if (securityHandler != null)
             {

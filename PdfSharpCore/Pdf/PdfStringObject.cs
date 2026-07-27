@@ -123,9 +123,29 @@ namespace PdfSharpCore.Pdf
         /// </summary>
         internal byte[] EncryptionValue
         {
-            // TODO: Unicode case is not handled!
-            get { return _value == null ? new byte[0] : PdfEncoders.RawEncoding.GetBytes(_value); }
-            set { _value = PdfEncoders.RawEncoding.GetString(value, 0, value.Length); }
+            get
+            {
+                if (_value == null)
+                    return new byte[0];
+                return Encoding == PdfStringEncoding.Unicode
+                    ? PdfEncoders.RawUnicodeEncoding.GetBytes(_value)
+                    : PdfEncoders.RawEncoding.GetBytes(_value);
+            }
+            set
+            {
+                // As in PdfString: the byte order mark is inside the encrypted bytes, so it is only
+                // after decrypting that a string can be seen to be UTF-16BE.
+                if (value.Length >= 2 && value[0] == 0xFE && value[1] == 0xFF)
+                {
+                    _value = PdfEncoders.RawUnicodeEncoding.GetString(value, 2, value.Length - 2);
+                    Encoding = PdfStringEncoding.Unicode;
+                    return;
+                }
+
+                _value = Encoding == PdfStringEncoding.Unicode
+                    ? PdfEncoders.RawUnicodeEncoding.GetString(value, 0, value.Length)
+                    : PdfEncoders.RawEncoding.GetString(value, 0, value.Length);
+            }
         }
 
         /// <summary>
