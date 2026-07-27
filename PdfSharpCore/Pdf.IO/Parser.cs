@@ -375,12 +375,37 @@ namespace PdfSharpCore.Pdf.IO
                 throw new InvalidOperationException("Cannot retrieve stream length.");
             }
 
-            var state = SaveState();
-            object length = ReadObject(null, reference.ObjectID, false, false);
-            RestoreState(state);
-            var len = ((PdfIntegerObject)length).Value;
+            // The object holding the length may have been parsed already. That is always the case
+            // when it lives in an object stream: such an object has no position of its own in the
+            // file, so it cannot be read by moving the input stream to it.
+            var len = ResolveLengthObject(reference).Value;
             dict.Elements["/Length"] = new PdfInteger(len);
             return len;
+        }
+
+        /// <summary>
+        /// Gets the integer object an indirect /Length entry points to.
+        /// </summary>
+        private PdfIntegerObject ResolveLengthObject(PdfReference reference)
+        {
+            if (reference.Value is PdfIntegerObject resolved)
+                return resolved;
+
+            // The reference may be a temporary one created while the cross-reference table was
+            // under construction, so look the object up in the table as well.
+            var iref = _document != null ? _document._irefTable[reference.ObjectID] : null;
+            if (iref != null && iref.Value is PdfIntegerObject known)
+                return known;
+
+            var state = SaveState();
+            try
+            {
+                return (PdfIntegerObject)ReadObject(null, reference.ObjectID, false, false);
+            }
+            finally
+            {
+                RestoreState(state);
+            }
         }
 
         public PdfArray ReadArray(PdfArray array, bool includeReferences)
