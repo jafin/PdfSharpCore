@@ -15,4 +15,14 @@
 	<TrimmerRootAssembly Include="PdfSharpCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+  </ItemGroup>
+
 </Project>

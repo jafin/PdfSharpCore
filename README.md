@@ -6,12 +6,49 @@
 
 **PdfSharpCore** is a partial port of [PdfSharp.Xamarin](https://github.com/roceh/PdfSharp.Xamarin/) for .NET Standard.
 Additionally MigraDoc has been ported as well (from version 1.32).
-Image support has been implemented with [SixLabors.ImageSharp](https://github.com/JimBobSquarePants/ImageSharp/) and Fonts support with [SixLabors.Fonts](https://github.com/SixLabors/Fonts).
+The core `PdfSharpCore` package carries no imaging or font dependency of its own. Pick a backend package and register it once at startup.
+
+
+## Backends
+
+| Package | Backend | License | Notes |
+| --- | --- | --- | --- |
+| `PdfSharpCore.Skia` | [SkiaSharp](https://github.com/mono/SkiaSharp) | MIT | Default. Native library — see below. |
+| `PdfSharpCore.ImageSharp` | [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp) / [Fonts](https://github.com/SixLabors/Fonts) | Apache-2.0 | Pinned to the Apache-2.0 licensed 2.1.x / 1.0.x lines. |
+
+Register the backend before creating any font or loading any image:
+
+```csharp
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
+using PdfSharpCore.Fonts;
+using PdfSharpCore.Utils;
+
+GlobalFontSettings.FontResolver = new SkiaFontResolver();
+ImageSource.ImageSourceImpl = new SkiaImageSource();
+```
+
+Both throw a descriptive `InvalidOperationException` if you use them without registering a backend first.
+
+### SkiaSharp native assets
+
+SkiaSharp is a native library, so an application using `PdfSharpCore.Skia` must also reference the
+native asset package for each platform it runs on. PdfSharpCore deliberately does not pull these in,
+so that you can choose the right Linux variant:
+
+```xml
+<PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+<PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.1" />
+<PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.150.1" />
+```
+
+Use `SkiaSharp.NativeAssets.Linux` instead of `...NoDependencies` if `libfontconfig1` is available
+on your Linux image. The `PdfSharpCore.ImageSharp` backend is fully managed and needs none of this.
 
 
 ## Table of Contents
 
 - [Documentation](docs/index.md)
+- [Backends](#backends)
 - [Example](#example)
 - [Contributing](#contributing)
 - [License](#license)
@@ -28,7 +65,7 @@ using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Utils;
 
-GlobalFontSettings.FontResolver = new FontResolver();
+GlobalFontSettings.FontResolver = new SkiaFontResolver();
 
 var document = new PdfDocument();
 var page = document.AddPage();

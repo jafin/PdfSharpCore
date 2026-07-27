@@ -35,6 +35,11 @@ namespace SampleApp
         {
             System.Console.WriteLine("Starting...");
 
+            // PdfSharpCore has no imaging or font backend of its own; register one before use.
+            PdfSharpCore.Fonts.GlobalFontSettings.FontResolver = new PdfSharpCore.Utils.SkiaFontResolver();
+            MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource.ImageSourceImpl
+                = new PdfSharpCore.Utils.SkiaImageSource();
+
             const string outName = "test1.pdf";
 
             PdfDocument? document = new PdfDocument();

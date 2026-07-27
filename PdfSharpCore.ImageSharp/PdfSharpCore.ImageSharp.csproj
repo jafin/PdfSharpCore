@@ -1,23 +1,20 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net8.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Stefan Steiger and Contributors</Authors>
-    <Description>PdfSharp for .NET Core
+    <Description>ImageSharp imaging and font backend for PdfSharpCore.
 
-PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally MigraDoc has been ported as well (from version 1.32). Images have been implemented with ImageSharp from https://www.nuget.org/packages/SixLabors.ImageSharp</Description>
+Provides ImageSharpImageSource and ImageSharpFontResolver. Pinned to the Apache-2.0 licensed SixLabors 2.1.x / 1.0.x lines; later SixLabors releases use the Six Labors Split License.</Description>
     <Copyright>Copyright (c) 2005-2007 empira Software GmbH, Cologne (Germany)</Copyright>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/ststeiger/PdfSharpCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ststeiger/PdfSharpCore</RepositoryUrl>
-    <PackageReleaseNotes>PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally MigraDoc has been ported as well (from version 1.32)</PackageReleaseNotes>
-    <PackageTags>NuggetV1.0.0 (8ea343d5898342a563b9d4df2d67e27aaea9ac01)</PackageTags>
-    <summary>PdfSharp for .NET Core</summary>
+    <PackageReleaseNotes>ImageSharp backend for PdfSharpCore</PackageReleaseNotes>
+    <summary>ImageSharp backend for PdfSharpCore</summary>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -29,20 +26,12 @@ PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally Mi
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Resources\Messages.de.restext" />
-    <None Remove="Resources\Messages.restext" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.13" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Messages.de.restext" />
-    <EmbeddedResource Include="Resources\Messages.restext" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Resources\images\" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="SharpZipLib" Version="1.4.2" />
+    <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
