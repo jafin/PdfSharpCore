@@ -222,18 +222,12 @@ namespace PdfSharpCore.Pdf
             if (pageCount > importDocumentPageCount)
                 throw new ArgumentOutOfRangeException("pageCount", "Argument 'pageCount' out of range.");
 
-            PdfPage[] insertPages = new PdfPage[pageCount];
-            PdfPage[] importPages = new PdfPage[pageCount];
-
-            // 1st create all new pages.
-            for (int idx = 0, insertIndex = index, importIndex = startIndex;
+            for (int insertIndex = index, importIndex = startIndex;
                 importIndex < startIndex + pageCount;
-                idx++, insertIndex++, importIndex++)
+                insertIndex++, importIndex++)
             {
                 PdfPage importPage = document.Pages[importIndex];
                 PdfPage page = ImportExternalPage(importPage, annotationCopying);
-                insertPages[idx] = page;
-                importPages[idx] = importPage;
 
                 Owner._irefTable.Add(page);
 
@@ -243,115 +237,13 @@ namespace PdfSharpCore.Pdf
 
                 PagesArray.Elements.Insert(insertIndex, page.Reference);
 
+                PdfAnnotations.FixImportedAnnotation(page);
+                DetachImportedDestinations(page, importPage, importedObjectTable);
+
                 if (Owner.Settings.TrimMargins.AreSet)
                     page.TrimMargins = Owner.Settings.TrimMargins;
             }
             Elements.SetInteger(Keys.Count, PagesArray.Elements.Count);
-
-            // 2nd copy link annotations that are in the range of the imported pages.
-            for (int idx = 0, importIndex = startIndex;
-                importIndex < startIndex + pageCount;
-                idx++, importIndex++)
-            {
-                PdfPage importPage = document.Pages[importIndex];
-                PdfPage page = insertPages[idx];
-
-                // Get annotations.
-                PdfArray annots = importPage.Elements.GetArray(PdfPage.Keys.Annots);
-                if (annots != null)
-                {
-                    PdfAnnotations annotations = new PdfAnnotations(Owner);
-
-                    // Loop through annotations.
-                    int count = annots.Elements.Count;
-                    for (int idxAnnotation = 0; idxAnnotation < count; idxAnnotation++)
-                    {
-                        PdfDictionary annot = annots.Elements.GetDictionary(idxAnnotation);
-                        if (annot != null)
-                        {
-                            string subtype = annot.Elements.GetString(PdfAnnotation.Keys.Subtype);
-                            if (subtype == "/Link")
-                            {
-                                bool addAnnotation = false;
-                                PdfLinkAnnotation newAnnotation = new PdfLinkAnnotation(Owner);
-
-                                PdfName[] importAnnotationKeyNames = annot.Elements.KeyNames;
-                                foreach (PdfName pdfItem in importAnnotationKeyNames)
-                                {
-                                    PdfItem impItem;
-                                    switch (pdfItem.Value)
-                                    {
-                                        case "/BS":
-                                            newAnnotation.Elements.Add("/BS", new PdfLiteral("<</W 0>>"));
-                                            break;
-
-                                        case "/F":  // /F 4
-                                            impItem = annot.Elements.GetValue("/F");
-                                            Debug.Assert(impItem is PdfInteger);
-                                            newAnnotation.Elements.Add("/F", impItem.Clone());
-                                            break;
-
-                                        case "/Rect":  // /Rect [68.6 681.08 145.71 702.53]
-                                            impItem = annot.Elements.GetValue("/Rect");
-                                            Debug.Assert(impItem is PdfArray);
-                                            newAnnotation.Elements.Add("/Rect", impItem.Clone());
-                                            break;
-
-                                        case "/StructParent":  // /StructParent 3
-                                            impItem = annot.Elements.GetValue("/StructParent");
-                                            Debug.Assert(impItem is PdfInteger);
-                                            newAnnotation.Elements.Add("/StructParent", impItem.Clone());
-                                            break;
-
-                                        case "/Subtype":  // Already set.
-                                            break;
-
-                                        case "/Dest":  // /Dest [30 0 R /XYZ 68 771 0]
-                                            impItem = annot.Elements.GetValue("/Dest");
-                                            impItem = impItem.Clone();
-
-                                            // Is value an array with 5 elements where the first one is an iref?
-                                            PdfArray destArray = impItem as PdfArray;
-                                            if (destArray != null && destArray.Elements.Count == 5)
-                                            {
-                                                PdfReference iref = destArray.Elements[0] as PdfReference;
-                                                if (iref != null)
-                                                {
-                                                    iref = RemapReference(insertPages, importPages, iref);
-                                                    if (iref != null)
-                                                    {
-                                                        destArray.Elements[0] = iref;
-                                                        newAnnotation.Elements.Add("/Dest", destArray);
-                                                        addAnnotation = true;
-                                                    }
-                                                }
-                                            }
-                                            break;
-
-                                        default:
-#if DEBUG_
-                                            Debug-Break.Break(true);
-#endif
-                                            break;
-
-                                    }
-                                }
-                                // Add newAnnotations only it points to an imported page.
-                                if (addAnnotation)
-                                    annotations.Add(newAnnotation);
-                            }
-                        }
-                    }
-
-                    // At least one link annotation found?
-                    if (annotations.Count > 0)
-                    {
-                        //Owner._irefTable.Add(annotations);
-                        page.Elements.Add(PdfPage.Keys.Annots, annotations);
-                    }
-                }
-
-            }
         }
 
         /// <summary>
@@ -637,17 +529,6 @@ namespace PdfSharpCore.Pdf
 
             /// <summary>The page of the external document the destination named.</summary>
             internal readonly PdfObjectID ExternalPageID;
-        }
-
-        static PdfReference RemapReference(PdfPage[] newPages, PdfPage[] impPages, PdfReference iref)
-        {
-            // Directs the iref to a one of the imported pages?
-            for (int idx = 0; idx < newPages.Length; idx++)
-            {
-                if (impPages[idx].Reference == iref)
-                    return newPages[idx].Reference;
-            }
-            return null;
         }
 
         /// <summary>
