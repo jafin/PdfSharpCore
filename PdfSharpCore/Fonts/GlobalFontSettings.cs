@@ -50,18 +50,23 @@ namespace PdfSharpCore.Fonts
         /// If this is not easily to obtain, e.g. because your code is running on a web server, you must provide the
         /// same instance of your font resolver in every subsequent setting of this property.
         /// In a web application set the font resolver in Global.asax.
-        /// For .NetCore Apps, if a resolver is not set before the first get operation to this property,
-        /// the default Font resolver implementation: <see cref="T:PdfSharpCore.Utils.PdfSharpCore.Utils"/> is set and returned
+        /// A resolver must be set before the first font operation. Install PdfSharpCore.Skia and use
+        /// <c>new SkiaFontResolver()</c>, install PdfSharpCore.ImageSharp and use <c>new ImageSharpFontResolver()</c>,
+        /// or derive your own from <see cref="T:PdfSharpCore.Utils.FontResolverBase"/>.
         /// </summary>
         public static IFontResolver FontResolver
         {
-            get 
+            get
             {
                 try
                 {
                     Lock.EnterFontFactory();
-                    if (_fontResolver == null) FontResolver = new FontResolver();
-                        return _fontResolver;
+                    if (_fontResolver == null)
+                        throw new InvalidOperationException(
+                            "No IFontResolver has been configured. Set GlobalFontSettings.FontResolver before "
+                            + "performing any font operation, e.g. 'GlobalFontSettings.FontResolver = new SkiaFontResolver();' "
+                            + "from the PdfSharpCore.Skia package.");
+                    return _fontResolver;
                 }
                 finally { Lock.ExitFontFactory(); }
             }

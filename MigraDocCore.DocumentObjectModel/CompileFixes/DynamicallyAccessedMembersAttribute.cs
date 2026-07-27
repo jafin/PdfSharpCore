@@ -1,5 +1,5 @@
 ﻿
-#if NETCOREAPP3_1 || NETSTANDARD2_0 
+#if !NET5_0_OR_GREATER
 
 
 // Licensed to the .NET Foundation under one or more agreements.

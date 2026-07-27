@@ -10,28 +10,20 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dotnet:
-          - 3.1.x
-          - 5.0.x
-          - 6.0.x
-          - 7.0.x
-          - 8.0.x
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            3.1.x
-            5.0.x
-            6.0.x
-            7.0.x
             8.0.x
+            10.0.x
       - name: DotNetBuild
         shell: pwsh
         run: ./ci-build.ps1
+      # The Ghostscript.NativeAssets package covers Windows, where ImageMagick loads the
+      # Ghostscript DLL in process. On Linux it shells out to the system "gs" delegate instead,
+      # so the visual comparison tests still need Ghostscript installed here.
       - name: Install Ghostscript
         run: sudo apt-get install -y ghostscript
       - name: Test

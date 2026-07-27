@@ -100,7 +100,7 @@ namespace PdfSharpCore.Pdf.Security
                     using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
                     {
                         encryptionKey = new byte[32];
-                        cs.Read(encryptionKey, 0, 32);
+                        PdfSharpCore.Internal.StreamHelper.ReadUpTo(cs, encryptionKey, 0, 32);
                     }
                 }
             }

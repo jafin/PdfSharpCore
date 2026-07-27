@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;netcoreapp3.1;net5.0;net6.0;net7.0;net8.0</TargetFrameworks>
-    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <TargetFrameworks>netstandard2.1;net8.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Stefan Steiger and Contributors</Authors>
     <Description>PdfSharp for .NET Core
@@ -25,11 +24,6 @@ PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally Mi
     <DefineConstants>TRACE;DEBUG;</DefineConstants>
   </PropertyGroup>
 
-	<PropertyGroup>
-        <!--skip warning due to skiplabours.fonts being beta -->
-		<NoWarn>NU5104</NoWarn>
-	</PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DefineConstants>TRACE;RELEASE;</DefineConstants>
   </PropertyGroup>
@@ -49,8 +43,6 @@ PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally Mi
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
-    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta17" />
   </ItemGroup>
 
   <ItemGroup>

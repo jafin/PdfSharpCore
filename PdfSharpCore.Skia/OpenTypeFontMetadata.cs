@@ -1,0 +1,191 @@
+
+using System;
+using System.IO;
+using System.Text;
+
+using PdfSharpCore.Drawing;
+
+
+namespace PdfSharpCore.Utils
+{
+
+    /// <summary>
+    /// Reads the family name and style straight out of an OpenType/TrueType file.
+    /// SkiaSharp cannot be used for this: SKTypeface.FamilyName reports the typographic
+    /// (WWS) family, so "Arial Narrow" comes back as "Arial" and distinct families collapse
+    /// into one. The legacy family name (name ID 1) is what PdfSharpCore resolves against.
+    /// </summary>
+    internal static class OpenTypeFontMetadata
+    {
+        private const uint TagTtcf = 0x74746366; // 'ttcf'
+        private const uint TagName = 0x6E616D65; // 'name'
+        private const uint TagOs2 = 0x4F532F32;  // 'OS/2'
+        private const uint TagHead = 0x68656164; // 'head'
+
+        private const int NameIdFamily = 1;
+
+        private const int PlatformUnicode = 0;
+        private const int PlatformMacintosh = 1;
+        private const int PlatformWindows = 3;
+
+        private const int LanguageWindowsEnUs = 0x0409;
+
+
+        public static FontMetadata Read(string path)
+        {
+            return Read(File.ReadAllBytes(path));
+        }
+
+
+        internal static FontMetadata Read(byte[] data)
+        {
+            int baseOffset = 0;
+
+            // A TrueType collection starts with a directory of fonts; use the first one.
+            if (data.Length >= 16 && U32(data, 0) == TagTtcf)
+                baseOffset = (int)U32(data, 12);
+
+            int numTables = U16(data, baseOffset + 4);
+
+            int nameOffset = -1;
+            int os2Offset = -1;
+            int headOffset = -1;
+
+            for (int i = 0; i < numTables; i++)
+            {
+                int record = baseOffset + 12 + i * 16;
+                if (record + 16 > data.Length)
+                    break;
+
+                uint tag = U32(data, record);
+                int offset = (int)U32(data, record + 8);
+
+                if (tag == TagName) nameOffset = offset;
+                else if (tag == TagOs2) os2Offset = offset;
+                else if (tag == TagHead) headOffset = offset;
+            }
+
+            if (nameOffset < 0)
+                throw new InvalidOperationException("Font contains no 'name' table.");
+
+            return new FontMetadata(ReadFamilyName(data, nameOffset), ReadStyle(data, os2Offset, headOffset));
+        }
+
+
+        private static string ReadFamilyName(byte[] data, int nameOffset)
+        {
+            int count = U16(data, nameOffset + 2);
+            int stringBase = nameOffset + U16(data, nameOffset + 4);
+
+            string best = null;
+            int bestScore = int.MinValue;
+
+            for (int i = 0; i < count; i++)
+            {
+                int record = nameOffset + 6 + i * 12;
+                if (record + 12 > data.Length)
+                    break;
+
+                if (U16(data, record + 6) != NameIdFamily)
+                    continue;
+
+                int platformId = U16(data, record);
+                int languageId = U16(data, record + 4);
+                int length = U16(data, record + 8);
+                int offset = stringBase + U16(data, record + 10);
+
+                if (offset < 0 || offset + length > data.Length)
+                    continue;
+
+                int score = ScoreName(platformId, languageId);
+                if (score <= bestScore)
+                    continue;
+
+                string value = Decode(data, offset, length, platformId);
+                if (string.IsNullOrEmpty(value))
+                    continue;
+
+                best = value;
+                bestScore = score;
+            }
+
+            if (best == null)
+                throw new InvalidOperationException("Font contains no family name (name ID 1).");
+
+            return best;
+        }
+
+
+        /// <summary>
+        /// Prefers the US-English entries, which is what the invariant-culture family name means.
+        /// </summary>
+        private static int ScoreName(int platformId, int languageId)
+        {
+            if (platformId == PlatformWindows && languageId == LanguageWindowsEnUs)
+                return 4;
+            if (platformId == PlatformMacintosh && languageId == 0)
+                return 3;
+            if (platformId == PlatformWindows)
+                return 2;
+            if (platformId == PlatformUnicode)
+                return 1;
+
+            return 0;
+        }
+
+
+        private static string Decode(byte[] data, int offset, int length, int platformId)
+        {
+            // Windows and Unicode platform strings are UTF-16BE; Macintosh ones are single byte.
+            Encoding encoding = platformId == PlatformMacintosh
+                ? Encoding.ASCII
+                : Encoding.BigEndianUnicode;
+
+            return encoding.GetString(data, offset, length).Trim('\0').Trim();
+        }
+
+
+        private static XFontStyle ReadStyle(byte[] data, int os2Offset, int headOffset)
+        {
+            bool bold = false;
+            bool italic = false;
+
+            if (os2Offset >= 0 && os2Offset + 64 <= data.Length)
+            {
+                // fsSelection: bit 0 ITALIC, bit 5 BOLD
+                int fsSelection = U16(data, os2Offset + 62);
+                italic = (fsSelection & 0x0001) != 0;
+                bold = (fsSelection & 0x0020) != 0;
+            }
+            else if (headOffset >= 0 && headOffset + 46 <= data.Length)
+            {
+                // macStyle: bit 0 Bold, bit 1 Italic
+                int macStyle = U16(data, headOffset + 44);
+                bold = (macStyle & 0x0001) != 0;
+                italic = (macStyle & 0x0002) != 0;
+            }
+
+            if (bold && italic)
+                return XFontStyle.BoldItalic;
+            if (bold)
+                return XFontStyle.Bold;
+            if (italic)
+                return XFontStyle.Italic;
+
+            return XFontStyle.Regular;
+        }
+
+
+        private static int U16(byte[] data, int offset)
+        {
+            return (data[offset] << 8) | data[offset + 1];
+        }
+
+
+        private static uint U32(byte[] data, int offset)
+        {
+            return ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16)
+                   | ((uint)data[offset + 2] << 8) | data[offset + 3];
+        }
+    }
+}

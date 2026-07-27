@@ -1,5 +1,5 @@
 using System.IO;
-using FluentAssertions;
+using AwesomeAssertions;
 using ImageMagick;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
@@ -29,7 +29,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
             _textFormatter = new XTextFormatter(_renderer);
         }
         
-        [Fact]
+        [GoldenImageFact]
         public void DrawSingleLineString()
         {
             var layout = new XRect(12, 12, 200, 50);
@@ -40,7 +40,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
             diffResult.DiffValue.Should().Be(0);
         }
         
-        [Fact]
+        [GoldenImageFact]
         public void DrawMultilineStringWithTruncate()
         {
             var layout = new XRect(12, 12, 200, 40);
@@ -52,7 +52,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
             diffResult.DiffValue.Should().Be(0);
         }
         
-        [Fact]
+        [GoldenImageFact]
         public void DrawMultiLineStringWithOverflow()
         {
             var layout = new XRect(12, 12, 200, 40);
@@ -65,7 +65,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
             diffResult.DiffValue.Should().Be(0);
         }
         
-        [Fact]
+        [GoldenImageFact]
         public void DrawMultiLineStringsWithAlignment()
         {
             var layout1 = new XRect(12, 12, 200, 80);
@@ -87,7 +87,7 @@ namespace PdfSharpCore.Test.Drawing.Layout
             diffResult.DiffValue.Should().Be(0);
         }
         
-        [Fact]
+        [GoldenImageFact]
         public void DrawMultiLineStringsWithLineHeight()
         {
             var font = new XFont("Arial", 12);

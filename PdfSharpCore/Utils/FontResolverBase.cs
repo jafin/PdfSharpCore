@@ -1,4 +1,4 @@
-﻿
+
 using System.Linq;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -8,27 +8,83 @@ using PdfSharpCore.Internal;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 
-using SixLabors.Fonts;
-
 
 namespace PdfSharpCore.Utils
 {
 
-
-    public class FontResolver 
-        : IFontResolver
+    /// <summary>
+    /// Family name and style read from a font file.
+    /// </summary>
+    public readonly struct FontMetadata
     {
-        public string DefaultFontName => "Arial";
-
-        private static readonly Dictionary<string, FontFamilyModel> InstalledFonts = new Dictionary<string, FontFamilyModel>();
-
-        private static readonly string[] SSupportedFonts;
-
-        public FontResolver()
+        public FontMetadata(string familyName, XFontStyle style)
         {
+            FamilyName = familyName;
+            Style = style;
         }
 
-        static FontResolver()
+        public string FamilyName { get; }
+
+        public XFontStyle Style { get; }
+    }
+
+
+    /// <summary>
+    /// Locates the fonts installed on the current platform and resolves typefaces against them.
+    /// Reading the family name and style out of a font file is left to a derived class, so that
+    /// PdfSharpCore itself does not depend on any particular font library.
+    /// Use the resolver from PdfSharpCore.Skia or PdfSharpCore.ImageSharp, or derive your own.
+    /// </summary>
+    public abstract class FontResolverBase
+        : IFontResolver
+    {
+        public virtual string DefaultFontName => "Arial";
+
+        // Per instance rather than static: two backends in one process must not inherit each
+        // other's font mappings, and reading metadata is the derived class's job.
+        private readonly object _initLock = new object();
+
+        private Dictionary<string, FontFamilyModel> _installedFonts;
+
+        private string[] _supportedFonts;
+
+
+        /// <summary>
+        /// Reads the family name and style out of the given font file.
+        /// </summary>
+        protected abstract FontMetadata ReadFontMetadata(string fontFilePath);
+
+
+        /// <summary>
+        /// Reports a font file that could not be used. Compiled out of release builds, which also
+        /// keeps the caught exception "used" as far as the compiler is concerned.
+        /// </summary>
+        [Conditional("DEBUG")]
+        private static void LogError(string message)
+        {
+            System.Console.Error.WriteLine(message);
+        }
+
+
+        /// <summary>
+        /// Scans the platform font directories on first use. Deferred rather than done in the
+        /// constructor so that <see cref="ReadFontMetadata"/> is never called on a half-built
+        /// derived instance.
+        /// </summary>
+        private void EnsureInitialized()
+        {
+            if (_installedFonts != null)
+                return;
+
+            lock (_initLock)
+            {
+                if (_installedFonts == null)
+                    SetupFontsFiles(GetPlatformFontFiles());
+            }
+        }
+
+
+        private static string[] GetPlatformFontFiles()
         {
             string fontDir;
 
@@ -36,17 +92,13 @@ namespace PdfSharpCore.Utils
             if (isOSX)
             {
                 fontDir = "/Library/Fonts/";
-                SSupportedFonts = System.IO.Directory.GetFiles(fontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
-                SetupFontsFiles(SSupportedFonts);
-                return;
+                return System.IO.Directory.GetFiles(fontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
             }
 
             bool isLinux = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
             if (isLinux)
             {
-                SSupportedFonts = LinuxSystemFontResolver.Resolve();
-                SetupFontsFiles(SSupportedFonts);
-                return;
+                return LinuxSystemFontResolver.Resolve();
             }
 
             bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
@@ -59,75 +111,57 @@ namespace PdfSharpCore.Utils
                 fontPaths.AddRange(systemFontPaths);
 
                 var appdataFontDir = System.Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Microsoft\Windows\Fonts");
-                if(System.IO.Directory.Exists(appdataFontDir))
+                if (System.IO.Directory.Exists(appdataFontDir))
                 {
                     var appdataFontPaths = System.IO.Directory.GetFiles(appdataFontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
                     fontPaths.AddRange(appdataFontPaths);
                 }
 
-                SSupportedFonts = fontPaths.ToArray();
-                SetupFontsFiles(SSupportedFonts);
-                return;
+                return fontPaths.ToArray();
             }
 
-            throw new System.NotImplementedException("FontResolver not implemented for this platform (PdfSharpCore.Utils.FontResolver.cs).");
+            throw new System.NotImplementedException("FontResolver not implemented for this platform (PdfSharpCore.Utils.FontResolverBase.cs).");
         }
 
 
         private readonly struct FontFileInfo
         {
-            private FontFileInfo(string path, FontDescription fontDescription)
+            public FontFileInfo(string path, FontMetadata metadata)
             {
                 this.Path = path;
-                this.FontDescription = fontDescription;
+                this.Metadata = metadata;
             }
 
             public string Path { get; }
 
-            public FontDescription FontDescription { get; }
+            public FontMetadata Metadata { get; }
 
-            public string FamilyName => this.FontDescription.FontFamilyInvariantCulture;
+            public string FamilyName => this.Metadata.FamilyName;
 
-
-            public XFontStyle GuessFontStyle()
-            {
-                switch (this.FontDescription.Style)
-                {
-                    case FontStyle.Bold:
-                        return XFontStyle.Bold;
-                    case FontStyle.Italic:
-                        return XFontStyle.Italic;
-                    case FontStyle.BoldItalic:
-                        return XFontStyle.BoldItalic;
-                    default:
-                        return XFontStyle.Regular;
-                }
-            }
-
-            public static FontFileInfo Load(string path)
-            {
-                FontDescription fontDescription = FontDescription.LoadDescription(path);
-                return new FontFileInfo(path, fontDescription);
-            }
+            public XFontStyle GuessFontStyle() => this.Metadata.Style;
         }
 
 
-        public static void SetupFontsFiles(string[] sSupportedFonts)
+        /// <summary>
+        /// Builds the family lookup from an explicit set of font files, replacing anything
+        /// discovered previously.
+        /// </summary>
+        public void SetupFontsFiles(string[] sSupportedFonts)
         {
+            Dictionary<string, FontFamilyModel> installedFonts = new Dictionary<string, FontFamilyModel>();
+
             List<FontFileInfo> tempFontInfoList = new List<FontFileInfo>();
             foreach (string fontPathFile in sSupportedFonts)
             {
                 try
                 {
-                    FontFileInfo fontInfo = FontFileInfo.Load(fontPathFile);
+                    FontFileInfo fontInfo = new FontFileInfo(fontPathFile, ReadFontMetadata(fontPathFile));
                     Debug.WriteLine(fontPathFile);
                     tempFontInfoList.Add(fontInfo);
                 }
                 catch (System.Exception e)
                 {
-#if DEBUG
-                    System.Console.Error.WriteLine(e);
-#endif
+                    LogError(e.ToString());
                 }
             }
 
@@ -137,14 +171,18 @@ namespace PdfSharpCore.Utils
                 {
                     string familyName = familyGroup.Key;
                     FontFamilyModel family = DeserializeFontFamily(familyName, familyGroup);
-                    InstalledFonts.Add(familyName.ToLower(), family);
+                    installedFonts.Add(familyName.ToLower(), family);
                 }
                 catch (System.Exception e)
                 {
-#if DEBUG
-                    System.Console.Error.WriteLine(e);
-#endif
+                    LogError(e.ToString());
                 }
+
+            lock (_initLock)
+            {
+                _supportedFonts = sSupportedFonts;
+                _installedFonts = installedFonts;
+            }
         }
 
 
@@ -171,12 +209,14 @@ namespace PdfSharpCore.Utils
 
         public virtual byte[] GetFont(string faceFileName)
         {
+            EnsureInitialized();
+
             using (System.IO.MemoryStream ms = new System.IO.MemoryStream())
             {
                 string ttfPathFile = "";
                 try
                 {
-                    ttfPathFile = SSupportedFonts.ToList().First(x => x.ToLower().Contains(
+                    ttfPathFile = _supportedFonts.ToList().First(x => x.ToLower().Contains(
                         System.IO.Path.GetFileName(faceFileName).ToLower())
                     );
 
@@ -199,10 +239,12 @@ namespace PdfSharpCore.Utils
 
         public virtual FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
         {
-            if (InstalledFonts.Count == 0)
+            EnsureInitialized();
+
+            if (_installedFonts.Count == 0)
                 throw new System.IO.FileNotFoundException("No Fonts installed on this device!");
 
-            if (InstalledFonts.TryGetValue(familyName.ToLower(), out FontFamilyModel family))
+            if (_installedFonts.TryGetValue(familyName.ToLower(), out FontFamilyModel family))
             {
                 if (isBold && isItalic)
                 {
@@ -229,7 +271,7 @@ namespace PdfSharpCore.Utils
             if (NullIfFontNotFound)
                 return null;
 
-            string ttfFile = InstalledFonts.First().Value.FontFiles.First().Value;
+            string ttfFile = _installedFonts.First().Value.FontFiles.First().Value;
             return new FontResolverInfo(System.IO.Path.GetFileName(ttfFile));
         }
     }

@@ -1,6 +1,6 @@
 ﻿using System.IO;
 using System.Text;
-using FluentAssertions;
+using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Test.Helpers;
@@ -50,7 +50,9 @@ namespace PdfSharpCore.Test.IO
             var readBuffer = new byte[5];
             var pdfSignature = Encoding.ASCII.GetBytes("%PDF-"); // PDF must start with %PDF-
 
-            stream.Read(readBuffer, 0, readBuffer.Length);
+            var bytesRead = stream.Read(readBuffer, 0, readBuffer.Length);
+
+            bytesRead.Should().Be(readBuffer.Length);
             readBuffer.Should().Equal(pdfSignature);
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -128,6 +129,17 @@ namespace PdfSharpCore.Utils
         }
 
 
+        /// <summary>
+        /// Reports a font discovery problem that is otherwise ignored. Compiled out of release
+        /// builds, which also keeps the caught exception "used" as far as the compiler is concerned.
+        /// </summary>
+        [Conditional("DEBUG")]
+        private static void LogError(string message)
+        {
+            Console.Error.WriteLine(message);
+        }
+
+
         public static string[] Resolve()
         {
             try
@@ -136,9 +148,7 @@ namespace PdfSharpCore.Utils
             }
             catch(Exception ex)
             {
-#if DEBUG
-                Console.Error.WriteLine(ex.ToString());
-#endif
+                LogError(ex.ToString());
                 return ResolveFallback().Where(x => x.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase)).ToArray();
             }
         }
@@ -196,10 +206,8 @@ namespace PdfSharpCore.Utils
             }
             catch (Exception ex)
             {
-#if DEBUG
-                Console.Error.WriteLine(ex.Message);
-                Console.Error.WriteLine(ex.StackTrace);
-#endif
+                LogError(ex.Message);
+                LogError(ex.StackTrace);
             }
 
             dirs.Add("/usr/share/fonts");

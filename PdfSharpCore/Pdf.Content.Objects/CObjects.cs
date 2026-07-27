@@ -319,7 +319,7 @@ namespace PdfSharpCore.Pdf.Content.Objects // TODO: split into single files
             stream.Position = 0;
             int count = (int)stream.Length;
             byte[] bytes = new byte[count];
-            stream.Read(bytes, 0, count);
+            PdfSharpCore.Internal.StreamHelper.ReadUpTo(stream, bytes, 0, count);
             stream.Dispose();
             return bytes;
         }
