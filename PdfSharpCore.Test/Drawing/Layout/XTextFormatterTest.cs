@@ -143,14 +143,23 @@ namespace PdfSharpCore.Test.Drawing.Layout
         public void DrawStringDoesNotDrawTextThatDoesNotFitTheLayoutRectangle()
         {
             var font = new XFont("Arial", 12);
-            // Room for two lines only.
-            var layout = new XRect(12, 12, 200, 2 * font.GetHeight());
+            // Room for two lines and half of a third. The layout keeps a line while its top stays
+            // above the height of the rectangle less one ascent and one descent, so a rectangle of
+            // exactly two line heights decides on the difference between the height of a line and
+            // the height of the characters on it, which is a fraction of a point and differs from
+            // font to font. Half a line of room on either side of the answer keeps this about the
+            // truncation rather than about the metrics of whichever font the machine resolves.
+            var layout = new XRect(12, 12, 200, 2.5 * font.GetHeight());
 
             _textFormatter.DrawString("Line1\nLine2\nLine3", font, XBrushes.Black, layout);
 
             var shownText = GetShownText();
             shownText.Should().HaveCount(2);
             shownText.Select(t => t.Position.Y).Distinct().Should().HaveCount(2);
+            // The line that does not fit is left out rather than drawn somewhere else. A block that
+            // never got a place keeps the one it was born with, which puts it on the first line, so
+            // check that both lines still show a single word.
+            shownText.Select(t => t.Text.Length).Distinct().Should().HaveCount(1, "every line holds one word");
         }
 
         [Fact]
