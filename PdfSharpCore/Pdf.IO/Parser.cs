@@ -408,12 +408,50 @@ namespace PdfSharpCore.Pdf.IO
                 return -1;
             }
 
-            var state = SaveState();
-            object length = ReadObject(null, reference.ObjectID, false, false);
-            RestoreState(state);
-            var len = ((PdfIntegerObject)length).Value;
+            // The object holding the length may have been parsed already. That is always the case when it
+            // lives in an object stream: such an object has no position in the file (it is marked with -1)
+            // and therefore cannot be read through MoveToObject. Prefer the value that is already known.
+            var length = ResolveLengthObject(reference);
+            if (length == null)
+            {
+                // The length is stored in an object that cannot be reached. Report the length as unknown
+                // and let the caller recover by looking for the end of the stream.
+                return -1;
+            }
+
+            var len = length.Value;
             dict.Elements["/Length"] = new PdfInteger(len);
             return len;
+        }
+
+        /// <summary>
+        /// Gets the integer object an indirect /Length entry points to, or null when it cannot be resolved.
+        /// </summary>
+        private PdfIntegerObject ResolveLengthObject(PdfReference reference)
+        {
+            if (reference.Value is PdfIntegerObject resolved)
+                return resolved;
+
+            // The reference may be a temporary one created while the xref table was under construction,
+            // so look the object up in the table as well.
+            var iref = _document != null ? _document._irefTable[reference.ObjectID] : null;
+            if (iref != null && iref.Value is PdfIntegerObject known)
+                return known;
+
+            // Objects inside an object stream have no position in the file. When such an object has not
+            // been read yet there is no way to reach it from here.
+            if (iref != null && iref.Position < 0)
+                return null;
+
+            var state = SaveState();
+            try
+            {
+                return ReadObject(null, reference.ObjectID, false, false) as PdfIntegerObject;
+            }
+            finally
+            {
+                RestoreState(state);
+            }
         }
 
         public PdfArray ReadArray(PdfArray array, bool includeReferences)
