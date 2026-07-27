@@ -18,7 +18,11 @@ namespace PdfSharpCore.Test.IO
     /// </summary>
     public class IndirectStreamLengthTests
     {
-        private const string Content = "BT /F1 12 Tf 20 40 Td (Issue 456) Tj ET";
+        // The content carries the bytes that end a stream inside one of its own strings. A reader
+        // that knows the declared length reads all of it; one that recovers the length by looking
+        // for the end of the stream stops at those bytes and comes up short. That is what separates
+        // the length taken from the object stream from the length guessed by scanning.
+        private const string Content = "BT /F1 12 Tf 20 40 Td (Issue 456) Tj ET\n(\nendstream) Tj\n";
 
         [Theory]
         [InlineData(PdfDocumentOpenMode.Modify)]
