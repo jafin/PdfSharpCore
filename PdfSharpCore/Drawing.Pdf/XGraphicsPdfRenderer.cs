@@ -27,8 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-#define ITALIC_SIMULATION
-
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -509,7 +507,6 @@ namespace PdfSharpCore.Drawing.Pdf
                 //verticalOffset = font.Size * Const.BoldEmphasis / 2;
             }
 
-#if ITALIC_SIMULATION
             if (italicSimulation)
             {
                 if (_gfxState.ItalicSimulationOn)
@@ -543,10 +540,7 @@ namespace PdfSharpCore.Drawing.Pdf
                     AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2} Tj\n", pos.X, pos.Y, text);
                 }
             }
-#else
-                AdjustTextMatrix(ref pos);
-                AppendFormat2("{0:" + format2 + "} {1:" + format2 + "} Td {2} Tj\n", pos.X, pos.Y, text);
-#endif
+
             if (underline)
             {
                 double underlinePosition = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlinePosition / font.CellSpace;
