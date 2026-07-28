@@ -584,7 +584,9 @@ namespace PdfSharpCore.Pdf
             }
 
             /// <summary>
-            /// Sets the entry to a direct string value.
+            /// Sets the entry to a direct string value, encoded as Unicode unless ASCII can
+            /// spell it. Entries holding bytes rather than text name
+            /// <see cref="PdfStringEncoding.RawEncoding"/> instead.
             /// </summary>
             public void SetString(string key, string value)
             {

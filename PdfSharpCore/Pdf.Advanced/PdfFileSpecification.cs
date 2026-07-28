@@ -26,7 +26,9 @@
         public string FileName
         {
             get { return Elements.GetString(Keys.F); }
-            set { Elements.SetString(Keys.F, value); }
+            // A file specification string is not a text string: it stays one byte per character,
+            // and it is /UF that holds the name for readers that want more than ASCII.
+            set { Elements.SetString(Keys.F, value, PdfStringEncoding.RawEncoding); }
         }
 
         public PdfEmbeddedFile EmbeddedFile

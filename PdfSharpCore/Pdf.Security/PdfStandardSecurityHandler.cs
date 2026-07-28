@@ -579,8 +579,11 @@ namespace PdfSharpCore.Pdf.Security
             byte[] documentID = PdfEncoders.RawEncoding.GetBytes(_document.Internals.FirstDocumentID);
             InitWithUserPassword(documentID, _userPassword, _ownerKey, permissions, strongEncryption);
 
-            PdfString oValue = new PdfString(PdfEncoders.RawEncoding.GetString(_ownerKey, 0, _ownerKey.Length));
-            PdfString uValue = new PdfString(PdfEncoders.RawEncoding.GetString(_userKey, 0, _userKey.Length));
+            // The owner and user entries carry key bytes, not text. They are named raw so that
+            // the bytes above ASCII in them are written as they are instead of being taken for
+            // characters and spelled out as UTF-16BE, which no reader could undo.
+            PdfString oValue = new PdfString(PdfEncoders.RawEncoding.GetString(_ownerKey, 0, _ownerKey.Length), PdfStringEncoding.RawEncoding);
+            PdfString uValue = new PdfString(PdfEncoders.RawEncoding.GetString(_userKey, 0, _userKey.Length), PdfStringEncoding.RawEncoding);
 
             Elements[Keys.Filter] = new PdfName("/Standard");
             Elements[Keys.V] = vValue;
