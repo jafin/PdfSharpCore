@@ -491,6 +491,22 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
+        /// Adds an intra document link to a place on a page.
+        /// </summary>
+        /// <param name="rect">The rect.</param>
+        /// <param name="destinationPage">The destination page.</param>
+        /// <param name="destinationTop">
+        /// How far up the destination page to place the top of the window, in default page
+        /// coordinates. NaN lands the reader wherever the page is already scrolled to.
+        /// </param>
+        public PdfLinkAnnotation AddDocumentLink(PdfRectangle rect, int destinationPage, double destinationTop)
+        {
+            PdfLinkAnnotation annotation = PdfLinkAnnotation.CreateDocumentLink(rect, destinationPage, destinationTop);
+            Annotations.Add(annotation);
+            return annotation;
+        }
+
+        /// <summary>
         /// Adds a link to the Web.
         /// </summary>
         /// <param name="rect">The rect.</param>

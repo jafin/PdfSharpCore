@@ -70,6 +70,21 @@ namespace PdfSharpCore.Pdf.Annotations
         /// <param name="destinationPage">The one-based destination page number.</param>
         public static PdfLinkAnnotation CreateDocumentLink(PdfRectangle rect, int destinationPage)
         {
+            return CreateDocumentLink(rect, destinationPage, double.NaN);
+        }
+
+        /// <summary>
+        /// Creates a link to a place on a page within the current document.
+        /// </summary>
+        /// <param name="rect">The link area in default page coordinates.</param>
+        /// <param name="destinationPage">The one-based destination page number.</param>
+        /// <param name="destinationTop">
+        /// How far up the destination page to place the top of the window, in default page
+        /// coordinates. NaN leaves the position alone, which lands the reader wherever on the page
+        /// it happens to be scrolled to.
+        /// </param>
+        public static PdfLinkAnnotation CreateDocumentLink(PdfRectangle rect, int destinationPage, double destinationTop)
+        {
             if (destinationPage < 1)
                 throw new ArgumentException("Invalid destination page in call to CreateDocumentLink: page number is one-based and must be 1 or higher.", "destinationPage");
 
@@ -77,9 +92,11 @@ namespace PdfSharpCore.Pdf.Annotations
             link._linkType = LinkType.Document;
             link.Rectangle = rect;
             link._destPage = destinationPage;
+            link._destTop = destinationTop;
             return link;
         }
         int _destPage;
+        double _destTop = double.NaN;
         LinkType _linkType;
         string _url;
 
@@ -141,7 +158,12 @@ namespace PdfSharpCore.Pdf.Annotations
                     destIndex--;
                     dest = Owner.Pages[destIndex];
                     //pdf.AppendFormat("/Dest[{0} 0 R/XYZ null null 0]\n", dest.ObjectID);
-                    Elements[Keys.Dest] = new PdfLiteral("[{0} 0 R/XYZ null null 0]", dest.ObjectNumber);
+                    // A destination without a top lands the reader wherever the page is already
+                    // scrolled to, so a link to a place halfway down a page needs the coordinate.
+                    Elements[Keys.Dest] = double.IsNaN(_destTop)
+                        ? new PdfLiteral("[{0} 0 R/XYZ null null 0]", dest.ObjectNumber)
+                        : new PdfLiteral("[{0} 0 R/XYZ null {1} 0]", dest.ObjectNumber,
+                            PdfEncoders.Format("{0:0.###}", _destTop));
                     break;
 
                 case LinkType.Web:
@@ -180,11 +202,11 @@ namespace PdfSharpCore.Pdf.Annotations
             public const string Dest = "/Dest";
 
             /// <summary>
-            /// (Optional; PDF 1.2) The annotation’s highlighting mode, the visual effect to be
+            /// (Optional; PDF 1.2) The annotationï¿½s highlighting mode, the visual effect to be
             /// used when the mouse button is pressed or held down inside its active area:
             /// N (None) No highlighting.
             /// I (Invert) Invert the contents of the annotation rectangle.
-            /// O (Outline) Invert the annotation’s border.
+            /// O (Outline) Invert the annotationï¿½s border.
             /// P (Push) Display the annotation as if it were being pushed below the surface of the page.
             /// Default value: I.
             /// Note: In PDF 1.1, highlighting is always done by inverting colors inside the annotation rectangle.
