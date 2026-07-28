@@ -44,9 +44,16 @@ namespace PdfSharpCore.Utils
         // other's font mappings, and reading metadata is the derived class's job.
         private readonly object _initLock = new object();
 
-        private Dictionary<string, FontFamilyModel> _installedFonts;
+        // Volatile because EnsureInitialized reads this outside the lock. Without it a thread can
+        // see the reference before the writes that filled the dictionary, on any architecture with
+        // a weaker memory model than x86.
+        private volatile Dictionary<string, FontFamilyModel> _installedFonts;
 
-        private string[] _supportedFonts;
+        /// <summary>
+        /// Maps the face name handed out by <see cref="ResolveTypeface"/> to the file it was read
+        /// from. Published before <see cref="_installedFonts"/>, whose volatile write orders it.
+        /// </summary>
+        private Dictionary<string, string> _facePaths;
 
 
         /// <summary>
@@ -126,13 +133,16 @@ namespace PdfSharpCore.Utils
 
         private readonly struct FontFileInfo
         {
-            public FontFileInfo(string path, FontMetadata metadata)
+            public FontFileInfo(string faceName, FontMetadata metadata)
             {
-                this.Path = path;
+                this.FaceName = faceName;
                 this.Metadata = metadata;
             }
 
-            public string Path { get; }
+            /// <summary>
+            /// The name this face is handed out under, and the key into the face-to-path map.
+            /// </summary>
+            public string FaceName { get; }
 
             public FontMetadata Metadata { get; }
 
@@ -148,22 +158,38 @@ namespace PdfSharpCore.Utils
         /// </summary>
         public void SetupFontsFiles(string[] sSupportedFonts)
         {
-            Dictionary<string, FontFamilyModel> installedFonts = new Dictionary<string, FontFamilyModel>();
-
+            Dictionary<string, string> facePaths = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
             List<FontFileInfo> tempFontInfoList = new List<FontFileInfo>();
+
             foreach (string fontPathFile in sSupportedFonts)
             {
+                string faceName = System.IO.Path.GetFileName(fontPathFile);
+
+                // Two font directories habitually hold a file of the same name - on Windows the
+                // system one and the per-user one. The first found wins, so that the face name a
+                // family points at and the file it is read from cannot drift apart. Checked before
+                // the metadata is read, so that a file the derived class cannot parse does not
+                // reserve a name that a readable one could have used.
+                if (facePaths.ContainsKey(faceName))
+                    continue;
+
+                FontMetadata metadata;
                 try
                 {
-                    FontFileInfo fontInfo = new FontFileInfo(fontPathFile, ReadFontMetadata(fontPathFile));
-                    Debug.WriteLine(fontPathFile);
-                    tempFontInfoList.Add(fontInfo);
+                    metadata = ReadFontMetadata(fontPathFile);
                 }
                 catch (System.Exception e)
                 {
                     LogError(e.ToString());
+                    continue;
                 }
+
+                Debug.WriteLine(fontPathFile);
+                facePaths.Add(faceName, fontPathFile);
+                tempFontInfoList.Add(new FontFileInfo(faceName, metadata));
             }
+
+            Dictionary<string, FontFamilyModel> installedFonts = new Dictionary<string, FontFamilyModel>();
 
             // Deserialize all font families
             foreach (IGrouping<string, FontFileInfo> familyGroup in tempFontInfoList.GroupBy(info => info.FamilyName))
@@ -180,7 +206,9 @@ namespace PdfSharpCore.Utils
 
             lock (_initLock)
             {
-                _supportedFonts = sSupportedFonts;
+                _facePaths = facePaths;
+                // Written last: its volatile write publishes _facePaths to EnsureInitialized,
+                // which reads that field to decide whether both are ready.
                 _installedFonts = installedFonts;
             }
         }
@@ -193,46 +221,30 @@ namespace PdfSharpCore.Utils
 
             // there is only one font
             if (fontList.Count() == 1)
-                font.FontFiles.Add(XFontStyle.Regular, fontList.First().Path);
+                font.FontFiles.Add(XFontStyle.Regular, fontList.First().FaceName);
             else
             {
                 foreach (FontFileInfo info in fontList)
                 {
                     XFontStyle style = info.GuessFontStyle();
                     if (!font.FontFiles.ContainsKey(style))
-                        font.FontFiles.Add(style, info.Path);
+                        font.FontFiles.Add(style, info.FaceName);
                 }
             }
 
             return font;
         }
 
-        public virtual byte[] GetFont(string faceFileName)
+        /// <param name="faceName">A face name handed out by <see cref="ResolveTypeface"/>.</param>
+        public virtual byte[] GetFont(string faceName)
         {
             EnsureInitialized();
 
-            using (System.IO.MemoryStream ms = new System.IO.MemoryStream())
-            {
-                string ttfPathFile = "";
-                try
-                {
-                    ttfPathFile = _supportedFonts.ToList().First(x => x.ToLower().Contains(
-                        System.IO.Path.GetFileName(faceFileName).ToLower())
-                    );
+            if (!_facePaths.TryGetValue(faceName, out string fontPathFile))
+                throw new System.IO.FileNotFoundException(
+                    "No font file was discovered for the face name '" + faceName + "'.", faceName);
 
-                    using (System.IO.Stream ttf = System.IO.File.OpenRead(ttfPathFile))
-                    {
-                        ttf.CopyTo(ms);
-                        ms.Position = 0;
-                        return ms.ToArray();
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    System.Console.WriteLine(e);
-                    throw new System.Exception("No Font File Found - " + faceFileName + " - " + ttfPathFile);
-                }
-            }
+            return System.IO.File.ReadAllBytes(fontPathFile);
         }
 
         public bool NullIfFontNotFound { get; set; } = false;
@@ -248,31 +260,30 @@ namespace PdfSharpCore.Utils
             {
                 if (isBold && isItalic)
                 {
-                    if (family.FontFiles.TryGetValue(XFontStyle.BoldItalic, out string boldItalicFile))
-                        return new FontResolverInfo(System.IO.Path.GetFileName(boldItalicFile));
+                    if (family.FontFiles.TryGetValue(XFontStyle.BoldItalic, out string boldItalicFace))
+                        return new FontResolverInfo(boldItalicFace);
                 }
                 else if (isBold)
                 {
-                    if (family.FontFiles.TryGetValue(XFontStyle.Bold, out string boldFile))
-                        return new FontResolverInfo(System.IO.Path.GetFileName(boldFile));
+                    if (family.FontFiles.TryGetValue(XFontStyle.Bold, out string boldFace))
+                        return new FontResolverInfo(boldFace);
                 }
                 else if (isItalic)
                 {
-                    if (family.FontFiles.TryGetValue(XFontStyle.Italic, out string italicFile))
-                        return new FontResolverInfo(System.IO.Path.GetFileName(italicFile));
+                    if (family.FontFiles.TryGetValue(XFontStyle.Italic, out string italicFace))
+                        return new FontResolverInfo(italicFace);
                 }
 
-                if (family.FontFiles.TryGetValue(XFontStyle.Regular, out string regularFile))
-                    return new FontResolverInfo(System.IO.Path.GetFileName(regularFile));
+                if (family.FontFiles.TryGetValue(XFontStyle.Regular, out string regularFace))
+                    return new FontResolverInfo(regularFace);
 
-                return new FontResolverInfo(System.IO.Path.GetFileName(family.FontFiles.First().Value));
+                return new FontResolverInfo(family.FontFiles.First().Value);
             }
 
             if (NullIfFontNotFound)
                 return null;
 
-            string ttfFile = _installedFonts.First().Value.FontFiles.First().Value;
-            return new FontResolverInfo(System.IO.Path.GetFileName(ttfFile));
+            return new FontResolverInfo(_installedFonts.First().Value.FontFiles.First().Value);
         }
     }
 }
