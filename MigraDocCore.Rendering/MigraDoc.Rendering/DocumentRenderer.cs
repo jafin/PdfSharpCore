@@ -248,14 +248,24 @@ namespace MigraDocCore.Rendering
 
             Rectangle footerArea = this.formattedDocument.GetFooterArea(page);
             RenderInfo[] renderInfos = formattedFooter.GetRenderInfos();
-            XUnit topY = footerArea.Y + footerArea.Height - RenderInfo.GetTotalHeight(renderInfos);
+            if (renderInfos.Length == 0)
+                return;
+
+            // A footer sits at the bottom of its area rather than the top, so the content has to
+            // come down by however much of the area it leaves empty. That is one distance for the
+            // whole of it: moving each element to the same place instead lays them all on top of
+            // one another. See https://github.com/ststeiger/PdfSharpCore/issues/414.
+            LayoutInfo firstLayoutInfo = renderInfos[0].LayoutInfo;
+            XUnit formattedTop = firstLayoutInfo.ContentArea.Y - firstLayoutInfo.MarginTop;
+            XUnit renderedTop = footerArea.Y + footerArea.Height - RenderInfo.GetTotalHeight(renderInfos);
+            XUnit distance = renderedTop - formattedTop;
 
             FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
             foreach (RenderInfo renderInfo in renderInfos)
             {
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
                 XUnit savedY = renderer.RenderInfo.LayoutInfo.ContentArea.Y;
-                renderer.RenderInfo.LayoutInfo.ContentArea.Y = topY;
+                renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY + distance;
                 renderer.Render();
                 renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
             }
