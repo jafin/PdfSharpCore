@@ -28,6 +28,7 @@
 #endregion
 
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf.Advanced;
@@ -191,8 +192,12 @@ namespace PdfSharpCore.Pdf.Content
             {
                 if (op.OpCode.OpCodeName != OpCodeName.ID)
                 {
-                    GetType();
-                    Debug.Assert(false, "Invalid number of operands.");
+                    // Documents in the wild carry operators given the wrong number of operands, and
+                    // readers show them all the same. Written down rather than asserted, so that
+                    // reading such a document is not something only a release build can do.
+                    Debug.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                        "Content stream operator '{0}' takes {1} operands and was given {2}.",
+                        op.OpCode.Name, op.OpCode.Operands, _operands.Count));
                 }
             }
 #endif

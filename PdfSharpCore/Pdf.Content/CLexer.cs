@@ -277,8 +277,12 @@ namespace PdfSharpCore.Pdf.Content
             {
                 if (decimalDigits > 0)
                 {
-                    _tokenAsReal = value / PowersOf10[decimalDigits];
-                    //_tokenAsLong = value / PowersOf10[decimalDigits];
+                    // Read from the token rather than worked out from the digits gathered above.
+                    // Those stop at the tenth decimal place, and a matrix written out to the
+                    // precision of a double - which is what a writer of PDF puts out for a
+                    // rotation - would otherwise be read as a slightly different matrix, or run
+                    // off the end of a table of powers of ten trying.
+                    _tokenAsReal = double.Parse(_token.ToString(), CultureInfo.InvariantCulture);
                 }
                 else
                 {
@@ -298,7 +302,6 @@ namespace PdfSharpCore.Pdf.Content
             ContentReaderDiagnostics.ThrowNumberOutOfIntegerRange(value);
             return CSymbol.Error;
         }
-        static readonly double[] PowersOf10 = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
         /// <summary>
         /// Scans an operator.
