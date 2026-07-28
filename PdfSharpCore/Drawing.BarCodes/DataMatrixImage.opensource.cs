@@ -175,10 +175,15 @@ namespace PdfSharpCore.Drawing.BarCodes
 
         /// <summary>
         /// Creates a DataMatrix image object.
+        /// <para>
+        /// Not implemented, for the reason given at the top of this file. It said so by handing
+        /// back nothing, which the caller drew, and drawing nothing is how a report of a null
+        /// image came to be the only thing said about a code this library cannot produce.
+        /// </para>
         /// </summary>
         public XImage CreateImage(char[] code, int rows, int columns, int pixelsize)
         {
-            return null;
+            throw new NotImplementedException(BcgSR.DataMatrixNotImplemented);
         }
     }
 

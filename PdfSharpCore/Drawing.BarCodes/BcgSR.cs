@@ -89,5 +89,17 @@ namespace PdfSharpCore.Drawing.BarCodes
         {
             return string.Format("'{1}'x'{0}' is an invalid ecc200 DataMatrix size.", columns, rows);
         }
+
+        internal static string DataMatrixNotImplemented
+        {
+            get
+            {
+                return "Producing the image of a DataMatrix code is not implemented. The open " +
+                       "source version of PDFsharp leaves out the ecc200 encoding that ISO/IEC " +
+                       "16022 describes, and PdfSharpCore has inherited the omission, so a " +
+                       "CodeDataMatrix cannot be drawn. Produce the code with a library that " +
+                       "implements it and draw the result with DrawImage.";
+            }
+        }
     }
 }
