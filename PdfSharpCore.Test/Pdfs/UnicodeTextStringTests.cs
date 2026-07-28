@@ -142,6 +142,57 @@ namespace PdfSharpCore.Test.Pdfs
         }
 
         /// <summary>
+        ///   /F is a file specification string rather than a text string, so it stays one byte
+        ///   per character and cannot spell a name outside ASCII. /UF is its text counterpart
+        ///   and is where such a name survives, so it is also the entry to read the name back
+        ///   from when a document has one.
+        /// </summary>
+        [Fact]
+        public void AnEmbeddedFileNameOutsideAsciiIsKeptInTheUnicodeEntry()
+        {
+            var specification = FileSpecificationNamed(Accented + ".txt");
+
+            ((PdfString)specification.Elements["/F"]).Encoding
+                .Should().Be(PdfStringEncoding.RawEncoding);
+            ((PdfString)specification.Elements["/UF"]).Encoding
+                .Should().Be(PdfStringEncoding.Unicode);
+            specification.FileName.Should().Be(Accented + ".txt");
+        }
+
+        [Fact]
+        public void AnEmbeddedFileNameWithinAsciiIsWrittenExactlyAsBefore()
+        {
+            var specification = FileSpecificationNamed("plain.txt");
+
+            var name = (PdfString)specification.Elements["/F"];
+            name.Encoding.Should().Be(PdfStringEncoding.RawEncoding);
+            name.Value.Should().Be("plain.txt");
+            ((PdfString)specification.Elements["/UF"]).Encoding
+                .Should().Be(PdfStringEncoding.RawEncoding);
+        }
+
+        /// <summary>
+        ///   A document written before /UF was set, or by another library, has only /F.
+        /// </summary>
+        [Fact]
+        public void AnEmbeddedFileNameIsStillReadFromTheOldEntryAlone()
+        {
+            var specification = FileSpecificationNamed("plain.txt");
+            specification.Elements.Remove("/UF");
+
+            specification.FileName.Should().Be("plain.txt");
+        }
+
+        private static PdfFileSpecification FileSpecificationNamed(string fileName)
+        {
+            var document = new PdfDocument();
+            document.AddPage();
+            var embedded = new PdfEmbeddedFile(document, new byte[] { 1, 2, 3 });
+
+            return new PdfFileSpecification(document, fileName, embedded);
+        }
+
+        /// <summary>
         ///   The catalog of a form built by hand, because the field types have no public
         ///   constructor: a text field only ever reaches a caller by being read from a document.
         /// </summary>
@@ -202,7 +253,7 @@ namespace PdfSharpCore.Test.Pdfs
         /// </summary>
         private static string HexString(string text)
         {
-            var bytes = Encoding.BigEndianUnicode.GetBytes("﻿" + text);
+            var bytes = Encoding.BigEndianUnicode.GetBytes("\uFEFF" + text);
             var hex = new StringBuilder("<");
             foreach (var value in bytes)
                 hex.AppendFormat("{0:X2}", value);
