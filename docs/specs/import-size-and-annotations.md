@@ -7,6 +7,7 @@ What the investigation of issue #461 turned up beyond the defect the issue was r
 | 1 | Unused resources are copied with an imported page | done, `feat/prune-unused-resources` |
 | 2 | `InsertRange` throws on a page carrying a resolvable link | done, `fix/insert-range-duplicate-annots` |
 | 3 | `InsertRange` keeps only one shape of destination | done, with item 2 |
+| 4 | A destination named rather than stated arrives standing for nothing | done, `fix/imported-named-destinations` |
 
 The link destinations of #461 itself are fixed on `fix/imported-annotations-copy-linked-pages`,
 which `fix/insert-range-duplicate-annots` builds on.
@@ -226,6 +227,85 @@ actions as well.
 
 ---
 
+## Item 4 — A destination named rather than stated arrives standing for nothing
+
+**Done** on `fix/imported-named-destinations`, which this document had put out of scope. What follows
+is why that was wrong.
+
+### The defect
+
+A link can name where it goes instead of saying it outright, leaving the document catalog to hold
+what the name stands for — a name tree under `/Names`, or the `/Dests` dictionary that PDF 1.1 used.
+`ImportExternalPage` copies no catalog, so the name arrived standing for nothing. The annotation
+survived intact, `/Dest (section.1)` and all, naming something that was nowhere in the file.
+
+Worse than the explicit case rather than merely different: `ResolveImportedDestinations` **removes**
+an explicit destination it cannot resolve, leaving a well-formed inert link. A named one was left
+dangling, which is the one path out of the import that wrote a broken reference.
+
+And it did not need the target page to be missing. Confirmed by direct probe on a 15-page LaTeX
+paper, every page imported:
+
+```
+name tree YES, named links 95, explicit links 0
+  merged: resolved 0, still named 95
+```
+
+**Every internal link of that document was named, and none explicit.** Merging a document whose
+cross references worked gave one whose cross references did not. hyperref, Word and InDesign all
+write destinations this way, so the form already handled is the rarer one in generated documents.
+
+### The fix
+
+Resolve the name against the document the page came from, while that is still at hand, and write the
+destination it stands for in its place. `DetachDestination` already bailed at exactly the right spot:
+
+```csharp
+// Named destinations are strings or names and hold on to nothing.
+PdfReference externalPage = externalDestination.Elements[0] as PdfReference;
+if (externalPage == null)
+    return;
+```
+
+Everything past that point was already built for #461 and needed no change — the deferred
+resolution, the retargeting at the imported page, the dropping of a destination whose page was left
+behind. Only the lookup is new, as `Pdf.Advanced/PdfNamedDestinations.cs`: the name tree walk
+(`/Kids`, `/Limits`, leaf `/Names`), the `/Dests` dictionary, and the `/D` dictionary a destination
+can be held in.
+
+**Inlined rather than kept as a name.** Rebuilding a name tree in the output would mean deciding
+what happens when two merged documents both define `section.1`, and that collision is the only part
+of this that is genuinely hard. Inlining sidesteps it: nothing that survives the import refers to a
+destination by name, because `/Outlines` is not imported either.
+
+### Traps
+
+- **`/GoToR` is not `/GoTo`.** `DetachImportedDestinations` looked at the `/D` of any action at all.
+  Explicit destinations got away with it — a remote one names its page by number, so the
+  `as PdfReference` above already bailed — but resolving a *name* locally would point a link meant
+  for another file at whatever this document happens to call that. Now gated on `/S`, with an action
+  that does not say what it is still taken to be a go-to, which is what it was taken to be before.
+- **Fit specifications are copied, not shared.** `[page /XYZ l t z]` past the page is numbers and
+  names, which clone. Anything else there would be an object of the other document, and rather than
+  write a destination that reaches into it the conversion is abandoned and the name left alone.
+- A name the catalog does not hold is left as written. It cannot be resolved and cannot be shown to
+  be wrong, and leaving it is what happened before.
+
+### Verification
+
+`PdfSharpCore.Test/IO/NamedDestinationTests.cs`, over `NamedDestinationFixtures.cs`: the name tree,
+a nested tree with `/Limits` where the destination is in the second leaf, a destination held under
+`/D`, the `/Dests` dictionary, a `/GoTo` action, every annotation of a page carrying three, and that
+where on the page to go survives. Plus the three that say what does *not* change: a `/GoToR` keeps
+its name, an unheld name is left alone, an explicit destination behaves as it did.
+
+Nine of the twelve fail with the wiring reverted; the three that pass are exactly those three.
+
+On the LaTeX paper above: **95 of 95 resolved, none left named**, for 1,191 bytes more in a 3 MB
+file. Whole suite green on net8.0 and net10.0, 260 passed.
+
+---
+
 ---
 
 ## Turned up on the way
@@ -240,7 +320,9 @@ Every test that rasterizes now sits in one collection that does not run alongsid
 
 ## Not in scope
 
-- Named destinations (`/Dest (name)` or `/Dest /Name`) resolved through the catalog `/Names` tree
-  or `/Dests`. Neither the old code nor the #461 fix follows them; they dangle after an import
-  because the name tree is not imported. Real, but a different feature.
-- Importing `/Outlines`, `/StructTreeRoot` or `/AcroForm` alongside a page.
+- ~~Named destinations resolved through the catalog `/Names` tree or `/Dests`. Real, but a different
+  feature.~~ Done as item 4. It was not a different feature: reading it as one rested on assuming
+  the name tree had to be *imported*, where resolving the name at import time and writing what it
+  stands for needs no tree in the output at all.
+- Importing `/Outlines`, `/StructTreeRoot` or `/AcroForm` alongside a page. Note this bounds item 4:
+  a merged document keeps the cross references written into its pages, and still has no bookmarks.

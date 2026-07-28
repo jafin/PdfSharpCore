@@ -574,6 +574,10 @@ namespace PdfSharpCore.Pdf
             if (importedAnnotations == null || externalAnnotations == null)
                 return;
 
+            // The document the page is being taken out of, which is the one that holds what the
+            // destinations naming rather than stating where they go stand for.
+            PdfDocument externalDocument = importPage.Owner;
+
             // The annotations were copied one by one, so the two arrays run in parallel.
             int count = Math.Min(importedAnnotations.Elements.Count, externalAnnotations.Elements.Count);
             for (int idx = 0; idx < count; idx++)
@@ -584,37 +588,100 @@ namespace PdfSharpCore.Pdf
                     continue;
 
                 // A link either carries its destination directly or performs a go-to action.
-                DetachDestination(imported, imported, external, PdfLinkAnnotation.Keys.Dest, importedObjectTable);
+                DetachDestination(imported, imported, external, PdfLinkAnnotation.Keys.Dest,
+                    importedObjectTable, externalDocument);
 
                 PdfDictionary importedAction = imported.Elements.GetDictionary(PdfAnnotation.Keys.A);
                 PdfDictionary externalAction = external.Elements.GetDictionary(PdfAnnotation.Keys.A);
-                if (importedAction != null && externalAction != null)
-                    DetachDestination(imported, importedAction, externalAction, "/D", importedObjectTable);
+                if (importedAction == null || externalAction == null)
+                    continue;
+
+                // Only a go-to action goes to a page of the document the annotation is part of.
+                // /GoToR and friends go into another file, where a page number means what it says
+                // and a name is for that file to resolve, so their destination is left alone. An
+                // action that does not say what it is is taken to be a go-to, which is what it was
+                // taken to be before any of them were told apart.
+                string subtype = externalAction.Elements.GetName("/S");
+                if (subtype.Length == 0 || subtype == "/GoTo")
+                    DetachDestination(imported, importedAction, externalAction, "/D",
+                        importedObjectTable, externalDocument);
             }
         }
 
         /// <summary>
-        /// Helper function for DetachImportedDestinations. Empties the page out of a single explicit
+        /// Helper function for DetachImportedDestinations. Empties the page out of a single
         /// destination, which is an array whose first element is the page to go to.
+        /// <para>
+        /// A destination written as a string or a name is one the catalog of the external document
+        /// holds under that name. The catalog is not imported along with a page, so the name would
+        /// arrive standing for nothing and the link would go nowhere. What it stands for is looked
+        /// up and written in its place, which leaves the link with a destination that carries
+        /// itself and needs no catalog to be understood.
+        /// </para>
         /// </summary>
         void DetachDestination(PdfDictionary annotation, PdfDictionary holder, PdfDictionary externalHolder,
-            string key, PdfImportedObjectTable importedObjectTable)
+            string key, PdfImportedObjectTable importedObjectTable, PdfDocument externalDocument)
         {
-            PdfArray destination = holder.Elements.GetArray(key);
             PdfArray externalDestination = externalHolder.Elements.GetArray(key);
-            if (destination == null || externalDestination == null)
-                return;
-            if (destination.Elements.Count == 0 || externalDestination.Elements.Count == 0)
+            bool named = externalDestination == null;
+            if (named)
+                externalDestination = PdfNamedDestinations.Lookup(externalDocument, externalHolder.Elements[key]);
+
+            if (externalDestination == null || externalDestination.Elements.Count == 0)
                 return;
 
-            // Named destinations are strings or names and hold on to nothing.
+            // A destination going into another file names its page by number rather than holding a
+            // reference to it, and there is nothing here to detach.
             PdfReference externalPage = externalDestination.Elements[0] as PdfReference;
             if (externalPage == null)
                 return;
 
+            PdfArray destination;
+            if (named)
+            {
+                destination = ExplicitDestination(externalDestination);
+                if (destination == null)
+                    return;
+                holder.Elements[key] = destination;
+            }
+            else
+            {
+                destination = holder.Elements.GetArray(key);
+                if (destination == null || destination.Elements.Count == 0)
+                    return;
+            }
+
             destination.Elements[0] = PdfNull.Value;
             _importedDestinations.Add(new ImportedDestination(annotation, holder, key, destination,
                 importedObjectTable, externalPage.ObjectID));
+        }
+
+        /// <summary>
+        /// A destination of this document saying what the one given says beyond which page it goes
+        /// to, that page being left to be filled in once it is known what became of it.
+        /// <para>
+        /// Returns null when there is an element that cannot be carried over, so that a destination
+        /// which cannot be written faithfully is left alone rather than written wrongly.
+        /// </para>
+        /// </summary>
+        PdfArray ExplicitDestination(PdfArray externalDestination)
+        {
+            PdfArray destination = new PdfArray(_document);
+            destination.Elements.Add(PdfNull.Value);
+
+            int count = externalDestination.Elements.Count;
+            for (int idx = 1; idx < count; idx++)
+            {
+                PdfItem item = externalDestination.Elements[idx];
+
+                // Where on the page to go is written with names and numbers. Anything else is an
+                // object of the other document, which cloning would not bring across.
+                if (item is PdfReference || item is PdfObject)
+                    return null;
+
+                destination.Elements.Add(item.Clone());
+            }
+            return destination;
         }
 
         /// <summary>
