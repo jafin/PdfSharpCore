@@ -134,7 +134,8 @@ namespace MigraDocCore.Rendering
         {
             InitRendering();
             if ((int)this.paragraph.Format.OutlineLevel >= 1 && this.gfx.PdfPage != null) // Don't call GetOutlineTitle() in vain
-                this.documentRenderer.AddOutline((int)this.paragraph.Format.OutlineLevel, GetOutlineTitle(), this.gfx.PdfPage);
+                this.documentRenderer.AddOutline((int)this.paragraph.Format.OutlineLevel, GetOutlineTitle(),
+                    this.gfx.PdfPage, OutlineDestinationTop());
 
             RenderShading();
             RenderBorders();
@@ -1126,7 +1127,8 @@ namespace MigraDocCore.Rendering
                     case HyperlinkType.Local:
                         int pageRef = this.fieldInfos.GetPhysicalPageNumber(hyperlink.Name);
                         if (pageRef > 0)
-                            page.AddDocumentLink(new PdfRectangle(rect), pageRef);
+                            page.AddDocumentLink(new PdfRectangle(rect), pageRef,
+                                this.fieldInfos.GetBookmarkTop(hyperlink.Name));
                         break;
 
                     case HyperlinkType.Web:
@@ -1207,6 +1209,27 @@ namespace MigraDocCore.Rendering
 
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Where on the page an outline entry for this paragraph should land, in the coordinates a
+        /// PDF page is measured in.
+        /// </summary>
+        /// <remarks>
+        /// Without this the entry points at the page and says nothing about where on it, and a
+        /// reader following it is left wherever the page happens to be scrolled to rather than at
+        /// the heading. The paragraph is being rendered onto the very page the entry points at, so
+        /// its own transformer is the one that turns the distance down the page into a distance up it.
+        /// </remarks>
+        double OutlineDestinationTop()
+        {
+            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+            if (contentArea == null)
+                return double.NaN;
+
+            XRect onPage = this.gfx.Transformer.WorldToDefaultPage(
+                new XRect(contentArea.X, contentArea.Y, 0, 0));
+            return onPage.Y;
         }
 
         private void InitRendering()
@@ -1611,7 +1634,10 @@ namespace MigraDocCore.Rendering
 
         FormatResult FormatBookmarkField(BookmarkField bookmarkField)
         {
-            this.fieldInfos.AddBookmark(bookmarkField.Name);
+            // The position is taken while formatting rather than while rendering because a link to
+            // the bookmark may well be drawn before it -- a table of contents is the whole point --
+            // and by then the answer has to be known already.
+            this.fieldInfos.AddBookmark(bookmarkField.Name, this.currentYPosition);
             return FormatResult.Ignore;
         }
 

@@ -31,6 +31,7 @@
 using System;
 using System.Collections;
 using MigraDocCore.DocumentObjectModel;
+using MigraDocCore.DocumentObjectModel.Fields;
 using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
@@ -103,6 +104,13 @@ namespace MigraDocCore.Rendering
         // So they are skipped here.
         if (renderer == null)
         {
+          // A bookmark draws nothing, so it has no renderer and would otherwise be skipped along
+          // with the legends -- silently, which is what made a bookmark put on a section rather
+          // than in a paragraph vanish without a word. Register it where it stands instead.
+          BookmarkField bookmark = docObj as BookmarkField;
+          if (bookmark != null)
+            this.areaProvider.AreaFieldInfos.AddBookmark(bookmark.Name, area.Y);
+
           ready = idx == this.elements.Count - 1;
           if (ready)
             this.areaProvider.StoreRenderInfos(renderInfos);
@@ -201,7 +209,7 @@ namespace MigraDocCore.Rendering
 #if false
           area = this.areaProvider.GetNextArea();
 #else
-          if (!ready)  //!!!newTHHO 19.01.2007: korrekt? oder GetNextArea immer ausführen???
+          if (!ready)  //!!!newTHHO 19.01.2007: korrekt? oder GetNextArea immer ausfï¿½hren???
           {
             area = this.areaProvider.GetNextArea();
             maxHeight = area.Height;
