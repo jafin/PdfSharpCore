@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
-using AwesomeAssertions;
+using FluentAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using Xunit;
@@ -54,7 +54,7 @@ namespace PdfSharpCore.Test.IO
             document.Save(written, false);
 
             document.Info.ModificationDate.Should().BeOnOrAfter(before).And.BeOnOrBefore(DateTime.Now);
-            Encoding.Latin1.GetString(written.ToArray()).Should().Contain("/ModDate");
+            Encoding.ASCII.GetString(written.ToArray()).Should().Contain("/ModDate");
         }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace PdfSharpCore.Test.IO
             document.Save(written, false);
 
             document.Info.ModificationDate.Should().Be(DateTime.MinValue);
-            Encoding.Latin1.GetString(written.ToArray()).Should().NotContain("/ModDate");
+            Encoding.ASCII.GetString(written.ToArray()).Should().NotContain("/ModDate");
         }
 
         private static byte[] ADocumentModifiedOn(DateTime? modificationDate)
