@@ -53,13 +53,18 @@ namespace PdfSharpCore.Drawing
 
         const string KeyPrefix = "tk:";  // "typeface key"
 
-        public XGlyphTypeface(string key, XFontSource fontSource)
+        /// <param name="styleSimulations">
+        /// What the renderer has to supply that the font file does not - a font resolver asked for
+        /// a bold or italic face the family ships no file for, and named the nearest one instead.
+        /// </param>
+        public XGlyphTypeface(string key, XFontSource fontSource, XStyleSimulations styleSimulations)
         {
             string familyName = fontSource.Fontface.name.Name;
             _fontFamily = new XFontFamily(familyName, false);
             _fontface = fontSource.Fontface;
             _isBold = _fontface.os2.IsBold;
             _isItalic = _fontface.os2.IsItalic;
+            _styleSimulations = styleSimulations;
 
             _key = key;
             //_fontFamily =xfont  FontFamilyCache.GetFamilyByName(familyName);
@@ -113,8 +118,10 @@ namespace PdfSharpCore.Drawing
             XFontSource fontSource = FontFactory.GetFontSourceByFontName(fontResolverInfo.FaceName);
             Debug.Assert(fontSource != null);
 
-            // Each font source already contains its OpenTypeFontface.
-            glyphTypeface = new XGlyphTypeface(typefaceKey, fontSource);
+            // Each font source already contains its OpenTypeFontface. The resolver's simulation
+            // flags have to come along: they are the whole record of the difference between the
+            // face that was asked for and the file that answered, and the renderer draws from them.
+            glyphTypeface = new XGlyphTypeface(typefaceKey, fontSource, fontResolverInfo.StyleSimulations);
             GlyphTypefaceCache.AddGlyphTypeface(glyphTypeface);
 
             return glyphTypeface;

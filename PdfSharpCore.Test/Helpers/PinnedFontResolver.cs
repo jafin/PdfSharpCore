@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 
 namespace PdfSharpCore.Test.Helpers
@@ -37,7 +38,16 @@ namespace PdfSharpCore.Test.Helpers
         public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
         {
             if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
-                return new FontResolverInfo(CffFaceName);
+            {
+                // A regular face is all that is shipped for this family, so a bold or an italic has
+                // to be drawn on. That also gives the style-simulation tests a family to work with:
+                // the same file answers every request, so only the simulation differs.
+                XStyleSimulations simulations =
+                    (isBold ? XStyleSimulations.BoldSimulation : XStyleSimulations.None)
+                    | (isItalic ? XStyleSimulations.ItalicSimulation : XStyleSimulations.None);
+
+                return new FontResolverInfo(CffFaceName, simulations);
+            }
 
             // Every other family is answered, so that a document asking for a font that is not
             // shipped is laid out the same way everywhere instead of falling back to the machine.

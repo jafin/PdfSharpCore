@@ -88,7 +88,7 @@ namespace PdfSharpCore.Fonts
         /// Initializes a new instance of the <see cref="FontResolverInfo"/> struct.
         /// </summary>
         /// <param name="faceName">The name that uniquely identifies the fontface.</param>
-        /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered. Not implemented and must be false.</param>
+        /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered, by stroking the glyphs as well as filling them.</param>
         /// <param name="mustSimulateItalic">Set to <c>true</c> to simulate italic when rendered.</param>
         /// <param name="collectionNumber">Index of the font in a true type font collection.
         /// Vestigial, and must be zero: a collection is taken apart by the font resolver, which
@@ -112,7 +112,7 @@ namespace PdfSharpCore.Fonts
         /// Initializes a new instance of the <see cref="FontResolverInfo"/> struct.
         /// </summary>
         /// <param name="faceName">The name that uniquely identifies the fontface.</param>
-        /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered. Not implemented and must be false.</param>
+        /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered, by stroking the glyphs as well as filling them.</param>
         /// <param name="mustSimulateItalic">Set to <c>true</c> to simulate italic when rendered.</param>
         public FontResolverInfo(string faceName, bool mustSimulateBold, bool mustSimulateItalic)
             : this(faceName, mustSimulateBold, mustSimulateItalic, 0)
