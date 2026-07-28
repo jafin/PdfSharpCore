@@ -773,16 +773,47 @@ namespace PdfSharpCore.Pdf
                         throw new InvalidCastException("GetName: Object is not a name.");
                 }
 
-                if (strDate != "")
+                DateTimeOffset parsed;
+                if (strDate != "" && PdfDate.TryParse(strDate, out parsed))
+                    return parsed.UtcDateTime;
+
+                return defaultValue;
+            }
+
+            /// <summary>
+            /// Converts the specified value to DateTimeOffset, keeping the offset from Universal Time
+            /// that the document states. If the value cannot be converted, the default value is returned.
+            /// </summary>
+            public DateTimeOffset GetDateTimeOffset(string key, DateTimeOffset defaultValue)
+            {
+                object obj = this[key];
+                if (obj == null)
+                    return defaultValue;
+
+                PdfReference reference = obj as PdfReference;
+                if (reference != null)
+                    obj = reference.Value;
+
+                PdfDate date = obj as PdfDate;
+                if (date != null)
+                    return date.ValueOffset;
+
+                string strDate;
+                PdfString pdfString = obj as PdfString;
+                if (pdfString != null)
+                    strDate = pdfString.Value;
+                else
                 {
-                    try
-                    {
-                        defaultValue = Parser.ParseDateTime(strDate, defaultValue);
-                    }
-                    // ReSharper disable EmptyGeneralCatchClause
-                    catch { }
-                    // ReSharper restore EmptyGeneralCatchClause
+                    PdfStringObject stringObject = obj as PdfStringObject;
+                    if (stringObject == null)
+                        return defaultValue;
+                    strDate = stringObject.Value;
                 }
+
+                DateTimeOffset parsed;
+                if (strDate != "" && PdfDate.TryParse(strDate, out parsed))
+                    return parsed;
+
                 return defaultValue;
             }
 
@@ -790,6 +821,14 @@ namespace PdfSharpCore.Pdf
             /// Sets the entry to a direct datetime value.
             /// </summary>
             public void SetDateTime(string key, DateTime value)
+            {
+                _elements[key] = new PdfDate(value);
+            }
+
+            /// <summary>
+            /// Sets the entry to a direct datetime value, with the offset from Universal Time it carries.
+            /// </summary>
+            public void SetDateTimeOffset(string key, DateTimeOffset value)
             {
                 _elements[key] = new PdfDate(value);
             }

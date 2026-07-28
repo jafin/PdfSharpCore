@@ -49,11 +49,13 @@ namespace PdfSharpCore.Test.IO
             var pdf = ADocumentModifiedOn(ADateInTheFile);
             var document = Pdf.IO.PdfReader.Open(new MemoryStream(pdf, false), PdfDocumentOpenMode.Modify);
 
-            var before = DateTime.Now;
+            // The property answers in Universal Time, since a DateTime cannot hold the offset a
+            // document states its dates with. See docs/specs/pdf-date-round-trip.md.
+            var before = DateTime.UtcNow;
             using var written = new MemoryStream();
             document.Save(written, false);
 
-            document.Info.ModificationDate.Should().BeOnOrAfter(before).And.BeOnOrBefore(DateTime.Now);
+            document.Info.ModificationDate.Should().BeOnOrAfter(before).And.BeOnOrBefore(DateTime.UtcNow);
             Encoding.Latin1.GetString(written.ToArray()).Should().Contain("/ModDate");
         }
 
@@ -71,7 +73,7 @@ namespace PdfSharpCore.Test.IO
             document.Save(first, false);
             var afterTheFirstSave = document.Info.ModificationDate;
 
-            var between = DateTime.Now;
+            var between = DateTime.UtcNow;
             using var second = new MemoryStream();
             document.Save(second, false);
 
@@ -90,7 +92,7 @@ namespace PdfSharpCore.Test.IO
             using var written = new MemoryStream();
             document.Save(written, false);
 
-            document.Info.ModificationDate.Should().Be(chosen);
+            document.Info.ModificationDate.Should().Be(chosen.ToUniversalTime());
         }
 
         /// <summary>

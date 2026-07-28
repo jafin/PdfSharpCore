@@ -6,9 +6,12 @@ date is stamped; this is about *what* a date means once it is in a file.
 
 | item | what | status |
 |---|---|---|
-| 1 | Offsets are dropped from three date forms that occur in the wild, giving the wrong instant | proposed |
-| 2 | Dates shorter than a full timestamp are read as `DateTime.MinValue` or lose their time | proposed |
-| 3 | A date cannot be read back as the value it was written from | proposed |
+| 1 | Offsets are dropped from three date forms that occur in the wild, giving the wrong instant | done, `fix/pdf-date-round-trip` |
+| 2 | Dates shorter than a full timestamp are read as `DateTime.MinValue` or lose their time | done, with item 1 |
+| 3 | A date cannot be read back as the value it was written from | done, with item 1 |
+
+All three are built. What follows is the design as written; the notes marked *changed* are where it
+departs from what was drafted.
 
 ---
 
@@ -136,8 +139,11 @@ A date may stop after any field. Read what is present and default the rest: mont
 everything else to zero. `D:2024` is a legal date meaning 2024-01-01, not a parse failure.
 
 Note the existing behaviour returns `DateTime.MinValue` for anything it cannot read, and callers
-cannot tell that from a document that genuinely says `0001-01-01`. Out of scope here, but a
-`TryParse` shape is what the `// TODO: TryParseDateTime` on line 1496 is asking for.
+cannot tell that from a document that genuinely says `0001-01-01`. *Changed*: brought into scope.
+`PdfDate.TryParse` is public and answers the question, and the `DateTime` members still return
+`MinValue` for a date they cannot read, so no document that opens today stops opening. This is what
+the `// TODO: TryParseDateTime` was asking for, and `Parser.ParseDateTime` is gone — reading a date
+string now lives with the value it produces rather than with the file parser.
 
 ## Item 3 — Let a caller keep the offset
 
@@ -178,11 +184,37 @@ changes what every existing caller sees without any of them asking. UT is the ho
 
 ---
 
+## What the parser accepts now
+
+The same thirteen forms, measured after the change. Every row reads as the standard says it should.
+
+| string | read as | |
+|---|---|---|
+| `D:20240601120000+10'00'` | 02:00 UT | |
+| `D:20240601120000+10'00` | 02:00 UT | **was** 12:00 |
+| `D:20240601120000+1000` | 02:00 UT | **was** 12:00 |
+| `D:20240601120000-05'30'` | 17:30 UT | |
+| `D:20240601120000-0530` | 17:30 UT | **was** 12:00 |
+| `D:20240601120000Z` | 12:00 UT | |
+| `D:20240601120000` | 12:00 UT | |
+| `D:202406011200` | 12:00 UT | **was** 00:00 |
+| `D:20240601` | 00:00 UT | |
+| `D:202406` | 2024-06-01 00:00 UT | **was** `MinValue` |
+| `D:2024` | 2024-01-01 00:00 UT | **was** `MinValue` |
+| `20240601120000+10'00'` | 02:00 UT | **was** `MinValue` |
+| `D:20240601120000+10'00'junk` | 02:00 UT | |
+
+Reading stops at the first field that is not there, or is not digits. The two cannot be told apart
+without rules the standard does not give, and stopping is what a date that simply ends looks like.
+
 ## Tests
 
-- Each row of the reading table above, as a theory, against the instant it should give.
-- Each documented default: `D:2024`, `D:202406`, `D:20240601`, `D:202406011200`.
-- A round trip through `DateTimeOffset` for a zone that is not the machine's, and for one at a half
-  hour offset, where rounding to the whole hour would show.
-- That what is written still carries the trailing apostrophe.
-- `Pdfs/PdfDateTests.cs` already covers `-02'00'` and `Z` and should keep passing untouched.
+- `Pdfs/PdfDateTests.cs`: every row of the table above, every documented default, the three
+  spellings of an offset, what is written for four offsets including two on the half and quarter
+  hour, a `DateTimeOffset` round trip, and four strings that are no date at all. The two tests that
+  were there for `-02'00'` and `Z` are untouched and still pass.
+- `IO/DocumentDateRoundTripTests.cs`: a date written into a document and read back out of it, for
+  four offsets; that the `DateTime` members answer in UT; and that a date chosen through the offset
+  member is not stamped over when the document is saved.
+- `IO/ModificationDateTests.cs` compares in UT rather than local time, since that is what the
+  property now says it returns.
