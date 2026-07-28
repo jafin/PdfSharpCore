@@ -62,8 +62,9 @@ namespace PdfSharpCore.Pdf
     /// that front matter can be numbered i, ii, iii while the body starts again at 1.
     /// <para>
     /// Labels are given a range at a time, each one starting at the page it is added for and
-    /// running until the next range begins. A document that has any must label the page at index
-    /// zero, so a range is added there whether or not one was asked for.
+    /// running until the next range begins. Pages before the first range are not labelled at
+    /// all, page zero among them where the first range starts after it, and a reader shows those
+    /// pages by position as it would for a document with no labels.
     /// </para>
     /// </summary>
     public sealed class PdfPageLabels
@@ -155,7 +156,16 @@ namespace PdfSharpCore.Pdf
         public bool Remove(int startPageIndex)
         {
             PdfNumberTreeNode tree = Tree(false);
-            return tree != null && tree.Remove(startPageIndex);
+            if (tree == null || !tree.Remove(startPageIndex))
+                return false;
+
+            // A tree left holding nothing would say the document has labels and then label no
+            // page, which is not a document the standard describes. Taking the last range away
+            // takes the entry with it.
+            if (tree.Count == 0)
+                Clear();
+
+            return true;
         }
 
         /// <summary>

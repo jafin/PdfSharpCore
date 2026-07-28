@@ -192,6 +192,33 @@ namespace PdfSharpCore.Test.IO
         }
 
         [Fact]
+        public void TakingAwayTheLastRangeLeavesTheDocumentLabelledByPositionAgain()
+        {
+            var document = WithPages(4);
+            document.PageLabels.Add(0, PdfPageLabelStyle.Decimal);
+
+            document.PageLabels.Remove(0).Should().BeTrue();
+
+            // A tree left holding nothing would say the document has labels and then label no
+            // page, which is not a document the standard describes.
+            document.Internals.Catalog.Elements.ContainsKey("/PageLabels").Should().BeFalse();
+            SaveAndOpen(document).PageLabels.Count.Should().Be(0);
+        }
+
+        [Fact]
+        public void TakingAwayOneOfSeveralRangesLeavesTheRest()
+        {
+            var document = WithPages(6);
+            document.PageLabels.Add(0, PdfPageLabelStyle.LowercaseRoman);
+            document.PageLabels.Add(3, PdfPageLabelStyle.Decimal);
+
+            document.PageLabels.Remove(3).Should().BeTrue();
+
+            document.Internals.Catalog.Elements.ContainsKey("/PageLabels").Should().BeTrue();
+            SaveAndOpen(document).PageLabels.Count.Should().Be(1);
+        }
+
+        [Fact]
         public void ClearingLeavesTheDocumentLabelledByPositionAgain()
         {
             var document = WithPages(4);
