@@ -23,20 +23,33 @@ namespace PdfSharpCore.Test.Helpers
         private static readonly ConcurrentDictionary<string, byte[]> Fonts =
             new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        ///   The one family here that is not Liberation. Its outlines are PostScript (CFF) rather
+        ///   than TrueType, which is a different embedding path entirely, and nothing else shipped
+        ///   with the tests exercises it.
+        /// </summary>
+        public const string CffFamilyName = "Source Code Pro";
+
+        private const string CffFaceName = "SourceCodePro-Regular.otf";
+
         public string DefaultFontName => "Arial";
 
         public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
         {
-            // Every family is answered, so that a document asking for a font that is not shipped
-            // is laid out the same way everywhere instead of falling back to the machine.
+            if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
+                return new FontResolverInfo(CffFaceName);
+
+            // Every other family is answered, so that a document asking for a font that is not
+            // shipped is laid out the same way everywhere instead of falling back to the machine.
             return new FontResolverInfo(FaceNameOf(isBold, isItalic));
         }
 
         public byte[] GetFont(string faceName)
         {
-            return Fonts.GetOrAdd(faceName,
-                name => File.ReadAllBytes(
-                    PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + name + ".ttf")));
+            return Fonts.GetOrAdd(faceName, name => File.ReadAllBytes(
+                name == CffFaceName
+                    ? PathHelper.GetInstance().GetAssetPath("Fonts", CffFaceName)
+                    : PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + name + ".ttf")));
         }
 
         private static string FaceNameOf(bool isBold, bool isItalic)
