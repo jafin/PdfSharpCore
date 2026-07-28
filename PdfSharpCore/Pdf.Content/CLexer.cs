@@ -193,7 +193,9 @@ namespace PdfSharpCore.Pdf.Content
             while (true)
             {
                 char ch = AppendAndScanNextChar();
-                if (IsWhiteSpace(ch) || IsDelimiter(ch))
+                // A name that ends the content stream never sees a delimiter, so give up at the
+                // end of the content as well rather than appending Chars.EOF for ever.
+                if (IsWhiteSpace(ch) || IsDelimiter(ch) || ch == Chars.EOF)
                     return _symbol = CSymbol.Name;
 
                 if (ch == '#')
@@ -217,7 +219,13 @@ namespace PdfSharpCore.Pdf.Content
             char ch;
             while (true)
             {
-                _token.Append(ch = ScanNextChar());
+                ch = ScanNextChar();
+                // A truncated dictionary never sees its closing '>>', so give up at the end of
+                // the content rather than appending Chars.EOF for ever.
+                if (ch == Chars.EOF)
+                    return CSymbol.Dictionary;
+
+                _token.Append(ch);
                 if (ch == '>')
                 {
                     _token.Append(ch = ScanNextChar());
@@ -344,6 +352,11 @@ namespace PdfSharpCore.Pdf.Content
                 while (true)
                 {
                     SkipChar:
+                    // An unterminated string never sees its closing ')', so give up at the end
+                    // of the content rather than scanning for ever.
+                    if (_currChar == Chars.EOF)
+                        return _symbol = CSymbol.String;
+
                     switch (ch)
                     {
                         case '(':
@@ -444,6 +457,11 @@ namespace PdfSharpCore.Pdf.Content
                 while (true)
                 {
                     SkipChar:
+                    // An unterminated string never sees its closing ')', so give up at the end
+                    // of the content rather than appending Chars.EOF for ever.
+                    if (ch == Chars.EOF)
+                        return _symbol = CSymbol.String;
+
                     switch (ch)
                     {
                         case '(':
@@ -544,20 +562,42 @@ namespace PdfSharpCore.Pdf.Content
             while (true)
             {
                 MoveToNonWhiteSpace();
+                // A truncated hex string never sees its closing '>', so give up at the end of
+                // the content rather than spinning on Chars.EOF.
+                if (_currChar == Chars.EOF)
+                    break;
+
                 if (_currChar == '>')
                 {
                     ScanNextChar();
                     break;
                 }
-                if (char.IsLetterOrDigit(_currChar))
+                if (!IsHexChar(_currChar))
                 {
-                    hex[0] = char.ToUpper(_currChar);
-                    hex[1] = char.ToUpper(_nextChar);
-                    int ch = int.Parse(new string(hex), NumberStyles.AllowHexSpecifier);
-                    _token.Append(Convert.ToChar(ch));
+                    // Neither '>' nor a hex digit: step over it rather than never advancing.
                     ScanNextChar();
+                    continue;
+                }
+
+                hex[0] = _currChar;
+                ScanNextChar();
+                // What may come between the two digits of a byte is what may come before one:
+                // white space, and anything else that is not a digit. Only the end of the
+                // string decides that the second digit is missing rather than merely late.
+                while (!IsHexChar(_currChar) && _currChar != '>' && _currChar != Chars.EOF)
+                    ScanNextChar();
+
+                if (IsHexChar(_currChar))
+                {
+                    hex[1] = _currChar;
                     ScanNextChar();
                 }
+                else
+                {
+                    // A hex string with an odd number of digits ends in a zero.
+                    hex[1] = '0';
+                }
+                _token.Append((char)int.Parse(new string(hex), NumberStyles.AllowHexSpecifier));
             }
             string chars = _token.ToString();
             int count = chars.Length;
@@ -578,10 +618,15 @@ namespace PdfSharpCore.Pdf.Content
         {
             if (ContLength <= _charIndex)
             {
-                _currChar = Chars.EOF;
-                if (IsOperatorChar(_nextChar))
-                    _token.Append(_nextChar);
+                // _nextChar is read one character ahead, so the last character of the content is
+                // waiting in it when _charIndex reaches the end. Hand it over before reporting
+                // the end of the content, which the next call then does.
+                _currChar = _nextChar;
                 _nextChar = Chars.EOF;
+                // Treat a single CR as LF, as the branch below does. Nothing is left to pair it
+                // with, so it cannot be the CR of a CR LF.
+                if (_currChar == Chars.CR)
+                    _currChar = Chars.LF;
             }
             else
             {
@@ -729,6 +774,16 @@ namespace PdfSharpCore.Pdf.Content
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Indicates whether the specified character is a hexadecimal digit.
+        /// </summary>
+        internal static bool IsHexChar(char ch)
+        {
+            return char.IsDigit(ch) ||
+                (ch >= 'A' && ch <= 'F') ||
+                (ch >= 'a' && ch <= 'f');
         }
 
         /// <summary>
