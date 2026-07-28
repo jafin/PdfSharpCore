@@ -75,6 +75,63 @@ namespace PdfSharpCore.Test.IO
                 Image());
         }
 
+        /// <summary>
+        ///   One page whose graphics state carries a soft mask. The mask is painted by a form with
+        ///   no resources of its own, so what it draws it draws with the page's: the image Im1. Im2
+        ///   is named by the page and drawn by nobody.
+        /// </summary>
+        internal static byte[] PageDrawingThroughASoftMaskWithoutResources()
+        {
+            return OnePageDocument(
+                "/ExtGState<</GS0 5 0 R>>/XObject<</Im1 7 0 R/Im2 8 0 R>>",
+                "/GS0 gs",
+                "<</Type/ExtGState/SMask<</Type/Mask/S/Luminosity/G 6 0 R>>>>",
+                Form("/Group<</S/Transparency/CS/DeviceGray>>", "/Im1 Do"),
+                Image(),
+                Image());
+        }
+
+        /// <summary>
+        ///   One page whose soft mask is painted by a form carrying resources of its own.
+        /// </summary>
+        internal static byte[] PageDrawingThroughASoftMaskWithItsOwnResources()
+        {
+            return OnePageDocument(
+                "/ExtGState<</GS0 5 0 R>>/XObject<</Im1 8 0 R>>",
+                "/GS0 gs",
+                "<</Type/ExtGState/SMask<</Type/Mask/S/Luminosity/G 6 0 R>>>>",
+                Form("/Resources<</XObject<</Im1 7 0 R>>>>", "/Im1 Do"),
+                Image(),
+                Image());
+        }
+
+        /// <summary>
+        ///   One page whose graphics state sets its soft mask to /None, which paints nothing.
+        /// </summary>
+        internal static byte[] PageTurningTheSoftMaskOff()
+        {
+            return OnePageDocument(
+                "/ExtGState<</GS0 5 0 R>>/XObject<</Im1 6 0 R>>",
+                "/GS0 gs",
+                "<</Type/ExtGState/SMask/None>>",
+                Image());
+        }
+
+        /// <summary>
+        ///   One page whose soft mask names a form whose content cannot be read.
+        /// </summary>
+        internal static byte[] PageWhoseSoftMaskCannotBeRead()
+        {
+            return OnePageDocument(
+                "/ExtGState<</GS0 5 0 R>>/XObject<</Im1 7 0 R/Im2 8 0 R>>",
+                "/GS0 gs",
+                "<</Type/ExtGState/SMask<</Type/Mask/S/Luminosity/G 6 0 R>>>>",
+                RawPdf.Stream("/Type/XObject/Subtype/Form/BBox[0 0 200 200]/Filter/JPXDecode",
+                              "not a JPEG 2000 codestream"),
+                Image(),
+                Image());
+        }
+
         /// <summary>One page holding an inline image, which cannot be read over reliably.</summary>
         internal static byte[] PageWithAnInlineImage()
         {

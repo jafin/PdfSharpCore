@@ -72,6 +72,49 @@ namespace PdfSharpCore.Test.IO
         }
 
         [Fact]
+        public void ASoftMaskWithoutResourcesKeepsWhatItPaintsWithFromThePage()
+        {
+            var document = Open(PageDrawingThroughASoftMaskWithoutResources());
+
+            document.PruneUnusedResources();
+
+            // The page draws nothing but the graphics state; the image is painted by the mask.
+            // Dropping Im1 would leave the page naming a mask it cannot paint.
+            XObjectsOf(document.Pages[0]).Should().Equal("/Im1");
+        }
+
+        [Fact]
+        public void ASoftMaskWithItsOwnResourcesDoesNotKeepThePageEntryOfTheSameName()
+        {
+            var document = Open(PageDrawingThroughASoftMaskWithItsOwnResources());
+
+            document.PruneUnusedResources();
+
+            // The Im1 the mask paints is its own, named by its own resources, not the page's.
+            XObjectsOf(document.Pages[0]).Should().BeEmpty();
+        }
+
+        [Fact]
+        public void AGraphicsStateTurningTheSoftMaskOffPaintsNothing()
+        {
+            var document = Open(PageTurningTheSoftMaskOff());
+
+            document.PruneUnusedResources();
+
+            XObjectsOf(document.Pages[0]).Should().BeEmpty();
+        }
+
+        [Fact]
+        public void APageWhoseSoftMaskCannotBeReadIsLeftAlone()
+        {
+            var document = Open(PageWhoseSoftMaskCannotBeRead());
+
+            document.PruneUnusedResources();
+
+            XObjectsOf(document.Pages[0]).Should().Equal("/Im1", "/Im2");
+        }
+
+        [Fact]
         public void AFormDrawingItselfIsReadOnceAndPrunedAllTheSame()
         {
             var document = Open(PageWithAFormDrawingItself());
