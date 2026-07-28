@@ -430,65 +430,12 @@ namespace PdfSharpCore.Pdf.Advanced
 
         static bool TryGetPageContent(PdfPage page, out byte[] content)
         {
-            content = null;
-
-            PdfItem item = page.Elements[PdfPage.Keys.Contents];
-            if (item is PdfReference)
-                item = ((PdfReference)item).Value;
-
-            if (item == null)
-            {
-                // A page that draws nothing draws with nothing.
-                content = new byte[0];
-                return true;
-            }
-
-            PdfArray streams = item as PdfArray;
-            if (streams == null)
-                return TryGetContent(item as PdfDictionary, out content);
-
-            // The streams of a page are one stream broken up, and a token may span the break.
-            List<byte[]> parts = new List<byte[]>();
-            int length = 0;
-            for (int idx = 0; idx < streams.Elements.Count; idx++)
-            {
-                byte[] part;
-                if (!TryGetContent(streams.Elements.GetDictionary(idx), out part))
-                    return false;
-
-                parts.Add(part);
-                length += part.Length + 1;
-            }
-
-            content = new byte[length];
-            int at = 0;
-            foreach (byte[] part in parts)
-            {
-                part.CopyTo(content, at);
-                at += part.Length;
-                content[at++] = (byte)'\n';
-            }
-
-            return true;
+            return PdfContentStreams.TryGetPageContent(page, out content);
         }
 
         static bool TryGetContent(PdfDictionary stream, out byte[] content)
         {
-            content = null;
-            if (stream == null || stream.Stream == null)
-                return false;
-
-            try
-            {
-                content = stream.Stream.UnfilteredValue;
-            }
-            catch (Exception)
-            {
-                // A filter that cannot be undone leaves the content unreadable.
-                return false;
-            }
-
-            return content != null;
+            return PdfContentStreams.TryGetContent(stream, out content);
         }
 
         #endregion
