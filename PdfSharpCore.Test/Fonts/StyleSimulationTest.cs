@@ -96,6 +96,16 @@ namespace PdfSharpCore.Test.Fonts
         }
 
         [Fact]
+        public void ASimulatedItalicIsSkewedOnThePage()
+        {
+            // The slant is drawn on by shearing the text matrix 20° to the right, which is the
+            // third of the six operands of Tm. An upright face is positioned with Td and sets no
+            // text matrix at all, so it shears nothing.
+            ShearsOf(XFontStyle.Italic).Should().Contain(shear => shear > 0);
+            ShearsOf(XFontStyle.Regular).Should().NotContain(shear => shear > 0);
+        }
+
+        [Fact]
         public void ASimulatedBoldMeasuresWiderThanTheFaceItIsDrawnOver()
         {
             const string text = "The quick brown fox";
@@ -117,6 +127,29 @@ namespace PdfSharpCore.Test.Fonts
         /// </summary>
         private static int[] RenderModesOf(XFontStyle style)
         {
+            return OperatorsOf(style)
+                .Where(op => op.OpCode.OpCodeName == OpCodeName.Tr)
+                .Select(op => (int)((CInteger)op.Operands[0]).Value)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// The horizontal shear of every text matrix the page sets, in the order it sets them.
+        /// </summary>
+        private static double[] ShearsOf(XFontStyle style)
+        {
+            return OperatorsOf(style)
+                .Where(op => op.OpCode.OpCodeName == OpCodeName.Tm)
+                .Select(op => op.Operands[2] is CReal real ? real.Value : ((CInteger)op.Operands[2]).Value)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Everything a page drawn in the given style asks the viewer to do, read back off the
+        /// saved file rather than out of the document that wrote it.
+        /// </summary>
+        private static COperator[] OperatorsOf(XFontStyle style)
+        {
             var document = new PdfDocument();
             var page = document.AddPage();
 
@@ -132,11 +165,7 @@ namespace PdfSharpCore.Test.Fonts
 
             PdfPage reread = Pdf.IO.PdfReader.Open(stream, PdfDocumentOpenMode.Modify).Pages[0];
 
-            return ContentReader.ReadContent(ContentOf(reread))
-                .OfType<COperator>()
-                .Where(op => op.OpCode.OpCodeName == OpCodeName.Tr)
-                .Select(op => (int)((CInteger)op.Operands[0]).Value)
-                .ToArray();
+            return ContentReader.ReadContent(ContentOf(reread)).OfType<COperator>().ToArray();
         }
 
         private static byte[] ContentOf(PdfPage page)
