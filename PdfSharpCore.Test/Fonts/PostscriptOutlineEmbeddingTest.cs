@@ -34,7 +34,7 @@ namespace PdfSharpCore.Test.Fonts
             descriptor.Elements.ContainsKey("/FontFile2").Should()
                 .BeFalse("'/FontFile2' is defined as a TrueType font program");
 
-            PdfDictionary program = Resolve(saved, descriptor.Elements["/FontFile3"]);
+            PdfDictionary program = Resolve(descriptor.Elements["/FontFile3"]);
             program.Elements.GetName("/Subtype").Should().Be("/OpenType");
 
             // '/Length1' belongs to a TrueType program; '/Subtype' takes its place here.
@@ -51,7 +51,7 @@ namespace PdfSharpCore.Test.Fonts
         {
             PdfDocument saved = DrawAndReopen(PdfFontEncoding.Unicode);
 
-            PdfDictionary program = Resolve(saved, FontDescriptorOf(saved).Elements["/FontFile3"]);
+            PdfDictionary program = Resolve(FontDescriptorOf(saved).Elements["/FontFile3"]);
             byte[] expected = File.ReadAllBytes(
                 PathHelper.GetInstance().GetAssetPath("Fonts", "SourceCodePro-Regular.otf"));
 
@@ -101,7 +101,7 @@ namespace PdfSharpCore.Test.Fonts
                 .Elements.GetName("/Subtype").Should().Be("/CIDFontType2");
 
             // The point of subsetting: what goes in is smaller than the font it came from.
-            PdfDictionary program = Resolve(saved, descriptor.Elements["/FontFile2"]);
+            PdfDictionary program = Resolve(descriptor.Elements["/FontFile2"]);
             long embedded = program.Elements.GetInteger("/Length1");
             long source = new FileInfo(
                 PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-Regular.ttf")).Length;
@@ -124,9 +124,36 @@ namespace PdfSharpCore.Test.Fonts
         [GoldenImageFact]
         public void GhostscriptRendersAPageCarryingAnEmbeddedOpenTypeProgram()
         {
-            var rendered = PdfHelper.Rasterize(Draw(PdfFontEncoding.Unicode));
+            using var rendered = PdfHelper.Rasterize(Draw(PdfFontEncoding.Unicode)).ImageCollection;
 
-            using var page = rendered.ImageCollection.Single().Clone();
+            using var page = rendered.Single().Clone();
+            page.ColorFuzz = new Percentage(20);
+            page.Trim();
+
+            page.Width.Should().BeGreaterThan(0, "the page must not come out blank");
+            page.Height.Should().BeGreaterThan(0, "the page must not come out blank");
+        }
+
+        /// <summary>
+        /// A simple font with CFF outlines ends up as a '/Subtype /TrueType' dictionary whose
+        /// descriptor carries a '/FontFile3' of subtype '/OpenType'. That pairing looks contradictory
+        /// - the traditional one for CFF outlines in a simple font is '/Type1' with '/Type1C' - so it
+        /// is pinned here and put in front of the strict reader, rather than argued about from the
+        /// specification alone. The CID path is covered above; this is the other half.
+        /// </summary>
+        [GoldenImageFact]
+        public void GhostscriptRendersASimpleFontCarryingPostscriptOutlines()
+        {
+            PdfDocument saved = DrawAndReopen(PdfFontEncoding.WinAnsi);
+
+            // The exact combination under test.
+            SimpleFontOf(saved).Elements.GetName("/Subtype").Should().Be("/TrueType");
+            Resolve(FontDescriptorOf(saved).Elements["/FontFile3"])
+                .Elements.GetName("/Subtype").Should().Be("/OpenType");
+
+            using var rendered = PdfHelper.Rasterize(Draw(PdfFontEncoding.WinAnsi)).ImageCollection;
+
+            using var page = rendered.Single().Clone();
             page.ColorFuzz = new Percentage(20);
             page.Trim();
 
@@ -182,11 +209,16 @@ namespace PdfSharpCore.Test.Fonts
         private static PdfDocument DrawAndReopen(PdfFontEncoding encoding,
             string familyName = PinnedFontResolver.CffFamilyName)
         {
-            using var stream = new MemoryStream();
-            Draw(encoding, familyName).Save(stream, false);
-            stream.Position = 0;
+            byte[] saved;
+            using (var stream = new MemoryStream())
+            {
+                Draw(encoding, familyName).Save(stream, false);
+                saved = stream.ToArray();
+            }
 
-            return Pdf.IO.PdfReader.Open(stream, PdfDocumentOpenMode.Modify);
+            // The returned document reads lazily through its lexer, so it is opened over a stream
+            // that outlives this method rather than one disposed on the way out.
+            return Pdf.IO.PdfReader.Open(new MemoryStream(saved), PdfDocumentOpenMode.Modify);
         }
 
         private static PdfDictionary FontDescriptorOf(PdfDocument document)
@@ -194,6 +226,19 @@ namespace PdfSharpCore.Test.Fonts
             return document.Internals.GetAllObjects()
                 .OfType<PdfDictionary>()
                 .Single(d => d.Elements.GetName("/Type") == "/FontDescriptor");
+        }
+
+        /// <summary>
+        /// The font dictionary of a simple font: a '/Font' that is not a CIDFont descendant and not
+        /// the '/Type0' parent of one.
+        /// </summary>
+        private static PdfDictionary SimpleFontOf(PdfDocument document)
+        {
+            return document.Internals.GetAllObjects()
+                .OfType<PdfDictionary>()
+                .Where(d => d.Elements.GetName("/Type") == "/Font")
+                .Single(d => !d.Elements.ContainsKey("/CIDSystemInfo")
+                             && !d.Elements.ContainsKey("/DescendantFonts"));
         }
 
         private static PdfDictionary[] DescendantFontsOf(PdfDocument document)
@@ -205,7 +250,7 @@ namespace PdfSharpCore.Test.Fonts
                 .ToArray();
         }
 
-        private static PdfDictionary Resolve(PdfDocument document, PdfItem item)
+        private static PdfDictionary Resolve(PdfItem item)
         {
             return (PdfDictionary)(item is PdfReference reference ? reference.Value : item);
         }

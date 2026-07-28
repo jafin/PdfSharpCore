@@ -228,12 +228,47 @@ namespace PdfSharpCore.Test.Fonts
             });
         }
 
+        /// <summary>
+        /// A collection is free to declare a face directory that is not in the file. Reading one has
+        /// to say so rather than walk off the end of the array, which is what indexing the offset
+        /// table without checking it first did.
+        /// </summary>
+        [Fact]
+        public void ReadingMetadataRejectsACollectionPointingOutsideTheFile()
+        {
+            byte[] collection = BuildCollection();
+
+            // The offset of face 0's table directory sits at 12, just past the collection header.
+            WriteU32(collection, 12, (uint)collection.Length + 1024);
+
+            WithFontFile(collection, path =>
+            {
+                Action read = () => new SkiaProbe().Read(path, 0);
+
+                read.Should().Throw<InvalidOperationException>(
+                    "a face outside the file is malformed input, not an indexing accident");
+            });
+        }
+
+        private static void WriteU32(byte[] data, int offset, uint value)
+        {
+            data[offset] = (byte)(value >> 24);
+            data[offset + 1] = (byte)(value >> 16);
+            data[offset + 2] = (byte)(value >> 8);
+            data[offset + 3] = (byte)value;
+        }
+
         private static void WithCollectionFile(Action<string> body)
+        {
+            WithFontFile(BuildCollection(), body);
+        }
+
+        private static void WithFontFile(byte[] data, Action<string> body)
         {
             string path = Path.Combine(Path.GetTempPath(),
                 "PdfSharpCore-" + Guid.NewGuid().ToString("N") + ".ttc");
 
-            File.WriteAllBytes(path, BuildCollection());
+            File.WriteAllBytes(path, data);
             try
             {
                 body(path);

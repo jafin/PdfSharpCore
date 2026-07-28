@@ -153,7 +153,7 @@ namespace PdfSharpCore.Fonts
         readonly string _faceName;
 
         /// <summary>
-        /// Indicates whether bold must be simulated. Bold simulation is not implemented in PdfSharpCore.
+        /// Indicates whether bold must be simulated, by stroking the glyphs as well as filling them.
         /// </summary>
         public bool MustSimulateBold
         {

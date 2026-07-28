@@ -37,12 +37,23 @@ namespace PdfSharpCore.Utils
 
 
         /// <summary>
+        /// A font directory is walked on the first font operation of the process, so an
+        /// unreadable subdirectory in it must not be the thing that fails that operation.
+        /// </summary>
+        private static readonly EnumerationOptions WalkOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+
+
+        /// <summary>
         /// Every font file under the given directory. One walk rather than one per extension,
         /// since a font directory is walked on the first font operation of the process.
         /// </summary>
         public static IEnumerable<string> In(string directory)
         {
-            foreach (string path in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            foreach (string path in Directory.EnumerateFiles(directory, "*", WalkOptions))
             {
                 if (IsFontFile(path))
                     yield return path;

@@ -163,6 +163,9 @@ namespace PdfSharpCore.Utils
             if (isOSX)
             {
                 fontDir = "/Library/Fonts/";
+                if (!System.IO.Directory.Exists(fontDir))
+                    return new string[0];
+
                 return FontFileTypes.In(fontDir).ToArray();
             }
 
@@ -176,7 +179,9 @@ namespace PdfSharpCore.Utils
             if (isWindows)
             {
                 fontDir = System.Environment.ExpandEnvironmentVariables(@"%SystemRoot%\Fonts");
-                var fontPaths = new List<string>(FontFileTypes.In(fontDir));
+                var fontPaths = new List<string>();
+                if (System.IO.Directory.Exists(fontDir))
+                    fontPaths.AddRange(FontFileTypes.In(fontDir));
 
                 var appdataFontDir = System.Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Microsoft\Windows\Fonts");
                 if (System.IO.Directory.Exists(appdataFontDir))

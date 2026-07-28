@@ -17,7 +17,9 @@ namespace PdfSharpCore.Utils
     /// </summary>
     internal static class OpenTypeFontMetadata
     {
-        private const uint TagTtcf = 0x74746366; // 'ttcf'
+        private const int OffsetTableLength = 12;
+        private const int TableRecordLength = 16;
+
         private const uint TagName = 0x6E616D65; // 'name'
         private const uint TagOs2 = 0x4F532F32;  // 'OS/2'
         private const uint TagHead = 0x68656164; // 'head'
@@ -72,17 +74,19 @@ namespace PdfSharpCore.Utils
         {
             int baseOffset = 0;
 
-            // A TrueType collection starts with a directory of fonts.
-            if (data.Length >= 16 && U32(data, 0) == TagTtcf)
+            // A TrueType collection starts with a directory of fonts. TrueTypeCollection owns both
+            // the signature check and the validation of the declared face count against the room the
+            // file has to point at that many, so neither is repeated here.
+            if (TrueTypeCollection.IsCollection(data))
             {
-                int faceCount = (int)U32(data, 8);
+                int faceCount = TrueTypeCollection.FaceCount(data);
                 int face = faceIndex < 0 ? 0 : faceIndex;
 
-                if (face >= faceCount || 12 + face * 4 + 4 > data.Length)
+                if (face >= faceCount)
                     throw new InvalidOperationException(
                         "Font collection holds " + faceCount + " faces; face " + face + " was asked for.");
 
-                baseOffset = (int)U32(data, 12 + face * 4);
+                baseOffset = (int)U32(data, OffsetTableLength + face * 4);
             }
             else if (faceIndex > 0)
             {
@@ -90,7 +94,15 @@ namespace PdfSharpCore.Utils
                     "Font is not a collection and holds face 0 alone; face " + faceIndex + " was asked for.");
             }
 
+            // A collection is free to point at a face outside the file, and the offset table holds
+            // the table count, so both are checked before anything is read through them.
+            if (baseOffset < 0 || baseOffset + OffsetTableLength > data.Length)
+                throw new InvalidOperationException("Font collection points at a face outside the file.");
+
             int numTables = U16(data, baseOffset + 4);
+
+            if (baseOffset + OffsetTableLength + numTables * TableRecordLength > data.Length)
+                throw new InvalidOperationException("Font declares more tables than the file holds.");
 
             int nameOffset = -1;
             int os2Offset = -1;
@@ -98,8 +110,8 @@ namespace PdfSharpCore.Utils
 
             for (int i = 0; i < numTables; i++)
             {
-                int record = baseOffset + 12 + i * 16;
-                if (record + 16 > data.Length)
+                int record = baseOffset + OffsetTableLength + i * TableRecordLength;
+                if (record + TableRecordLength > data.Length)
                     break;
 
                 uint tag = U32(data, record);
