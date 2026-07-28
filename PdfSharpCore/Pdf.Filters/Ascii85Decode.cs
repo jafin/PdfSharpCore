@@ -44,33 +44,33 @@ namespace PdfSharpCore.Pdf.Filters
         public override byte[] Encode(byte[] data)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
-            int length = data.Length;  // length == 0 is must not be treated as a special case.
-            int words = length / 4;
-            int rest = length - (words * 4);
-            byte[] result = new byte[words * 5 + (rest == 0 ? 0 : rest + 1) + 2];
+            var length = data.Length;  // length == 0 is must not be treated as a special case.
+            var words = length / 4;
+            var rest = length - (words * 4);
+            var result = new byte[words * 5 + (rest == 0 ? 0 : rest + 1) + 2];
 
             int idxIn = 0, idxOut = 0;
-            int wCount = 0;
+            var wCount = 0;
             while (wCount < words)
             {
-                uint val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn++] << 16) + ((uint)data[idxIn++] << 8) + data[idxIn++];
+                var val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn++] << 16) + ((uint)data[idxIn++] << 8) + data[idxIn++];
                 if (val == 0)
                 {
                     result[idxOut++] = (byte)'z';
                 }
                 else
                 {
-                    byte c5 = (byte)(val % 85 + '!');
+                    var c5 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c4 = (byte)(val % 85 + '!');
+                    var c4 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c3 = (byte)(val % 85 + '!');
+                    var c3 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c2 = (byte)(val % 85 + '!');
+                    var c2 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c1 = (byte)(val + '!');
+                    var c1 = (byte)(val + '!');
 
                     result[idxOut++] = c1;
                     result[idxOut++] = c2;
@@ -82,24 +82,24 @@ namespace PdfSharpCore.Pdf.Filters
             }
             if (rest == 1)
             {
-                uint val = (uint)data[idxIn] << 24;
+                var val = (uint)data[idxIn] << 24;
                 val /= 85 * 85 * 85;
-                byte c2 = (byte)(val % 85 + '!');
+                var c2 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c1 = (byte)(val + '!');
+                var c1 = (byte)(val + '!');
 
                 result[idxOut++] = c1;
                 result[idxOut++] = c2;
             }
             else if (rest == 2)
             {
-                uint val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn] << 16);
+                var val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn] << 16);
                 val /= 85 * 85;
-                byte c3 = (byte)(val % 85 + '!');
+                var c3 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c2 = (byte)(val % 85 + '!');
+                var c2 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c1 = (byte)(val + '!');
+                var c1 = (byte)(val + '!');
 
                 result[idxOut++] = c1;
                 result[idxOut++] = c2;
@@ -107,15 +107,15 @@ namespace PdfSharpCore.Pdf.Filters
             }
             else if (rest == 3)
             {
-                uint val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn++] << 16) + ((uint)data[idxIn] << 8);
+                var val = ((uint)data[idxIn++] << 24) + ((uint)data[idxIn++] << 16) + ((uint)data[idxIn] << 8);
                 val /= 85;
-                byte c4 = (byte)(val % 85 + '!');
+                var c4 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c3 = (byte)(val % 85 + '!');
+                var c3 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c2 = (byte)(val % 85 + '!');
+                var c2 = (byte)(val % 85 + '!');
                 val /= 85;
-                byte c1 = (byte)(val + '!');
+                var c1 = (byte)(val + '!');
 
                 result[idxOut++] = c1;
                 result[idxOut++] = c2;
@@ -137,15 +137,15 @@ namespace PdfSharpCore.Pdf.Filters
         public override byte[] Decode(byte[] data, FilterParms parms)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
             int idx;
-            int length = data.Length;
-            int zCount = 0;
-            int idxOut = 0;
+            var length = data.Length;
+            var zCount = 0;
+            var idxOut = 0;
             for (idx = 0; idx < length; idx++)
             {
-                char ch = (char)data[idx];
+                var ch = (char)data[idx];
                 if (ch >= '!' && ch <= 'u')
                     data[idxOut++] = (byte)ch;
                 else if (ch == 'z')
@@ -156,33 +156,33 @@ namespace PdfSharpCore.Pdf.Filters
                 else if (ch == '~')
                 {
                     if ((char)data[idx + 1] != '>')
-                        throw new ArgumentException("Illegal character.", "data");
+                        throw new ArgumentException("Illegal character.", nameof(data));
                     break;
                 }
-                // ingnore unknown character
+                // ignore unknown character
             }
             // Loop not ended with break?
             if (idx == length)
-                throw new ArgumentException("Illegal character.", "data");
+                throw new ArgumentException("Illegal character.", nameof(data));
 
             length = idxOut;
-            int nonZero = length - zCount;
-            int byteCount = 4 * (zCount + (nonZero / 5)); // full 4 byte blocks
+            var nonZero = length - zCount;
+            var byteCount = 4 * (zCount + (nonZero / 5)); // full 4 byte blocks
 
-            int remainder = nonZero % 5;
+            var remainder = nonZero % 5;
             if (remainder == 1)
                 throw new InvalidOperationException("Illegal character.");
 
             if (remainder != 0)
                 byteCount += remainder - 1;
 
-            byte[] output = new byte[byteCount];
+            var output = new byte[byteCount];
 
             idxOut = 0;
             idx = 0;
             while (idx + 4 < length)
             {
-                char ch = (char)data[idx];
+                var ch = (char)data[idx];
                 if (ch == 'z')
                 {
                     idx++;
@@ -191,7 +191,7 @@ namespace PdfSharpCore.Pdf.Filters
                 else
                 {
                     // TODO: check 
-                    long value =
+                    var value =
                       (long)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
                       (uint)(data[idx++] - '!') * (85 * 85 * 85) +
                       (uint)(data[idx++] - '!') * (85 * 85) +
@@ -209,11 +209,11 @@ namespace PdfSharpCore.Pdf.Filters
             }
 
             // I have found no appropriate algorithm, so I write my own. In some rare cases the value must not
-            // increased by one, but I cannot found a general formula or a proof.
+            // be increased by one, but I cannot found a general formula or a proof.
             // All possible cases are tested programmatically.
             if (remainder == 2) // one byte
             {
-                uint value =
+                var value =
                   (uint)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
                   (uint)(data[idx] - '!') * (85 * 85 * 85);
 
@@ -225,8 +225,8 @@ namespace PdfSharpCore.Pdf.Filters
             }
             else if (remainder == 3) // two bytes
             {
-                int idxIn = idx;
-                uint value =
+                var idxIn = idx;
+                var value =
                   (uint)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
                   (uint)(data[idx++] - '!') * (85 * 85 * 85) +
                   (uint)(data[idx] - '!') * (85 * 85);
@@ -234,12 +234,12 @@ namespace PdfSharpCore.Pdf.Filters
                 if (value != 0)
                 {
                     value &= 0xFFFF0000;
-                    uint val = value / (85 * 85);
-                    byte c3 = (byte)(val % 85 + '!');
+                    var val = value / (85 * 85);
+                    var c3 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c2 = (byte)(val % 85 + '!');
+                    var c2 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c1 = (byte)(val + '!');
+                    var c1 = (byte)(val + '!');
                     if (c1 != data[idxIn] || c2 != data[idxIn + 1] || c3 != data[idxIn + 2])
                     {
                         value += 0x00010000;
@@ -251,8 +251,8 @@ namespace PdfSharpCore.Pdf.Filters
             }
             else if (remainder == 4) // three bytes
             {
-                int idxIn = idx;
-                uint value =
+                var idxIn = idx;
+                var value =
                   (uint)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
                   (uint)(data[idx++] - '!') * (85 * 85 * 85) +
                   (uint)(data[idx++] - '!') * (85 * 85) +
@@ -261,14 +261,14 @@ namespace PdfSharpCore.Pdf.Filters
                 if (value != 0)
                 {
                     value &= 0xFFFFFF00;
-                    uint val = value / 85;
-                    byte c4 = (byte)(val % 85 + '!');
+                    var val = value / 85;
+                    var c4 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c3 = (byte)(val % 85 + '!');
+                    var c3 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c2 = (byte)(val % 85 + '!');
+                    var c2 = (byte)(val % 85 + '!');
                     val /= 85;
-                    byte c1 = (byte)(val + '!');
+                    var c1 = (byte)(val + '!');
                     if (c1 != data[idxIn] || c2 != data[idxIn + 1] || c3 != data[idxIn + 2] || c4 != data[idxIn + 3])
                     {
                         value += 0x00000100;
