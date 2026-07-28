@@ -435,6 +435,16 @@ namespace PdfSharpCore.Pdf
             }
             info.Elements.SetString(PdfDocumentInformation.Keys.Producer, producer);
 
+            // Stamp a document opened for modification with the time it was written. This used to be
+            // done when the document was opened, which meant that reading one to look at its dates
+            // changed the very date being looked at, whether or not anything was ever written. Set the
+            // element rather than the property, so that saving twice stamps twice and neither save is
+            // taken for a date the caller chose.
+            // IsImported tells a document PdfReader opened from a newly created one, which shares the
+            // default open mode of Modify and is dated by its creation date alone, as it always was.
+            if (IsImported && _openMode == PdfDocumentOpenMode.Modify && !info.ModificationDateIsTheCallersOwn)
+                info.Elements.SetDateTime(PdfDocumentInformation.Keys.ModDate, DateTime.Now);
+
             // Prepare used fonts.
             if (_fontTable != null)
                 _fontTable.PrepareForSave();
