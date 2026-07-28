@@ -117,8 +117,19 @@ namespace PdfSharpCore.Pdf
         public DateTime ModificationDate
         {
             get { return Elements.GetDateTime(Keys.ModDate, DateTime.MinValue); }
-            set { Elements.SetDateTime(Keys.ModDate, value); }
+            set
+            {
+                Elements.SetDateTime(Keys.ModDate, value);
+                ModificationDateIsTheCallersOwn = true;
+            }
         }
+
+        /// <summary>
+        /// Gets a value indicating whether the caller has set the modification date itself. Writing a
+        /// document that was opened for modification stamps it with the time it was written, but not
+        /// over a date the caller has chosen. A date read from a file is not the caller's own.
+        /// </summary>
+        internal bool ModificationDateIsTheCallersOwn { get; private set; }
 
         // TODO CustomProperties and meta data
 
@@ -128,7 +139,7 @@ namespace PdfSharpCore.Pdf
         internal sealed class Keys : KeysBase
         {
             /// <summary>
-            /// (Optional; PDF 1.1) The document’s title.
+            /// (Optional; PDF 1.1) The documentï¿½s title.
             /// </summary>
             [KeyInfo(KeyType.String | KeyType.Optional)]
             public const string Title = "/Title";
