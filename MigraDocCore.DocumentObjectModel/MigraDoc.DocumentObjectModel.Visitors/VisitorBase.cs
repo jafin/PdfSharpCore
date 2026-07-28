@@ -118,8 +118,11 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
       else if (refFormat.shading != null)
         FlattenShading(format.shading, refFormat.shading);
 
+      // Copied rather than shared, as the font and the shading above are: a format is flattened
+      // more than once, and the second pass would otherwise write what it inherits back into the
+      // format it inherited the borders from.
       if (format.borders == null)
-        format.borders = refFormat.borders;
+        format.borders = InheritedBorders(refFormat.borders, format);
       else if (refFormat.borders != null)
         FlattenBorders(format.borders, refFormat.borders);
 
