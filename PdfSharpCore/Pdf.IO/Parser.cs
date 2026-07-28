@@ -498,10 +498,12 @@ namespace PdfSharpCore.Pdf.IO
             int sp = _stack.SP;
             ParseObject(Symbol.EndDictionary);
             int count = _stack.SP - sp;
-            Debug.Assert(count % 2 == 0);
+            // A truncated dictionary can leave a key without its value. Keep the pairs it does
+            // have and drop the dangling key rather than reading past the end of the items.
+            Debug.Assert(count % 2 == 0 || _lexer.Symbol == Symbol.EndObj);
             PdfItem[] items = _stack.ToArray(sp, count);
             _stack.Reduce(count);
-            for (int idx = 0; idx < count; idx += 2)
+            for (int idx = 0; idx + 1 < count; idx += 2)
             {
                 PdfItem val = items[idx];
                 if (!(val is PdfName))
@@ -634,6 +636,14 @@ namespace PdfSharpCore.Pdf.IO
                     case Symbol.BeginStream:
                         throw new NotImplementedException();
 
+                    case Symbol.EndObj:
+                        // The object ended before the dictionary or array inside it was closed.
+                        // XnView, for one, writes "12 0 obj << endobj". Take the end of the object
+                        // as the end of what it holds, and put the keyword back so that the caller,
+                        // which looks for it next, still finds it.
+                        _lexer.Position = _lexer.Position - _lexer.Token.Length;
+                        return;
+
                     // Not expected here:
                     //case Symbol.None:
                     //case Symbol.Keyword:
@@ -641,7 +651,6 @@ namespace PdfSharpCore.Pdf.IO
                     //case Symbol.EndArray:
                     //case Symbol.EndDictionary:
                     //case Symbol.Obj:
-                    //case Symbol.EndObj:
                     //case Symbol.XRef:
                     //case Symbol.Trailer:
                     //case Symbol.StartXRef:
