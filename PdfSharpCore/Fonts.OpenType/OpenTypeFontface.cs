@@ -77,10 +77,12 @@ namespace PdfSharpCore.Fonts.OpenType
         public OpenTypeFontface(byte[] data, string faceName)
         {
             _fullFaceName = faceName;
-            // Always save a copy of the font bytes.
+            // Always save a copy of the font bytes, so that a caller reusing its buffer cannot
+            // change the font underneath us. The copy has to exist before it can be filled.
             int length = data.Length;
-            //FontSource = new XFontSource(faceName, new byte[length]);
-            Array.Copy(data, FontSource.Bytes, length);
+            byte[] bytes = new byte[length];
+            Array.Copy(data, bytes, length);
+            FontSource = XFontSource.CreateCompiledFont(bytes);
             Read();
         }
 
