@@ -29,6 +29,21 @@ ImageSource.ImageSourceImpl = new SkiaImageSource();
 
 Both throw a descriptive `InvalidOperationException` if you use them without registering a backend first.
 
+### Fonts
+
+The resolver shipped with each backend discovers `.ttf`, `.otf`, `.ttc` and `.otc` in the platform's
+font directories, and every face of a collection separately. Fonts are always embedded — there is
+no setting for it and never has been, on any platform.
+
+Two limits are worth knowing before you pick a font:
+
+* **OpenType fonts with PostScript (CFF) outlines embed whole.** TrueType fonts are subsetted down
+  to the glyphs a document actually draws; CFF outlines cannot be, so an `.otf` goes in at its full
+  size. For a CJK face that is megabytes per document.
+* **A weight or slant a family ships no file for is drawn on**, by stroking the glyphs and skewing
+  them. It looks like what a word processor does in the same situation, which is to say noticeably
+  worse than a real bold or italic. Ship the real faces where output quality matters.
+
 ### SkiaSharp native assets
 
 SkiaSharp is a native library, so an application using `PdfSharpCore.Skia` must also reference the

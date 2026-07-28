@@ -18,14 +18,17 @@ Decisions taken before implementation, recorded here so the reasoning below is r
   is untouched; `FontResolverBase` face names gain the `file.ttc#1` form.
 * **A CFF `.otf` is checked in** under `PdfSharpCore.Test/Assets/Fonts`, licence alongside.
 
-| id | gap | depends on |
-|---|---|---|
-| G1 | Only `*.ttf` is discovered — `.otf`, `.ttc`, `.otc` are invisible | G2, G4 |
-| G2 | CFF/OpenType-PS outlines cannot be embedded; the simple-font path throws | — |
-| G3 | Style simulation is implemented but never requested | — |
-| G4 | TrueType Collections throw on read | G5 |
-| G5 | `GetFont` resolves a face by substring match over a string array | — |
-| G6 | `PlatformFontResolver` is unreachable dead code | — |
+| id | gap | depends on | status |
+|---|---|---|---|
+| G1 | Only `*.ttf` is discovered — `.otf`, `.ttc`, `.otc` are invisible | G2, G4 | done, `7b68980` |
+| G2 | CFF/OpenType-PS outlines cannot be embedded; the simple-font path throws | — | done, `e91cc8e` |
+| G3 | Style simulation is implemented but never requested | — | done, `27f4279` |
+| G4 | TrueType Collections throw on read | G5 | done, `555746e` |
+| G5 | `GetFont` resolves a face by substring match over a string array | — | done, `0f59c89` |
+| G6 | `PlatformFontResolver` is unreachable dead code | — | done, `5d7a160` |
+
+All six are built on `feat/font-embedding-gaps`. Three things turned out differently from the
+design below; each is marked *changed* where it comes up.
 
 G1 is deliberately last in build order despite being first in the list: widening discovery *before*
 G2 and G4 land would surface fonts that are found and then fail at save time, which is worse than
@@ -200,6 +203,19 @@ Rewrite the fallback so it simulates only the axis it could not satisfy from a f
 | Italic | Italic | Italic | — |
 | Italic | Regular | Regular | italic |
 
+**Changed.** Two things had to happen that this section did not anticipate.
+
+The flags had nowhere to go. `XGlyphTypeface.GetOrCreateFrom` built the typeface through a
+constructor that takes no simulations, so `FontResolverInfo.StyleSimulations` was dropped before the
+renderer could read it. Rewriting the resolver alone would have changed nothing observable — which
+is presumably why nobody noticed the resolver never asked. The constructor now takes them.
+
+And filing had to change with it. `DeserializeFontFamily` recorded a family shipping a single file
+under `Regular` whatever that file actually was. Harmless while nothing was simulated, since
+`Regular` was what the fallback looked for last; not harmless once the missing weight is drawn on,
+because a family with only a bold face would have had that face stroked bolder still. Faces are now
+filed under the style they report, which the candidate list below covers.
+
 Two cache interactions to verify rather than assume:
 
 - `FontResolverInfo.Key` folds the simulation flags in (`…/b+i-`), and `XGlyphTypeface.ComputeKey`
@@ -212,6 +228,10 @@ Two cache interactions to verify rather than assume:
 Behaviour change: documents that currently render un-bolded will start rendering bolded. That is the
 fix, but it moves layout, so the golden images that exercise bold or italic have to be re-approved
 deliberately rather than blanket-regenerated.
+
+In the event none moved. The resolver the tests pin ships all four Liberation faces, so nothing in
+the existing suite ever falls back far enough to simulate anything. The new tests reach the
+behaviour through a family that deliberately ships one face.
 
 ---
 
@@ -279,6 +299,20 @@ Discovery gets slower in proportion to how many more files it finds, and it happ
 use behind `EnsureInitialized`. Worth measuring on a full Windows font directory before and after
 rather than assuming it is free.
 
+**Changed.** Measured, and it was not free. On a Windows 11 font directory — 519 `.ttf` against 540
+files holding 557 faces — discovery went from 170 ms to 309 ms: a 4% increase in files for an 84%
+increase in time.
+
+Most of that was not the files but how they were read. `SetupFontsFiles` asked the backend for one
+face at a time, and both backends answer by opening the file, so a fourteen-face collection was
+opened fourteen times. A `ReadCollectionMetadata` that reads a whole collection in one pass, which
+both backends override, brings it to 238 ms. The remaining increase over the `.ttf`-only baseline is
+real work: the collections on a Windows machine are the CJK faces, and they are megabytes each.
+
+The default implementation of that method is the per-face loop, so a backend that cannot do better
+keeps working; and a collection that throws under the batch falls back to the loop, so one
+unreadable face still costs only itself rather than the whole file.
+
 ---
 
 ## Testing
@@ -304,3 +338,22 @@ Golden image, via the existing Ghostscript harness:
 Test assets needed: a CFF `.otf`. The collection can be synthesised at test time from the Liberation
 faces already checked in, which doubles as a test of the extractor. There is no `.otf` in the
 Liberation family, so one has to be added.
+
+### As built
+
+`SourceCodePro-Regular.otf` was added under `PdfSharpCore.Test/Assets/Fonts` — SIL OFL 1.1, the same
+licence as the Liberation faces, whose text now covers both. 131 KB, smaller than any of them.
+
+Two assertions ended up doing more than planned, and one less:
+
+* The collection test compares every table of every extracted face against the source font byte for
+  byte. Reading the name back only proves the `name` table landed where the directory said, and a
+  wrong offset on any other table is exactly the bug that would not show up that way.
+* The CFF test compares the embedded stream against the font file byte for byte, which is the whole
+  claim for an unsubsetted embed.
+* The Ghostscript test asserts only that a page carrying the program renders. Ghostscript
+  substitutes silently for a font it cannot use, so ink on the page does not prove which glyphs
+  drew it — what it does prove is that a reader which rejects malformed font dictionaries accepts
+  this one, which is what the old output failed at. Identity is settled against the bytes instead.
+
+Suite: 280 tests, passing on `net8.0` and `net10.0`.
