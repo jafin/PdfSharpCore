@@ -191,6 +191,7 @@ namespace PdfSharpCore.Pdf
                 PagesArray.Elements.Insert(index, page.Reference);
                 Elements.SetInteger(Keys.Count, PagesArray.Elements.Count);
                 PdfAnnotations.FixImportedAnnotation(page);
+                DetachImportedDestinations(page, importPage, importedObjectTable);
             }
             if (Owner.Settings.TrimMargins.AreSet)
                 page.TrimMargins = Owner.Settings.TrimMargins;
@@ -221,18 +222,12 @@ namespace PdfSharpCore.Pdf
             if (pageCount > importDocumentPageCount)
                 throw new ArgumentOutOfRangeException("pageCount", "Argument 'pageCount' out of range.");
 
-            PdfPage[] insertPages = new PdfPage[pageCount];
-            PdfPage[] importPages = new PdfPage[pageCount];
-
-            // 1st create all new pages.
-            for (int idx = 0, insertIndex = index, importIndex = startIndex;
+            for (int insertIndex = index, importIndex = startIndex;
                 importIndex < startIndex + pageCount;
-                idx++, insertIndex++, importIndex++)
+                insertIndex++, importIndex++)
             {
                 PdfPage importPage = document.Pages[importIndex];
                 PdfPage page = ImportExternalPage(importPage, annotationCopying);
-                insertPages[idx] = page;
-                importPages[idx] = importPage;
 
                 Owner._irefTable.Add(page);
 
@@ -242,115 +237,13 @@ namespace PdfSharpCore.Pdf
 
                 PagesArray.Elements.Insert(insertIndex, page.Reference);
 
+                PdfAnnotations.FixImportedAnnotation(page);
+                DetachImportedDestinations(page, importPage, importedObjectTable);
+
                 if (Owner.Settings.TrimMargins.AreSet)
                     page.TrimMargins = Owner.Settings.TrimMargins;
             }
             Elements.SetInteger(Keys.Count, PagesArray.Elements.Count);
-
-            // 2nd copy link annotations that are in the range of the imported pages.
-            for (int idx = 0, importIndex = startIndex;
-                importIndex < startIndex + pageCount;
-                idx++, importIndex++)
-            {
-                PdfPage importPage = document.Pages[importIndex];
-                PdfPage page = insertPages[idx];
-
-                // Get annotations.
-                PdfArray annots = importPage.Elements.GetArray(PdfPage.Keys.Annots);
-                if (annots != null)
-                {
-                    PdfAnnotations annotations = new PdfAnnotations(Owner);
-
-                    // Loop through annotations.
-                    int count = annots.Elements.Count;
-                    for (int idxAnnotation = 0; idxAnnotation < count; idxAnnotation++)
-                    {
-                        PdfDictionary annot = annots.Elements.GetDictionary(idxAnnotation);
-                        if (annot != null)
-                        {
-                            string subtype = annot.Elements.GetString(PdfAnnotation.Keys.Subtype);
-                            if (subtype == "/Link")
-                            {
-                                bool addAnnotation = false;
-                                PdfLinkAnnotation newAnnotation = new PdfLinkAnnotation(Owner);
-
-                                PdfName[] importAnnotationKeyNames = annot.Elements.KeyNames;
-                                foreach (PdfName pdfItem in importAnnotationKeyNames)
-                                {
-                                    PdfItem impItem;
-                                    switch (pdfItem.Value)
-                                    {
-                                        case "/BS":
-                                            newAnnotation.Elements.Add("/BS", new PdfLiteral("<</W 0>>"));
-                                            break;
-
-                                        case "/F":  // /F 4
-                                            impItem = annot.Elements.GetValue("/F");
-                                            Debug.Assert(impItem is PdfInteger);
-                                            newAnnotation.Elements.Add("/F", impItem.Clone());
-                                            break;
-
-                                        case "/Rect":  // /Rect [68.6 681.08 145.71 702.53]
-                                            impItem = annot.Elements.GetValue("/Rect");
-                                            Debug.Assert(impItem is PdfArray);
-                                            newAnnotation.Elements.Add("/Rect", impItem.Clone());
-                                            break;
-
-                                        case "/StructParent":  // /StructParent 3
-                                            impItem = annot.Elements.GetValue("/StructParent");
-                                            Debug.Assert(impItem is PdfInteger);
-                                            newAnnotation.Elements.Add("/StructParent", impItem.Clone());
-                                            break;
-
-                                        case "/Subtype":  // Already set.
-                                            break;
-
-                                        case "/Dest":  // /Dest [30 0 R /XYZ 68 771 0]
-                                            impItem = annot.Elements.GetValue("/Dest");
-                                            impItem = impItem.Clone();
-
-                                            // Is value an array with 5 elements where the first one is an iref?
-                                            PdfArray destArray = impItem as PdfArray;
-                                            if (destArray != null && destArray.Elements.Count == 5)
-                                            {
-                                                PdfReference iref = destArray.Elements[0] as PdfReference;
-                                                if (iref != null)
-                                                {
-                                                    iref = RemapReference(insertPages, importPages, iref);
-                                                    if (iref != null)
-                                                    {
-                                                        destArray.Elements[0] = iref;
-                                                        newAnnotation.Elements.Add("/Dest", destArray);
-                                                        addAnnotation = true;
-                                                    }
-                                                }
-                                            }
-                                            break;
-
-                                        default:
-#if DEBUG_
-                                            Debug-Break.Break(true);
-#endif
-                                            break;
-
-                                    }
-                                }
-                                // Add newAnnotations only it points to an imported page.
-                                if (addAnnotation)
-                                    annotations.Add(newAnnotation);
-                            }
-                        }
-                    }
-
-                    // At least one link annotation found?
-                    if (annotations.Count > 0)
-                    {
-                        //Owner._irefTable.Add(annotations);
-                        page.Elements.Add(PdfPage.Keys.Annots, annotations);
-                    }
-                }
-
-            }
         }
 
         /// <summary>
@@ -502,15 +395,140 @@ namespace PdfSharpCore.Pdf
             }
         }
 
-        static PdfReference RemapReference(PdfPage[] newPages, PdfPage[] impPages, PdfReference iref)
+        /// <summary>
+        /// Takes the pages of the external document out of the destinations of the annotations that
+        /// were just imported, and remembers where each of those destinations wanted to go.
+        /// A destination names its page by an indirect reference, so importing it copies that page,
+        /// and with it everything the page reaches, up to and including the whole page tree. That is
+        /// why splitting a document used to yield files as large as the document they came from.
+        /// </summary>
+        void DetachImportedDestinations(PdfPage page, PdfPage importPage, PdfImportedObjectTable importedObjectTable)
         {
-            // Directs the iref to a one of the imported pages?
-            for (int idx = 0; idx < newPages.Length; idx++)
+            PdfArray importedAnnotations = page.Elements.GetArray(PdfPage.Keys.Annots);
+            PdfArray externalAnnotations = importPage.Elements.GetArray(PdfPage.Keys.Annots);
+            if (importedAnnotations == null || externalAnnotations == null)
+                return;
+
+            // The annotations were copied one by one, so the two arrays run in parallel.
+            int count = Math.Min(importedAnnotations.Elements.Count, externalAnnotations.Elements.Count);
+            for (int idx = 0; idx < count; idx++)
             {
-                if (impPages[idx].Reference == iref)
-                    return newPages[idx].Reference;
+                PdfDictionary imported = importedAnnotations.Elements.GetDictionary(idx);
+                PdfDictionary external = externalAnnotations.Elements.GetDictionary(idx);
+                if (imported == null || external == null)
+                    continue;
+
+                // A link either carries its destination directly or performs a go-to action.
+                DetachDestination(imported, imported, external, PdfLinkAnnotation.Keys.Dest, importedObjectTable);
+
+                PdfDictionary importedAction = imported.Elements.GetDictionary(PdfAnnotation.Keys.A);
+                PdfDictionary externalAction = external.Elements.GetDictionary(PdfAnnotation.Keys.A);
+                if (importedAction != null && externalAction != null)
+                    DetachDestination(imported, importedAction, externalAction, "/D", importedObjectTable);
             }
-            return null;
+        }
+
+        /// <summary>
+        /// Helper function for DetachImportedDestinations. Empties the page out of a single explicit
+        /// destination, which is an array whose first element is the page to go to.
+        /// </summary>
+        void DetachDestination(PdfDictionary annotation, PdfDictionary holder, PdfDictionary externalHolder,
+            string key, PdfImportedObjectTable importedObjectTable)
+        {
+            PdfArray destination = holder.Elements.GetArray(key);
+            PdfArray externalDestination = externalHolder.Elements.GetArray(key);
+            if (destination == null || externalDestination == null)
+                return;
+            if (destination.Elements.Count == 0 || externalDestination.Elements.Count == 0)
+                return;
+
+            // Named destinations are strings or names and hold on to nothing.
+            PdfReference externalPage = externalDestination.Elements[0] as PdfReference;
+            if (externalPage == null)
+                return;
+
+            destination.Elements[0] = PdfNull.Value;
+            _importedDestinations.Add(new ImportedDestination(annotation, holder, key, destination,
+                importedObjectTable, externalPage.ObjectID));
+        }
+
+        /// <summary>
+        /// Points the destinations detached by DetachImportedDestinations at their page again. Which
+        /// pages of an external document made it into this one is not known before it is saved, so a
+        /// destination whose page was left behind can only be dropped here.
+        /// </summary>
+        void ResolveImportedDestinations()
+        {
+            if (_importedDestinations.Count == 0)
+                return;
+
+            Dictionary<PdfReference, object> ownPages = new Dictionary<PdfReference, object>();
+            foreach (PdfItem item in PagesArray.Elements)
+            {
+                PdfReference iref = item as PdfReference;
+                if (iref != null)
+                    ownPages[iref] = null;
+            }
+
+            foreach (ImportedDestination destination in _importedDestinations)
+            {
+                // The page substitute overwrites whatever the import left under this identifier, so
+                // the entry is the imported page itself as soon as the page was imported as a page.
+                PdfReference page = destination.ImportedObjectTable.Contains(destination.ExternalPageID)
+                    ? destination.ImportedObjectTable[destination.ExternalPageID]
+                    : null;
+
+                if (page != null && ownPages.ContainsKey(page))
+                {
+                    destination.Destination.Elements[0] = page;
+                }
+                else
+                {
+                    // There is no page in this document to go to, so the link stays without an aim.
+                    destination.Holder.Elements.Remove(destination.Key);
+                    if (!ReferenceEquals(destination.Holder, destination.Annotation))
+                        destination.Annotation.Elements.Remove(PdfAnnotation.Keys.A);
+                }
+            }
+
+            _importedDestinations.Clear();
+        }
+
+        /// <summary>
+        /// The destinations of imported annotations, waiting for the page of the external document
+        /// they name to be imported as well.
+        /// </summary>
+        readonly List<ImportedDestination> _importedDestinations = new List<ImportedDestination>();
+
+        sealed class ImportedDestination
+        {
+            internal ImportedDestination(PdfDictionary annotation, PdfDictionary holder, string key,
+                PdfArray destination, PdfImportedObjectTable importedObjectTable, PdfObjectID externalPageID)
+            {
+                Annotation = annotation;
+                Holder = holder;
+                Key = key;
+                Destination = destination;
+                ImportedObjectTable = importedObjectTable;
+                ExternalPageID = externalPageID;
+            }
+
+            /// <summary>The annotation the destination belongs to.</summary>
+            internal readonly PdfDictionary Annotation;
+
+            /// <summary>The annotation itself or, for a go-to action, the action dictionary.</summary>
+            internal readonly PdfDictionary Holder;
+
+            /// <summary>The key the destination is held under by Holder.</summary>
+            internal readonly string Key;
+
+            /// <summary>The destination array, whose first element is the page to go to.</summary>
+            internal readonly PdfArray Destination;
+
+            internal readonly PdfImportedObjectTable ImportedObjectTable;
+
+            /// <summary>The page of the external document the destination named.</summary>
+            internal readonly PdfObjectID ExternalPageID;
         }
 
         /// <summary>
@@ -622,6 +640,8 @@ namespace PdfSharpCore.Pdf
         /// </summary>
         internal override void PrepareForSave()
         {
+            ResolveImportedDestinations();
+
             // TODO: Close all open content streams
 
             // TODO: Create the page tree.
