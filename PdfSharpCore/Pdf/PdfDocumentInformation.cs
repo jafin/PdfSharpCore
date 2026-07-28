@@ -101,7 +101,9 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
-        /// Gets or sets the creation date of the document.
+        /// Gets or sets the creation date of the document, in Universal Time. A document states its
+        /// creation date as local time and an offset, which a DateTime cannot hold; a caller that wants
+        /// back the value it wrote uses <see cref="CreationDateOffset"/>.
         /// Breaking Change: If the date is not set in a PDF file DateTime.MinValue is returned.
         /// </summary>
         public DateTime CreationDate
@@ -111,7 +113,19 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
-        /// Gets or sets the modification date of the document.
+        /// Gets or sets the creation date of the document as the local time it states and its offset
+        /// from Universal Time. If the date is not set in a PDF file DateTimeOffset.MinValue is returned.
+        /// </summary>
+        public DateTimeOffset CreationDateOffset
+        {
+            get { return Elements.GetDateTimeOffset(Keys.CreationDate, DateTimeOffset.MinValue); }
+            set { Elements.SetDateTimeOffset(Keys.CreationDate, value); }
+        }
+
+        /// <summary>
+        /// Gets or sets the modification date of the document, in Universal Time. A document states its
+        /// modification date as local time and an offset, which a DateTime cannot hold; a caller that
+        /// wants back the value it wrote uses <see cref="ModificationDateOffset"/>.
         /// Breaking Change: If the date is not set in a PDF file DateTime.MinValue is returned.
         /// </summary>
         public DateTime ModificationDate
@@ -120,6 +134,20 @@ namespace PdfSharpCore.Pdf
             set
             {
                 Elements.SetDateTime(Keys.ModDate, value);
+                ModificationDateIsTheCallersOwn = true;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the modification date of the document as the local time it states and its offset
+        /// from Universal Time. If the date is not set in a PDF file DateTimeOffset.MinValue is returned.
+        /// </summary>
+        public DateTimeOffset ModificationDateOffset
+        {
+            get { return Elements.GetDateTimeOffset(Keys.ModDate, DateTimeOffset.MinValue); }
+            set
+            {
+                Elements.SetDateTimeOffset(Keys.ModDate, value);
                 ModificationDateIsTheCallersOwn = true;
             }
         }
@@ -139,7 +167,7 @@ namespace PdfSharpCore.Pdf
         internal sealed class Keys : KeysBase
         {
             /// <summary>
-            /// (Optional; PDF 1.1) The document�s title.
+            /// (Optional; PDF 1.1) The document's title.
             /// </summary>
             [KeyInfo(KeyType.String | KeyType.Optional)]
             public const string Title = "/Title";

@@ -192,8 +192,8 @@ namespace PdfSharpCore.Pdf.IO
                     break;
 
                 // Acrobat 6 Professional proudly presents: The Null object!
-                // Even with a one-digit object number an indirect reference «x 0 R» to this object is
-                // one character larger than the direct use of «null». Probable this is the reason why
+                // Even with a one-digit object number an indirect reference ï¿½x 0 Rï¿½ to this object is
+                // one character larger than the direct use of ï¿½nullï¿½. Probable this is the reason why
                 // it is true that Acrobat Web Capture 6.0 creates this object, but obviously never
                 // creates a reference to it!
                 case Symbol.Null:
@@ -1387,7 +1387,7 @@ namespace PdfSharpCore.Pdf.IO
             int prev = xrefStream.Elements.GetInteger(PdfCrossReferenceStream.Keys.Prev);
             PdfArray w = (PdfArray)xrefStream.Elements.GetValue(PdfCrossReferenceStream.Keys.W);
 
-            // E.g.: W[1 2 1] ¤ Index[7 12] ¤ Size 19
+            // E.g.: W[1 2 1] ï¿½ Index[7 12] ï¿½ Size 19
 
             // Setup subsections.
             int subsectionCount;
@@ -1480,79 +1480,7 @@ namespace PdfSharpCore.Pdf.IO
             return xrefStream;
         }
 
-        /// <summary>
-        /// Parses a PDF date string.
-        /// </summary>
-        /// <remarks>
-        ///  Format is
-        /// YYYY Year MM month DD day (01-31)  HH hour (00-23)  mm minute (00-59) ss second (00.59)
-        /// O is the relationship of local time to Universal Time (UT), denoted by one of the characters +, -, or Z (see below)
-        /// HH followed by ' is the absolute value of the offset from UT in hours (00-23)
-        /// mm followed by ' is the absolute value of the offset from UT in minutes (00-59)
-        /// For example, December 23, 1998, at 7:52 PM, U.S.Pacific Standard Time, is represented by the string,
-        /// D:19981223195200-08'00'
-        /// </remarks>
-
-        internal static DateTime ParseDateTime(string date, DateTime errorValue)  // TODO: TryParseDateTime
-        {
-            DateTime datetime = errorValue;
-            try
-            {
-                if (date.StartsWith("D:"))
-                {
-                    // D:YYYYMMDDHHmmSSOHH'mm'
-                    //   ^2      ^10   ^16 ^20
-                    int length = date.Length;
-                    int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, hh = 0, mm = 0;
-                    char o = 'Z';
-                    if (length >= 10)
-                    {
-                        year = int.Parse(date.Substring(2, 4));
-                        month = int.Parse(date.Substring(6, 2));
-                        day = int.Parse(date.Substring(8, 2));
-                        if (length >= 16)
-                        {
-                            hour = int.Parse(date.Substring(10, 2));
-                            minute = int.Parse(date.Substring(12, 2));
-                            second = int.Parse(date.Substring(14, 2));
-                            if (length >= 23)
-                            {
-                                if ((o = date[16]) != 'Z')
-                                {
-                                    hh = int.Parse(date.Substring(17, 2));
-                                    mm = int.Parse(date.Substring(20, 2));
-                                }
-                            }
-                        }
-                    }
-                    // There are miserable PDF tools around the world.
-                    month = Math.Min(Math.Max(month, 1), 12);
-                    datetime = new DateTime(year, month, day, hour, minute, second);
-                    if (o != 'Z')
-                    {
-                        TimeSpan ts = new TimeSpan(hh, mm, 0);
-                        if (o == '-')
-                            datetime = datetime.Add(ts);
-                        else
-                            datetime = datetime.Subtract(ts);
-                    }
-                    // Now that we converted datetime to UTC, mark it as UTC.
-                    datetime = DateTime.SpecifyKind(datetime, DateTimeKind.Utc);
-                }
-                else
-                {
-                    // Some libraries use plain English format.
-                    datetime = DateTime.Parse(date, CultureInfo.InvariantCulture);
-                }
-            }
-            // ReSharper disable once EmptyGeneralCatchClause
-            catch (Exception ex)
-            {
-                // If we cannot parse datetime, just eat it, but give a hint in DEBUG build.
-                Debug.Assert(false, ex.Message);
-            }
-            return datetime;
-        }
+        // Reading a PDF date string lives with the value it produces, in PdfDate.TryParse.
 
         //    /// <summary>
         //    /// Creates a parser for the specified PDF object type. A PDF object can define a specialized
