@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Copyright (c) 2001-2009 empira Software GmbH, Cologne (Germany)
 //
@@ -81,7 +81,7 @@ namespace MigraDoc
     /// <summary>
     /// The copyright information. Also used as NuGet Copyright.
     /// </summary>
-    public const string Copyright = "Copyright � 2001-2012 empira Software GmbH."; // Also used as NuGet Copyright.
+    public const string Copyright = "Copyright © 2001-2012 empira Software GmbH."; // Also used as NuGet Copyright.
 
     /// <summary>
     /// The trademark the product.

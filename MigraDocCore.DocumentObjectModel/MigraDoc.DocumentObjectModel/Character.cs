@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -40,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel
   /// <summary>
   /// Represents a special character in paragraph text.
   /// </summary>
-  // TODO: So �ndern, dass symbolName und char in unterschiedlichen Feldern gespeichert wird
+  // TODO: So ändern, dass symbolName und char in unterschiedlichen Feldern gespeichert wird
   public class Character : DocumentObject
   {
     // \space

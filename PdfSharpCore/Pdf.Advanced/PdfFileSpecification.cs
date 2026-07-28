@@ -25,8 +25,22 @@
 
         public string FileName
         {
-            get { return Elements.GetString(Keys.F); }
-            set { Elements.SetString(Keys.F, value); }
+            // /UF says what the name really is, so it is the one to believe. Documents written
+            // before it was set, and those written by other libraries, have only /F.
+            get
+            {
+                string unicodeName;
+                if (Elements.TryGetString(Keys.UF, out unicodeName))
+                    return unicodeName;
+                return Elements.GetString(Keys.F);
+            }
+            // A file specification string is not a text string: it stays one byte per character,
+            // and it is /UF that holds the name for readers that want more than ASCII.
+            set
+            {
+                Elements.SetString(Keys.F, value, PdfStringEncoding.RawEncoding);
+                Elements.SetString(Keys.UF, value);
+            }
         }
 
         public PdfEmbeddedFile EmbeddedFile
@@ -78,7 +92,17 @@
             /// </summary>
             [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
             public const string F = "/F";
-            
+
+            /// <summary>
+            /// (Optional, but recommended if the F entry exists; PDF 1.7) A Unicode text string
+            /// that provides file specification of the form described in Section 3.10.1,
+            /// “File Specification Strings.” This is a text string encoded using PDFDocEncoding
+            /// or UTF-16BE with a leading byte-order marker, and so can name a file that the
+            /// one byte per character F entry cannot spell.
+            /// </summary>
+            [KeyInfo("1.7", KeyType.TextString | KeyType.Optional)]
+            public const string UF = "/UF";
+
             /// <summary>
             /// (Required if RF is present; PDF 1.3; amended to include the UF key in PDF 1.7) 
             /// A dictionary containing a subset of the keys F, UF, DOS, Mac, and Unix, 

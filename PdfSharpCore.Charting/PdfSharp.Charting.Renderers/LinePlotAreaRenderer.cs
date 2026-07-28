@@ -1,4 +1,4 @@
-#region PDFsharp Charting - A .NET charting library based on PDFsharp
+ï»¿#region PDFsharp Charting - A .NET charting library based on PDFsharp
 //
 // Authors:
 //   Niklas Schneider (mailto:Niklas.Schneider@PdfSharpCore.com)
@@ -62,8 +62,8 @@ namespace PdfSharpCore.Charting.Renderers
       //gfx.SetClip(plotAreaRect, XCombineMode.Intersect);
       gfx.IntersectClip(plotAreaRect);
 
-      //TODO null-Values müssen berücksichtigt werden.
-      //     Verbindungspunkte können fehlen, je nachdem wie null-Values behandelt werden sollen.
+      //TODO null-Values mÃ¼ssen berÃ¼cksichtigt werden.
+      //     Verbindungspunkte kÃ¶nnen fehlen, je nachdem wie null-Values behandelt werden sollen.
       //     (NotPlotted, Interpolate etc.)
 
       // Draw lines and markers for each data series.

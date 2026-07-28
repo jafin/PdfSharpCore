@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+Ôªø#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -71,7 +71,7 @@ namespace PdfSharpCore.Pdf.Actions
             //public const string S = "/S";
 
             /// <summary>
-            /// (Required) The destination to jump to (see Section 8.2.1, ìDestinationsî).
+            /// (Required) The destination to jump to (see Section 8.2.1, ‚ÄúDestinations‚Äù).
             /// </summary>
             [KeyInfo(KeyType.Name | KeyType.ByteString | KeyType.Array | KeyType.Required)]
             public const string D = "/D";

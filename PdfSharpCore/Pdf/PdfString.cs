@@ -118,14 +118,14 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PdfString"/> class.
+        /// Initializes a new instance of the <see cref="PdfString"/> class with the encoding
+        /// the value needs, which is Unicode for anything that ASCII cannot spell.
         /// </summary>
         /// <param name="value">The value.</param>
         public PdfString(string value)
         {
-            CheckRawEncoding(value);
             _value = value;
-            //_flags = PdfStringFlags.RawEncoding;
+            _flags = EncodingFor(value);
         }
 
         /// <summary>
@@ -318,6 +318,31 @@ namespace PdfSharpCore.Pdf
             '\xE0', '\xE1', '\xE2', '\xE3', '\xE4', '\xE5', '\xE6', '\xE7', '\xE8', '\xE9', '\xEA', '\xEB', '\xEC', '\xED', '\xEE', '\xEF',
             '\xF0', '\xF1', '\xF2', '\xF3', '\xF4', '\xF5', '\xF6', '\xF7', '\xF8', '\xF9', '\xFA', '\xFB', '\xFC', '\xFD', '\xFE', '\xFF',
         };
+
+        /// <summary>
+        /// Chooses the encoding for a string whose author did not name one.
+        /// </summary>
+        /// <remarks>
+        /// Plain ASCII means the same characters to every reader whether the bytes are taken as
+        /// raw, PDFDocEncoded or WinAnsi, so such a string still goes out one byte per character
+        /// and a document that was only ever ASCII is written exactly as it was before. Above
+        /// ASCII those encodings disagree, and the raw encoding would keep nothing but the low
+        /// byte of each character, so the string goes out as UTF-16BE instead and says what it
+        /// was given. Callers with bytes rather than text ask for
+        /// <see cref="PdfStringEncoding.RawEncoding"/> and are left alone.
+        /// </remarks>
+        internal static PdfStringFlags EncodingFor(string value)
+        {
+            if (value == null)
+                return PdfStringFlags.RawEncoding;
+
+            for (int idx = 0; idx < value.Length; idx++)
+            {
+                if (value[idx] > 0x7F)
+                    return PdfStringFlags.Unicode;
+            }
+            return PdfStringFlags.RawEncoding;
+        }
 
         static void CheckRawEncoding(string s)
         {

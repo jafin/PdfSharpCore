@@ -1,4 +1,4 @@
-#region PDFsharp Charting - A .NET charting library based on PDFsharp
+ï»¿#region PDFsharp Charting - A .NET charting library based on PDFsharp
 //
 // Authors:
 //   Niklas Schneider (mailto:Niklas.Schneider@PdfSharpCore.com)
@@ -62,7 +62,7 @@ namespace PdfSharpCore.Charting
     public virtual DocumentObject this[int index]
     {
       get {return this.elements[index] as DocumentObject;}
-      // TODO: überprüfen ob das erlaubt sein soll
+      // TODO: Ã¼berprÃ¼fen ob das erlaubt sein soll
       set {this.elements[index] = value;}
     }
 

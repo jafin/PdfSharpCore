@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -295,7 +295,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
         if (!tabStop.AddTab)
           tabStops.RemoveObjectAt(i);
       }
-      //Die TabStopCollection ist so wie sie jetzt ist vollst�ndig.
+      //Die TabStopCollection ist so wie sie jetzt ist vollständig.
       //Sie darf daher nichts erben, d.h. :
       tabStops.fClearAll = true;
     }

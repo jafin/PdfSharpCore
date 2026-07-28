@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+Ôªø#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -292,7 +292,7 @@ namespace MigraDocCore.DocumentObjectModel
       if (this.baseStyle.Value == "")
         throw new ArgumentException("User defined Style defined without a BaseStyle");
 
-      //REVIEW KlPo4StLa Spezialbehandlung f¸r den DefaultParagraphFont kr¸ppelig(DefaultParagraphFont wird bei zugrif ¸ber styles["name"] nicht zur¸ckgeliefert).
+      //REVIEW KlPo4StLa Spezialbehandlung f√ºr den DefaultParagraphFont kr√ºppelig(DefaultParagraphFont wird bei zugrif √ºber styles["name"] nicht zur√ºckgeliefert).
       //Da hast Du Recht -> siehe IsReadOnly
       if (this.baseStyle.Value == DefaultParagraphFontName)
         return styles[0];
@@ -309,7 +309,7 @@ namespace MigraDocCore.DocumentObjectModel
     }
     [DV]
     internal NBool buildIn = NBool.NullValue;
-    // THHO: muss dass nicht builtIn heiﬂen?!?!?!?
+    // THHO: muss dass nicht builtIn hei√üen?!?!?!?
 
     /// <summary>
     /// Gets or sets a comment associated with this object.

@@ -31,7 +31,9 @@
             if (string.IsNullOrEmpty(checksum))
                 this.paramsDictionary.Elements.Remove(Keys.CheckSum);
             else
-                this.paramsDictionary.Elements.SetString(Keys.CheckSum, checksum);
+                // The checksum is the bytes of an MD5 digest rather than text, so it is named raw
+                // and the bytes above ASCII in it are written as they are.
+                this.paramsDictionary.Elements.SetString(Keys.CheckSum, checksum, PdfStringEncoding.RawEncoding);
         }
 
         public string MimeType

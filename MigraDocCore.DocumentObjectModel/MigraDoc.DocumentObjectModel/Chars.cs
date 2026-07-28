@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -78,7 +78,7 @@ namespace MigraDocCore.DocumentObjectModel
     public const char Question = '?';
     public const char Hyphen = '-';  // char(45)
     public const char SoftHyphen = '\u00ad';  // char(173)
-    public const char Currency = '�';
+    public const char Currency = '¤';
     public const char ZeroWidthSpace = '\u200b';
   }
 }

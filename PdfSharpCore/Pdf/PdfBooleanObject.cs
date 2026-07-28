@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+ï»¿#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -82,7 +82,7 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
-        /// Writes the keyword «false» or «true».
+        /// Writes the keyword Â«falseÂ» or Â«trueÂ».
         /// </summary>
         internal override void WriteObject(PdfWriter writer)
         {

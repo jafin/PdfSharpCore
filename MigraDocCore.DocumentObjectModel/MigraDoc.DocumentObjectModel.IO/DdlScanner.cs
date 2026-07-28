@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+ï»¿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -41,10 +41,10 @@ using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
   ddl = <document> | <empty>
   
   table-element:
-    \table «attributes»opt { «columns-element» «rows-element» }
+    \table Â«attributesÂ»opt { Â«columns-elementÂ» Â«rows-elementÂ» }
 
   table-element:
-    \table «attributes»opt { «columns-element» «rows-element» }
+    \table Â«attributesÂ»opt { Â«columns-elementÂ» Â«rows-elementÂ» }
 */
 
 namespace MigraDocCore.DocumentObjectModel.IO
@@ -294,7 +294,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
         //  sym = Symbol.Question;
         //  break;
 
-        case '¤':
+        case 'Â¤':
           sym = Symbol.Currency; //??? used in DDL?
           break;
 
@@ -1314,7 +1314,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
         //  sym = Symbol.Question;
         //  break;
 
-        case '¤':
+        case 'Â¤':
           sym = Symbol.Currency; //??? used in DDL?
           break;
 
@@ -1409,7 +1409,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
 
 
     /// <summary>
-    /// Scans verbatim strings like «@"String with ""quoted"" text"».
+    /// Scans verbatim strings like Â«@"String with ""quoted"" text"Â».
     /// </summary>
     protected string ScanVerbatimStringLiteral()
     {
@@ -1434,7 +1434,7 @@ namespace MigraDocCore.DocumentObjectModel.IO
     }
 
     /// <summary>
-    /// Scans regular string literals like «"String with \"escaped\" text"».
+    /// Scans regular string literals like Â«"String with \"escaped\" text"Â».
     /// </summary>
     protected string ScanStringLiteral()
     {

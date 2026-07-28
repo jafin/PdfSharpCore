@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+Ôªø#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -208,7 +208,7 @@ namespace PdfSharpCore.Pdf.Advanced
             public const string Flags = "/Flags";
 
             /// <summary>
-            /// (Required, except for Type 3 fonts) A rectangle (see Section 3.8.4, ìRectanglesî),
+            /// (Required, except for Type 3 fonts) A rectangle (see Section 3.8.4, ‚ÄúRectangles‚Äù),
             /// expressed in the glyph coordinate system, specifying the font bounding box. This 
             /// is the smallest rectangle enclosing the shape that would result if all of the 
             /// glyphs of the font were placed with their origins coincident and then filled.
@@ -218,8 +218,8 @@ namespace PdfSharpCore.Pdf.Advanced
 
             /// <summary>
             /// (Required) The angle, expressed in degrees counterclockwise from the vertical, of
-            /// the dominant vertical strokes of the font. (For example, the 9-oíclock position is 90 
-            /// degrees, and the 3-oíclock position is ñ90 degrees.) The value is negative for fonts 
+            /// the dominant vertical strokes of the font. (For example, the 9-o‚Äôclock position is 90 
+            /// degrees, and the 3-o‚Äôclock position is ‚Äì90 degrees.) The value is negative for fonts 
             /// that slope to the right, as almost all italic fonts do.
             /// </summary>
             [KeyInfo(KeyType.Real | KeyType.Required)]
@@ -254,7 +254,7 @@ namespace PdfSharpCore.Pdf.Advanced
             public const string CapHeight = "/CapHeight";
 
             /// <summary>
-            /// (Optional) The fontís x height: the vertical coordinate of the top of flat nonascending
+            /// (Optional) The font‚Äôs x height: the vertical coordinate of the top of flat nonascending
             /// lowercase letters (like the letter x), measured from the baseline, in fonts that have 
             /// Latin characters. Default value: 0.
             /// </summary>
@@ -289,7 +289,7 @@ namespace PdfSharpCore.Pdf.Advanced
 
             /// <summary>
             /// (Optional) The width to use for character codes whose widths are not specified in a 
-            /// font dictionaryís Widths array. This has a predictable effect only if all such codes 
+            /// font dictionary‚Äôs Widths array. This has a predictable effect only if all such codes 
             /// map to glyphs whose actual widths are the same as the value of the MissingWidth entry.
             /// Default value: 0.
             /// </summary>
@@ -317,7 +317,7 @@ namespace PdfSharpCore.Pdf.Advanced
 
             /// <summary>
             /// (Optional; meaningful only in Type 1 fonts; PDF 1.1) A string listing the character
-            /// names defined in a font subset. The names in this string must be in PDF syntaxóthat is,
+            /// names defined in a font subset. The names in this string must be in PDF syntax‚Äîthat is,
             /// each name preceded by a slash (/). The names can appear in any order. The name .notdef
             /// should be omitted; it is assumed to exist in the font subset. If this entry is absent,
             /// the only indication of a font subset is the subset tag in the FontName entry.

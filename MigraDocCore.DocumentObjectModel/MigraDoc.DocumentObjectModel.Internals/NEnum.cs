@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+Ôªø#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -72,8 +72,8 @@ namespace MigraDocCore.DocumentObjectModel.Internals
       get { return this.val != int.MinValue ? this.val : 0; }
       set
       {
-        //TODO: Klasse Character So ‰ndern, dass symbolName und char in unterschiedlichen Feldern gespeichert wird
-        //Diese Spezialbehandlung entf‰llt dann.
+        //TODO: Klasse Character So √§ndern, dass symbolName und char in unterschiedlichen Feldern gespeichert wird
+        //Diese Spezialbehandlung entf√§llt dann.
         if (this.type == typeof(SymbolName))
         {
           //          if (Enum.IsDefined(this.type, (uint)value))
