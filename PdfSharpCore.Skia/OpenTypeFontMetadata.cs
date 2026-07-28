@@ -33,17 +33,47 @@ namespace PdfSharpCore.Utils
 
         public static FontMetadata Read(string path)
         {
-            return Read(File.ReadAllBytes(path));
+            return Read(path, -1);
+        }
+
+
+        /// <param name="faceIndex">
+        /// The face to read out of a collection, or -1 for the first font in the file whether it is
+        /// a collection or not.
+        /// </param>
+        public static FontMetadata Read(string path, int faceIndex)
+        {
+            return Read(File.ReadAllBytes(path), faceIndex);
         }
 
 
         internal static FontMetadata Read(byte[] data)
         {
+            return Read(data, -1);
+        }
+
+
+        internal static FontMetadata Read(byte[] data, int faceIndex)
+        {
             int baseOffset = 0;
 
-            // A TrueType collection starts with a directory of fonts; use the first one.
+            // A TrueType collection starts with a directory of fonts.
             if (data.Length >= 16 && U32(data, 0) == TagTtcf)
-                baseOffset = (int)U32(data, 12);
+            {
+                int faceCount = (int)U32(data, 8);
+                int face = faceIndex < 0 ? 0 : faceIndex;
+
+                if (face >= faceCount || 12 + face * 4 + 4 > data.Length)
+                    throw new InvalidOperationException(
+                        "Font collection holds " + faceCount + " faces; face " + face + " was asked for.");
+
+                baseOffset = (int)U32(data, 12 + face * 4);
+            }
+            else if (faceIndex > 0)
+            {
+                throw new InvalidOperationException(
+                    "Font is not a collection and holds face 0 alone; face " + faceIndex + " was asked for.");
+            }
 
             int numTables = U16(data, baseOffset + 4);
 

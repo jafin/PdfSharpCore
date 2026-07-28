@@ -91,7 +91,9 @@ namespace PdfSharpCore.Fonts
         /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered. Not implemented and must be false.</param>
         /// <param name="mustSimulateItalic">Set to <c>true</c> to simulate italic when rendered.</param>
         /// <param name="collectionNumber">Index of the font in a true type font collection.
-        /// Not yet implemented and must be zero.
+        /// Vestigial, and must be zero: a collection is taken apart by the font resolver, which
+        /// names each face of one separately, so nothing downstream ever needs an index. See
+        /// <see cref="T:PdfSharpCore.Utils.TrueTypeCollection"/>.
         /// </param>
         internal FontResolverInfo(string faceName, bool mustSimulateBold, bool mustSimulateItalic, int collectionNumber)
         {

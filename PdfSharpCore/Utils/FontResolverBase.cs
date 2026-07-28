@@ -50,16 +50,60 @@ namespace PdfSharpCore.Utils
         private volatile Dictionary<string, FontFamilyModel> _installedFonts;
 
         /// <summary>
-        /// Maps the face name handed out by <see cref="ResolveTypeface"/> to the file it was read
+        /// Maps the face name handed out by <see cref="ResolveTypeface"/> to where it was read
         /// from. Published before <see cref="_installedFonts"/>, whose volatile write orders it.
         /// </summary>
-        private Dictionary<string, string> _facePaths;
+        private Dictionary<string, FaceLocation> _facePaths;
+
+
+        /// <summary>
+        /// Where a face was found: the file, and which member of it when that file is a collection.
+        /// </summary>
+        private readonly struct FaceLocation
+        {
+            public FaceLocation(string path, int faceIndex)
+            {
+                this.Path = path;
+                this.FaceIndex = faceIndex;
+            }
+
+            public string Path { get; }
+
+            /// <summary>
+            /// The index of the face within a collection, or -1 when the file holds a single font.
+            /// </summary>
+            public int FaceIndex { get; }
+        }
 
 
         /// <summary>
         /// Reads the family name and style out of the given font file.
         /// </summary>
         protected abstract FontMetadata ReadFontMetadata(string fontFilePath);
+
+
+        /// <summary>
+        /// Reads the family name and style of one face of the given font file.
+        /// </summary>
+        /// <param name="fontFilePath">The font file.</param>
+        /// <param name="faceIndex">
+        /// The index of the face within a collection file, or -1 when the file holds a single font.
+        /// </param>
+        /// <remarks>
+        /// Overriding this is what lets a backend see the faces of a collection past the first.
+        /// One that does not override it still resolves every single-font file, and reports each
+        /// further face of a collection as unreadable - which discovery logs and skips - because
+        /// <see cref="ReadFontMetadata(string)"/> has no way to say which face it described.
+        /// </remarks>
+        protected virtual FontMetadata ReadFontMetadata(string fontFilePath, int faceIndex)
+        {
+            if (faceIndex < 0)
+                return ReadFontMetadata(fontFilePath);
+
+            throw new System.NotSupportedException(
+                "This font resolver reads single-font files only; face " + faceIndex + " of the collection '"
+                + fontFilePath + "' cannot be described.");
+        }
 
 
         /// <summary>
@@ -158,25 +202,18 @@ namespace PdfSharpCore.Utils
         /// </summary>
         public void SetupFontsFiles(string[] sSupportedFonts)
         {
-            Dictionary<string, string> facePaths = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, FaceLocation> facePaths = new Dictionary<string, FaceLocation>(System.StringComparer.OrdinalIgnoreCase);
             List<FontFileInfo> tempFontInfoList = new List<FontFileInfo>();
 
             foreach (string fontPathFile in sSupportedFonts)
             {
-                string faceName = System.IO.Path.GetFileName(fontPathFile);
+                string fileName = System.IO.Path.GetFileName(fontPathFile);
 
-                // Two font directories habitually hold a file of the same name - on Windows the
-                // system one and the per-user one. The first found wins, so that the face name a
-                // family points at and the file it is read from cannot drift apart. Checked before
-                // the metadata is read, so that a file the derived class cannot parse does not
-                // reserve a name that a readable one could have used.
-                if (facePaths.ContainsKey(faceName))
-                    continue;
-
-                FontMetadata metadata;
+                int faceCount;
+                bool isCollection;
                 try
                 {
-                    metadata = ReadFontMetadata(fontPathFile);
+                    isCollection = TrueTypeCollection.TryGetFaceCount(fontPathFile, out faceCount);
                 }
                 catch (System.Exception e)
                 {
@@ -185,8 +222,36 @@ namespace PdfSharpCore.Utils
                 }
 
                 Debug.WriteLine(fontPathFile);
-                facePaths.Add(faceName, fontPathFile);
-                tempFontInfoList.Add(new FontFileInfo(faceName, metadata));
+
+                for (int face = 0; face < faceCount; face++)
+                {
+                    // Only a member of a collection carries an index; a single font keeps the plain
+                    // file name it has always been known by.
+                    int faceIndex = isCollection ? face : -1;
+                    string faceName = isCollection ? TrueTypeCollection.FaceName(fileName, face) : fileName;
+
+                    // Two font directories habitually hold a file of the same name - on Windows the
+                    // system one and the per-user one. The first found wins, so that the face name a
+                    // family points at and the file it is read from cannot drift apart. Checked
+                    // before the metadata is read, so that a file the derived class cannot parse
+                    // does not reserve a name a readable one could have used.
+                    if (facePaths.ContainsKey(faceName))
+                        continue;
+
+                    FontMetadata metadata;
+                    try
+                    {
+                        metadata = ReadFontMetadata(fontPathFile, faceIndex);
+                    }
+                    catch (System.Exception e)
+                    {
+                        LogError(e.ToString());
+                        continue;
+                    }
+
+                    facePaths.Add(faceName, new FaceLocation(fontPathFile, faceIndex));
+                    tempFontInfoList.Add(new FontFileInfo(faceName, metadata));
+                }
             }
 
             Dictionary<string, FontFamilyModel> installedFonts = new Dictionary<string, FontFamilyModel>();
@@ -240,11 +305,16 @@ namespace PdfSharpCore.Utils
         {
             EnsureInitialized();
 
-            if (!_facePaths.TryGetValue(faceName, out string fontPathFile))
+            if (!_facePaths.TryGetValue(faceName, out FaceLocation location))
                 throw new System.IO.FileNotFoundException(
                     "No font file was discovered for the face name '" + faceName + "'.", faceName);
 
-            return System.IO.File.ReadAllBytes(fontPathFile);
+            byte[] bytes = System.IO.File.ReadAllBytes(location.Path);
+
+            // A collection is taken apart here, because nothing below this point understands one.
+            return location.FaceIndex < 0
+                ? bytes
+                : TrueTypeCollection.ExtractFace(bytes, location.FaceIndex);
         }
 
         public bool NullIfFontNotFound { get; set; } = false;
