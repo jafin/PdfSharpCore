@@ -37,6 +37,21 @@ namespace PdfSharpCore.Utils
         }
 
 
+        protected override FontMetadata[] ReadCollectionMetadata(string fontFilePath, int faceCount)
+        {
+            FontDescription[] descriptions = FontDescription.LoadFontCollectionDescriptions(fontFilePath);
+            if (descriptions.Length < faceCount)
+                throw new System.InvalidOperationException(
+                    "Font collection holds " + descriptions.Length + " faces; " + faceCount + " were expected.");
+
+            FontMetadata[] metadata = new FontMetadata[faceCount];
+            for (int face = 0; face < faceCount; face++)
+                metadata[face] = ToMetadata(descriptions[face]);
+
+            return metadata;
+        }
+
+
         private static FontMetadata ToMetadata(FontDescription fontDescription)
         {
             XFontStyle style;

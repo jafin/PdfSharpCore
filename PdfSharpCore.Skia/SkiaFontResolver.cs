@@ -28,5 +28,11 @@ namespace PdfSharpCore.Utils
         {
             return OpenTypeFontMetadata.Read(fontFilePath, faceIndex);
         }
+
+
+        protected override FontMetadata[] ReadCollectionMetadata(string fontFilePath, int faceCount)
+        {
+            return OpenTypeFontMetadata.ReadAll(System.IO.File.ReadAllBytes(fontFilePath), faceCount);
+        }
     }
 }

@@ -7,6 +7,7 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Test.Helpers;
+using PdfSharpCore.Utils;
 using Xunit;
 
 namespace PdfSharpCore.Test.Fonts
@@ -131,6 +132,36 @@ namespace PdfSharpCore.Test.Fonts
 
             page.Width.Should().BeGreaterThan(0, "the page must not come out blank");
             page.Height.Should().BeGreaterThan(0, "the page must not come out blank");
+        }
+
+        /// <summary>
+        /// Discovery globbed '*.ttf' alone, so an .otf was invisible to the shipped resolver no
+        /// matter what the embedding code could do with one.
+        /// </summary>
+        [Fact]
+        public void AnOtfIsDiscoveredAndResolvedByTheShippedResolver()
+        {
+            var resolver = new Probe();
+            resolver.SetupFontsFiles(new[]
+            {
+                PathHelper.GetInstance().GetAssetPath("Fonts", "SourceCodePro-Regular.otf"),
+            });
+
+            var info = resolver.ResolveTypeface("Source Code Pro", false, false);
+
+            info.Should().NotBeNull();
+            info.FaceName.Should().Be("SourceCodePro-Regular.otf");
+
+            // 'OTTO' - the signature that says the outlines are PostScript rather than TrueType.
+            resolver.GetFont(info.FaceName).Take(4).Should().Equal((byte)'O', (byte)'T', (byte)'T', (byte)'O');
+        }
+
+        private sealed class Probe : SkiaFontResolver
+        {
+            public Probe()
+            {
+                NullIfFontNotFound = true;
+            }
         }
 
         private static PdfDocument Draw(PdfFontEncoding encoding,

@@ -107,6 +107,26 @@ namespace PdfSharpCore.Utils
 
 
         /// <summary>
+        /// Reads the family name and style of every face of a collection file, in order.
+        /// </summary>
+        /// <remarks>
+        /// Overriding this as well as <see cref="ReadFontMetadata(string,int)"/> lets a backend open
+        /// the file once instead of once per face. The default reads it once per face, which for
+        /// the dozen-face collections a system font directory holds is most of the cost of
+        /// discovering one. A backend that cannot do better need not override it.
+        /// </remarks>
+        protected virtual FontMetadata[] ReadCollectionMetadata(string fontFilePath, int faceCount)
+        {
+            FontMetadata[] metadata = new FontMetadata[faceCount];
+
+            for (int face = 0; face < faceCount; face++)
+                metadata[face] = ReadFontMetadata(fontFilePath, face);
+
+            return metadata;
+        }
+
+
+        /// <summary>
         /// Reports a font file that could not be used. Compiled out of release builds, which also
         /// keeps the caught exception "used" as far as the compiler is concerned.
         /// </summary>
@@ -143,7 +163,7 @@ namespace PdfSharpCore.Utils
             if (isOSX)
             {
                 fontDir = "/Library/Fonts/";
-                return System.IO.Directory.GetFiles(fontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
+                return FontFileTypes.In(fontDir).ToArray();
             }
 
             bool isLinux = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
@@ -156,17 +176,11 @@ namespace PdfSharpCore.Utils
             if (isWindows)
             {
                 fontDir = System.Environment.ExpandEnvironmentVariables(@"%SystemRoot%\Fonts");
-                var fontPaths = new List<string>();
-
-                var systemFontPaths = System.IO.Directory.GetFiles(fontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
-                fontPaths.AddRange(systemFontPaths);
+                var fontPaths = new List<string>(FontFileTypes.In(fontDir));
 
                 var appdataFontDir = System.Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Microsoft\Windows\Fonts");
                 if (System.IO.Directory.Exists(appdataFontDir))
-                {
-                    var appdataFontPaths = System.IO.Directory.GetFiles(appdataFontDir, "*.ttf", System.IO.SearchOption.AllDirectories);
-                    fontPaths.AddRange(appdataFontPaths);
-                }
+                    fontPaths.AddRange(FontFileTypes.In(appdataFontDir));
 
                 return fontPaths.ToArray();
             }
@@ -223,6 +237,24 @@ namespace PdfSharpCore.Utils
 
                 Debug.WriteLine(fontPathFile);
 
+                // Read a collection in one go where the backend can, so that a file holding a dozen
+                // faces is opened once rather than a dozen times.
+                FontMetadata[] collectionMetadata = null;
+                if (isCollection)
+                {
+                    try
+                    {
+                        collectionMetadata = ReadCollectionMetadata(fontPathFile, faceCount);
+                    }
+                    catch (System.Exception e)
+                    {
+                        // One unreadable face must not cost the rest of the collection, so fall
+                        // back to reading them one at a time, where a failure stays with the face
+                        // that caused it.
+                        LogError(e.ToString());
+                    }
+                }
+
                 for (int face = 0; face < faceCount; face++)
                 {
                     // Only a member of a collection carries an index; a single font keeps the plain
@@ -241,7 +273,9 @@ namespace PdfSharpCore.Utils
                     FontMetadata metadata;
                     try
                     {
-                        metadata = ReadFontMetadata(fontPathFile, faceIndex);
+                        metadata = collectionMetadata != null
+                            ? collectionMetadata[face]
+                            : ReadFontMetadata(fontPathFile, faceIndex);
                     }
                     catch (System.Exception e)
                     {

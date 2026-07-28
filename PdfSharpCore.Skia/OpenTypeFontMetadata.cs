@@ -53,6 +53,21 @@ namespace PdfSharpCore.Utils
         }
 
 
+        /// <summary>
+        /// Reads every face of a collection from bytes already in hand, so that a file holding a
+        /// dozen faces is opened once rather than a dozen times.
+        /// </summary>
+        internal static FontMetadata[] ReadAll(byte[] data, int faceCount)
+        {
+            FontMetadata[] metadata = new FontMetadata[faceCount];
+
+            for (int face = 0; face < faceCount; face++)
+                metadata[face] = Read(data, face);
+
+            return metadata;
+        }
+
+
         internal static FontMetadata Read(byte[] data, int faceIndex)
         {
             int baseOffset = 0;
