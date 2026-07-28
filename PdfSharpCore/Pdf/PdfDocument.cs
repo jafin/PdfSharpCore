@@ -267,6 +267,18 @@ namespace PdfSharpCore.Pdf
             if (!CanSave(ref message))
                 throw new PdfSharpException(message);
 
+            // Saving back into the stream the document was read from is a common way to modify a
+            // document in place. Reading has left the position near the end of the stream, so writing
+            // would start there and keep the entire original file as a prefix. The result still opens,
+            // because readers locate the last startxref, but the file has roughly doubled in size for
+            // no reason. All objects were read into memory when the document was opened, so the stream
+            // is no longer needed and can be rewound and truncated.
+            if (_lexer != null && ReferenceEquals(_lexer.PdfStream, stream) && stream.CanSeek && stream.CanWrite)
+            {
+                stream.Position = 0;
+                stream.SetLength(0);
+            }
+
             // Get security handler if document gets encrypted.
             PdfStandardSecurityHandler securityHandler = null;
             if (SecuritySettings.DocumentSecurityLevel != PdfDocumentSecurityLevel.None)

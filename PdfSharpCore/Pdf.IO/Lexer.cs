@@ -60,6 +60,14 @@ namespace PdfSharpCore.Pdf.IO
         }
 
         /// <summary>
+        /// Gets the stream the PDF file is read from.
+        /// </summary>
+        internal Stream PdfStream
+        {
+            get { return _pdfSteam; }
+        }
+
+        /// <summary>
         /// Gets or sets the position within the PDF stream.
         /// </summary>
         public long Position
