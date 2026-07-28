@@ -102,16 +102,11 @@ namespace PdfSharpCore.Drawing
                 // No fallback - just stop.
                 throw new InvalidOperationException("No appropriate font found.");
             }
-            // Now create the font family at the first.
-            XFontFamily fontFamily;
-            if (fontResolverInfo is PlatformFontResolverInfo platformFontResolverInfo)
-            {
-            }
-            else
-            {
-                // Create new and exclusively used font family for custom font resolver retrieved font source.
-                fontFamily = XFontFamily.CreateSolitary(fontResolverInfo.FaceName);
-            }
+            // Create new and exclusively used font family for custom font resolver retrieved font
+            // source. The result is dropped on purpose: the typeface builds its own family below,
+            // from the name inside the font file. This call is here for what it leaves behind in
+            // FontFamilyCache, so that a resolver's face names cannot clash with family names.
+            XFontFamily.CreateSolitary(fontResolverInfo.FaceName);
 
             // We have a valid font resolver info. That means we also have an XFontSource object loaded in the cache.
             ////XFontSource fontSource = FontFactory.GetFontSourceByTypefaceKey(fontResolverInfo.FaceName);
