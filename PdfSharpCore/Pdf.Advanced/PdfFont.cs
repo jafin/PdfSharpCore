@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.Fonts.OpenType;
 
 namespace PdfSharpCore.Pdf.Advanced
 {
@@ -101,7 +102,62 @@ namespace PdfSharpCore.Pdf.Advanced
 
 
         /// <summary>
-        /// Adds a tag of exactly six uppercase letters to the font name 
+        /// Writes the font program into the document and points the font descriptor at it.
+        /// Fonts are always embedded, so every derived font calls this when it is saved.
+        /// </summary>
+        /// <param name="cidFont">Whether the program is being embedded for a CID font.</param>
+        /// <remarks>
+        /// A TrueType font is subsetted down to the glyphs the document draws and embedded as
+        /// '/FontFile2'. A font with PostScript (CFF) outlines cannot be subsetted - that would
+        /// mean rebuilding its charstrings and subroutines - so it is embedded whole as
+        /// '/FontFile3' with a subtype of '/OpenType'. '/FontFile2' would be a misdescription:
+        /// the key is defined as a TrueType font program, and a viewer is entitled to read it
+        /// as one.
+        /// </remarks>
+        internal void EmbedFontProgram(bool cidFont)
+        {
+            OpenTypeFontface fontFace = FontDescriptor._descriptor.FontFace;
+            bool postscriptOutlines = fontFace.IsPostscriptOutlines;
+
+            byte[] fontData = postscriptOutlines
+                ? fontFace.FontSource.Bytes
+                : fontFace.CreateFontSubSet(_cmapInfo.GlyphIndices, cidFont).FontSource.Bytes;
+
+            PdfDictionary fontStream = new PdfDictionary(Owner);
+            Owner.Internals.AddObject(fontStream);
+
+            if (postscriptOutlines)
+            {
+                FontDescriptor.Elements[PdfFontDescriptor.Keys.FontFile3] = fontStream.Reference;
+
+                // '/Subtype' is what tells the viewer which program this is, and it takes the place
+                // of the '/Length1' that a '/FontFile2' carries.
+                fontStream.Elements["/Subtype"] = new PdfName("/OpenType");
+
+                // '/Subtype /OpenType' arrives in PDF 1.6. Raising the version is the honest thing
+                // to do; lowering it is not this method's business.
+                if (Owner._version < 16)
+                    Owner._version = 16;
+            }
+            else
+            {
+                FontDescriptor.Elements[PdfFontDescriptor.Keys.FontFile2] = fontStream.Reference;
+                fontStream.Elements["/Length1"] = new PdfInteger(fontData.Length);
+            }
+
+            if (!Owner.Options.NoCompression)
+            {
+                fontData = Filters.Filtering.FlateDecode.Encode(fontData, Owner.Options.FlateEncodeMode);
+                fontStream.Elements["/Filter"] = new PdfName("/FlateDecode");
+            }
+
+            fontStream.Elements["/Length"] = new PdfInteger(fontData.Length);
+            fontStream.CreateStream(fontData);
+        }
+
+
+        /// <summary>
+        /// Adds a tag of exactly six uppercase letters to the font name
         /// according to PDF Reference Section 5.5.3 'Font Subsets'
         /// </summary>
         internal static string CreateEmbeddedFontSubsetName(string name)
@@ -144,7 +200,7 @@ namespace PdfSharpCore.Pdf.Advanced
 
             /// <summary>
             /// (Required except for the standard 14 fonts; must be an indirect reference)
-            /// A font descriptor describing the font’s metrics other than its glyph widths.
+            /// A font descriptor describing the fontï¿½s metrics other than its glyph widths.
             /// Note: For the standard 14 fonts, the entries FirstChar, LastChar, Widths, and 
             /// FontDescriptor must either all be present or all be absent. Ordinarily, they are
             /// absent; specifying them enables a standard font to be overridden.

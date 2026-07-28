@@ -17,8 +17,43 @@ namespace PdfSharpCore.Utils
 
         protected override FontMetadata ReadFontMetadata(string fontFilePath)
         {
-            FontDescription fontDescription = FontDescription.LoadDescription(fontFilePath);
+            return ToMetadata(FontDescription.LoadDescription(fontFilePath));
+        }
 
+
+        protected override FontMetadata ReadFontMetadata(string fontFilePath, int faceIndex)
+        {
+            if (faceIndex < 0)
+                return ReadFontMetadata(fontFilePath);
+
+            // LoadDescription reads one font and cannot say which; a collection has to go through
+            // the collection reader even for its first face.
+            FontDescription[] descriptions = FontDescription.LoadFontCollectionDescriptions(fontFilePath);
+            if (faceIndex >= descriptions.Length)
+                throw new System.InvalidOperationException(
+                    "Font collection holds " + descriptions.Length + " faces; face " + faceIndex + " was asked for.");
+
+            return ToMetadata(descriptions[faceIndex]);
+        }
+
+
+        protected override FontMetadata[] ReadCollectionMetadata(string fontFilePath, int faceCount)
+        {
+            FontDescription[] descriptions = FontDescription.LoadFontCollectionDescriptions(fontFilePath);
+            if (descriptions.Length < faceCount)
+                throw new System.InvalidOperationException(
+                    "Font collection holds " + descriptions.Length + " faces; " + faceCount + " were expected.");
+
+            FontMetadata[] metadata = new FontMetadata[faceCount];
+            for (int face = 0; face < faceCount; face++)
+                metadata[face] = ToMetadata(descriptions[face]);
+
+            return metadata;
+        }
+
+
+        private static FontMetadata ToMetadata(FontDescription fontDescription)
+        {
             XFontStyle style;
             switch (fontDescription.Style)
             {

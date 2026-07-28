@@ -46,7 +46,8 @@ namespace PdfSharpCore.Drawing
         // * XFontSource represents a single font (file) in memory.
         // * An XFontSource hold a reference to it OpenTypeFontface.
         // * To prevent large heap fragmentation this class must exists only once.
-        // * TODO: ttcf
+        // * A font collection never reaches here: PdfSharpCore.Utils.TrueTypeCollection extracts
+        //   the requested face in the font resolver, so what arrives is always a single font.
 
         // Signature of a true type collection font.
         const uint ttcf = 0x66637474;

@@ -144,12 +144,12 @@ namespace PdfSharpCore.Utils
         {
             try
             {
-                return ResolveFontConfig().Where(x => x.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase)).ToArray();
+                return ResolveFontConfig().Where(FontFileTypes.IsFontFile).ToArray();
             }
             catch(Exception ex)
             {
                 LogError(ex.ToString());
-                return ResolveFallback().Where(x => x.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase)).ToArray();
+                return ResolveFallback().Where(FontFileTypes.IsFontFile).ToArray();
             }
         }
 

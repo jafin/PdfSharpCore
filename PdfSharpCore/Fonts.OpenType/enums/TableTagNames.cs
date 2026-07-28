@@ -110,7 +110,11 @@ namespace PdfSharpCore.Fonts.OpenType
         /// <summary>
         /// PostScript font program (compact font format).
         /// </summary>
-        public const string Cff = "CFF";
+        /// <remarks>
+        /// Trailing space intentional: an OpenType table tag is four bytes, and short names are
+        /// padded out. Seeking "CFF" would never match.
+        /// </remarks>
+        public const string Cff = "CFF ";
 
         /// <summary>
         /// Vertical Origin.

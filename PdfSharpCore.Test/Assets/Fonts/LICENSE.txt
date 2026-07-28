@@ -1,7 +1,21 @@
-Digitized data copyright (c) 2010 Google Corporation
-	with Reserved Font Arimo, Tinos and Cousine.
-Copyright (c) 2012 Red Hat, Inc.
-	with Reserved Font Name Liberation.
+The fonts in this directory are used by the tests so that a document is laid
+out the same way on every machine, rather than with whatever the machine
+happens to have installed. Both are licensed under the SIL Open Font License,
+Version 1.1, whose text is reproduced once below and covers both.
+
+LiberationSans-Regular.ttf, LiberationSans-Bold.ttf,
+LiberationSans-Italic.ttf, LiberationSans-BoldItalic.ttf
+	Digitized data copyright (c) 2010 Google Corporation
+		with Reserved Font Arimo, Tinos and Cousine.
+	Copyright (c) 2012 Red Hat, Inc.
+		with Reserved Font Name Liberation.
+
+SourceCodePro-Regular.otf
+	(c) 2023 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+	All Rights Reserved. Source is a trademark of Adobe in the United States
+	and/or other countries.
+	Carried for the sake of its PostScript (CFF) outlines: the Liberation
+	faces are all TrueType, so nothing else here exercises that path.
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

@@ -53,13 +53,18 @@ namespace PdfSharpCore.Drawing
 
         const string KeyPrefix = "tk:";  // "typeface key"
 
-        public XGlyphTypeface(string key, XFontSource fontSource)
+        /// <param name="styleSimulations">
+        /// What the renderer has to supply that the font file does not - a font resolver asked for
+        /// a bold or italic face the family ships no file for, and named the nearest one instead.
+        /// </param>
+        public XGlyphTypeface(string key, XFontSource fontSource, XStyleSimulations styleSimulations)
         {
             string familyName = fontSource.Fontface.name.Name;
             _fontFamily = new XFontFamily(familyName, false);
             _fontface = fontSource.Fontface;
             _isBold = _fontface.os2.IsBold;
             _isItalic = _fontface.os2.IsItalic;
+            _styleSimulations = styleSimulations;
 
             _key = key;
             //_fontFamily =xfont  FontFamilyCache.GetFamilyByName(familyName);
@@ -97,24 +102,21 @@ namespace PdfSharpCore.Drawing
                 // No fallback - just stop.
                 throw new InvalidOperationException("No appropriate font found.");
             }
-            // Now create the font family at the first.
-            XFontFamily fontFamily;
-            if (fontResolverInfo is PlatformFontResolverInfo platformFontResolverInfo)
-            {
-            }
-            else
-            {
-                // Create new and exclusively used font family for custom font resolver retrieved font source.
-                fontFamily = XFontFamily.CreateSolitary(fontResolverInfo.FaceName);
-            }
+            // Create new and exclusively used font family for custom font resolver retrieved font
+            // source. The result is dropped on purpose: the typeface builds its own family below,
+            // from the name inside the font file. This call is here for what it leaves behind in
+            // FontFamilyCache, so that a resolver's face names cannot clash with family names.
+            XFontFamily.CreateSolitary(fontResolverInfo.FaceName);
 
             // We have a valid font resolver info. That means we also have an XFontSource object loaded in the cache.
             ////XFontSource fontSource = FontFactory.GetFontSourceByTypefaceKey(fontResolverInfo.FaceName);
             XFontSource fontSource = FontFactory.GetFontSourceByFontName(fontResolverInfo.FaceName);
             Debug.Assert(fontSource != null);
 
-            // Each font source already contains its OpenTypeFontface.
-            glyphTypeface = new XGlyphTypeface(typefaceKey, fontSource);
+            // Each font source already contains its OpenTypeFontface. The resolver's simulation
+            // flags have to come along: they are the whole record of the difference between the
+            // face that was asked for and the file that answered, and the renderer draws from them.
+            glyphTypeface = new XGlyphTypeface(typefaceKey, fontSource, fontResolverInfo.StyleSimulations);
             GlyphTypefaceCache.AddGlyphTypeface(glyphTypeface);
 
             return glyphTypeface;
