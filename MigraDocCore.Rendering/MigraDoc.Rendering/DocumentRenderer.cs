@@ -266,8 +266,16 @@ namespace MigraDocCore.Rendering
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
                 XUnit savedY = renderer.RenderInfo.LayoutInfo.ContentArea.Y;
                 renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY + distance;
-                renderer.Render();
-                renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
+                try
+                {
+                    renderer.Render();
+                }
+                finally
+                {
+                    // The pages of a section share the one formatted footer, so a move left in
+                    // place would be there still the next time the footer was drawn.
+                    renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
+                }
             }
         }
 

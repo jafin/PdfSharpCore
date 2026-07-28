@@ -28,6 +28,9 @@ namespace PdfSharpCore.Test.Helpers
             // the translation is tracked: nothing here draws text turned or scaled.
             double x = 0, y = 0;
 
+            // The distance from one line to the next, which T* and the quote operators move by.
+            double leading = 0;
+
             foreach (var item in ContentReader.ReadContent(ContentOf(page)))
             {
                 if (item is not COperator op)
@@ -45,7 +48,21 @@ namespace PdfSharpCore.Test.Helpers
                         {
                             x += Number(op.Operands[0]);
                             y += Number(op.Operands[1]);
+
+                            // TD sets the leading to the distance it moved down by, as well.
+                            if (op.OpCode.OpCodeName == OpCodeName.TD)
+                                leading = -Number(op.Operands[1]);
                         }
+                        break;
+
+                    case OpCodeName.TL:
+                        if (op.Operands.Count >= 1)
+                            leading = Number(op.Operands[0]);
+                        break;
+
+                    case OpCodeName.Tx:
+                        // T* is 0 -TL Td: down one line, and back to where this line began.
+                        y -= leading;
                         break;
 
                     case OpCodeName.Tm:
@@ -58,8 +75,13 @@ namespace PdfSharpCore.Test.Helpers
 
                     case OpCodeName.Tj:
                     case OpCodeName.TJ:
+                        baselines.Add(y);
+                        break;
+
                     case OpCodeName.QuoteSingle:
                     case OpCodeName.QuoteDbl:
+                        // Both move down a line before showing the text, as T* does.
+                        y -= leading;
                         baselines.Add(y);
                         break;
                 }
