@@ -572,15 +572,32 @@ namespace PdfSharpCore.Pdf.Content
                     ScanNextChar();
                     break;
                 }
-                if (char.IsLetterOrDigit(_currChar))
+                if (!IsHexChar(_currChar))
                 {
-                    hex[0] = char.ToUpper(_currChar);
-                    hex[1] = char.ToUpper(_nextChar);
-                    int ch = int.Parse(new string(hex), NumberStyles.AllowHexSpecifier);
-                    _token.Append(Convert.ToChar(ch));
+                    // Neither '>' nor a hex digit: step over it rather than never advancing.
                     ScanNextChar();
+                    continue;
+                }
+
+                hex[0] = _currChar;
+                ScanNextChar();
+                // What may come between the two digits of a byte is what may come before one:
+                // white space, and anything else that is not a digit. Only the end of the
+                // string decides that the second digit is missing rather than merely late.
+                while (!IsHexChar(_currChar) && _currChar != '>' && _currChar != Chars.EOF)
+                    ScanNextChar();
+
+                if (IsHexChar(_currChar))
+                {
+                    hex[1] = _currChar;
                     ScanNextChar();
                 }
+                else
+                {
+                    // A hex string with an odd number of digits ends in a zero.
+                    hex[1] = '0';
+                }
+                _token.Append((char)int.Parse(new string(hex), NumberStyles.AllowHexSpecifier));
             }
             string chars = _token.ToString();
             int count = chars.Length;
@@ -752,6 +769,16 @@ namespace PdfSharpCore.Pdf.Content
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Indicates whether the specified character is a hexadecimal digit.
+        /// </summary>
+        internal static bool IsHexChar(char ch)
+        {
+            return char.IsDigit(ch) ||
+                (ch >= 'A' && ch <= 'F') ||
+                (ch >= 'a' && ch <= 'f');
         }
 
         /// <summary>
