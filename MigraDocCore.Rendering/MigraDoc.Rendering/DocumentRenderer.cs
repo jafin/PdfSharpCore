@@ -281,6 +281,19 @@ namespace MigraDocCore.Rendering
 
         internal void AddOutline(int level, string title, PdfPage destinationPage)
         {
+            AddOutline(level, title, destinationPage, double.NaN);
+        }
+
+        /// <summary>
+        /// Adds an outline entry pointing at a place on a page.
+        /// </summary>
+        /// <param name="destinationTop">
+        /// How far up the destination page the heading sits, in the coordinates a PDF page is
+        /// measured in. NaN points the entry at the page without saying where on it, which leaves
+        /// the reader wherever the page is already scrolled to.
+        /// </param>
+        internal void AddOutline(int level, string title, PdfPage destinationPage, double destinationTop)
+        {
             if (level < 1 || destinationPage == null)
                 return;
 
@@ -297,12 +310,14 @@ namespace MigraDocCore.Rendering
                 {
                     // You cannot add empty bookmarks to PDF. So we use blank here.
                     PdfOutline outline = outlines.Add(" ", destinationPage, true);
+                    outline.Top = destinationTop;
                     outlines = outline.Outlines;
                 }
                 else
                     outlines = outlines[count - 1].Outlines;
             }
-            outlines.Add(title, destinationPage, true);
+            PdfOutline added = outlines.Add(title, destinationPage, true);
+            added.Top = destinationTop;
         }
 
         internal int NextListNumber(ListInfo listInfo)

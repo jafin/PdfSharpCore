@@ -30,6 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Tables;
@@ -106,6 +107,24 @@ namespace MigraDocCore.DocumentObjectModel
             paragraph.Style = style;
             Add(paragraph);
             return paragraph;
+        }
+
+        /// <summary>
+        /// Adds a bookmark at this point in the flow of the document, to be referenced later by a
+        /// Hyperlink or a PageRef.
+        /// </summary>
+        /// <remarks>
+        /// A bookmark is a place, not something drawn, so this adds nothing to the page. It is not
+        /// an entry in the outline a reader shows in its bookmarks panel: those come from
+        /// ParagraphFormat.OutlineLevel, which the built-in Heading1 to Heading9 styles set.
+        /// Where the bookmark belongs on the heading it names — which is usually — put it there
+        /// with Paragraph.AddBookmark instead, so that the two cannot drift apart.
+        /// </remarks>
+        public BookmarkField AddBookmark(string name)
+        {
+            BookmarkField bookmark = new BookmarkField(name);
+            Add(bookmark);
+            return bookmark;
         }
 
         /// <summary>

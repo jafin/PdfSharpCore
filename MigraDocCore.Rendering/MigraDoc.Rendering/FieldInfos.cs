@@ -32,6 +32,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
+using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
 {
@@ -47,17 +48,24 @@ namespace MigraDocCore.Rendering
 
     internal struct BookmarkInfo
     {
-      internal BookmarkInfo(int physicalPageNumber, int displayPageNumber)
+      internal BookmarkInfo(int physicalPageNumber, int displayPageNumber, double top)
       {
         this.displayPageNumber = physicalPageNumber;
         this.shownPageNumber = displayPageNumber;
+        this.top = top;
       }
 
       internal int displayPageNumber;
       internal int shownPageNumber;
+
+      /// <summary>
+      /// How far up the page the bookmark sits, in the coordinates a PDF page is measured in.
+      /// NaN when the page height was not known and the position could not be worked out.
+      /// </summary>
+      internal double top;
     }
 
-    internal void AddBookmark(string name)
+    internal void AddBookmark(string name, XUnit verticalPosition)
     {
       if (this.pyhsicalPageNr <= 0)
         return;
@@ -65,8 +73,21 @@ namespace MigraDocCore.Rendering
       if (this.bookmarks.ContainsKey(name))
         this.bookmarks.Remove(name);
 
-      if (this.pyhsicalPageNr > 0)
-        this.bookmarks.Add(name, new BookmarkInfo(this.pyhsicalPageNr, this.displayPageNr));
+      // A document is laid out from the top of the page down and a PDF page is measured from the
+      // bottom up, so the one has to be turned into the other before it can be a destination.
+      double top = this.pageHeight.Point > 0 ? this.pageHeight.Point - verticalPosition.Point : double.NaN;
+      this.bookmarks.Add(name, new BookmarkInfo(this.pyhsicalPageNr, this.displayPageNr, top));
+    }
+
+    /// <summary>
+    /// How far up its page the named bookmark sits, in the coordinates a PDF page is measured in,
+    /// or NaN when there is no such bookmark or its position is not known.
+    /// </summary>
+    internal double GetBookmarkTop(string bookmarkName)
+    {
+      if (this.bookmarks.ContainsKey(bookmarkName))
+        return this.bookmarks[bookmarkName].top;
+      return double.NaN;
     }
 
     internal int GetShownPageNumber(string bookmarkName)
@@ -92,6 +113,12 @@ namespace MigraDocCore.Rendering
     Dictionary<string, BookmarkInfo> bookmarks;
     internal int displayPageNr;
     internal int pyhsicalPageNr;
+
+    /// <summary>
+    /// The height of the page these infos belong to, which is what turns a distance down the page
+    /// into a distance up it. Zero when it has not been set, and then no bookmark carries a position.
+    /// </summary>
+    internal XUnit pageHeight;
     internal int section;
     internal int sectionPages;
     internal int numPages;

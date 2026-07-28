@@ -463,6 +463,12 @@ namespace MigraDocCore.Rendering
             this.currentFieldInfos = new FieldInfos(this.bookmarks);
             this.currentFieldInfos.pyhsicalPageNr = this.currentPage;
             this.currentFieldInfos.section = this.sectionNumber;
+            // A landscape page is the page setup turned on its side, the same way CalcContentRect
+            // reads it. This is what lets a bookmark record where up the page it sits.
+            PageSetup pageSetup = this.currentSection.PageSetup;
+            this.currentFieldInfos.pageHeight = pageSetup.Orientation == Orientation.Portrait
+                ? pageSetup.PageHeight.Point
+                : pageSetup.PageWidth.Point;
 
             if (this.isNewSection && !this.currentSection.PageSetup.IsNull("StartingNumber"))
                 this.shownPageNumber = this.currentSection.PageSetup.StartingNumber;
