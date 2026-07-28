@@ -89,5 +89,20 @@ namespace PdfSharpCore.Drawing.BarCodes
         {
             return string.Format("'{1}'x'{0}' is an invalid ecc200 DataMatrix size.", columns, rows);
         }
+
+        internal static string DataMatrixCharacterTooBig(char ch)
+        {
+            return string.Format("U+{0:X4} cannot be written to a DataMatrix code, which carries " +
+                                 "bytes rather than characters. Encode the text to bytes first.",
+                                 (int)ch);
+        }
+
+        internal static string DataMatrixEncodationNotImplemented(char scheme)
+        {
+            return string.Format("The '{0}' encodation of a DataMatrix code is not written. Only " +
+                                 "the ASCII encodation is, which carries any data a DataMatrix " +
+                                 "can hold, though less densely for a long run of one kind of " +
+                                 "character. Leave the encoding unset to use it.", scheme);
+        }
     }
 }
