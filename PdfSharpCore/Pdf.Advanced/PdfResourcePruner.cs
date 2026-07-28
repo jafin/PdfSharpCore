@@ -232,7 +232,49 @@ namespace PdfSharpCore.Pdf.Advanced
                     if (resource.Elements.GetName("/Subtype") == "/Type3")
                         ReadCharProcs(resource, scope, depth);
                     break;
+
+                case "/ExtGState":
+                    UseSoftMask(resource, scope, depth);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Follows the soft mask of a graphics state. The mask is painted by a form, and a form
+        /// without resources of its own paints with those of whatever set the state, so what the
+        /// mask names has to be kept as well.
+        /// </summary>
+        void UseSoftMask(PdfDictionary extGState, PdfDictionary scope, int depth)
+        {
+            PdfItem item = extGState.Elements["/SMask"];
+            if (item is PdfReference)
+                item = ((PdfReference)item).Value;
+
+            if (item == null)
+            {
+                // The state says nothing about the mask and leaves it as it was.
+                return;
+            }
+
+            PdfName none = item as PdfName;
+            if (none != null)
+            {
+                // A mask set to /None paints nothing. Any other name is not a mask this knows.
+                if (none.Value != "/None")
+                    _understood = false;
+                return;
+            }
+
+            PdfDictionary mask = item as PdfDictionary;
+            PdfDictionary group = mask == null ? null : mask.Elements.GetDictionary("/G");
+            if (group == null)
+            {
+                // A mask whose form cannot be reached may paint with anything.
+                _understood = false;
+                return;
+            }
+
+            ReadNested(group, group, scope, depth);
         }
 
         /// <summary>
