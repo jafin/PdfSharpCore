@@ -193,7 +193,9 @@ namespace PdfSharpCore.Pdf.Content
             while (true)
             {
                 char ch = AppendAndScanNextChar();
-                if (IsWhiteSpace(ch) || IsDelimiter(ch))
+                // A name that ends the content stream never sees a delimiter, so give up at the
+                // end of the content as well rather than appending Chars.EOF for ever.
+                if (IsWhiteSpace(ch) || IsDelimiter(ch) || ch == Chars.EOF)
                     return _symbol = CSymbol.Name;
 
                 if (ch == '#')
@@ -217,7 +219,13 @@ namespace PdfSharpCore.Pdf.Content
             char ch;
             while (true)
             {
-                _token.Append(ch = ScanNextChar());
+                ch = ScanNextChar();
+                // A truncated dictionary never sees its closing '>>', so give up at the end of
+                // the content rather than appending Chars.EOF for ever.
+                if (ch == Chars.EOF)
+                    return CSymbol.Dictionary;
+
+                _token.Append(ch);
                 if (ch == '>')
                 {
                     _token.Append(ch = ScanNextChar());
@@ -344,6 +352,11 @@ namespace PdfSharpCore.Pdf.Content
                 while (true)
                 {
                     SkipChar:
+                    // An unterminated string never sees its closing ')', so give up at the end
+                    // of the content rather than scanning for ever.
+                    if (_currChar == Chars.EOF)
+                        return _symbol = CSymbol.String;
+
                     switch (ch)
                     {
                         case '(':
@@ -444,6 +457,11 @@ namespace PdfSharpCore.Pdf.Content
                 while (true)
                 {
                     SkipChar:
+                    // An unterminated string never sees its closing ')', so give up at the end
+                    // of the content rather than appending Chars.EOF for ever.
+                    if (ch == Chars.EOF)
+                        return _symbol = CSymbol.String;
+
                     switch (ch)
                     {
                         case '(':
@@ -544,6 +562,11 @@ namespace PdfSharpCore.Pdf.Content
             while (true)
             {
                 MoveToNonWhiteSpace();
+                // A truncated hex string never sees its closing '>', so give up at the end of
+                // the content rather than spinning on Chars.EOF.
+                if (_currChar == Chars.EOF)
+                    break;
+
                 if (_currChar == '>')
                 {
                     ScanNextChar();
