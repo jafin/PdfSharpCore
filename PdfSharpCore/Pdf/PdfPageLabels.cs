@@ -62,9 +62,10 @@ namespace PdfSharpCore.Pdf
     /// that front matter can be numbered i, ii, iii while the body starts again at 1.
     /// <para>
     /// Labels are given a range at a time, each one starting at the page it is added for and
-    /// running until the next range begins. Pages before the first range are not labelled at
-    /// all, page zero among them where the first range starts after it, and a reader shows those
-    /// pages by position as it would for a document with no labels.
+    /// running until the next range begins. A document with labels is asked to label the page at
+    /// index zero, so a range added further in brings one there with it, numbering those earlier
+    /// pages from one as a reader would have shown them anyway. Adding a range at page zero
+    /// puts the caller's own in its place.
     /// </para>
     /// </summary>
     public sealed class PdfPageLabels
@@ -124,6 +125,12 @@ namespace PdfSharpCore.Pdf
             if (start < 1)
                 throw new ArgumentOutOfRangeException("start", "A page label is numbered from one.");
 
+            Write(startPageIndex, style, prefix, start);
+            LabelPageZero();
+        }
+
+        void Write(int startPageIndex, PdfPageLabelStyle style, string prefix, int start)
+        {
             PdfDictionary label = new PdfDictionary(_document);
             label.Elements.SetName(PdfPageLabelKeys.Type, "/PageLabel");
 
@@ -140,6 +147,26 @@ namespace PdfSharpCore.Pdf
 
             _document.Internals.AddObject(label);
             Tree(true).SetValue(startPageIndex, label);
+        }
+
+        /// <summary>
+        /// A document with page labels is asked to label the page at index zero, and a document
+        /// that does not is one a reader is left to guess about. So where the ranges do not reach
+        /// that far, a range numbering the pages from one is put there.
+        /// <para>
+        /// That is what a reader shows for a page with no label anyway, so the pages before the
+        /// first range the caller asked for are labelled the way they already looked, and the
+        /// document says plainly what it would otherwise leave unsaid. A range the caller adds at
+        /// page zero later takes its place.
+        /// </para>
+        /// </summary>
+        void LabelPageZero()
+        {
+            PdfNumberTreeNode tree = Tree(false);
+            if (tree == null || tree.Count == 0 || tree.Contains(0))
+                return;
+
+            Write(0, PdfPageLabelStyle.Decimal, null, 1);
         }
 
         /// <summary>
@@ -164,6 +191,8 @@ namespace PdfSharpCore.Pdf
             // takes the entry with it.
             if (tree.Count == 0)
                 Clear();
+            else
+                LabelPageZero();
 
             return true;
         }

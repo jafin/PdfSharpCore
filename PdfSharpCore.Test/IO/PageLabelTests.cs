@@ -166,15 +166,70 @@ namespace PdfSharpCore.Test.IO
         }
 
         [Fact]
-        public void ARangeStartingAfterAPageDoesNotLabelIt()
+        public void ARangeAddedFurtherInBringsOneAtPageZeroWithIt()
         {
             var document = WithPages(4);
+
             document.PageLabels.Add(2, PdfPageLabelStyle.Decimal);
 
-            // The standard asks a document with labels to label page zero. Where one does not,
-            // the pages before the first range are left as the reader found them.
-            document.PageLabels.GetLabel(0).Should().BeNull();
+            // The standard asks a document with labels to label page zero, so leaving it out is
+            // not something a caller should be able to do by accident. The pages before the
+            // range asked for are numbered the way a reader would have shown them anyway.
+            document.PageLabels.GetRangeStarts().Should().Equal(0, 2);
+            document.PageLabels.GetLabel(0).Should().Be("1");
+            document.PageLabels.GetLabel(1).Should().Be("2");
             document.PageLabels.GetLabel(2).Should().Be("1");
+        }
+
+        [Fact]
+        public void ARangeAtPageZeroTakesThePlaceOfTheOneBroughtIn()
+        {
+            var document = WithPages(6);
+            document.PageLabels.Add(3, PdfPageLabelStyle.Decimal);
+
+            document.PageLabels.Add(0, PdfPageLabelStyle.LowercaseRoman);
+
+            document.PageLabels.Count.Should().Be(2);
+            document.PageLabels.GetLabel(0).Should().Be("i");
+            document.PageLabels.GetLabel(3).Should().Be("1");
+        }
+
+        [Fact]
+        public void ARangeAddedAtPageZeroBringsNoOtherWithIt()
+        {
+            var document = WithPages(4);
+
+            document.PageLabels.Add(0, PdfPageLabelStyle.LowercaseRoman);
+
+            document.PageLabels.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public void TakingAwayTheRangeAtPageZeroPutsOneBackWhileOthersRemain()
+        {
+            var document = WithPages(6);
+            document.PageLabels.Add(0, PdfPageLabelStyle.LowercaseRoman);
+            document.PageLabels.Add(3, PdfPageLabelStyle.Decimal);
+
+            document.PageLabels.Remove(0).Should().BeTrue();
+
+            // The caller's range is gone, but the document still labels page zero, because one
+            // that does not is a document the standard does not describe.
+            document.PageLabels.GetRangeStarts().Should().Equal(0, 3);
+            document.PageLabels.GetLabel(0).Should().Be("1");
+        }
+
+        [Fact]
+        public void EveryDocumentWithLabelsLabelsPageZero()
+        {
+            var document = WithPages(9);
+            document.PageLabels.Add(7, PdfPageLabelStyle.UppercaseLetters);
+            document.PageLabels.Add(4, PdfPageLabelStyle.Decimal, "B-", 1);
+
+            var reopened = SaveAndOpen(document);
+
+            reopened.PageLabels.GetRangeStarts().Should().Contain(0);
+            reopened.PageLabels.GetLabel(0).Should().NotBeNull();
         }
 
         [Fact]
