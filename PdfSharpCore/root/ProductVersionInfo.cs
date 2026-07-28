@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+﻿#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -90,7 +90,7 @@ namespace PdfSharpCore
         /// <summary>
         /// The copyright information.
         /// </summary>
-        public const string Copyright = "Copyright � 2005-2016 empira Software GmbH.";
+        public const string Copyright = "Copyright © 2005-2016 empira Software GmbH.";
 
         /// <summary>
         /// The trademark the product.

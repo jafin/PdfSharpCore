@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+ï»¿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -50,17 +50,17 @@ namespace MigraDocCore.DocumentObjectModel.IO
     Identifier,
 
     /// <summary>
-    /// Both «true» and «\bold» are keywords, case sensitive.
+    /// Both Â«trueÂ» and Â«\boldÂ» are keywords, case sensitive.
     /// </summary>
     KeyWord,
 
     /// <summary>
-    /// Sample: «42»
+    /// Sample: Â«42Â»
     /// </summary>
     IntegerLiteral,
 
     /// <summary>
-    /// Samples: «42.0», «42.», «.42»,...
+    /// Samples: Â«42.0Â», Â«42.Â», Â«.42Â»,...
     /// </summary>
     RealLiteral,
 
@@ -70,12 +70,12 @@ namespace MigraDocCore.DocumentObjectModel.IO
     CharacterLiteral,
 
     /// <summary>
-    /// Both «"text"» and «@"text with ""quotes"""».
+    /// Both Â«"text"Â» and Â«@"text with ""quotes"""Â».
     /// </summary>
     StringLiteral,
 
     /// <summary>
-    /// Samples: «.», «{», «+=»,...
+    /// Samples: Â«.Â», Â«{Â», Â«+=Â»,...
     /// </summary>
     OperatorOrPunctuator,
 

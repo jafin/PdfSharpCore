@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+ï»¿#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -404,7 +404,7 @@ namespace PdfSharpCore.Pdf.IO
 
             if (omitStream)
             {
-                WriteRaw("  «...stream content omitted...»\n");  // useful for debugging only
+                WriteRaw("  Â«...stream content omitted...Â»\n");  // useful for debugging only
             }
             else
             {

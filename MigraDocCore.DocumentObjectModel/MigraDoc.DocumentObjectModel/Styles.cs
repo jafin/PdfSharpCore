@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+Ôªø#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -244,55 +244,55 @@ namespace MigraDocCore.DocumentObjectModel
             style.ParagraphFormat.WidowControl = true;
             this.Add(style);
 
-            // Heading1 '‹berschrift 1' (Paragraph Style)
+            // Heading1 '√úberschrift 1' (Paragraph Style)
             style = new Style("Heading1", "Normal");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level1;
             this.Add(style);
 
-            // Heading2 '‹berschrift 2' (Paragraph Style)
+            // Heading2 '√úberschrift 2' (Paragraph Style)
             style = new Style("Heading2", "Heading1");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level2;
             this.Add(style);
 
-            // Heading3 '‹berschrift 3' (Paragraph Style)
+            // Heading3 '√úberschrift 3' (Paragraph Style)
             style = new Style("Heading3", "Heading2");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level3;
             this.Add(style);
 
-            // Heading4 '‹berschrift 4' (Paragraph Style)
+            // Heading4 '√úberschrift 4' (Paragraph Style)
             style = new Style("Heading4", "Heading3");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level4;
             this.Add(style);
 
-            // Heading5 '‹berschrift 5' (Paragraph Style)
+            // Heading5 '√úberschrift 5' (Paragraph Style)
             style = new Style("Heading5", "Heading4");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level5;
             this.Add(style);
 
-            // Heading6 '‹berschrift 6' (Paragraph Style)
+            // Heading6 '√úberschrift 6' (Paragraph Style)
             style = new Style("Heading6", "Heading5");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level6;
             this.Add(style);
 
-            // Heading7 '‹berschrift 7' (Paragraph Style)
+            // Heading7 '√úberschrift 7' (Paragraph Style)
             style = new Style("Heading7", "Heading6");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level7;
             this.Add(style);
 
-            // Heading8 '‹berschrift 8' (Paragraph Style)
+            // Heading8 '√úberschrift 8' (Paragraph Style)
             style = new Style("Heading8", "Heading7");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level8;
             this.Add(style);
 
-            // Heading9 '‹berschrift 9' (Paragraph Style)
+            // Heading9 '√úberschrift 9' (Paragraph Style)
             style = new Style("Heading9", "Heading8");
             style.buildIn.Value = true;
             style.ParagraphFormat.OutlineLevel = OutlineLevel.Level9;
@@ -303,7 +303,7 @@ namespace MigraDocCore.DocumentObjectModel
             style.buildIn.Value = true;
             this.Add(style);
 
-            // Footnote 'Fuﬂnote' (Paragraph Style)
+            // Footnote 'Fu√ünote' (Paragraph Style)
             style = new Style("Footnote", "Normal");
             style.buildIn.Value = true;
             this.Add(style);
@@ -313,7 +313,7 @@ namespace MigraDocCore.DocumentObjectModel
             style.buildIn.Value = true;
             this.Add(style);
 
-            // -33: Footer 'Fuﬂzeile' (Paragraph Style)
+            // -33: Footer 'Fu√üzeile' (Paragraph Style)
             style = new Style("Footer", "Normal");
             style.buildIn.Value = true;
             this.Add(style);
@@ -323,7 +323,7 @@ namespace MigraDocCore.DocumentObjectModel
             style.buildIn.Value = true;
             this.Add(style);
 
-            // InvalidStyleName 'Ung¸ltiger Formatvorlagenname' (Paragraph Style)
+            // InvalidStyleName 'Ung√ºltiger Formatvorlagenname' (Paragraph Style)
             style = new Style("InvalidStyleName", "Normal");
             style.buildIn.Value = true;
             style.Font.Bold = true;
