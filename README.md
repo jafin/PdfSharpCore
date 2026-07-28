@@ -14,7 +14,7 @@ The core `PdfSharpCore` package carries no imaging or font dependency of its own
 | Package | Backend | License | Notes |
 | --- | --- | --- | --- |
 | `PdfSharpCore.Skia` | [SkiaSharp](https://github.com/mono/SkiaSharp) | MIT | Default. Native library — see below. |
-| `PdfSharpCore.ImageSharp` | [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp) / [Fonts](https://github.com/SixLabors/Fonts) | Apache-2.0 | Pinned to the Apache-2.0 licensed 2.1.x / 1.0.x lines. |
+| `PdfSharpCore.ImageSharp` | [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp) / [Fonts](https://github.com/SixLabors/Fonts) | Apache-2.0 | Pinned to the Apache-2.0 licensed 2.1.x / 1.0.x lines — see below. |
 
 Register the backend before creating any font or loading any image:
 
@@ -43,6 +43,40 @@ so that you can choose the right Linux variant:
 
 Use `SkiaSharp.NativeAssets.Linux` instead of `...NoDependencies` if `libfontconfig1` is available
 on your Linux image. The `PdfSharpCore.ImageSharp` backend is fully managed and needs none of this.
+
+### ImageSharp 3.x and later are not supported
+
+`PdfSharpCore.ImageSharp` requires `SixLabors.ImageSharp` **2.1.x**. SixLabors relicensed from
+Apache-2.0 to the [Six Labors Split License](https://github.com/SixLabors/ImageSharp/blob/main/LICENSE)
+in ImageSharp 3.0 and Fonts 2.0, so this package stays on the last Apache-2.0 versions rather than
+pushing that licence onto everyone who installs PdfSharpCore.
+
+ImageSharp 3.0 is also not binary compatible with 2.1.x — it removed the
+`Image.Load(..., out IImageFormat)` overloads and made every encoder property `init`-only, which
+changes the setter signature. A build compiled against 2.1.x therefore fails at runtime with
+`MissingMethodException` if 3.x is loaded instead ([#348](https://github.com/ststeiger/PdfSharpCore/issues/348)).
+
+The dependency is declared as the range `[2.1.13,3.0.0)`, so a mismatch surfaces at restore rather
+than at runtime:
+
+* If ImageSharp 3.x arrives **transitively**, restore fails with `NU1107` (version conflict).
+* If your project references ImageSharp 3.x **directly**, a direct reference wins and you get only a
+  `NU1608` warning. Treat it as an error, because the build will still crash at runtime:
+
+  ```xml
+  <WarningsAsErrors>$(WarningsAsErrors);NU1608</WarningsAsErrors>
+  ```
+
+Should it get through anyway, the backend reports the mismatch as a descriptive
+`InvalidOperationException` naming the loaded version instead of a bare `MissingMethodException`.
+
+Only ImageSharp carries an upper bound. `SixLabors.Fonts` is referenced at `1.0.1` for the same
+licensing reason, but `ImageSharpFontResolver` uses the small part of its API that 2.x keeps
+unchanged, so resolving Fonts to 2.x is a licence decision for you to make rather than something
+that breaks at runtime.
+
+**If your application needs ImageSharp 3.x or later, use the `PdfSharpCore.Skia` backend instead** —
+it has no ImageSharp dependency, so both can coexist in one project.
 
 
 ## Table of Contents
