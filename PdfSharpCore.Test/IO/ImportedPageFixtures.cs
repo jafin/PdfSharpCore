@@ -51,6 +51,15 @@ namespace PdfSharpCore.Test.IO
             return "<</Type/Annot/Subtype/Link/Rect[0 0 10 10]/Border[0 0 0]" + destination + ">>";
         }
 
+        /// <summary>
+        ///   A link annotation that opens a web address rather than going to a page of the document.
+        ///   It holds on to nothing, so nothing has to be resolved for it to survive an import.
+        /// </summary>
+        internal static string UriLink(string url)
+        {
+            return Link("/A<</Type/Action/S/URI/URI(" + url + ")>>");
+        }
+
         /// <summary>An annotation that is not a link and names no page at all.</summary>
         internal static string Note()
         {
