@@ -268,6 +268,51 @@ namespace PdfSharpCore
             get { return "The page cannot be added to this document because the document already owned this page."; }
         }
 
+        /// <summary>
+        /// Explains that a page is already placed in this document, and names the operation the
+        /// caller most likely wanted instead.
+        /// </summary>
+        /// <param name="currentIndex">The index the page already sits at.</param>
+        /// <param name="requestedIndex">The index the caller asked to place it at.</param>
+        public static string PageAlreadyPlaced(int currentIndex, int requestedIndex)
+        {
+            return String.Format(
+                "This page is already at index {0} of this document, so it cannot be placed again. " +
+                "To move it, use document.MovePage({0}, {1}). " +
+                "To place a second, independent page showing the same content, use document.DuplicatePage({0}, {1}). " +
+                "If this page came from AddPage() or InsertPage(), it was already placed by that call - " +
+                "draw on the page those methods returned instead of placing it a second time. " +
+                "To build a page before placing it, use 'new PdfPage(document)', which creates a drawable " +
+                "page without adding it to the page tree.",
+                currentIndex, requestedIndex);
+        }
+
+        /// <summary>
+        /// Explains that a page belongs to another document and must be imported rather than placed.
+        /// </summary>
+        public static string PageBelongsToAnotherDocument
+        {
+            get
+            {
+                return "This page belongs to another document. Use document.ImportPage(index, page) to " +
+                       "copy it into this document; the copy it returns is a different object from the " +
+                       "page passed in. PlacePage only accepts pages this document already owns.";
+            }
+        }
+
+        /// <summary>
+        /// Explains that a page belongs to this document already and so cannot be imported.
+        /// </summary>
+        public static string PageBelongsToThisDocument
+        {
+            get
+            {
+                return "This page already belongs to this document, so there is nothing to import. " +
+                       "Use document.PlacePage to position a page this document owns but has not placed, " +
+                       "or document.DuplicatePage to add a second page showing the same content.";
+            }
+        }
+
         public static string UnexpectedTokenInPdfFile
         {
             get { return "Unexpected token in PDF file. The PDF file may be corrupt. If it is not, please send us the file for service."; }

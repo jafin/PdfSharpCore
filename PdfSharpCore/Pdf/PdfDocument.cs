@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using JetBrains.Annotations;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
 using PdfSharpCore.Pdf.IO;
@@ -755,11 +756,23 @@ namespace PdfSharpCore.Pdf
         PdfInternals _internals;
 
         /// <summary>
-        /// Creates a new page and adds it to this document.
-        /// Depending of the IsMetric property of the current region the page size is set to 
+        /// Creates a new page, <b>appends it to this document</b>, and returns it.
+        /// Depending of the IsMetric property of the current region the page size is set to
         /// A4 or Letter respectively. If this size is not appropriate it should be changed before
         /// any drawing operations are performed on the page.
+        /// <para>
+        /// The page returned is already part of this document. Do not pass it to
+        /// <see cref="AddPage(PdfPage, AnnotationCopyingType)"/> or
+        /// <see cref="InsertPage(int, PdfPage, AnnotationCopyingType)"/> afterwards - that places
+        /// the same page twice and throws. Draw on the page returned here instead.
+        /// </para>
+        /// <para>
+        /// To build a page before deciding where it goes, use <c>new PdfPage(document)</c>, which
+        /// creates a drawable page without adding it to the page tree, and place it later with
+        /// <see cref="PlacePage"/>.
+        /// </para>
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage AddPage()
         {
             if (!CanModify)
@@ -771,7 +784,14 @@ namespace PdfSharpCore.Pdf
         /// Adds the specified page to this document. If the page is from an external document,
         /// it is imported to this document. In this case the returned page is not the same
         /// object as the specified one.
+        /// <para>
+        /// <b>Always use the value returned</b> rather than the page passed in: whether the two are
+        /// the same object depends on which document owned the page, which is not visible at the
+        /// call site. Prefer <see cref="ImportPage"/> or <see cref="PlacePage"/>, which each do one
+        /// of those two things and say which in their name.
+        /// </para>
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage AddPage(PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
         {
             if (!CanModify)
@@ -780,8 +800,11 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
-        /// Creates a new page and inserts it in this document at the specified position.
+        /// Creates a new page, <b>inserts it in this document</b> at the specified position, and
+        /// returns it. The page returned is already part of this document - draw on it rather than
+        /// passing it to another Add or Insert call.
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage InsertPage(int index)
         {
             if (!CanModify)
@@ -793,12 +816,90 @@ namespace PdfSharpCore.Pdf
         /// Inserts the specified page in this document. If the page is from an external document,
         /// it is imported to this document. In this case the returned page is not the same
         /// object as the specified one.
+        /// <para>
+        /// <b>Always use the value returned</b> rather than the page passed in: whether the two are
+        /// the same object depends on which document owned the page, which is not visible at the
+        /// call site. Prefer <see cref="ImportPage"/> or <see cref="PlacePage"/>, which each do one
+        /// of those two things and say which in their name.
+        /// </para>
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage InsertPage(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
         {
             if (!CanModify)
                 throw new InvalidOperationException(PSSR.CannotModify);
             return Catalog.Pages.Insert(index, page, annotationCopying);
+        }
+
+        /// <summary>
+        /// Places a page this document already owns but has not yet added to the page tree, and
+        /// returns that same page object.
+        /// <para>
+        /// This is the counterpart of <c>new PdfPage(document)</c>: create a page, draw on it, then
+        /// place it where you want it. Unlike <see cref="AddPage(PdfPage, AnnotationCopyingType)"/>
+        /// the page returned is always the page passed in, and a page from another document is
+        /// rejected rather than silently imported.
+        /// </para>
+        /// </summary>
+        /// <param name="index">The position to place the page at.</param>
+        /// <param name="page">A page owned by this document that is not yet placed.</param>
+        public PdfPage PlacePage(int index, PdfPage page)
+        {
+            if (!CanModify)
+                throw new InvalidOperationException(PSSR.CannotModify);
+            return Catalog.Pages.Place(index, page);
+        }
+
+        /// <summary>
+        /// Imports a page from another document and returns the imported copy, which is always a
+        /// different object from the page passed in.
+        /// <para>
+        /// Unlike <see cref="AddPage(PdfPage, AnnotationCopyingType)"/> this always copies, so the
+        /// return value never aliases the argument. A page this document already owns is rejected.
+        /// The source document must be opened with <see cref="PdfDocumentOpenMode.Import"/>.
+        /// </para>
+        /// </summary>
+        /// <param name="index">The position to place the imported copy at.</param>
+        /// <param name="page">A page belonging to another document.</param>
+        /// <param name="annotationCopying">Annotation copying action, by default annotations are copied shallowly.</param>
+        [MustUseReturnValue]
+        public PdfPage ImportPage(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
+        {
+            if (!CanModify)
+                throw new InvalidOperationException(PSSR.CannotModify);
+            return Catalog.Pages.Import(index, page, annotationCopying);
+        }
+
+        /// <summary>
+        /// Adds a second page showing the content of an existing page of this document, and
+        /// returns the new page.
+        /// <para>
+        /// The duplicate shares the content stream of the source rather than copying its bytes, so
+        /// the file does not grow by the size of the page, but it gets a resource dictionary of its
+        /// own so that later drawing on either page does not affect the other. Annotations are not
+        /// carried over, because an annotation names the page that owns it.
+        /// </para>
+        /// </summary>
+        /// <param name="sourceIndex">The index of the page to duplicate.</param>
+        /// <param name="index">The index to place the duplicate at.</param>
+        [MustUseReturnValue]
+        public PdfPage DuplicatePage(int sourceIndex, int index)
+        {
+            if (!CanModify)
+                throw new InvalidOperationException(PSSR.CannotModify);
+            return Catalog.Pages.Duplicate(sourceIndex, index);
+        }
+
+        /// <summary>
+        /// Moves a page within the page sequence of this document.
+        /// </summary>
+        /// <param name="oldIndex">The page index before this operation.</param>
+        /// <param name="newIndex">The page index after this operation.</param>
+        public void MovePage(int oldIndex, int newIndex)
+        {
+            if (!CanModify)
+                throw new InvalidOperationException(PSSR.CannotModify);
+            Catalog.Pages.MovePage(oldIndex, newIndex);
         }
 
         /// <summary>

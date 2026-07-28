@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections;
+using JetBrains.Annotations;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Annotations;
@@ -104,17 +105,18 @@ namespace PdfSharpCore.Pdf
         /// <summary>
         /// Creates a new PdfPage, adds it to the end of this document, and returns it.
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage Add()
         {
             PdfPage page = new PdfPage();
-            Insert(Count, page);
-            return page;
+            return Insert(Count, page);
         }
 
         /// <summary>
         /// Adds the specified PdfPage to the end of this document and maybe returns a new PdfPage object.
         /// The value returned is a new object if the added page comes from a foreign document.
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage Add(PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
         {
             return Insert(Count, page, annotationCopying);
@@ -123,17 +125,18 @@ namespace PdfSharpCore.Pdf
         /// <summary>
         /// Creates a new PdfPage, inserts it at the specified position into this document, and returns it.
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage Insert(int index)
         {
             PdfPage page = new PdfPage();
-            Insert(index, page);
-            return page;
+            return Insert(index, page);
         }
 
         /// <summary>
         /// Inserts the specified PdfPage at the specified position to this document and maybe returns a new PdfPage object.
         /// The value returned is a new object if the inserted page comes from a foreign document.
         /// </summary>
+        [MustUseReturnValue]
         public PdfPage Insert(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
         {
             if (page == null)
@@ -148,7 +151,7 @@ namespace PdfSharpCore.Pdf
                 for (int idx = 0; idx < count; idx++)
                 {
                     if (ReferenceEquals(this[idx], page))
-                        throw new InvalidOperationException(PSSR.MultiplePageInsert);
+                        throw new InvalidOperationException(PSSR.PageAlreadyPlaced(idx, index));
                 }
 
                 // TODO: check this case
@@ -195,6 +198,168 @@ namespace PdfSharpCore.Pdf
             if (Owner.Settings.TrimMargins.AreSet)
                 page.TrimMargins = Owner.Settings.TrimMargins;
             return page;
+        }
+
+        /// <summary>
+        /// The keys copied when a page is duplicated within one document. Annotations are
+        /// deliberately excluded: an annotation carries a /P back-reference to the page that owns
+        /// it, so sharing one between two pages would leave that reference pointing at the wrong page.
+        /// </summary>
+        static readonly string[] DuplicatedPageKeys =
+        {
+            Pdf.PdfPage.Keys.Resources,
+            Pdf.PdfPage.Keys.Contents,
+            Pdf.PdfPage.Keys.MediaBox,
+            Pdf.PdfPage.Keys.CropBox,
+            Pdf.PdfPage.Keys.Rotate,
+            Pdf.PdfPage.Keys.BleedBox,
+            Pdf.PdfPage.Keys.TrimBox,
+            Pdf.PdfPage.Keys.ArtBox,
+        };
+
+        /// <summary>
+        /// Returns the index of the specified page in this document, or -1 if the page is not
+        /// placed in it. Use this to tell an unplaced page apart from a placed one before calling
+        /// <see cref="Place"/>.
+        /// </summary>
+        public int IndexOf(PdfPage page)
+        {
+            if (page == null)
+                throw new ArgumentNullException("page");
+
+            int count = Count;
+            for (int idx = 0; idx < count; idx++)
+            {
+                if (ReferenceEquals(this[idx], page))
+                    return idx;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Places a page this document already owns but has not yet added to the page tree, and
+        /// returns that same page object. This is the counterpart of <c>new PdfPage(document)</c>,
+        /// which creates a drawable page without placing it.
+        /// <para>
+        /// Unlike <see cref="Insert(int, PdfPage, AnnotationCopyingType)"/> this never copies: the
+        /// page returned is always the page passed in. A page from another document is rejected
+        /// rather than silently imported.
+        /// </para>
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The page belongs to another document, or is already placed in this one.
+        /// </exception>
+        public PdfPage Place(int index, PdfPage page)
+        {
+            if (page == null)
+                throw new ArgumentNullException("page");
+            if (index < 0 || index > Count)
+                throw new ArgumentOutOfRangeException("index", "Argument 'index' out of range.");
+            if (page.Owner != null && page.Owner != Owner)
+                throw new InvalidOperationException(PSSR.PageBelongsToAnotherDocument);
+
+            // Insert rejects an already placed page with a message naming the remedy.
+            PdfPage placed = Insert(index, page);
+            Debug.Assert(ReferenceEquals(placed, page), "Place must never copy the page.");
+            return placed;
+        }
+
+        /// <summary>
+        /// Imports a page from another document and returns the imported copy, which is always a
+        /// different object from the page passed in.
+        /// <para>
+        /// Unlike <see cref="Insert(int, PdfPage, AnnotationCopyingType)"/> this always copies: a
+        /// page this document already owns is rejected rather than silently placed, so the return
+        /// value never aliases the argument.
+        /// </para>
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The page has no owner, or already belongs to this document.
+        /// </exception>
+        [MustUseReturnValue]
+        public PdfPage Import(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
+        {
+            if (page == null)
+                throw new ArgumentNullException("page");
+            if (index < 0 || index > Count)
+                throw new ArgumentOutOfRangeException("index", "Argument 'index' out of range.");
+            if (page.Owner == null || page.Owner == Owner)
+                throw new InvalidOperationException(PSSR.PageBelongsToThisDocument);
+
+            PdfPage imported = Insert(index, page, annotationCopying);
+            Debug.Assert(!ReferenceEquals(imported, page), "Import must always copy the page.");
+            return imported;
+        }
+
+        /// <summary>
+        /// Adds a second page showing the content of an existing page of this document, and
+        /// returns the new page.
+        /// <para>
+        /// The duplicate shares the content stream of the source rather than copying its bytes, so
+        /// it is cheap and the file does not grow by the size of the page. It gets a resource
+        /// dictionary of its own, so the two pages are independent: drawing on either through
+        /// XGraphics gives that page a content stream of its own and adds resources only to it.
+        /// Annotations are not carried over - see <see cref="DuplicatedPageKeys"/>.
+        /// </para>
+        /// </summary>
+        /// <param name="sourceIndex">The index of the page to duplicate.</param>
+        /// <param name="index">The index to place the duplicate at.</param>
+        [MustUseReturnValue]
+        public PdfPage Duplicate(int sourceIndex, int index)
+        {
+            if (sourceIndex < 0 || sourceIndex >= Count)
+                throw new ArgumentOutOfRangeException("sourceIndex", "Argument 'sourceIndex' out of range.");
+            if (index < 0 || index > Count)
+                throw new ArgumentOutOfRangeException("index", "Argument 'index' out of range.");
+
+            PdfPage source = this[sourceIndex];
+            PdfPage duplicate = new PdfPage(Owner);
+            foreach (string key in DuplicatedPageKeys)
+            {
+                PdfItem item = source.Elements[key];
+                if (item == null)
+                    continue;
+
+                // The content stream is shared, which is the point: the duplicate costs a page
+                // object rather than a copy of the page. The resource dictionary cannot be shared,
+                // because drawing on either page writes into it.
+                duplicate.Elements[key] = key == Pdf.PdfPage.Keys.Resources
+                    ? CloneResources(item)
+                    : item;
+            }
+            return Insert(index, duplicate);
+        }
+
+        /// <summary>
+        /// Gives a duplicated page a resource dictionary of its own, so that drawing on either page
+        /// afterwards does not add entries to the other.
+        /// <para>
+        /// Only the dictionaries are copied. The objects they name - fonts, images, graphics states -
+        /// are held by indirect reference, and <see cref="PdfDictionary.Clone"/> leaves those alone,
+        /// so the two pages go on sharing the things that carry the bytes.
+        /// </para>
+        /// </summary>
+        PdfItem CloneResources(PdfItem resources)
+        {
+            PdfDictionary dictionary = ResolveDictionary(resources);
+            if (dictionary == null)
+                return resources;
+
+            PdfDictionary clone = dictionary.Clone();
+            clone.Document = Owner;
+            return clone;
+        }
+
+        /// <summary>
+        /// Returns the dictionary an item holds, following an indirect reference, or null if the
+        /// item is not a dictionary.
+        /// </summary>
+        static PdfDictionary ResolveDictionary(PdfItem item)
+        {
+            PdfReference reference = item as PdfReference;
+            if (reference != null)
+                item = reference.Value;
+            return item as PdfDictionary;
         }
 
         /// <summary>
