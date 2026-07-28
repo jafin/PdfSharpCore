@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text;
 using AwesomeAssertions;
@@ -72,6 +73,28 @@ namespace PdfSharpCore.Test.IO
         }
 
         /// <summary>
+        ///   The stream is the only copy of the document the caller has left. A save that fails has
+        ///   to leave it as it was, rather than empty it and then find it has nothing to put back.
+        /// </summary>
+        [Fact]
+        public void ASaveThatFailsLeavesTheSourceStreamAsItWas()
+        {
+            using var pdf = new MemoryStream();
+            var original = File.ReadAllBytes(PathHelper.GetInstance().GetAssetPath("FamilyTree.pdf"));
+            pdf.Write(original, 0, original.Length);
+            pdf.Position = 0;
+
+            var document = Pdf.IO.PdfReader.Open(pdf, PdfDocumentOpenMode.Modify);
+            // A document with no pages cannot be written, and says so once the save is under way.
+            while (document.Pages.Count > 0)
+                document.Pages.RemoveAt(0);
+
+            document.Invoking(d => d.Save(pdf)).Should().Throw<InvalidOperationException>();
+
+            pdf.ToArray().Should().Equal(original);
+        }
+
+        /// <summary>
         ///   Only the stream the document was read from is rewound. A stream the caller has placed
         ///   content in and positioned deliberately is still written to where it was left.
         /// </summary>
@@ -88,8 +111,10 @@ namespace PdfSharpCore.Test.IO
             document.Save(output);
 
             var written = output.ToArray();
-            written.Length.Should().BeGreaterThan(preamble.Length);
+            var signature = Encoding.ASCII.GetBytes("%PDF-");
+            written.Length.Should().BeGreaterThan(preamble.Length + signature.Length);
             written[..preamble.Length].Should().Equal(preamble);
+            written[preamble.Length..(preamble.Length + signature.Length)].Should().Equal(signature);
         }
     }
 }
