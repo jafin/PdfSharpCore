@@ -163,25 +163,25 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
       Cell bottomNeighbor = GetNeighbor(cellIdx, NeighborPosition.Bottom);
       if (leftNeighbor != null)
       {
-        Borders nbrBrdrs = leftNeighbor.GetValue("Borders", GV.ReadWrite) as Borders;
+        Borders nbrBrdrs = leftNeighbor.GetValue("Borders", GV.ReadOnly) as Borders;
         if (nbrBrdrs != null && GetEffectiveBorderWidth(nbrBrdrs, BorderType.Right) >= GetEffectiveBorderWidth(borders, BorderType.Left))
           borders.SetValue("Left", GetBorderFromBorders(nbrBrdrs, BorderType.Right));
       }
       if (rightNeighbor != null)
       {
-        Borders nbrBrdrs = rightNeighbor.GetValue("Borders", GV.ReadWrite) as Borders;
+        Borders nbrBrdrs = rightNeighbor.GetValue("Borders", GV.ReadOnly) as Borders;
         if (nbrBrdrs != null && GetEffectiveBorderWidth(nbrBrdrs, BorderType.Left) > GetEffectiveBorderWidth(borders, BorderType.Right))
           borders.SetValue("Right", GetBorderFromBorders(nbrBrdrs, BorderType.Left));
       }
       if (topNeighbor != null)
       {
-        Borders nbrBrdrs = topNeighbor.GetValue("Borders", GV.ReadWrite) as Borders;
+        Borders nbrBrdrs = topNeighbor.GetValue("Borders", GV.ReadOnly) as Borders;
         if (nbrBrdrs != null && GetEffectiveBorderWidth(nbrBrdrs, BorderType.Bottom) >= GetEffectiveBorderWidth(borders, BorderType.Top))
           borders.SetValue("Top", GetBorderFromBorders(nbrBrdrs, BorderType.Bottom));
       }
       if (bottomNeighbor != null)
       {
-        Borders nbrBrdrs = bottomNeighbor.GetValue("Borders", GV.ReadWrite) as Borders;
+        Borders nbrBrdrs = bottomNeighbor.GetValue("Borders", GV.ReadOnly) as Borders;
         if (nbrBrdrs != null && GetEffectiveBorderWidth(nbrBrdrs, BorderType.Top) > GetEffectiveBorderWidth(borders, BorderType.Bottom))
           borders.SetValue("Bottom", GetBorderFromBorders(nbrBrdrs, BorderType.Top));
       }
@@ -211,20 +211,22 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
     }
 
     /// <summary>
-    /// Returns the border of the given borders-object of the specified type (top, bottom, ...).
-    /// If that border doesn't exist, it returns a new border object that inherits all properties from the given borders object
+    /// Returns a copy of the border of the given borders-object of the specified type (top, bottom, ...).
+    /// If that border doesn't exist, it returns a new border object that inherits all properties from the given borders object.
+    /// The copy matters: the caller hands the result to a throwaway Borders collection, which takes
+    /// ownership of whatever it is given, and the neighbour's own border must not be carried off.
     /// </summary>
     private Border GetBorderFromBorders(Borders borders, BorderType type)
     {
       Border returnBorder = borders.GetValue(type.ToString(), GV.ReadOnly) as Border;
-      if (returnBorder == null)
-      {
-        returnBorder = new Border();
-        returnBorder.style = borders.style;
-        returnBorder.width = borders.width;
-        returnBorder.color = borders.color;
-        returnBorder.visible = borders.visible;
-      }
+      if (returnBorder != null)
+        return returnBorder.Clone();
+
+      returnBorder = new Border();
+      returnBorder.style = borders.style;
+      returnBorder.width = borders.width;
+      returnBorder.color = borders.color;
+      returnBorder.visible = borders.visible;
       return returnBorder;
     }
 

@@ -191,6 +191,36 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
       return border;
     }
 
+    /// <summary>
+    /// Gives an object its own copy of the borders it inherits from the object that contains it.
+    /// Handing out the container's own instance instead would leave every cell of a row, and every
+    /// row of a table, holding one Borders object between them, so the next thing flattened onto
+    /// any one of them would appear on all of them.
+    /// </summary>
+    protected Borders InheritedBorders(Borders refBorders, DocumentObject owner)
+    {
+      if (refBorders == null)
+        return null;
+
+      Borders borders = refBorders.Clone();
+      borders.parent = owner;
+      return borders;
+    }
+
+    /// <summary>
+    /// Gives an object its own copy of the shading it inherits from the object that contains it,
+    /// for the same reason <see cref="InheritedBorders"/> does so for borders.
+    /// </summary>
+    protected Shading InheritedShading(Shading refShading, DocumentObject owner)
+    {
+      if (refShading == null)
+        return null;
+
+      Shading shading = refShading.Clone();
+      shading.parent = owner;
+      return shading;
+    }
+
     protected void FlattenBorders(Borders borders, Borders refBorders)
     {
       if (borders.visible.IsNull)
@@ -723,13 +753,13 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
           column.rightPadding = table.rightPadding;
 
         if (column.shading == null)
-          column.shading = table.shading;
+          column.shading = InheritedShading(table.shading, column);
 
         else if (table.shading != null)
           FlattenShading(column.shading, table.shading);
 
         if (column.borders == null)
-          column.borders = table.borders;
+          column.borders = InheritedBorders(table.borders, column);
         else if (table.borders != null)
           FlattenBorders(column.borders, table.borders);
       }
@@ -786,20 +816,23 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
           if (cell.format.shading == null && table.format.shading != null)
             cell.format.shading = table.format.shading;
 
+          // Each cell takes a copy of what it inherits rather than the row's or the column's own
+          // object: the column is flattened onto the cell straight after the row is, and writing
+          // that into the row's borders would give it to every other cell of the row as well.
           if (cell.shading == null)
-            cell.shading = row.shading;
+            cell.shading = InheritedShading(row.shading, cell);
           else if (row.shading != null)
             FlattenShading(cell.shading, row.shading);
           if (cell.shading == null)
-            cell.shading = column.shading;
+            cell.shading = InheritedShading(column.shading, cell);
           else if (column.shading != null)
             FlattenShading(cell.shading, column.shading);
           if (cell.borders == null)
-            cell.borders = row.borders;
+            cell.borders = InheritedBorders(row.borders, cell);
           else if (row.borders != null)
             FlattenBorders(cell.borders, row.borders);
           if (cell.borders == null)
-            cell.borders = column.borders;
+            cell.borders = InheritedBorders(column.borders, cell);
           else if (column.borders != null)
             FlattenBorders(cell.borders, column.borders);
         }
@@ -820,12 +853,12 @@ namespace MigraDocCore.DocumentObjectModel.Visitors
           row.bottomPadding = table.bottomPadding;
 
         if (row.shading == null)
-          row.shading = table.shading;
+          row.shading = InheritedShading(table.shading, row);
         else if (table.shading != null)
           FlattenShading(row.shading, table.shading);
 
         if (row.borders == null)
-          row.borders = table.borders;
+          row.borders = InheritedBorders(table.borders, row);
         else if (table.borders != null)
           FlattenBorders(row.borders, table.borders);
       }
