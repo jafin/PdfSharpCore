@@ -33,10 +33,33 @@ namespace PdfSharpCore.Test.Helpers
 
         private const string CffFaceName = "SourceCodePro-Regular.otf";
 
+        /// <summary>
+        ///   Families a test builds the bytes for itself. The resolver is installed once for the
+        ///   whole assembly, so a test that needs a font of its own adds one here rather than
+        ///   replacing the resolver under every other test running beside it.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, string> Registered =
+            new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        ///   Serves <paramref name="fontBytes"/> to anything asking for <paramref name="familyName"/>.
+        ///   Registering the same family twice with different bytes is a test colliding with
+        ///   another, so the first registration wins and the caller is told.
+        /// </summary>
+        public static void Register(string familyName, byte[] fontBytes)
+        {
+            string faceName = familyName + ".test";
+            Fonts.TryAdd(faceName, fontBytes);
+            Registered.TryAdd(familyName, faceName);
+        }
+
         public string DefaultFontName => "Arial";
 
         public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
         {
+            if (Registered.TryGetValue(familyName, out string testFaceName))
+                return new FontResolverInfo(testFaceName);
+
             if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
             {
                 // A regular face is all that is shipped for this family, so a bold or an italic has

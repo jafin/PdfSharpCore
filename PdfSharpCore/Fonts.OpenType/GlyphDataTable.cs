@@ -104,20 +104,26 @@ namespace PdfSharpCore.Fonts.OpenType
         /// </summary>
         public void CompleteGlyphClosure(Dictionary<int, object> glyphs)
         {
-            int count = glyphs.Count;
-            int[] glyphArray = new int[glyphs.Count];
-            glyphs.Keys.CopyTo(glyphArray, 0);
+            // A component of a composite glyph may be composite itself, so every glyph reached
+            // here has to be expanded in its turn. Walking a snapshot of the set this was called
+            // with stops one level down and leaves the subset without the glyphs the components
+            // below that are drawn from. The queue ends because a glyph joins it only when it is
+            // new to the dictionary, and there are finitely many glyphs in the font.
+            Queue<int> pending = new Queue<int>(glyphs.Keys);
             if (!glyphs.ContainsKey(0))
+            {
                 glyphs.Add(0, null);
-            for (int idx = 0; idx < count; idx++)
-                AddCompositeGlyphs(glyphs, glyphArray[idx]);
+                pending.Enqueue(0);
+            }
+            while (pending.Count > 0)
+                AddCompositeGlyphs(glyphs, pending, pending.Dequeue());
         }
 
         /// <summary>
         /// If the specified glyph is a composite glyph add the glyphs it is made of to the glyph table.
         /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.Synchronized)]
-        void AddCompositeGlyphs(Dictionary<int, object> glyphs, int glyph)
+        void AddCompositeGlyphs(Dictionary<int, object> glyphs, Queue<int> pending, int glyph)
         {
             //int start = fontData.loca.GetOffset(glyph);
             int start = GetOffset(glyph);
@@ -135,7 +141,10 @@ namespace PdfSharpCore.Fonts.OpenType
                 int flags = _fontData.ReadUFWord();
                 int cGlyph = _fontData.ReadUFWord();
                 if (!glyphs.ContainsKey(cGlyph))
+                {
                     glyphs.Add(cGlyph, null);
+                    pending.Enqueue(cGlyph);
+                }
                 if ((flags & MORE_COMPONENTS) == 0)
                     return;
                 int offset = (flags & ARG_1_AND_2_ARE_WORDS) == 0 ? 2 : 4;
