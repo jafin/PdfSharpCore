@@ -37,11 +37,14 @@ namespace PdfSharpCore.Test.Helpers
                 throw new Exception("Ghostscript is not installed or is an incompatible version, unable to rasterize PDF", ex);
             }
             
-            // Remove transparency to guarantee a standard white background
+            // Composite onto white, to guarantee a standard background. Remove rather than
+            // Deactivate: Deactivate merely drops the alpha channel and leaves whatever colour was
+            // underneath it, so every pixel of a transparency group that was never painted comes
+            // out black. A page carrying an annotation drawn under a blend mode is such a page.
             foreach (var img in images)
             {
-                img.Alpha(AlphaOption.Deactivate);
                 img.BackgroundColor = MagickColors.White;
+                img.Alpha(AlphaOption.Remove);
             }
 
             return new RasterizeOutput

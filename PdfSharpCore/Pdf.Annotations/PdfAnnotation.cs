@@ -92,6 +92,27 @@ namespace PdfSharpCore.Pdf.Annotations
         PdfAnnotations _parent;
 
         /// <summary>
+        /// Called once the annotation has been added to a page, and so has an owning document.
+        /// </summary>
+        /// <remarks>
+        /// An annotation constructed on its own has no Owner â€” PdfAnnotations.Add is what sets it.
+        /// Anything an annotation has to put in the document rather than in its own dictionary,
+        /// an appearance stream above all, therefore cannot be made until this is called.
+        /// </remarks>
+        internal virtual void OnAddedToPage()
+        { }
+
+        /// <summary>
+        /// Called when a property that an appearance stream is drawn from has changed.
+        /// </summary>
+        /// <remarks>
+        /// Only the properties an appearance depends on report here â€” its geometry, its colour and
+        /// its opacity â€” and not the ones that merely describe it, such as the title or the contents.
+        /// </remarks>
+        internal virtual void OnAppearanceInvalidated()
+        { }
+
+        /// <summary>
         /// Gets or sets the annotation rectangle, defining the location of the annotation
         /// on the page in default user space units.
         /// </summary>
@@ -102,11 +123,12 @@ namespace PdfSharpCore.Pdf.Annotations
             {
                 Elements.SetRectangle(Keys.Rect, value);
                 Elements.SetDateTime(Keys.M, DateTime.Now);
+                OnAppearanceInvalidated();
             }
         }
 
         /// <summary>
-        /// Gets or sets the text label to be displayed in the title bar of the annotation’s
+        /// Gets or sets the text label to be displayed in the title bar of the annotationï¿½s
         /// pop-up window when open and active. By convention, this entry identifies
         /// the user who added the annotation.
         /// </summary>
@@ -135,8 +157,21 @@ namespace PdfSharpCore.Pdf.Annotations
         }
 
         /// <summary>
+        /// Gets or sets the date and time when the annotation was created.
+        /// </summary>
+        public DateTime CreationDate
+        {
+            get { return Elements.GetDateTime(Keys.CreationDate, DateTime.MinValue); }
+            set
+            {
+                Elements.SetDateTime(Keys.CreationDate, value);
+                Elements.SetDateTime(Keys.M, DateTime.Now);
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the text to be displayed for the annotation or, if this type of
-        /// annotation does not display text, an alternate description of the annotation’s
+        /// annotation does not display text, an alternate description of the annotationï¿½s
         /// contents in human-readable form.
         /// </summary>
         public string Contents
@@ -179,6 +214,7 @@ namespace PdfSharpCore.Pdf.Annotations
                 PdfArray array = new PdfArray(Owner, new PdfReal[] { new PdfReal(value.R / 255.0), new PdfReal(value.G / 255.0), new PdfReal(value.B / 255.0) });
                 Elements[Keys.C] = array;
                 Elements.SetDateTime(Keys.M, DateTime.Now);
+                OnAppearanceInvalidated();
             }
         }
 
@@ -202,6 +238,7 @@ namespace PdfSharpCore.Pdf.Annotations
                     throw new ArgumentOutOfRangeException("value", value, "Opacity must be a value in the range from 0 to 1.");
                 Elements.SetReal(Keys.CA, value);
                 Elements.SetDateTime(Keys.M, DateTime.Now);
+                OnAppearanceInvalidated();
             }
         }
 
@@ -234,9 +271,9 @@ namespace PdfSharpCore.Pdf.Annotations
 
             /// <summary>
             /// (Optional) Text to be displayed for the annotation or, if this type of annotation
-            /// does not display text, an alternate description of the annotation’s contents
+            /// does not display text, an alternate description of the annotationï¿½s contents
             /// in human-readable form. In either case, this text is useful when
-            /// extracting the document’s contents in support of accessibility to users with
+            /// extracting the documentï¿½s contents in support of accessibility to users with
             /// disabilities or for other purposes.
             /// </summary>
             [KeyInfo(KeyType.TextString | KeyType.Optional)]
@@ -268,7 +305,7 @@ namespace PdfSharpCore.Pdf.Annotations
 
             /// <summary>
             /// (Optional; PDF 1.2) A border style dictionary specifying the characteristics of
-            /// the annotation’s border.
+            /// the annotationï¿½s border.
             /// </summary>
             [KeyInfo("1.2", KeyType.Dictionary | KeyType.Optional)]
             public const string BS = "/BS";
@@ -283,14 +320,14 @@ namespace PdfSharpCore.Pdf.Annotations
 
             /// <summary>
             /// (Required if the appearance dictionary AP contains one or more subdictionaries; PDF 1.2)
-            /// The annotation’s appearance state, which selects the applicable appearance stream from 
+            /// The annotationï¿½s appearance state, which selects the applicable appearance stream from 
             /// an appearance subdictionary.
             /// </summary>
             [KeyInfo("1.2", KeyType.Dictionary | KeyType.Optional)]
             public const string AS = "/AS";
 
             /// <summary>
-            /// (Optional) An array specifying the characteristics of the annotation’s border.
+            /// (Optional) An array specifying the characteristics of the annotationï¿½s border.
             /// The border is specified as a rounded rectangle.
             /// In PDF 1.0, the array consists of three numbers defining the horizontal corner 
             /// radius, vertical corner radius, and border width, all in default user space units.
@@ -311,9 +348,9 @@ namespace PdfSharpCore.Pdf.Annotations
             /// (Optional; PDF 1.1) An array of three numbers in the range 0.0 to 1.0, representing
             /// the components of a color in the DeviceRGB color space. This color is used for the
             /// following purposes:
-            /// • The background of the annotation’s icon when closed
-            /// • The title bar of the annotation’s pop-up window
-            /// • The border of a link annotation
+            /// ï¿½ The background of the annotationï¿½s icon when closed
+            /// ï¿½ The title bar of the annotationï¿½s pop-up window
+            /// ï¿½ The border of a link annotation
             /// </summary>
             [KeyInfo("1.1", KeyType.Array | KeyType.Optional)]
             public const string C = "/C";
@@ -333,7 +370,7 @@ namespace PdfSharpCore.Pdf.Annotations
             // ----- Excerpt of entries specific to markup annotations ----------------------------------
 
             /// <summary>
-            /// (Optional; PDF 1.1) The text label to be displayed in the title bar of the annotation’s
+            /// (Optional; PDF 1.1) The text label to be displayed in the title bar of the annotationï¿½s
             /// pop-up window when open and active. By convention, this entry identifies
             /// the user who added the annotation.
             /// </summary>
@@ -354,8 +391,8 @@ namespace PdfSharpCore.Pdf.Annotations
             /// the annotation is opened.
             /// The specified value is not used if the annotation has an appearance stream; in that
             /// case, the appearance stream must specify any transparency. (However, if the viewer
-            /// regenerates the annotation’s appearance stream, it may incorporate the CA value
-            /// into the stream’s content.)
+            /// regenerates the annotationï¿½s appearance stream, it may incorporate the CA value
+            /// into the streamï¿½s content.)
             /// The implicit blend mode is Normal.
             /// Default value: 1.0.
             /// </summary>
@@ -363,7 +400,13 @@ namespace PdfSharpCore.Pdf.Annotations
             public const string CA = "/CA";
 
             //RC
-            //CreationDate
+
+            /// <summary>
+            /// (Optional; PDF 1.5) The date and time when the annotation was created.
+            /// </summary>
+            [KeyInfo("1.5", KeyType.Date | KeyType.Optional)]
+            public const string CreationDate = "/CreationDate";
+
             //IRT
 
             /// <summary>

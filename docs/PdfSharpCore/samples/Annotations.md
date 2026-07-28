@@ -6,6 +6,7 @@ PdfSharpCore supports the creation of the following annotations:
 * [Text annotations](#text-annotations)
 * [Text annotations opened](#text-annotations-opened)
 * [Rubber stamp annotations](#rubber-stamp-annotations)
+* [Text markup annotations](#text-markup-annotations) — highlight, underline, strike out and squiggly
 
 
 ## Text annotations
@@ -68,5 +69,46 @@ rsAnnot.Rectangle = new PdfRectangle(rect);
 page.Annotations.Add(rsAnnot);
 ```
 
-PDF supports some more pretty types of annotations like PdfLineAnnotation, PdfSquareAnnotation, PdfCircleAnnotation, PdfMarkupAnnotation (with the subtypes PdfHighlightAnnotation, PdfUnderlineAnnotation, PdfStrikeOutAnnotation, and PdfSquigglyAnnotation), PdfSoundAnnotation, or PdfMovieAnnotation.
+
+## Text markup annotations
+
+These mark up a run of text on the page: `PdfHighlightAnnotation` washes it with colour,
+`PdfUnderlineAnnotation` rules a line beneath it, `PdfStrikeOutAnnotation` rules one through it, and
+`PdfSquigglyAnnotation` rules a wavy one beneath it. All four are used the same way.
+
+```cs
+gfx.DrawString("Hello world!", font, XBrushes.Black, 30, 42, XStringFormats.Default);
+
+var highlight = new PdfHighlightAnnotation();
+highlight.Title = "This is the title";
+highlight.Contents = "This is the contents of the annotation.";
+highlight.Color = XColors.Yellow;
+
+// Convert the band to cover from world space to page space, as for the other annotations.
+highlight.AddQuad(gfx.Transformer.WorldToDefaultPage(new XRect(new XPoint(30, 30), new XSize(70, 16))));
+
+page.Annotations.Add(highlight);
+```
+
+A run of text is not a rectangle — it wraps — so what is marked up is a list of quadrilaterals
+rather than a single box, one per line or per word. Call `AddQuad` once for each:
+
+```cs
+var strikeOut = new PdfStrikeOutAnnotation();
+foreach (var line in linesOfTheParagraph)
+    strikeOut.AddQuad(gfx.Transformer.WorldToDefaultPage(line));
+page.Annotations.Add(strikeOut);
+```
+
+The annotation rectangle is then the box enclosing the quadrilaterals, and is kept up to date for
+you. Setting `Rectangle` and adding no quadrilaterals at all marks up that rectangle alone, which is
+the simple case; adding one takes over from it.
+
+`Opacity` applies as it does to the other annotations. A highlight is drawn under the Multiply blend
+mode, so the text keeps showing through the colour rather than being painted over by it.
+
+---
+
+PDF supports some more pretty types of annotations like PdfLineAnnotation, PdfSquareAnnotation,
+PdfCircleAnnotation, PdfSoundAnnotation, or PdfMovieAnnotation.
 If you need one of them, feel encouraged to implement it. It is quite easy.

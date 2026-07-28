@@ -60,6 +60,7 @@ namespace PdfSharpCore.Pdf.Annotations
             annotation.Document = Owner;
             Owner._irefTable.Add(annotation);
             Elements.Add(annotation.Reference);
+            annotation.OnAddedToPage();
         }
 
         /// <summary>
