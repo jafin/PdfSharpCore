@@ -582,8 +582,9 @@ namespace PdfSharpCore.Pdf.IO
                         document.Internals.SecondDocumentID = PdfEncoders.RawEncoding.GetString(agTemp, 0, agTemp.Length);
                     }
 
-                    // The modification date is stamped when the document is written, in
-                    // PdfDocument.PrepareForSave. Opening a document does not modify it.
+                    // The modification date is not stamped here. It is stamped when the document is
+                    // written, in PdfDocument.PrepareForSave, so that opening a document to read its
+                    // dates does not change the date it is read for.
 
                     // Remove all unreachable objects
                     int removed = document._irefTable.Compact();
