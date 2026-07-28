@@ -55,9 +55,23 @@ namespace PdfSharpCore.Test.Helpers
         {
             var lines = new List<Line>();
 
+            // The segments of the path being built. A path is not painted until its operator says
+            // how, so they are held here and kept only if that operator strokes.
+            var path = new List<Line>();
+
             // The current point, the point the subpath began at, and the current line width.
             double x = 0, y = 0, startX = 0, startY = 0, width = 1;
             var inSubpath = false;
+
+            // Closing a subpath draws the segment back to where it began.
+            void CloseSubpath()
+            {
+                if (inSubpath && (x != startX || y != startY))
+                    path.Add(new Line(x, y, startX, startY, width));
+
+                x = startX;
+                y = startY;
+            }
 
             foreach (var item in ContentReader.ReadContent(ContentOf(page)))
             {
@@ -85,21 +99,38 @@ namespace PdfSharpCore.Test.Helpers
                         {
                             var toX = Number(op.Operands[0]);
                             var toY = Number(op.Operands[1]);
-                            lines.Add(new Line(x, y, toX, toY, width));
+                            path.Add(new Line(x, y, toX, toY, width));
                             x = toX;
                             y = toY;
                         }
                         break;
 
                     case OpCodeName.h:
-                        // Close the subpath: back to where it began.
-                        x = startX;
-                        y = startY;
+                        CloseSubpath();
                         break;
 
+                    // Close the path and then stroke it.
+                    case OpCodeName.s:
+                    case OpCodeName.b:
+                    case OpCodeName.bx:
+                        CloseSubpath();
+                        goto case OpCodeName.S;
+
+                    // Stroke the path, filling it first or not.
                     case OpCodeName.S:
+                    case OpCodeName.B:
+                    case OpCodeName.Bx:
+                        lines.AddRange(path);
+                        path.Clear();
+                        inSubpath = false;
+                        break;
+
+                    // Fill the path, or paint nothing at all: either way nothing is stroked.
                     case OpCodeName.f:
+                    case OpCodeName.F:
+                    case OpCodeName.fx:
                     case OpCodeName.n:
+                        path.Clear();
                         inSubpath = false;
                         break;
                 }
