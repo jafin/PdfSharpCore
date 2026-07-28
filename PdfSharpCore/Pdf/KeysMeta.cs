@@ -32,6 +32,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
+using PdfSharpCore.Pdf.Advanced;
 
 namespace PdfSharpCore.Pdf
 {
@@ -152,10 +153,11 @@ namespace PdfSharpCore.Pdf
                         type = typeof(PdfDictionary);
                         break;
 
-                    // The following types are not yet used
-
                     case KeyType.NumberTree:
-                        throw new NotImplementedException("KeyType.NumberTree");
+                        type = typeof(PdfNumberTreeNode);
+                        break;
+
+                    // The following types are not yet used
 
                     case KeyType.NameOrArray:
                         throw new NotImplementedException("KeyType.NameOrArray");

@@ -701,6 +701,17 @@ namespace PdfSharpCore.Pdf
         }
 
         /// <summary>
+        /// Gets the page labels of the document: what a reader shows for a page instead of its
+        /// position, so that front matter can be numbered i, ii, iii while the body starts again
+        /// at 1. A document with no labels reads as having none rather than being given any.
+        /// </summary>
+        public PdfPageLabels PageLabels
+        {
+            get { return _pageLabels ?? (_pageLabels = new PdfPageLabels(this)); }
+        }
+        PdfPageLabels _pageLabels;
+
+        /// <summary>
         /// Get the AcroForm dictionary.
         /// </summary>
         public PdfAcroForm AcroForm
