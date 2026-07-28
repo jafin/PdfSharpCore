@@ -17,9 +17,9 @@ namespace PdfSharpCore.Test.Pdfs.Content
     /// </summary>
     public class CLexerTests
     {
-        // A trailing delimiter is not enough to make this uninteresting: ScanNextChar discards
-        // the byte still held in _nextChar once the content is exhausted, so a name at the end
-        // of a content stream never sees its own delimiter either way.
+        // A name at the end of a content stream has no delimiter to end it, whether or not one
+        // is written: _nextChar is read one character ahead, so a trailing blank is still in it
+        // when the content runs out.
         [Theory(Timeout = 5000)]
         [InlineData("/Foo")]
         [InlineData("/Foo ")]
@@ -70,13 +70,39 @@ namespace PdfSharpCore.Test.Pdfs.Content
         // Including when it falls between the two digits of one byte, which is where white
         // space is passed over as well.
         [InlineData("<4*8>", "48")]
-        // Truncated hex strings are not here: they terminate, but ScanNextChar mangles the last
-        // byte of the content, so '<48656C6C6F' scans to "HellF`" rather than to "Hello".
+        // Truncated, so the closing '>' never arrives and the last digit is the last byte of
+        // the content.
+        [InlineData("<48656C6C6F", "48,65,6C,6C,6F")]
+        [InlineData("<48A", "48,A0")]
         public async Task ScanHexadecimalString_readsTheBytesTheDigitsSpell(string content, string expected)
         {
             var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
             TokensOf(tokens, CSymbol.HexString).Should().Equal(BytesSpelling(expected));
+        }
+
+        [Theory(Timeout = 5000)]
+        [InlineData("BT", CSymbol.Operator, "BT")]
+        [InlineData("q Q", CSymbol.Operator, "Q")]
+        [InlineData("1 0 0 1 20 30 cm", CSymbol.Operator, "cm")]
+        [InlineData("/F1 12", CSymbol.Integer, "12")]
+        [InlineData("0.5", CSymbol.Real, "0.5")]
+        [InlineData("/Foo", CSymbol.Name, "/Foo")]
+        public async Task ScanNextToken_readsTheLastCharacterOfTheContent(string content, CSymbol expected, string token)
+        {
+            var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+            tokens.Last().Should().Be((expected, token));
+        }
+
+        [Fact(Timeout = 5000)]
+        public async Task ScanNextToken_readsALastCharacterThatEndsALine()
+        {
+            // A lone CR is a line feed, and the one that ends the content has nothing to pair
+            // with. It ends the operator rather than being scanned as part of it.
+            var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("BT\r")));
+
+            tokens.Last().Should().Be((CSymbol.Operator, "BT"));
         }
 
         /// <summary>

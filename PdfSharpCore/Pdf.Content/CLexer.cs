@@ -618,10 +618,15 @@ namespace PdfSharpCore.Pdf.Content
         {
             if (ContLength <= _charIndex)
             {
-                _currChar = Chars.EOF;
-                if (IsOperatorChar(_nextChar))
-                    _token.Append(_nextChar);
+                // _nextChar is read one character ahead, so the last character of the content is
+                // waiting in it when _charIndex reaches the end. Hand it over before reporting
+                // the end of the content, which the next call then does.
+                _currChar = _nextChar;
                 _nextChar = Chars.EOF;
+                // Treat a single CR as LF, as the branch below does. Nothing is left to pair it
+                // with, so it cannot be the CR of a CR LF.
+                if (_currChar == Chars.CR)
+                    _currChar = Chars.LF;
             }
             else
             {
