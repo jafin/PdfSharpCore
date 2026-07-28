@@ -172,8 +172,7 @@ namespace PdfSharpCore.Drawing.BarCodes
 
             XPoint pos = position + CalcDistance(Anchor, AnchorType.TopLeft, Size);
 
-            if (MatrixImage == null)
-                MatrixImage = DataMatrixImage.GenerateMatrixImage(Text, Encoding, Rows, Columns);
+            bool[,] modules = DataMatrixSymbol.Build(Text, Encoding, Rows, Columns);
 
             if (QuietZone > 0)
             {
@@ -186,12 +185,49 @@ namespace PdfSharpCore.Drawing.BarCodes
                 posWithZone.Y += Size.Height / (Rows + 2 * QuietZone) * QuietZone;
 
                 gfx.DrawRectangle(XBrushes.White, pos.X, pos.Y, Size.Width, Size.Height);
-                gfx.DrawImage(MatrixImage, posWithZone.X, posWithZone.Y, sizeWithZone.Width, sizeWithZone.Height);
+                DrawModules(gfx, brush, modules, posWithZone, sizeWithZone);
             }
             else
-                gfx.DrawImage(MatrixImage, pos.X, pos.Y, Size.Width, Size.Height);
+                DrawModules(gfx, brush, modules, pos, Size);
 
             gfx.Restore(state);
+        }
+
+        /// <summary>
+        /// Draws the modules of the symbol, one filled square for each dark one. Drawn rather
+        /// than drawn as a picture: a square is exact at any size, where a picture of one has a
+        /// resolution of its own to disagree with the paper about, and needs an imaging backend
+        /// that a caller wanting nothing but a barcode would otherwise not have to install.
+        /// </summary>
+        static void DrawModules(XGraphics gfx, XBrush brush, bool[,] modules, XPoint position, XSize size)
+        {
+            int rows = modules.GetLength(0);
+            int columns = modules.GetLength(1);
+            double moduleWidth = size.Width / columns;
+            double moduleHeight = size.Height / rows;
+
+            for (int row = 0; row < rows; row++)
+            {
+                for (int column = 0; column < columns; column++)
+                {
+                    if (!modules[row, column])
+                        continue;
+
+                    // Run of adjacent dark modules drawn as one rectangle, which keeps the
+                    // content stream short and leaves no seam between them.
+                    int run = 1;
+                    while (column + run < columns && modules[row, column + run])
+                        run++;
+
+                    gfx.DrawRectangle(brush,
+                        position.X + column * moduleWidth,
+                        position.Y + row * moduleHeight,
+                        run * moduleWidth,
+                        moduleHeight);
+
+                    column += run - 1;
+                }
+            }
         }
 
         /// <summary>
@@ -202,9 +238,6 @@ namespace PdfSharpCore.Drawing.BarCodes
         {
             if (text == null)
                 throw new ArgumentNullException("text");
-
-            DataMatrixImage mImage = new DataMatrixImage(Text, Encoding, Rows, Columns);
-            mImage.Iec16022Ecc200(Columns, Rows, Encoding, Text.Length, Text, 0, 0, 0);
         }
     }
 }
