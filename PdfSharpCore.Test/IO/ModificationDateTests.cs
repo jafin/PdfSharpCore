@@ -51,12 +51,16 @@ namespace PdfSharpCore.Test.IO
 
             // The property answers in Universal Time, since a DateTime cannot hold the offset a
             // document states its dates with. See docs/specs/pdf-date-round-trip.md.
-            var before = DateTime.UtcNow;
+            // A PDF date carries whole seconds, so what reaches the file is the moment of the save
+            // rounded down. The bound has to be rounded down with it, or the two sit a fraction apart.
+            var before = TruncatedToSeconds(DateTime.UtcNow);
             using var written = new MemoryStream();
             document.Save(written, false);
+            var after = DateTime.UtcNow;
 
-            document.Info.ModificationDate.Should().BeOnOrAfter(before).And.BeOnOrBefore(DateTime.UtcNow);
+            document.Info.ModificationDate.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
             Encoding.Latin1.GetString(written.ToArray()).Should().Contain("/ModDate");
+            ModificationDateWrittenTo(written).Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
         }
 
         /// <summary>
@@ -93,6 +97,7 @@ namespace PdfSharpCore.Test.IO
             document.Save(written, false);
 
             document.Info.ModificationDate.Should().Be(chosen.ToUniversalTime());
+            ModificationDateWrittenTo(written).Should().Be(chosen.ToUniversalTime());
         }
 
         /// <summary>
@@ -110,6 +115,20 @@ namespace PdfSharpCore.Test.IO
 
             document.Info.ModificationDate.Should().Be(DateTime.MinValue);
             Encoding.Latin1.GetString(written.ToArray()).Should().NotContain("/ModDate");
+        }
+
+        /// <summary>
+        ///   The date the saved bytes carry, which is the one that outlives the document in memory.
+        /// </summary>
+        private static DateTime ModificationDateWrittenTo(MemoryStream pdf)
+        {
+            return Pdf.IO.PdfReader.Open(new MemoryStream(pdf.ToArray(), false), PdfDocumentOpenMode.Import)
+                .Info.ModificationDate;
+        }
+
+        private static DateTime TruncatedToSeconds(DateTime value)
+        {
+            return new DateTime(value.Ticks - value.Ticks % TimeSpan.TicksPerSecond, value.Kind);
         }
 
         private static byte[] ADocumentModifiedOn(DateTime? modificationDate)
