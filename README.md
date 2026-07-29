@@ -94,10 +94,33 @@ that breaks at runtime.
 it has no ImageSharp dependency, so both can coexist in one project.
 
 
+## Target frameworks
+
+Every shipped package targets `netstandard2.1;net8.0;net10.0`.
+
+`netstandard2.1` is kept for **Unity**. Unity's scripting runtime tops out at the .NET Standard 2.1
+API compatibility level — it cannot consume a `net8.0` or `net10.0` assembly — so dropping the
+netstandard2.1 target would drop Unity as a consumer entirely. Please don't remove it without
+checking that first.
+
+It is not free. `netstandard2.1` predates the trimming annotations in
+`System.Diagnostics.CodeAnalysis`, so `DynamicallyAccessedMembersAttribute` and
+`DynamicallyAccessedMemberTypes` are polyfilled in-repo, guarded by `#if !NET5_0_OR_GREATER` so they
+compile to nothing on the modern targets:
+
+* `PdfSharpCore/!internal/`
+* `MigraDocCore.DocumentObjectModel/CompileFixes/`
+
+Both copies are `internal` and there is no `InternalsVisibleTo`, which is why each assembly needs its
+own. They look like dead code on a `net10.0`-only glance; they are not. When `netstandard2.1` is
+eventually dropped, both directories can be deleted together.
+
+
 ## Table of Contents
 
 - [Documentation](docs/index.md)
 - [Backends](#backends)
+- [Target frameworks](#target-frameworks)
 - [Example](#example)
 - [Contributing](#contributing)
 - [License](#license)
