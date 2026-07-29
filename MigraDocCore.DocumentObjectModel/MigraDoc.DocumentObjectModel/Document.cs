@@ -261,11 +261,11 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public int FootnoteStartingNumber
   {
-    get => footnoteStartingNumber.Value;
-    set => footnoteStartingNumber.Value = value;
+    get => footnoteStartingNumber ?? 0;
+    set => footnoteStartingNumber = value;
   }
   [DV]
-  internal NInt footnoteStartingNumber = NInt.NullValue;
+  internal int? footnoteStartingNumber;
 
   /// <summary>
   /// Gets or sets the path for images used by the document.
@@ -337,7 +337,7 @@ public sealed class Document : DocumentObject, IVisitable
       serializer.WriteSimpleAttribute("FootnoteNumberingRule", FootnoteNumberingRule);
     if (!footnoteNumberStyle.IsNull)
       serializer.WriteSimpleAttribute("FootnoteNumberStyle", FootnoteNumberStyle);
-    if (!footnoteStartingNumber.IsNull)
+    if (footnoteStartingNumber != null)
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
     if (imagePath != null)
       serializer.WriteSimpleAttribute("ImagePath", ImagePath);

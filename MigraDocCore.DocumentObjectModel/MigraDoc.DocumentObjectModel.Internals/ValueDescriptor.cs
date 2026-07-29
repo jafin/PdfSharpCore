@@ -92,9 +92,6 @@ public abstract class ValueDescriptor
         if (type == typeof(String))
             return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
 
-        if (type == typeof(NInt))
-            return new NullableDescriptor(name, typeof(Int32), type, memberInfo, flags);
-
         if (type == typeof(NDouble))
             return new NullableDescriptor(name, typeof(Double), type, memberInfo, flags);
 
@@ -130,14 +127,14 @@ public abstract class ValueDescriptor
     public string ValueName;
 
     /// <summary>
-    /// Type of the described value, e.g. typeof(Int32) for an NInt.
+    /// Type of the described value, e.g. typeof(Int32) for an int?.
     /// </summary>
     ///
     [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type ValueType;
 
     /// <summary>
-    /// Type of the described field or property, e.g. typeof(NInt) for an NInt.
+    /// Type of the described field or property, e.g. typeof(int?) for an int?.
     /// </summary>
     public Type MemberType;
 

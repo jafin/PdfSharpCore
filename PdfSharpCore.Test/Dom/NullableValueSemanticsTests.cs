@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Shapes;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Dom;
@@ -16,6 +17,7 @@ namespace PdfSharpCore.Test.Dom;
 ///   from one never set, because only the latter is omitted from serialized DDL. And SetNull puts
 ///   a value back to never-set.
 /// </summary>
+[Collection(DomSerializationCollection.Name)]
 public class NullableValueSemanticsTests
 {
     // A DOM object per underlying type, reached the way a caller would reach it.

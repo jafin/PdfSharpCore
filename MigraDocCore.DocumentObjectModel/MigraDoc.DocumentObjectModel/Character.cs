@@ -120,11 +120,11 @@ public class Character : DocumentObject
   /// </summary>
   public int Count
   {
-    get => count.Value;
-    set => count.Value = value;
+    get => count ?? 0;
+    set => count = value;
   }
   [DV]
-  internal NInt count = new NInt(1);
+  internal int? count = 1;
   #endregion
 
   #region Internal

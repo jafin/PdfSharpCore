@@ -170,11 +170,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public int StartingNumber
   {
-    get => startingNumber.Value;
-    set => startingNumber.Value = value;
+    get => startingNumber ?? 0;
+    set => startingNumber = value;
   }
   [DV]
-  internal NInt startingNumber = NInt.NullValue;
+  internal int? startingNumber;
 
   /// <summary>
   /// Gets or sets the page height.
@@ -465,7 +465,7 @@ public class PageSetup : DocumentObject
     if (horizontalPageBreak != null)
       serializer.WriteSimpleAttribute("HorizontalPageBreak", HorizontalPageBreak);
 
-    if (!startingNumber.IsNull)
+    if (startingNumber != null)
       serializer.WriteSimpleAttribute("StartingNumber", StartingNumber);
 
     serializer.EndContent(pos);

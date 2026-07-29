@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Dom;
@@ -13,6 +14,7 @@ namespace PdfSharpCore.Test.Dom;
 ///   These tests pin the emitted DDL - which attributes appear, which are left out, and that a
 ///   document survives a write, a read and a second write unchanged.
 /// </summary>
+[Collection(DomSerializationCollection.Name)]
 public class DdlRoundTripTests
 {
     /// <summary>
