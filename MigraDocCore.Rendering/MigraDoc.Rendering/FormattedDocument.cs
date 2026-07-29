@@ -250,8 +250,14 @@ public class FormattedDocument : IAreaProvider
     /// <returns>Rendering information for the page content.</returns>
     internal RenderInfo[] GetRenderInfos(int page)
     {
-        if (pageRenderInfos.ContainsKey(page))
-            return (RenderInfo[])(pageRenderInfos[page]).ToArray(typeof(RenderInfo));
+        if (pageRenderInfos.TryGetValue(page, out ArrayList infos))
+        {
+            // Not ToArray(Type): it builds the array type at run time, which carries
+            // RequiresDynamicCode and an AOT compiler cannot always have code for.
+            var result = new RenderInfo[infos.Count];
+            infos.CopyTo(result);
+            return result;
+        }
         return null;
     }
     private Dictionary<int, ArrayList> pageRenderInfos;

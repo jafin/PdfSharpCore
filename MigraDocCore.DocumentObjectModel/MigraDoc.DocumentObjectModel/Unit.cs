@@ -485,8 +485,23 @@ public struct Unit : IFormattable, INullableValue
     /// If the string contains a suffix like 'cm' or 'in' the object will be converted
     /// to the appropriate type, otherwise point is assumed.
     /// </summary>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="value"/> is null. Worth knowing why this is stated rather than left to fail:
+    /// this conversion is what makes <c>someUnit == null</c> compile. null converts to string and
+    /// string converts to Unit, so the comparison binds to operator ==(Unit, Unit) rather than
+    /// lifting to Unit?, which means CS8073 cannot warn about it - the comparison is not constant.
+    /// Without this guard the expression reached Trim() and threw NullReferenceException with
+    /// nothing to say for itself. It is still the wrong thing to write; at least it now says so.
+    /// </exception>
     public static implicit operator Unit(string value)
     {
+        if (value == null)
+            throw new ArgumentNullException(nameof(value),
+                "A null string cannot be converted to a Unit. If this came from writing "
+                + "'unit == null', that comparison is always meaningless: Unit is a value type, and "
+                + "the implicit string conversion is the only reason it compiles at all. Test "
+                + "unit.IsEmpty instead.");
+
         Unit unit = Zero;
         value = value.Trim();
 

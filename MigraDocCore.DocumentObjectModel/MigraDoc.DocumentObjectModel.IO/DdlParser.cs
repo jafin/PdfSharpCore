@@ -1,4 +1,4 @@
-﻿#region MigraDoc - Creating Documents on the Fly
+#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -697,7 +697,13 @@ internal class DdlParser
         }
 
         if (Symbol == Symbol.BracketLeft)
-            ParseAttributes(formattedText);
+        {
+            // Against the Font, not the FormattedText. Font.Serialize writes these names out of
+            // Font's own model, so reading them back through FormattedText required it to mirror
+            // that model in nine delegating [DV] properties - and the mirror was missing
+            // Strikethrough, so a struck-through FormattedText did not survive a round trip.
+            ParseAttributes(formattedText.Font);
+        }
 
         AssertSymbol(Symbol.BraceLeft);
         ParseFormattedText(formattedText.Elements, nestingLevel);

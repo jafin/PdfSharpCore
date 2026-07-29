@@ -89,7 +89,13 @@ public class PdfFlattenVisitor : VisitorBase
       }
     }
 
-    int[] indices = (int[])textIndices.ToArray(typeof(int));
+    // Not ToArray(Type): it builds the array type at run time, which carries RequiresDynamicCode
+    // and an AOT compiler cannot always have code for. Unboxed one at a time rather than by
+    // CopyTo, so the conversion out of the ArrayList's object[] is written down rather than left
+    // to Array.Copy's unboxing rules.
+    int[] indices = new int[textIndices.Count];
+    for (int idx = 0; idx < indices.Length; ++idx)
+      indices[idx] = (int)textIndices[idx];
     if (indices != null)
     {
       int insertedObjects = 0;

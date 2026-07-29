@@ -605,7 +605,11 @@ public partial class Paragraph : DocumentObject, IVisitable
             paragraph.Elements = SubsetElements(startIdx, elements.Count - 1);
             paragraphs.Add(paragraph);
 
-            return (Paragraph[])paragraphs.ToArray(typeof(Paragraph));
+            // Not ToArray(Type): it builds the array type at run time, which carries
+            // RequiresDynamicCode and an AOT compiler cannot always have code for.
+            var result = new Paragraph[paragraphs.Count];
+            paragraphs.CopyTo(result);
+            return result;
         }
     }
 

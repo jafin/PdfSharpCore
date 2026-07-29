@@ -129,6 +129,29 @@ written after construction, and `TryAdd` says what the existing `ContainsKey` gu
 * `DomSerializationCollection` can then be deleted and the DOM tests allowed to run in parallel
   again, which is the real confirmation.
 
+### Done
+
+Fixed exactly as written above. `ColorToStringTests` carries the reproduction as a regression test,
+plus deterministic checks on the table's contents.
+
+`DomSerializationCollection` is **deleted**, and the seven DOM test classes that belonged to it run
+in parallel again. The suite was run three times end to end on both `net8.0` and `net10.0` after the
+change: 880 tests, no failures, no flakes. That is the confirmation this item was really about — the
+`Color` race was the only thing those tests were being serialized to avoid.
+
+Two things worth knowing about the fix:
+
+* **The regression test cannot reproduce the original race.** A static initializer runs once per
+  process, so by the time the test executes the table is already built by some earlier test and the
+  window no longer exists. It would have caught the defect had it run first, and it still proves
+  `ToString` is safe to call concurrently, but the deterministic assertions are what actually pin
+  the table. This is recorded in the test's own remarks so nobody mistakes it for stronger evidence
+  than it is.
+* **`TryAdd` keeps the same name the old `ContainsKey` guard kept** — the first out of
+  `Enum.GetNames`, which is not the first declared. See F8 in
+  [`dom-value-model-findings.md`](dom-value-model-findings.md): `Colors.Aqua.ToString()` returns
+  `"Cyan"`, and did before this change too.
+
 ---
 
 ## 2. Every `DocumentObject` builds its metadata twice or more under load
@@ -333,6 +356,39 @@ which would have become `value != null` — always **true**, and this time in th
 
 in `Directory.Build.props`. The codebase is clean of it today, so this costs nothing now and makes
 the next mechanical edit fail loudly instead of quietly.
+
+### Done — and the guard has a hole worth knowing about
+
+Added, and **verified by making it fire**: a deliberate `Color c => c == null` now fails the build
+with `error CS8073`. A guard nobody has watched fire is not a guard.
+
+The same probe against `Unit` does **not** fail, and that is not a defect in the setting — it is a
+property of `Unit`:
+
+```csharp
+public static implicit operator Unit(string value)   // Unit.cs:488
+```
+
+`null` converts to `string`, and `string` converts to `Unit`, so `unit == null` binds to the real
+`operator ==(Unit, Unit)` against `(Unit)(string)null` rather than lifting to `Unit?`. There is
+nothing constant about it, so `CS8073` correctly says nothing.
+
+What happens instead is worse. That conversion opens with `value.Trim()`, so:
+
+```csharp
+Unit u = Unit.FromPoint(3);
+bool b = u == null;      // compiles clean, throws NullReferenceException
+```
+
+So the guard does not reach the most-used struct in the DOM — 52 of the 323 `[DV]` members are
+`Unit` — and the failure mode there is a bare `NullReferenceException` rather than a silent `false`.
+
+Checked: **no such comparison exists in the codebase today.** Every `x == null` on a struct-typed
+member is either an enum member (now legitimately `TEnum?`), a `Border` (a class), or an `object`
+local returned by `GetValue(..., GV.GetNull)`. This is a latent trap, not a live bug.
+
+Recorded as F9 in [`dom-value-model-findings.md`](dom-value-model-findings.md), with the suggested
+fix, which is to null-guard the conversion so the failure at least names its cause.
 
 ---
 

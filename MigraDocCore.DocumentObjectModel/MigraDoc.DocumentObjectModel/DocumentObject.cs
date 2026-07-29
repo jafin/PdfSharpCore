@@ -96,6 +96,30 @@ public abstract partial class DocumentObject
   protected internal DocumentObject parent;
 
   /// <summary>
+  /// Throws if this object belongs to a style that is read-only.
+  /// </summary>
+  /// <remarks>
+  /// The built-in DefaultParagraphFont style is read-only, and used to enforce that by handing
+  /// back a clone of its ParagraphFormat on every read. That is not enforcement: an assignment
+  /// landed on the clone, the clone was discarded when the expression ended, and the caller had no
+  /// way to tell success from silence. The clone is still handed out - reading a built-in style is
+  /// legitimate - but it now carries its Style as its parent, so a write can find it and refuse.
+  /// </remarks>
+  internal void ThrowIfReadOnly()
+  {
+    for (DocumentObject owner = this; owner != null; owner = owner.parent)
+    {
+      if (owner is Style { IsReadOnly: true } style)
+      {
+        throw new InvalidOperationException(
+          $"The style '{style.Name}' is read-only and cannot be modified. It is one of the "
+          + "built-in styles. Add a style of your own with Styles.AddStyle, basing it on this one "
+          + "if you want to start from its formatting.");
+      }
+    }
+  }
+
+  /// <summary>
   /// Gets the document of the object, or null, if the object is not associated with a document.
   /// </summary>
   public Document Document

@@ -241,14 +241,12 @@ public sealed class ValueDescriptor
 
       default:
       {
-        // Preserved as-is, including the answer the property branch throws away. The class this
-        // replaced computed val.IsNull() for a property and then returned true regardless.
-        // Style.Font is the only [DV] property in the DOM whose type is a DocumentObject, and the
-        // wrong answer is unobservable through Meta - see ValueModelKnownDefectsTests. Changing it
-        // is a separate decision, not a side effect of deleting the reflection.
-        if (!isField)
-          return true;
-
+        // Fields and properties answer alike. The class this replaced computed val.IsNull() for a
+        // property, discarded it and returned true regardless, so Style.Font - the only [DV]
+        // property in the DOM whose type is a DocumentObject - reported itself null whatever it
+        // held. That was carried forward unchanged through the move to a generated model so the
+        // parity harness gated a replacement rather than a behaviour change; this is the deliberate
+        // change afterwards.
         DocumentObject value = getter(dom) as DocumentObject;
         return value == null || value.IsNull();
       }

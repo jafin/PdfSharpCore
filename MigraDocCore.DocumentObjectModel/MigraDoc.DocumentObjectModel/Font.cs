@@ -156,7 +156,7 @@ public sealed partial class Font : DocumentObject
     public string Name
     {
         get => name ?? "";
-        set => name = value;
+        set { ThrowIfReadOnly(); name = value; }
     }
     [DV]
     internal string name;
@@ -167,7 +167,7 @@ public sealed partial class Font : DocumentObject
     public Unit Size
     {
         get => size;
-        set => size = value;
+        set { ThrowIfReadOnly(); size = value; }
     }
     [DV]
     internal Unit size = Unit.NullValue;
@@ -178,7 +178,7 @@ public sealed partial class Font : DocumentObject
     public bool Bold
     {
         get => bold ?? false;
-        set => bold = value;
+        set { ThrowIfReadOnly(); bold = value; }
     }
     [DV]
     internal bool? bold;
@@ -189,7 +189,7 @@ public sealed partial class Font : DocumentObject
     public bool Italic
     {
         get => italic ?? false;
-        set => italic = value;
+        set { ThrowIfReadOnly(); italic = value; }
     }
     [DV]
     internal bool? italic;
@@ -200,7 +200,7 @@ public sealed partial class Font : DocumentObject
     public Underline Underline
     {
         get => underline ?? default;
-        set => underline = EnumGuard.Checked(value);
+        set { ThrowIfReadOnly(); underline = EnumGuard.Checked(value); }
     }
     [DV]
     internal Underline? underline;
@@ -211,7 +211,7 @@ public sealed partial class Font : DocumentObject
     public Color Color
     {
         get => color;
-        set => color = value;
+        set { ThrowIfReadOnly(); color = value; }
     }
     [DV]
     internal Color color = Color.Empty;
@@ -224,6 +224,7 @@ public sealed partial class Font : DocumentObject
         get => superscript ?? false;
         set
         {
+          ThrowIfReadOnly();
             superscript = value;
             subscript = null;
         }
@@ -239,6 +240,7 @@ public sealed partial class Font : DocumentObject
         get => subscript ?? false;
         set
         {
+          ThrowIfReadOnly();
             subscript = value;
             superscript = null;
         }
@@ -249,7 +251,7 @@ public sealed partial class Font : DocumentObject
     public Strikethrough Strikethrough
     {
         get => strikethrough ?? default;
-        set => strikethrough = EnumGuard.Checked(value);
+        set { ThrowIfReadOnly(); strikethrough = EnumGuard.Checked(value); }
     }
     [DV]
     internal Strikethrough? strikethrough;
@@ -295,6 +297,8 @@ public sealed partial class Font : DocumentObject
             fp |= FontProperties.Italic;
         if (underline != null)
             fp |= FontProperties.Underline;
+        if (strikethrough != null)
+            fp |= FontProperties.Strikethrough;
         if (!color.IsNull)
             fp |= FontProperties.Color;
         if (superscript != null)
