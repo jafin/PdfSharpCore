@@ -688,10 +688,58 @@ the reflection is gone.
 Worth adding at the same time: a tiny `PublishAot` console app that builds a document and writes a
 PDF, run in CI. It is the only way to catch a reflection regression that the analyzer misses.
 
-**Done, except the AOT smoke app.** Both `DynamicallyAccessedMembers` polyfills in
+**Done.** Both `DynamicallyAccessedMembers` polyfills in
 `MigraDocCore.DocumentObjectModel/CompileFixes/` are deleted along with every use,
 `EnableTrimAnalyzer` is `true`, and the build is clean of `IL2xxx` on all three target frameworks.
-The `PublishAot` smoke app is **not** done and is the one piece of this spec still outstanding.
+
+`MigraDocCore.AotSmokeTest` is the smoke app. It builds a document, exercises the value model the
+way the DDL parser does — dotted `GetValue`/`SetValue`, `IsNull`, `SetNull`, `HasValue`,
+`CreateValue`, `GV.ReadWrite` auto-creation, case-insensitive lookup — round-trips it through DDL
+twice to check the output is stable, and renders it to a PDF. 25 checks; it returns non-zero if any
+fails. Deliberately written against the name-addressed paths rather than the typed API, which never
+reflected and would pass either way.
+
+Verified: `dotnet publish -c Release -r win-x64` produces a 5.1 MB native binary that passes all 25.
+That is the proof the managed build cannot give — the value model needs no metadata at run time.
+
+CI publishes and runs it on `linux-x64` as a separate step, and the project is **not** in
+`PdfSharpCore.slnx` on purpose. See §5.1 for why.
+
+### 5.1 What the AOT publish found, outside the value model
+
+The publish is not warning-free, and none of it is the value model:
+
+```
+IL3050: ArrayList.ToArray(Type) has RequiresDynamicCode
+```
+
+at seven sites — `PdfFlattenVisitor.cs:92` and `Paragraph.cs:608` in the DOM, and
+`FormattedCell.cs:172`, `FormattedDocument.cs:254`, `FormattedHeaderFooter.cs:88`,
+`FormattedTextArea.cs:134`, `FormattedTextFrame.cs:86` in `MigraDocCore.Rendering`.
+
+`ArrayList.ToArray(Type)` constructs an array type at run time, which an AOT compiler cannot always
+have generated code for. The smoke test passes today because the array types involved happen to be
+rooted, but that is luck, not design — this is exactly the class of failure the smoke app exists to
+catch, and it is pointing at real code.
+
+The fix is mechanical per site, e.g.
+
+```csharp
+// before
+return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
+// after
+var result = new RenderInfo[renderInfos.Count];
+renderInfos.CopyTo(result);
+return result;
+```
+
+Left undone deliberately: it is a different subsystem from the value model, five of the seven are in
+the renderer, and folding an unrelated `ArrayList` cleanup into this work would have made the parity
+harness gate something it was not written to gate. Worth its own change.
+
+It is also why the smoke app is not in `PdfSharpCore.slnx`. `EnableAotAnalyzer` reports on code
+reached through the projects it references, so listing it in the solution would put those seven
+warnings on every developer build of everything, for a problem nobody is being asked to fix yet.
 
 ---
 

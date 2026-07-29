@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      One target framework, not the library's three. This exercises reflection, not TFM differences,
+      and an AOT publish is slow enough that a second leg would cost CI time for no coverage.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      The trim analyzer proves no *statically visible* reflection is left. It cannot prove the
+      absence of reflection reached through a path it fails to model, and it says nothing about
+      whether the result actually runs. Only publishing native and running it does that.
+
+      Note this project is deliberately NOT listed in PdfSharpCore.slnx. The AOT analyzer reports on
+      code reached through the projects referenced below, and MigraDocCore.Rendering still has seven
+      ArrayList.ToArray(Type) calls that are RequiresDynamicCode; being in the solution would put
+      those warnings on every developer build of everything. CI publishes this project by name
+      instead - see the "AOT smoke test" step in .github/workflows/build.yml.
+    -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MigraDocCore.DocumentObjectModel\MigraDocCore.DocumentObjectModel.csproj" />
+    <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
+    <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
+    <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+  </ItemGroup>
+
+</Project>
