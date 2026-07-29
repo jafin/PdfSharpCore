@@ -160,7 +160,7 @@ public partial class ParagraphFormat : DocumentObject
   public ParagraphAlignment Alignment
   {
     get => alignment ?? default;
-    set => alignment = EnumGuard.Checked(value);
+    set { ThrowIfReadOnly(); alignment = EnumGuard.Checked(value); }
   }
   [DV]
   internal ParagraphAlignment? alignment;
@@ -179,6 +179,7 @@ public partial class ParagraphFormat : DocumentObject
     }
     set
     {
+      ThrowIfReadOnly();
       SetParent(value);
       borders = value;
     }
@@ -192,7 +193,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit FirstLineIndent
   {
     get => firstLineIndent;
-    set => firstLineIndent = value;
+    set { ThrowIfReadOnly(); firstLineIndent = value; }
   }
   [DV]
   internal Unit firstLineIndent = Unit.NullValue;
@@ -211,6 +212,7 @@ public partial class ParagraphFormat : DocumentObject
     }
     set
     {
+      ThrowIfReadOnly();
       SetParent(value);
       font = value;
     }
@@ -224,7 +226,7 @@ public partial class ParagraphFormat : DocumentObject
   public bool KeepTogether
   {
     get => keepTogether ?? false;
-    set => keepTogether = value;
+    set { ThrowIfReadOnly(); keepTogether = value; }
   }
   [DV]
   internal bool? keepTogether;
@@ -235,7 +237,7 @@ public partial class ParagraphFormat : DocumentObject
   public bool KeepWithNext
   {
     get => keepWithNext ?? false;
-    set => keepWithNext = value;
+    set { ThrowIfReadOnly(); keepWithNext = value; }
   }
   [DV]
   internal bool? keepWithNext;
@@ -246,7 +248,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit LeftIndent
   {
     get => leftIndent;
-    set => leftIndent = value;
+    set { ThrowIfReadOnly(); leftIndent = value; }
   }
   [DV]
   internal Unit leftIndent = Unit.NullValue;
@@ -257,7 +259,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit LineSpacing
   {
     get => lineSpacing;
-    set => lineSpacing = value;
+    set { ThrowIfReadOnly(); lineSpacing = value; }
   }
   [DV]
   internal Unit lineSpacing = Unit.NullValue;
@@ -268,7 +270,7 @@ public partial class ParagraphFormat : DocumentObject
   public LineSpacingRule LineSpacingRule
   {
     get => lineSpacingRule ?? default;
-    set => lineSpacingRule = EnumGuard.Checked(value);
+    set { ThrowIfReadOnly(); lineSpacingRule = EnumGuard.Checked(value); }
   }
   [DV]
   internal LineSpacingRule? lineSpacingRule;
@@ -287,6 +289,7 @@ public partial class ParagraphFormat : DocumentObject
     }
     set
     {
+      ThrowIfReadOnly();
       SetParent(value);
       listInfo = value;
     }
@@ -300,7 +303,7 @@ public partial class ParagraphFormat : DocumentObject
   public OutlineLevel OutlineLevel
   {
     get => outlineLevel ?? default;
-    set => outlineLevel = EnumGuard.Checked(value);
+    set { ThrowIfReadOnly(); outlineLevel = EnumGuard.Checked(value); }
   }
   [DV]
   internal OutlineLevel? outlineLevel;
@@ -311,7 +314,7 @@ public partial class ParagraphFormat : DocumentObject
   public bool PageBreakBefore
   {
     get => pageBreakBefore ?? false;
-    set => pageBreakBefore = value;
+    set { ThrowIfReadOnly(); pageBreakBefore = value; }
   }
   [DV]
   internal bool? pageBreakBefore;
@@ -322,7 +325,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit RightIndent
   {
     get => rightIndent;
-    set => rightIndent = value;
+    set { ThrowIfReadOnly(); rightIndent = value; }
   }
   [DV]
   internal Unit rightIndent = Unit.NullValue;
@@ -341,6 +344,7 @@ public partial class ParagraphFormat : DocumentObject
     }
     set
     {
+      ThrowIfReadOnly();
       SetParent(value);
       shading = value;
     }
@@ -354,7 +358,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit SpaceAfter
   {
     get => spaceAfter;
-    set => spaceAfter = value;
+    set { ThrowIfReadOnly(); spaceAfter = value; }
   }
   [DV]
   internal Unit spaceAfter = Unit.NullValue;
@@ -365,7 +369,7 @@ public partial class ParagraphFormat : DocumentObject
   public Unit SpaceBefore
   {
     get => spaceBefore;
-    set => spaceBefore = value;
+    set { ThrowIfReadOnly(); spaceBefore = value; }
   }
   [DV]
   internal Unit spaceBefore = Unit.NullValue;
@@ -389,6 +393,7 @@ public partial class ParagraphFormat : DocumentObject
     }
     set
     {
+      ThrowIfReadOnly();
       SetParent(value);
       tabStops = value;
     }
@@ -402,7 +407,7 @@ public partial class ParagraphFormat : DocumentObject
   public bool WidowControl
   {
     get => widowControl ?? false;
-    set => widowControl = value;
+    set { ThrowIfReadOnly(); widowControl = value; }
   }
   [DV]
   internal bool? widowControl;

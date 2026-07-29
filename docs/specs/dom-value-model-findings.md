@@ -22,11 +22,11 @@ model work — it is all standalone, and can be picked up in any order.
 | F1 | `FormattedText.SetNull()` threw `InvalidCastException` | medium | **fixed** |
 | F2 | `DocumentObjectDescriptor.IsNull` discards the answer it computes | low | **done** |
 | F3 | `FormattedText.IsNull()` can never return true | low | **done** |
-| F4 | Writing through a read-only style silently does nothing | medium | open |
+| F4 | Writing through a read-only style silently does nothing | medium | **done** |
 | F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | **done** |
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | ~~low~~ **medium** | **done** |
-| F8 | Aliased colours serialize under the name that was not declared first | low | open |
+| F8 | Aliased colours serialize under the name that was not declared first | low | **won't fix** |
 | F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | **done** |
 
 ---
@@ -179,6 +179,34 @@ behaviour for anyone currently relying on the silence, so it wants a release not
 
 Cheapest useful step is a test that pins the current behaviour, so that whichever way it is decided
 is deliberate.
+
+### Done — it throws
+
+The clone is still handed out, because reading a built-in style is legitimate and making the getter
+throw would have broken that. What changed is that the clone now carries its `Style` as its parent.
+`Clone()` nulls the parent, which is precisely why a write to it could not tell it was pointless —
+the object had no way back to the style that owned it.
+
+`DocumentObject.ThrowIfReadOnly` walks the parent chain for a read-only `Style`, and every setter on
+`ParagraphFormat` and `Font` calls it — 27 of them, 20 expression-bodied and 7 block-bodied. The
+message names the style and says to use `Styles.AddStyle` instead.
+
+```csharp
+document.Styles[0].Font.Bold = true;
+// InvalidOperationException: The style 'DefaultParagraphFont' is read-only and cannot be
+// modified. It is one of the built-in styles. Add a style of your own with Styles.AddStyle...
+```
+
+**This is a breaking change** for anyone relying on the silence, and wants a release note. Nothing in
+the library relied on it — the whole suite passed before the new tests were added, which is the
+evidence that no internal path writes to a built-in style.
+
+`ReadOnlyStyleTests` covers the throw, that reading still works, that a user-defined style is
+unaffected, that a style *based on* the read-only one is still writable (the guard walks the object's
+parent chain, not the style inheritance chain), and that serialization still works.
+
+**Found on the way:** `Styles[Style.DefaultParagraphFontName]` returns `null`, while `Styles[0]`
+returns the same style fine. Not investigated — the tests use the index and say why.
 
 ---
 
@@ -336,6 +364,14 @@ first entry in the same iteration order, so the fix is faithful. It is recorded 
 that assigns `Colors.Aqua` serializes as `Cyan`, round-trips back as `Cyan`, and nothing in the
 library says so.
 
+### Decided: won't fix
+
+Called as not mattering. The colours are genuinely equal, the DDL is correct, and a round trip is
+lossless in value if not in spelling. Recorded here so the next person to notice does not have to
+re-derive it.
+
+The original write-up follows.
+
 ### Suggested work
 
 Decide whether it matters. Two positions, both defensible:
@@ -488,7 +524,7 @@ is a deliberate cost and its size is unknown.
 3. ~~**`dom-thread-safety.md` item 6** — `CS8073` as an error.~~ **Done.**
 4. ~~**F2** — one line plus a test update.~~ **Done.**
 5. ~~**Generator diagnostic tests**~~ **Done.**
-6. ~~**F7's evaluation**, then **F3**~~ **Done** — F7 fixed F3 at the source. **F4** remains.
+6. ~~**F7's evaluation**, then **F3** and **F4**~~ **All done.**
 7. **`dom-thread-safety.md` item 4**, and the wider `ArrayList`/`Hashtable` migration, as their own
    pieces of work — both change emitted output or touch untested code.
 

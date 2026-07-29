@@ -150,7 +150,15 @@ public sealed partial class Style : DocumentObject, IVisitable
       if (paragraphFormat == null)
         paragraphFormat = new ParagraphFormat(this);
       if (readOnly)
-        return paragraphFormat.Clone();
+      {
+        // The clone is what stops a caller mutating a built-in style through the real object. On
+        // its own it stopped nothing - Clone() nulls the parent, so a write to the clone had no way
+        // of knowing it was pointless, and simply vanished. Giving the clone its Style back is what
+        // lets ThrowIfReadOnly find it.
+        ParagraphFormat copy = paragraphFormat.Clone();
+        copy.parent = this;
+        return copy;
+      }
       return paragraphFormat;
     }
     set

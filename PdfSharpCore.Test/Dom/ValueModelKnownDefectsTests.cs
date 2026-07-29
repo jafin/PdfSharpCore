@@ -101,8 +101,8 @@ public class ValueModelKnownDefectsTests
     [Fact]
     public void ADocumentObjectPropertyDescriptorAnswersForTheObjectItHolds()
     {
-        // A user-defined style, not Styles[0] - the built-in styles are read-only, and their
-        // ParagraphFormat getter hands back a clone, so assignments to them go nowhere.
+        // A user-defined style, not Styles[0] - the built-in styles are read-only and now throw
+        // on any write. See ReadOnlyStyleTests.
         var document = new Document();
         Style style = document.Styles.AddStyle("Probe", "Normal");
         style.Font.Bold = true;
