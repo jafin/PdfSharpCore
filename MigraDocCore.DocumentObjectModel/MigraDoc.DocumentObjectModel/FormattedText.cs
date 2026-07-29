@@ -483,7 +483,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the name of the font.
     /// </summary>
-    [DV]
     public string FontName
     {
         get => Font.Name;
@@ -494,7 +493,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// Gets or sets the name of the font.
     /// For internal use only.
     /// </summary>
-    [DV]
     internal string Name
     {
         get => Font.Name;
@@ -504,7 +502,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the size in point.
     /// </summary>
-    [DV]
     public Unit Size
     {
         get => Font.Size;
@@ -514,7 +511,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the bold property.
     /// </summary>
-    [DV]
     public bool Bold
     {
         get => Font.Bold;
@@ -524,7 +520,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the italic property.
     /// </summary>
-    [DV]
     public bool Italic
     {
         get => Font.Italic;
@@ -534,7 +529,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the underline property.
     /// </summary>
-    [DV]
     public Underline Underline
     {
         get => Font.Underline;
@@ -544,7 +538,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the color property.
     /// </summary>
-    [DV]
     public Color Color
     {
         get => Font.Color;
@@ -554,7 +547,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the superscript property.
     /// </summary>
-    [DV]
     public bool Superscript
     {
         get => Font.Superscript;
@@ -564,7 +556,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     /// <summary>
     /// Gets or sets the subscript property.
     /// </summary>
-    [DV]
     public bool Subscript
     {
         get => Font.Subscript;

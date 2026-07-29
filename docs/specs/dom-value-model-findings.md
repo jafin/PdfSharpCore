@@ -21,11 +21,11 @@ model work — it is all standalone, and can be picked up in any order.
 |---|---|---|---|
 | F1 | `FormattedText.SetNull()` threw `InvalidCastException` | medium | **fixed** |
 | F2 | `DocumentObjectDescriptor.IsNull` discards the answer it computes | low | **done** |
-| F3 | `FormattedText.IsNull()` can never return true | low | open |
+| F3 | `FormattedText.IsNull()` can never return true | low | **done** |
 | F4 | Writing through a read-only style silently does nothing | medium | open |
 | F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | **done** |
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
-| F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | low | open |
+| F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | ~~low~~ **medium** | **done** |
 | F8 | Aliased colours serialize under the name that was not declared first | low | open |
 | F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | **done** |
 
@@ -133,6 +133,21 @@ Two defensible answers:
 
 The first is a behaviour change for `FormattedText` and nothing else — no other DOM type has a
 `PlainValue` member. Worth a test either way; there is none today.
+
+### Done — at the source, by F7
+
+Neither option was taken. F7 removed the nine delegating `[DV]` properties outright, and with them
+went five of the seven members that could never be null. The remaining two, `FontName` and `Name`,
+were among the nine. `FormattedText`'s model is now `parent`, `font`, `style`, `elements` — every one
+of which can be null — so `IsNull()` means what it says for the first time:
+
+```csharp
+new FormattedText().IsNull();   // true
+```
+
+Asserted by `ValueModelKnownDefectsTests.AnEmptyFormattedTextIsNull`. **Zero `PlainValue` members
+remain anywhere in the DOM**, which is asserted too, because it changes what F1's regression test is
+really proving.
 
 ---
 
@@ -263,15 +278,40 @@ inside a nested `Font` block. That is a real requirement and the properties are 
 meet it — but they are the direct cause of F1 and F3, and they are why `MDG002` could not be an
 error over this tree as the value model spec originally designed it.
 
-### Suggested work
+### Evaluated, and done — it was a one-line parser change hiding a data-loss bug
 
-Not a fix, an evaluation. If DDL's `FormattedText { Bold = true }` could be handled by the parser
-resolving `Bold` against the nested `Font`'s model — which it already knows how to do for dotted
-names — the nine properties could lose their `[DV]`, `ValueKind.PlainValue` would have no members
-at all, and F1 and F3 would both disappear at the source rather than being worked around.
+The evaluation was: could the parser resolve `Bold` against the nested `Font` instead, letting the
+nine properties lose their `[DV]`? The answer is yes, and finding it out turned up something worse
+than the shape.
 
-Whether that is possible without breaking DDL compatibility is the open question, and it needs
-someone to read `DdlParser`'s block handling carefully. Worth an hour before anyone acts on F3.
+`DdlParser.ParseFont` called `ParseAttributes(formattedText)` — resolving the names against the
+**FormattedText**. But `Font.Serialize` *writes* those names out of **Font's** model. The two models
+had to agree, and they did not: **`Font` has `Strikethrough` and `FormattedText` never did.**
+
+That is a live, silent data-loss bug, in both directions at once:
+
+| what was set | DDL written | read back |
+|---|---|---|
+| `Strikethrough` alone | `ont[Strikethrough = Single]` | **lost** — no `FormattedText.Strikethrough` to resolve against, reported as an invalid value name and discarded |
+| `Strikethrough` + `Bold` | `old` | **lost at write time** — `CheckWhatIsNotNull` never inspected `strikethrough`, so the font looked like "only Bold is set" and took the shortcut |
+
+`FontProperties` had no `Strikethrough` member at all, which is why the second one was possible.
+
+**The fix is what the evaluation proposed**, plus the writer half:
+
+* `ParseFont` resolves against `formattedText.Font`. The names come from `Font`'s model, so that is
+  where they should be read back into — and every delegating property becomes unnecessary.
+* `FontProperties.Strikethrough` added, and `CheckWhatIsNotNull` inspects it.
+* The nine `[DV]` attributes deleted.
+
+Behaviour is otherwise unchanged, because the delegating setters wrote straight through to `Font`
+anyway — resolving against `Font` directly reaches the same field. `FormattedTextFontRoundTripTests`
+covers every property the writer emits, that the `old` and `\italic` shortcuts are still taken
+when a single property really is the only one set, and that a styled `ont("Name")[...]` still
+round-trips.
+
+Knock-on effects, both good: **F3 is fixed at the source**, and `ValueKind.PlainValue` now has no
+members anywhere in the DOM.
 
 ---
 
@@ -448,7 +488,7 @@ is a deliberate cost and its size is unknown.
 3. ~~**`dom-thread-safety.md` item 6** — `CS8073` as an error.~~ **Done.**
 4. ~~**F2** — one line plus a test update.~~ **Done.**
 5. ~~**Generator diagnostic tests**~~ **Done.**
-6. **F7's evaluation**, then **F3** and **F4** depending on what it concludes.
+6. ~~**F7's evaluation**, then **F3**~~ **Done** — F7 fixed F3 at the source. **F4** remains.
 7. **`dom-thread-safety.md` item 4**, and the wider `ArrayList`/`Hashtable` migration, as their own
    pieces of work — both change emitted output or touch untested code.
 

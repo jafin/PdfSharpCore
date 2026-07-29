@@ -51,4 +51,11 @@ enum FontProperties
   Border = 0x0040,
   Superscript = 0x0080,
   Subscript = 0x0100,
+
+  /// <summary>
+  /// Absent until it was noticed that CheckWhatIsNotNull could not report a struck-through font,
+  /// so Font.Serialize took the "only one property is set" shortcut and wrote \bold for a font that
+  /// was bold and struck through, silently dropping the strikethrough.
+  /// </summary>
+  Strikethrough = 0x0200,
 }

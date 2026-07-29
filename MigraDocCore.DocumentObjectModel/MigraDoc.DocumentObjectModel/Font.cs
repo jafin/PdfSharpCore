@@ -295,6 +295,8 @@ public sealed partial class Font : DocumentObject
             fp |= FontProperties.Italic;
         if (underline != null)
             fp |= FontProperties.Underline;
+        if (strikethrough != null)
+            fp |= FontProperties.Strikethrough;
         if (!color.IsNull)
             fp |= FontProperties.Color;
         if (superscript != null)
