@@ -5,19 +5,23 @@ Migrating the DOM's nullable wrapper structs to `bool?`, `int?`, `double?` and `
 DDL. Two tests then began failing at random, alternately, one per run. Disabling parallelization
 made them stop.
 
-That was not a test problem. It was a race in `Color.ToString` that has been in the library since
-the port, is reachable from any two threads that serialize a document at once, and sits behind
+That was not a test problem. It was a race in `Color.ToString` that had been in the library since
+the port, was reachable from any two threads that serialize a document at once, and sat behind
 public API.
+
+**All items are now closed.** Items 1-6 are fixed, item 7 was assessed and the recommendation is
+to leave it, and item 8 was fixed earlier in [#46](https://github.com/jafin/PdfSharpCore/pull/46).
+Each section keeps the evidence it was written from.
 
 | item | what | severity | status |
 |---|---|---|---|
-| 1 | `Color.ToString` publishes its colour-name table before filling it | high | open |
-| 2 | Every `DocumentObject` builds its metadata twice or more under load | low | open |
-| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | low | open |
-| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | open |
-| 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | open |
-| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | open |
-| 7 | `NEnum` is the last wrapper struct standing | low | open |
+| 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
+| 2 | Every `DocumentObject` builds its metadata twice or more under load | low | **done** |
+| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | low | **done** |
+| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | **done** |
+| 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | **done** |
+| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | **done** |
+| 7 | `NEnum` is the last wrapper struct standing | low | **assessed** |
 | 8 | `Clear()` does nothing unless the object also carries a value | medium | **done** |
 
 ---
@@ -254,19 +258,59 @@ the next mechanical edit fail loudly instead of quietly.
 
 ---
 
-## 7. `NEnum` is the last wrapper struct standing
+## 7. `NEnum` is the last wrapper struct standing — assessed, recommend leaving it
 
 `NBool`, `NInt`, `NDouble` and `NString` are gone. `INullableValue` remains, implemented by `NEnum`,
-`Unit`, `Color`, `LeftPosition` and `TopPosition`.
+`Unit`, `Color`, `LeftPosition` and `TopPosition`. Four of those five are domain types that carry
+their own state and should stay. `NEnum` was the open question.
 
-Four of those five are domain types that carry their own state and should stay. `NEnum` is the odd
-one: it exists only to make an enum nullable, which is what `TEnum?` does, but it stores the enum's
-`Type` alongside the `int` so that `ValueDescriptor` can read it back — and the `[DV(Type = ...)]`
-attribute already carries the same information.
+**It could go.** `NullableMemberDescriptor` already handles any `Nullable<T>`, so a
+`BorderStyle?` field would be read and written by the existing machinery with no new code, and
+`Nullable.GetUnderlyingType` gives the descriptor the same `ValueType` that `[DV(Type = ...)]`
+supplies today — making that attribute argument redundant as well.
 
-Worth an assessment rather than a commitment. If the `Type` really is redundant with the attribute,
-`NEnum` becomes `int?` plus the existing attribute and `INullableValue` shrinks to the four types
-that earn it. If it is not, `NEnum` stays and the interface stays with it.
+**It should not, because of what would be lost.** `NEnum` carries the enum's `Type` and uses it:
+
+```csharp
+public int Value
+{
+    set
+    {
+        if (this.type == typeof(SymbolName))
+            this.val = value;                    // SymbolName's values are not all declared
+        else
+        {
+            if (Enum.IsDefined(this.type, value))
+                this.val = value;
+            else
+                throw new ArgumentException("value");
+        }
+    }
+}
+```
+
+That check is reachable from public API and it fires — `EnumValueTests` pins it:
+
+| assignment | today | as a `BorderStyle?` |
+|---|---|---|
+| `Top.Style = BorderStyle.Dot` | accepted | accepted |
+| `Top.Style = (BorderStyle)999` | **`ArgumentException`** | silently accepted |
+| `AddCharacter((SymbolName)0x2200A)` | accepted, by exception | accepted |
+
+C# does not stop an undeclared value being cast to an enum, so a plain `BorderStyle?` would take
+`(BorderStyle)999` without complaint and write it into the DDL, where it would not parse back.
+Converting would mean either accepting that, or writing the same `Enum.IsDefined` check by hand into
+every enum property setter — more code than `NEnum` is, spread across more places.
+
+### Recommendation
+
+Leave `NEnum`, and with it `INullableValue`. The interface is no longer a wrapper-struct mechanism
+propped up by four types that did not need it; it is now implemented only by types that genuinely
+carry state a `Nullable<T>` cannot — an enum plus its type, a value plus its unit, a colour plus its
+colour space, a position plus its reference frame.
+
+`EnumValueTests` was added while assessing this and is worth keeping either way: nothing else
+covered enum validation, the `SymbolName` exception, or `GV.GetNull` on an enum.
 
 ---
 

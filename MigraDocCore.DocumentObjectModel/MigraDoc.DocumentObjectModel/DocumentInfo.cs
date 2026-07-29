@@ -128,16 +128,20 @@ public class DocumentInfo : DocumentObject
     serializer.WriteComment((comment ?? ""));
     int pos = serializer.BeginContent("Info");
 
-    if (Title != String.Empty)
+    // Whether a value was set decides whether it is written, as everywhere else in the DOM. These
+    // four used to ask whether the string was empty instead, which wrote an assigned "" the same
+    // way it wrote one that had never been assigned - not at all - and lost the difference over a
+    // round trip.
+    if (title != null)
       serializer.WriteSimpleAttribute("Title", Title);
 
-    if (Subject != String.Empty)
+    if (subject != null)
       serializer.WriteSimpleAttribute("Subject", Subject);
 
-    if (Author != String.Empty)
+    if (author != null)
       serializer.WriteSimpleAttribute("Author", Author);
 
-    if (Keywords != String.Empty)
+    if (keywords != null)
       serializer.WriteSimpleAttribute("Keywords", Keywords);
 
     serializer.EndContent(pos);
