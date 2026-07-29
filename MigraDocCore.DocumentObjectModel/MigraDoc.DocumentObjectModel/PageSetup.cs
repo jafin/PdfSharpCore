@@ -30,9 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -139,8 +137,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public BreakType SectionStart
   {
-    get => (BreakType)this.sectionStart.Value;
-    set => this.sectionStart.Value = (int)value;
+    get => (BreakType)sectionStart.Value;
+    set => sectionStart.Value = (int)value;
   }
   [DV(Type = typeof(BreakType))]
   internal NEnum sectionStart = NEnum.NullValue(typeof(BreakType));
@@ -150,8 +148,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Orientation Orientation
   {
-    get => (Orientation)this.orientation.Value;
-    set => this.orientation.Value = (int)value;
+    get => (Orientation)orientation.Value;
+    set => orientation.Value = (int)value;
   }
   [DV(Type = typeof(Orientation))]
   internal NEnum orientation = NEnum.NullValue(typeof(Orientation));
@@ -161,8 +159,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit PageWidth
   {
-    get => this.pageWidth;
-    set => this.pageWidth = value;
+    get => pageWidth;
+    set => pageWidth = value;
   }
   [DV]
   internal Unit pageWidth = Unit.NullValue;
@@ -172,8 +170,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public int StartingNumber
   {
-    get => this.startingNumber.Value;
-    set => this.startingNumber.Value = value;
+    get => startingNumber.Value;
+    set => startingNumber.Value = value;
   }
   [DV]
   internal NInt startingNumber = NInt.NullValue;
@@ -183,8 +181,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit PageHeight
   {
-    get => this.pageHeight;
-    set => this.pageHeight = value;
+    get => pageHeight;
+    set => pageHeight = value;
   }
   [DV]
   internal Unit pageHeight = Unit.NullValue;
@@ -194,8 +192,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit TopMargin
   {
-    get => this.topMargin;
-    set => this.topMargin = value;
+    get => topMargin;
+    set => topMargin = value;
   }
   [DV]
   internal Unit topMargin = Unit.NullValue;
@@ -205,8 +203,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit BottomMargin
   {
-    get => this.bottomMargin;
-    set => this.bottomMargin = value;
+    get => bottomMargin;
+    set => bottomMargin = value;
   }
   [DV]
   internal Unit bottomMargin = Unit.NullValue;
@@ -216,8 +214,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit LeftMargin
   {
-    get => this.leftMargin;
-    set => this.leftMargin = value;
+    get => leftMargin;
+    set => leftMargin = value;
   }
   [DV]
   internal Unit leftMargin = Unit.NullValue;
@@ -227,8 +225,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit RightMargin
   {
-    get => this.rightMargin;
-    set => this.rightMargin = value;
+    get => rightMargin;
+    set => rightMargin = value;
   }
   [DV]
   internal Unit rightMargin = Unit.NullValue;
@@ -239,8 +237,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool OddAndEvenPagesHeaderFooter
   {
-    get => this.oddAndEvenPagesHeaderFooter.Value;
-    set => this.oddAndEvenPagesHeaderFooter.Value = value;
+    get => oddAndEvenPagesHeaderFooter.Value;
+    set => oddAndEvenPagesHeaderFooter.Value = value;
   }
   [DV]
   internal NBool oddAndEvenPagesHeaderFooter = NBool.NullValue;
@@ -251,8 +249,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool DifferentFirstPageHeaderFooter
   {
-    get => this.differentFirstPageHeaderFooter.Value;
-    set => this.differentFirstPageHeaderFooter.Value = value;
+    get => differentFirstPageHeaderFooter.Value;
+    set => differentFirstPageHeaderFooter.Value = value;
   }
   [DV]
   internal NBool differentFirstPageHeaderFooter = NBool.NullValue;
@@ -263,8 +261,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit HeaderDistance
   {
-    get => this.headerDistance;
-    set => this.headerDistance = value;
+    get => headerDistance;
+    set => headerDistance = value;
   }
   [DV]
   internal Unit headerDistance = Unit.NullValue;
@@ -275,8 +273,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public Unit FooterDistance
   {
-    get => this.footerDistance;
-    set => this.footerDistance = value;
+    get => footerDistance;
+    set => footerDistance = value;
   }
   [DV]
   internal Unit footerDistance = Unit.NullValue;
@@ -287,8 +285,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool MirrorMargins
   {
-    get => this.mirrorMargins.Value;
-    set => this.mirrorMargins.Value = value;
+    get => mirrorMargins.Value;
+    set => mirrorMargins.Value = value;
   }
   [DV]
   internal NBool mirrorMargins = NBool.NullValue;
@@ -299,8 +297,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool HorizontalPageBreak
   {
-    get => this.horizontalPageBreak.Value;
-    set => this.horizontalPageBreak.Value = value;
+    get => horizontalPageBreak.Value;
+    set => horizontalPageBreak.Value = value;
   }
   [DV]
   internal NBool horizontalPageBreak = NBool.NullValue;
@@ -310,8 +308,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public PageFormat PageFormat
   {
-    get => (PageFormat)this.pageFormat.Value;
-    set => this.pageFormat.Value = (int)value;
+    get => (PageFormat)pageFormat.Value;
+    set => pageFormat.Value = (int)value;
   }
   [DV(Type = typeof(PageFormat))]
   internal NEnum pageFormat = NEnum.NullValue(typeof(PageFormat));
@@ -321,8 +319,8 @@ public class PageSetup : DocumentObject
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => comment.Value;
+    set => comment.Value = value;
   }
   [DV]
   internal NString comment = NString.NullValue;
@@ -395,21 +393,21 @@ public class PageSetup : DocumentObject
   private static void AssertDefaultPageSetupUnmodified()
   {
 #if DEBUG
-    Debug.Assert(PageSetup.defaultPageSetup.PageFormat == PageSetup.defaultPageSetupClone.PageFormat, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.SectionStart == PageSetup.defaultPageSetupClone.SectionStart, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.Orientation == PageSetup.defaultPageSetupClone.Orientation, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.PageWidth == PageSetup.defaultPageSetupClone.PageWidth, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.PageHeight == PageSetup.defaultPageSetupClone.PageHeight, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.TopMargin == PageSetup.defaultPageSetupClone.TopMargin, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.BottomMargin == PageSetup.defaultPageSetupClone.BottomMargin, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.LeftMargin == PageSetup.defaultPageSetupClone.LeftMargin, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.RightMargin == PageSetup.defaultPageSetupClone.RightMargin, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.HeaderDistance == PageSetup.defaultPageSetupClone.HeaderDistance, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.FooterDistance == PageSetup.defaultPageSetupClone.FooterDistance, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.OddAndEvenPagesHeaderFooter == PageSetup.defaultPageSetupClone.OddAndEvenPagesHeaderFooter, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.DifferentFirstPageHeaderFooter == PageSetup.defaultPageSetupClone.DifferentFirstPageHeaderFooter, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.MirrorMargins == PageSetup.defaultPageSetupClone.MirrorMargins, "DefaultPageSetup must not be modified");
-    Debug.Assert(PageSetup.defaultPageSetup.HorizontalPageBreak == PageSetup.defaultPageSetupClone.HorizontalPageBreak, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.PageFormat == defaultPageSetupClone.PageFormat, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.SectionStart == defaultPageSetupClone.SectionStart, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.Orientation == defaultPageSetupClone.Orientation, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.PageWidth == defaultPageSetupClone.PageWidth, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.PageHeight == defaultPageSetupClone.PageHeight, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.TopMargin == defaultPageSetupClone.TopMargin, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.BottomMargin == defaultPageSetupClone.BottomMargin, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.LeftMargin == defaultPageSetupClone.LeftMargin, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.RightMargin == defaultPageSetupClone.RightMargin, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.HeaderDistance == defaultPageSetupClone.HeaderDistance, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.FooterDistance == defaultPageSetupClone.FooterDistance, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.OddAndEvenPagesHeaderFooter == defaultPageSetupClone.OddAndEvenPagesHeaderFooter, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.DifferentFirstPageHeaderFooter == defaultPageSetupClone.DifferentFirstPageHeaderFooter, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.MirrorMargins == defaultPageSetupClone.MirrorMargins, "DefaultPageSetup must not be modified");
+    Debug.Assert(defaultPageSetup.HorizontalPageBreak == defaultPageSetupClone.HorizontalPageBreak, "DefaultPageSetup must not be modified");
 #endif
   }
 
@@ -419,56 +417,56 @@ public class PageSetup : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment(comment.Value);
     int pos = serializer.BeginContent("PageSetup");
 
-    if (!this.pageHeight.IsNull)
-      serializer.WriteSimpleAttribute("PageHeight", this.PageHeight);
+    if (!pageHeight.IsNull)
+      serializer.WriteSimpleAttribute("PageHeight", PageHeight);
 
-    if (!this.pageWidth.IsNull)
-      serializer.WriteSimpleAttribute("PageWidth", this.PageWidth);
+    if (!pageWidth.IsNull)
+      serializer.WriteSimpleAttribute("PageWidth", PageWidth);
 
-    if (!this.orientation.IsNull)
-      serializer.WriteSimpleAttribute("Orientation", this.Orientation);
+    if (!orientation.IsNull)
+      serializer.WriteSimpleAttribute("Orientation", Orientation);
 
-    if (!this.leftMargin.IsNull)
-      serializer.WriteSimpleAttribute("LeftMargin", this.LeftMargin);
+    if (!leftMargin.IsNull)
+      serializer.WriteSimpleAttribute("LeftMargin", LeftMargin);
 
-    if (!this.rightMargin.IsNull)
-      serializer.WriteSimpleAttribute("RightMargin", this.RightMargin);
+    if (!rightMargin.IsNull)
+      serializer.WriteSimpleAttribute("RightMargin", RightMargin);
 
-    if (!this.topMargin.IsNull)
-      serializer.WriteSimpleAttribute("TopMargin", this.TopMargin);
+    if (!topMargin.IsNull)
+      serializer.WriteSimpleAttribute("TopMargin", TopMargin);
 
-    if (!this.bottomMargin.IsNull)
-      serializer.WriteSimpleAttribute("BottomMargin", this.BottomMargin);
+    if (!bottomMargin.IsNull)
+      serializer.WriteSimpleAttribute("BottomMargin", BottomMargin);
 
-    if (!this.footerDistance.IsNull)
-      serializer.WriteSimpleAttribute("FooterDistance", this.FooterDistance);
+    if (!footerDistance.IsNull)
+      serializer.WriteSimpleAttribute("FooterDistance", FooterDistance);
 
-    if (!this.headerDistance.IsNull)
-      serializer.WriteSimpleAttribute("HeaderDistance", this.HeaderDistance);
+    if (!headerDistance.IsNull)
+      serializer.WriteSimpleAttribute("HeaderDistance", HeaderDistance);
 
-    if (!this.oddAndEvenPagesHeaderFooter.IsNull)
-      serializer.WriteSimpleAttribute("OddAndEvenPagesHeaderFooter", this.OddAndEvenPagesHeaderFooter);
+    if (!oddAndEvenPagesHeaderFooter.IsNull)
+      serializer.WriteSimpleAttribute("OddAndEvenPagesHeaderFooter", OddAndEvenPagesHeaderFooter);
 
-    if (!this.differentFirstPageHeaderFooter.IsNull)
-      serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", this.DifferentFirstPageHeaderFooter);
+    if (!differentFirstPageHeaderFooter.IsNull)
+      serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", DifferentFirstPageHeaderFooter);
 
-    if (!this.sectionStart.IsNull)
-      serializer.WriteSimpleAttribute("SectionStart", this.SectionStart);
+    if (!sectionStart.IsNull)
+      serializer.WriteSimpleAttribute("SectionStart", SectionStart);
 
-    if (!this.pageFormat.IsNull)
-      serializer.WriteSimpleAttribute("PageFormat", this.PageFormat);
+    if (!pageFormat.IsNull)
+      serializer.WriteSimpleAttribute("PageFormat", PageFormat);
 
-    if (!this.mirrorMargins.IsNull)
-      serializer.WriteSimpleAttribute("MirrorMargins", this.MirrorMargins);
+    if (!mirrorMargins.IsNull)
+      serializer.WriteSimpleAttribute("MirrorMargins", MirrorMargins);
 
-    if (!this.horizontalPageBreak.IsNull)
-      serializer.WriteSimpleAttribute("HorizontalPageBreak", this.HorizontalPageBreak);
+    if (!horizontalPageBreak.IsNull)
+      serializer.WriteSimpleAttribute("HorizontalPageBreak", HorizontalPageBreak);
 
-    if (!this.startingNumber.IsNull)
-      serializer.WriteSimpleAttribute("StartingNumber", this.StartingNumber);
+    if (!startingNumber.IsNull)
+      serializer.WriteSimpleAttribute("StartingNumber", StartingNumber);
 
     serializer.EndContent(pos);
   }

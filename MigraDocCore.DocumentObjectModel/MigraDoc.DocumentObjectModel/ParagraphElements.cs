@@ -31,14 +31,9 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Fields;
-using MigraDocCore.DocumentObjectModel.Shapes;
-using System.IO;
 using MigraDocImage = MigraDocCore.DocumentObjectModel.Shapes.Image;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -95,13 +90,13 @@ public class ParagraphElements : DocumentObjectCollection
                 if (tabParts[idx].Length != 0)
                 {
                     txt = new Text(tabParts[idx]);
-                    this.Add(txt);
+                    Add(txt);
                 }
                 if (idx < count - 1)
-                    this.AddTab();
+                    AddTab();
             }
             if (line < lineCount - 1)
-                this.AddLineBreak();
+                AddLineBreak();
         }
         return txt;
     }
@@ -136,7 +131,7 @@ public class ParagraphElements : DocumentObjectCollection
     public Character AddCharacter(SymbolName symbolType, int count)
     {
         Character character = new Character();
-        this.Add(character);
+        Add(character);
         character.SymbolName = symbolType;
         character.Count = count;
         return character;
@@ -163,7 +158,7 @@ public class ParagraphElements : DocumentObjectCollection
     /// </summary>
     public Character AddSpace(int count)
     {
-        return this.AddCharacter(DocumentObjectModel.SymbolName.Blank, count);
+        return AddCharacter(SymbolName.Blank, count);
     }
 
     /// <summary>
@@ -188,7 +183,7 @@ public class ParagraphElements : DocumentObjectCollection
     public FormattedText AddFormattedText()
     {
         FormattedText formattedText = new FormattedText();
-        this.Add(formattedText);
+        Add(formattedText);
         return formattedText;
     }
 
@@ -222,7 +217,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         FormattedText formattedText = new FormattedText();
         formattedText.Font.ApplyFont(font);
-        this.Add(formattedText);
+        Add(formattedText);
         return formattedText;
     }
 
@@ -233,7 +228,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         FormattedText formattedText = new FormattedText();
         formattedText.AddText(text);
-        this.Add(formattedText);
+        Add(formattedText);
         return formattedText;
     }
 
@@ -274,7 +269,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         Hyperlink hyperlink = new Hyperlink();
         hyperlink.Name = name;
-        this.Add(hyperlink);
+        Add(hyperlink);
         return hyperlink;
     }
 
@@ -286,7 +281,7 @@ public class ParagraphElements : DocumentObjectCollection
         Hyperlink hyperlink = new Hyperlink();
         hyperlink.Name = name;
         hyperlink.Type = type;
-        this.Add(hyperlink);
+        Add(hyperlink);
         return hyperlink;
     }
 
@@ -297,7 +292,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         BookmarkField fieldBookmark = new BookmarkField();
         fieldBookmark.Name = name;
-        this.Add(fieldBookmark);
+        Add(fieldBookmark);
         return fieldBookmark;
     }
 
@@ -307,7 +302,7 @@ public class ParagraphElements : DocumentObjectCollection
     public PageField AddPageField()
     {
         PageField fieldPage = new PageField();
-        this.Add(fieldPage);
+        Add(fieldPage);
         return fieldPage;
     }
 
@@ -318,7 +313,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         PageRefField fieldPageRef = new PageRefField();
         fieldPageRef.Name = name;
-        this.Add(fieldPageRef);
+        Add(fieldPageRef);
         return fieldPageRef;
     }
 
@@ -328,7 +323,7 @@ public class ParagraphElements : DocumentObjectCollection
     public NumPagesField AddNumPagesField()
     {
         NumPagesField fieldNumPages = new NumPagesField();
-        this.Add(fieldNumPages);
+        Add(fieldNumPages);
         return fieldNumPages;
     }
 
@@ -338,7 +333,7 @@ public class ParagraphElements : DocumentObjectCollection
     public SectionField AddSectionField()
     {
         SectionField fieldSection = new SectionField();
-        this.Add(fieldSection);
+        Add(fieldSection);
         return fieldSection;
     }
 
@@ -348,7 +343,7 @@ public class ParagraphElements : DocumentObjectCollection
     public SectionPagesField AddSectionPagesField()
     {
         SectionPagesField fieldSectionPages = new SectionPagesField();
-        this.Add(fieldSectionPages);
+        Add(fieldSectionPages);
         return fieldSectionPages;
     }
 
@@ -359,7 +354,7 @@ public class ParagraphElements : DocumentObjectCollection
     public DateField AddDateField()
     {
         DateField fieldDate = new DateField();
-        this.Add(fieldDate);
+        Add(fieldDate);
         return fieldDate;
     }
 
@@ -370,7 +365,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         DateField fieldDate = new DateField();
         fieldDate.Format = format;
-        this.Add(fieldDate);
+        Add(fieldDate);
         return fieldDate;
     }
 
@@ -381,7 +376,7 @@ public class ParagraphElements : DocumentObjectCollection
     {
         InfoField fieldInfo = new InfoField();
         fieldInfo.Name = iType.ToString();
-        this.Add(fieldInfo);
+        Add(fieldInfo);
         return fieldInfo;
     }
 

@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -77,7 +74,7 @@ public class TabStop : DocumentObject
   /// <summary>
   /// Gets the tab stop position.
   /// </summary>
-  public Unit Position => this.position;
+  public Unit Position => position;
 
   [DV]
   internal Unit position = Unit.NullValue;  // always defined
@@ -88,8 +85,8 @@ public class TabStop : DocumentObject
   /// </summary>
   public TabAlignment Alignment
   {
-    get => (TabAlignment)this.alignment.Value;
-    set => this.alignment.Value = (int)value;
+    get => (TabAlignment)alignment.Value;
+    set => alignment.Value = (int)value;
   }
   [DV(Type = typeof(TabAlignment))]
   internal NEnum alignment = NEnum.NullValue(typeof(TabAlignment));
@@ -99,8 +96,8 @@ public class TabStop : DocumentObject
   /// </summary>
   public TabLeader Leader
   {
-    get => (TabLeader)this.leader.Value;
-    set => this.leader.Value = (int)value;
+    get => (TabLeader)leader.Value;
+    set => leader.Value = (int)value;
   }
   [DV(Type = typeof(TabLeader))]
   internal NEnum leader = NEnum.NullValue(typeof(TabLeader));
@@ -117,19 +114,19 @@ public class TabStop : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (this.AddTab)
+    if (AddTab)
     {
       serializer.WriteLine("TabStops +=");
       serializer.BeginContent();
-      serializer.WriteSimpleAttribute("Position", this.Position);
-      if (!this.alignment.IsNull)
-        serializer.WriteSimpleAttribute("Alignment", this.Alignment);
-      if (!this.leader.IsNull)
-        serializer.WriteSimpleAttribute("Leader", this.Leader);
+      serializer.WriteSimpleAttribute("Position", Position);
+      if (!alignment.IsNull)
+        serializer.WriteSimpleAttribute("Alignment", Alignment);
+      if (!leader.IsNull)
+        serializer.WriteSimpleAttribute("Leader", Leader);
       serializer.EndContent();
     }
     else
-      serializer.WriteLine("TabStops -= \"" + this.Position.ToString() + "\"");
+      serializer.WriteLine("TabStops -= \"" + Position.ToString() + "\"");
   }
 
   /// <summary>

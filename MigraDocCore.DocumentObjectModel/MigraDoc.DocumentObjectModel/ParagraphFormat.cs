@@ -26,13 +26,10 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -102,7 +99,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public TabStop AddTabStop(Unit position)
   {
-    return this.TabStops.AddTabStop(position);
+    return TabStops.AddTabStop(position);
   }
 
   /// <summary>
@@ -110,7 +107,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public TabStop AddTabStop(Unit position, TabAlignment alignment, TabLeader leader)
   {
-    return this.TabStops.AddTabStop(position, alignment, leader);
+    return TabStops.AddTabStop(position, alignment, leader);
   }
 
   /// <summary>
@@ -118,7 +115,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public TabStop AddTabStop(Unit position, TabLeader leader)
   {
-    return this.TabStops.AddTabStop(position, leader);
+    return TabStops.AddTabStop(position, leader);
   }
 
   /// <summary>
@@ -126,7 +123,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public TabStop AddTabStop(Unit position, TabAlignment alignment)
   {
-    return this.TabStops.AddTabStop(position, alignment);
+    return TabStops.AddTabStop(position, alignment);
   }
 
   /// <summary>
@@ -135,7 +132,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public void RemoveTabStop(Unit position)
   {
-    this.TabStops.RemoveTabStop(position);
+    TabStops.RemoveTabStop(position);
   }
 
   /// <summary>
@@ -143,7 +140,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public void Add(TabStop tabStop)
   {
-    this.TabStops.AddTabStop(tabStop);
+    TabStops.AddTabStop(tabStop);
   }
 
   /// <summary>
@@ -152,7 +149,7 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public void ClearAll()
   {
-    this.TabStops.ClearAll();
+    TabStops.ClearAll();
   }
   #endregion
 
@@ -162,8 +159,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public ParagraphAlignment Alignment
   {
-    get => (ParagraphAlignment)this.alignment.Value;
-    set => this.alignment.Value = (int)value;
+    get => (ParagraphAlignment)alignment.Value;
+    set => alignment.Value = (int)value;
   }
   [DV(Type = typeof(ParagraphAlignment))]
   internal NEnum alignment = NEnum.NullValue(typeof(ParagraphAlignment));
@@ -175,15 +172,15 @@ public class ParagraphFormat : DocumentObject
   {
     get
     {
-      if (this.borders == null)
-        this.borders = new Borders(this);
+      if (borders == null)
+        borders = new Borders(this);
 
-      return this.borders;
+      return borders;
     }
     set
     {
       SetParent(value);
-      this.borders = value;
+      borders = value;
     }
   }
   [DV]
@@ -194,8 +191,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit FirstLineIndent
   {
-    get => this.firstLineIndent;
-    set => this.firstLineIndent = value;
+    get => firstLineIndent;
+    set => firstLineIndent = value;
   }
   [DV]
   internal Unit firstLineIndent = Unit.NullValue;
@@ -207,15 +204,15 @@ public class ParagraphFormat : DocumentObject
   {
     get
     {
-      if (this.font == null)
-        this.font = new Font(this);
+      if (font == null)
+        font = new Font(this);
 
-      return this.font;
+      return font;
     }
     set
     {
       SetParent(value);
-      this.font = value;
+      font = value;
     }
   }
   [DV]
@@ -226,8 +223,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool KeepTogether
   {
-    get => this.keepTogether.Value;
-    set => this.keepTogether.Value = value;
+    get => keepTogether.Value;
+    set => keepTogether.Value = value;
   }
   [DV]
   internal NBool keepTogether = NBool.NullValue;
@@ -237,8 +234,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool KeepWithNext
   {
-    get => this.keepWithNext.Value;
-    set => this.keepWithNext.Value = value;
+    get => keepWithNext.Value;
+    set => keepWithNext.Value = value;
   }
   [DV]
   internal NBool keepWithNext = NBool.NullValue;
@@ -248,8 +245,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit LeftIndent
   {
-    get => this.leftIndent;
-    set => this.leftIndent = value;
+    get => leftIndent;
+    set => leftIndent = value;
   }
   [DV]
   internal Unit leftIndent = Unit.NullValue;
@@ -259,8 +256,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit LineSpacing
   {
-    get => this.lineSpacing;
-    set => this.lineSpacing = value;
+    get => lineSpacing;
+    set => lineSpacing = value;
   }
   [DV]
   internal Unit lineSpacing = Unit.NullValue;
@@ -270,8 +267,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public LineSpacingRule LineSpacingRule
   {
-    get => (LineSpacingRule)this.lineSpacingRule.Value;
-    set => this.lineSpacingRule.Value = (int)value;
+    get => (LineSpacingRule)lineSpacingRule.Value;
+    set => lineSpacingRule.Value = (int)value;
   }
   [DV(Type = typeof(LineSpacingRule))]
   internal NEnum lineSpacingRule = NEnum.NullValue(typeof(LineSpacingRule));
@@ -283,15 +280,15 @@ public class ParagraphFormat : DocumentObject
   {
     get
     {
-      if (this.listInfo == null)
-        this.listInfo = new ListInfo(this);
+      if (listInfo == null)
+        listInfo = new ListInfo(this);
 
-      return this.listInfo;
+      return listInfo;
     }
     set
     {
       SetParent(value);
-      this.listInfo = value;
+      listInfo = value;
     }
   }
   [DV]
@@ -302,8 +299,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public OutlineLevel OutlineLevel
   {
-    get => (OutlineLevel)this.outlineLevel.Value;
-    set => this.outlineLevel.Value = (int)value;
+    get => (OutlineLevel)outlineLevel.Value;
+    set => outlineLevel.Value = (int)value;
   }
   [DV(Type = typeof(OutlineLevel))]
   internal NEnum outlineLevel = NEnum.NullValue(typeof(OutlineLevel));
@@ -313,8 +310,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool PageBreakBefore
   {
-    get => this.pageBreakBefore.Value;
-    set => this.pageBreakBefore.Value = value;
+    get => pageBreakBefore.Value;
+    set => pageBreakBefore.Value = value;
   }
   [DV]
   internal NBool pageBreakBefore = NBool.NullValue;
@@ -324,8 +321,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit RightIndent
   {
-    get => this.rightIndent;
-    set => this.rightIndent = value;
+    get => rightIndent;
+    set => rightIndent = value;
   }
   [DV]
   internal Unit rightIndent = Unit.NullValue;
@@ -337,15 +334,15 @@ public class ParagraphFormat : DocumentObject
   {
     get
     {
-      if (this.shading == null)
-        this.shading = new Shading(this);
+      if (shading == null)
+        shading = new Shading(this);
 
-      return this.shading;
+      return shading;
     }
     set
     {
       SetParent(value);
-      this.shading = value;
+      shading = value;
     }
   }
   [DV]
@@ -356,8 +353,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit SpaceAfter
   {
-    get => this.spaceAfter;
-    set => this.spaceAfter = value;
+    get => spaceAfter;
+    set => spaceAfter = value;
   }
   [DV]
   internal Unit spaceAfter = Unit.NullValue;
@@ -367,8 +364,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public Unit SpaceBefore
   {
-    get => this.spaceBefore;
-    set => this.spaceBefore = value;
+    get => spaceBefore;
+    set => spaceBefore = value;
   }
   [DV]
   internal Unit spaceBefore = Unit.NullValue;
@@ -376,7 +373,7 @@ public class ParagraphFormat : DocumentObject
   /// <summary>
   /// Indicates whether the ParagraphFormat has a TabStops collection.
   /// </summary>
-  public bool HasTabStops => this.tabStops != null;
+  public bool HasTabStops => tabStops != null;
 
   /// <summary>
   /// Get the TabStops collection.
@@ -385,15 +382,15 @@ public class ParagraphFormat : DocumentObject
   {
     get
     {
-      if (this.tabStops == null)
-        this.tabStops = new TabStops(this);
+      if (tabStops == null)
+        tabStops = new TabStops(this);
 
-      return this.tabStops;
+      return tabStops;
     }
     set
     {
       SetParent(value);
-      this.tabStops = value;
+      tabStops = value;
     }
   }
   [DV]
@@ -404,8 +401,8 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool WidowControl
   {
-    get => this.widowControl.Value;
-    set => this.widowControl.Value = value;
+    get => widowControl.Value;
+    set => widowControl.Value = value;
   }
   [DV]
   internal NBool widowControl = NBool.NullValue;
@@ -417,10 +414,10 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (this.parent is Style)
-      this.Serialize(serializer, "ParagraphFormat", null);
+    if (parent is Style)
+      Serialize(serializer, "ParagraphFormat", null);
     else
-      this.Serialize(serializer, "Format", null);
+      Serialize(serializer, "Format", null);
   }
 
   /// <summary>
@@ -430,75 +427,75 @@ public class ParagraphFormat : DocumentObject
   {
     int pos = serializer.BeginContent(name);
 
-    if (!this.IsNull("Font") && Parent.GetType() != typeof(Style))
-      this.Font.Serialize(serializer);
+    if (!IsNull("Font") && Parent.GetType() != typeof(Style))
+      Font.Serialize(serializer);
 
     // If a refFormat is specified, it is important to compare the fields and not the properties.
     // Only the fields holds the internal information whether a value is NULL. In contrast to the
     // Efw.Application framework the nullable values and all the meta stuff is kept internal to
     // give the user the illusion of simplicity.
 
-    if (!this.alignment.IsNull && (refFormat == null || (this.alignment != refFormat.alignment)))
-      serializer.WriteSimpleAttribute("Alignment", this.Alignment);
+    if (!alignment.IsNull && (refFormat == null || (alignment != refFormat.alignment)))
+      serializer.WriteSimpleAttribute("Alignment", Alignment);
 
-    if (!this.leftIndent.IsNull && (refFormat == null || (this.leftIndent != refFormat.leftIndent)))
-      serializer.WriteSimpleAttribute("LeftIndent", this.LeftIndent);
+    if (!leftIndent.IsNull && (refFormat == null || (leftIndent != refFormat.leftIndent)))
+      serializer.WriteSimpleAttribute("LeftIndent", LeftIndent);
 
-    if (!this.firstLineIndent.IsNull && (refFormat == null || this.firstLineIndent != refFormat.firstLineIndent))
-      serializer.WriteSimpleAttribute("FirstLineIndent", this.FirstLineIndent);
+    if (!firstLineIndent.IsNull && (refFormat == null || firstLineIndent != refFormat.firstLineIndent))
+      serializer.WriteSimpleAttribute("FirstLineIndent", FirstLineIndent);
 
-    if (!this.rightIndent.IsNull && (refFormat == null || this.rightIndent != refFormat.rightIndent))
-      serializer.WriteSimpleAttribute("RightIndent", this.RightIndent);
+    if (!rightIndent.IsNull && (refFormat == null || rightIndent != refFormat.rightIndent))
+      serializer.WriteSimpleAttribute("RightIndent", RightIndent);
 
-    if (!this.spaceBefore.IsNull && (refFormat == null || this.spaceBefore != refFormat.spaceBefore))
-      serializer.WriteSimpleAttribute("SpaceBefore", this.SpaceBefore);
+    if (!spaceBefore.IsNull && (refFormat == null || spaceBefore != refFormat.spaceBefore))
+      serializer.WriteSimpleAttribute("SpaceBefore", SpaceBefore);
 
-    if (!this.spaceAfter.IsNull && (refFormat == null || this.spaceAfter != refFormat.spaceAfter))
-      serializer.WriteSimpleAttribute("SpaceAfter", this.SpaceAfter);
+    if (!spaceAfter.IsNull && (refFormat == null || spaceAfter != refFormat.spaceAfter))
+      serializer.WriteSimpleAttribute("SpaceAfter", SpaceAfter);
 
-    if (!this.lineSpacingRule.IsNull && (refFormat == null || this.lineSpacingRule != refFormat.lineSpacingRule))
-      serializer.WriteSimpleAttribute("LineSpacingRule", this.LineSpacingRule);
+    if (!lineSpacingRule.IsNull && (refFormat == null || lineSpacingRule != refFormat.lineSpacingRule))
+      serializer.WriteSimpleAttribute("LineSpacingRule", LineSpacingRule);
 
-    if (!this.lineSpacing.IsNull && (refFormat == null || this.lineSpacing != refFormat.lineSpacing))
-      serializer.WriteSimpleAttribute("LineSpacing", this.LineSpacing);
+    if (!lineSpacing.IsNull && (refFormat == null || lineSpacing != refFormat.lineSpacing))
+      serializer.WriteSimpleAttribute("LineSpacing", LineSpacing);
 
-    if (!this.keepTogether.IsNull && (refFormat == null || this.keepTogether != refFormat.keepTogether))
-      serializer.WriteSimpleAttribute("KeepTogether", this.KeepTogether);
+    if (!keepTogether.IsNull && (refFormat == null || keepTogether != refFormat.keepTogether))
+      serializer.WriteSimpleAttribute("KeepTogether", KeepTogether);
 
-    if (!this.keepWithNext.IsNull && (refFormat == null || this.keepWithNext != refFormat.keepWithNext))
-      serializer.WriteSimpleAttribute("KeepWithNext", this.KeepWithNext);
+    if (!keepWithNext.IsNull && (refFormat == null || keepWithNext != refFormat.keepWithNext))
+      serializer.WriteSimpleAttribute("KeepWithNext", KeepWithNext);
 
-    if (!this.widowControl.IsNull && (refFormat == null || this.widowControl != refFormat.widowControl))
-      serializer.WriteSimpleAttribute("WidowControl", this.WidowControl);
+    if (!widowControl.IsNull && (refFormat == null || widowControl != refFormat.widowControl))
+      serializer.WriteSimpleAttribute("WidowControl", WidowControl);
 
-    if (!this.pageBreakBefore.IsNull && (refFormat == null || this.pageBreakBefore != refFormat.pageBreakBefore))
-      serializer.WriteSimpleAttribute("PageBreakBefore", this.PageBreakBefore);
+    if (!pageBreakBefore.IsNull && (refFormat == null || pageBreakBefore != refFormat.pageBreakBefore))
+      serializer.WriteSimpleAttribute("PageBreakBefore", PageBreakBefore);
 
-    if (!this.outlineLevel.IsNull && (refFormat == null || this.outlineLevel != refFormat.outlineLevel))
-      serializer.WriteSimpleAttribute("OutlineLevel", this.OutlineLevel);
+    if (!outlineLevel.IsNull && (refFormat == null || outlineLevel != refFormat.outlineLevel))
+      serializer.WriteSimpleAttribute("OutlineLevel", OutlineLevel);
 
-    if (!this.IsNull("ListInfo"))
-      this.ListInfo.Serialize(serializer);
+    if (!IsNull("ListInfo"))
+      ListInfo.Serialize(serializer);
 
-    if (!this.IsNull("TabStops"))
-      this.tabStops.Serialize(serializer);
+    if (!IsNull("TabStops"))
+      tabStops.Serialize(serializer);
 
-    if (!this.IsNull("Borders"))
+    if (!IsNull("Borders"))
     {
       if (refFormat != null)
-        this.borders.Serialize(serializer, refFormat.Borders);
+        borders.Serialize(serializer, refFormat.Borders);
       else
-        this.borders.Serialize(serializer, null);
+        borders.Serialize(serializer, null);
     }
 
-    if (!this.IsNull("Shading"))
-      this.shading.Serialize(serializer);
+    if (!IsNull("Shading"))
+      shading.Serialize(serializer);
 
     serializer.EndContent(pos);
   }
 
   /// <summary>
-  /// Returns the meta object of this instance.
+  /// Returns the metaobject of this instance.
   /// </summary>
   internal override Meta Meta
   {

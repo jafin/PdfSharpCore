@@ -27,7 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Collections;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Charting.Renderers;

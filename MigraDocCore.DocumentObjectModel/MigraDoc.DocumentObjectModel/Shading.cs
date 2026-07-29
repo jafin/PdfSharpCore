@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -69,7 +66,7 @@ public sealed class Shading : DocumentObject
   /// </summary>
   public void Clear()
   {
-    this.isCleared = true;
+    isCleared = true;
   }
   #endregion
 
@@ -79,8 +76,8 @@ public sealed class Shading : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => this.visible.Value;
-    set => this.visible.Value = value;
+    get => visible.Value;
+    set => visible.Value = value;
   }
   [DV]
   internal NBool visible = NBool.NullValue;
@@ -90,8 +87,8 @@ public sealed class Shading : DocumentObject
   /// </summary>
   public Color Color
   {
-    get => this.color;
-    set => this.color = value;
+    get => color;
+    set => color = value;
   }
   [DV]
   internal Color color = Color.Empty;
@@ -100,7 +97,7 @@ public sealed class Shading : DocumentObject
   /// Gets the information if the shading is marked as cleared. Additionally 'Shading = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool IsCleared => this.isCleared;
+  public bool IsCleared => isCleared;
 
   internal bool isCleared = false;
   #endregion
@@ -116,11 +113,11 @@ public sealed class Shading : DocumentObject
 
     int pos = serializer.BeginContent("Shading");
 
-    if (!this.visible.IsNull)
-      serializer.WriteSimpleAttribute("Visible", this.Visible);
+    if (!visible.IsNull)
+      serializer.WriteSimpleAttribute("Visible", Visible);
 
-    if (!this.color.IsNull)
-      serializer.WriteSimpleAttribute("Color", this.Color);
+    if (!color.IsNull)
+      serializer.WriteSimpleAttribute("Color", Color);
 
     serializer.EndContent(pos);
   }

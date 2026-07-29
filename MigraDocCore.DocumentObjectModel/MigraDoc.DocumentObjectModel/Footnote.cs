@@ -30,15 +30,10 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.IO;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -67,7 +62,7 @@ public class Footnote : DocumentObject, IVisitable
     internal Footnote(string content)
         : this()
     {
-        this.Elements.AddParagraph(content);
+        Elements.AddParagraph(content);
     }
 
     #region Methods
@@ -103,7 +98,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph()
     {
-        return this.Elements.AddParagraph();
+        return Elements.AddParagraph();
     }
 
     /// <summary>
@@ -111,7 +106,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph(string text)
     {
-        return this.Elements.AddParagraph(text);
+        return Elements.AddParagraph(text);
     }
 
     /// <summary>
@@ -119,7 +114,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public Table AddTable()
     {
-        return this.Elements.AddTable();
+        return Elements.AddTable();
     }
 
     /// <summary>
@@ -127,7 +122,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public Image AddImage(IImageSource imageSource)
     {
-        return this.Elements.AddImage(imageSource);
+        return Elements.AddImage(imageSource);
     }
 
     /// <summary>
@@ -135,7 +130,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public void Add(Paragraph paragraph)
     {
-        this.Elements.Add(paragraph);
+        Elements.Add(paragraph);
     }
 
     /// <summary>
@@ -143,7 +138,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public void Add(Table table)
     {
-        this.Elements.Add(table);
+        Elements.Add(table);
     }
 
     /// <summary>
@@ -151,7 +146,7 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public void Add(Image image)
     {
-        this.Elements.Add(image);
+        Elements.Add(image);
     }
     #endregion
 
@@ -163,14 +158,14 @@ public class Footnote : DocumentObject, IVisitable
     {
         get
         {
-            if (this.elements == null)
-                this.elements = new DocumentElements(this);
-            return this.elements;
+            if (elements == null)
+                elements = new DocumentElements(this);
+            return elements;
         }
         set
         {
             SetParent(value);
-            this.elements = value;
+            elements = value;
         }
     }
     [DV(ItemType = typeof(DocumentObject))]
@@ -181,8 +176,8 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public string Reference
     {
-        get => this.reference.Value;
-        set => this.reference.Value = value;
+        get => reference.Value;
+        set => reference.Value = value;
     }
     [DV]
     internal NString reference = NString.NullValue;
@@ -192,8 +187,8 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => this.style.Value;
-        set => this.style.Value = value;
+        get => style.Value;
+        set => style.Value = value;
     }
     [DV]
     internal NString style = NString.NullValue;
@@ -205,15 +200,15 @@ public class Footnote : DocumentObject, IVisitable
     {
         get
         {
-            if (this.format == null)
-                this.format = new ParagraphFormat(this);
+            if (format == null)
+                format = new ParagraphFormat(this);
 
-            return this.format;
+            return format;
         }
         set
         {
             SetParent(value);
-            this.format = value;
+            format = value;
         }
     }
     [DV]
@@ -229,19 +224,19 @@ public class Footnote : DocumentObject, IVisitable
         serializer.WriteLine("\\footnote");
 
         int pos = serializer.BeginAttributes();
-        if (this.reference.Value != string.Empty)
-            serializer.WriteSimpleAttribute("Reference", this.Reference);
-        if (this.style.Value != string.Empty)
-            serializer.WriteSimpleAttribute("Style", this.Style);
+        if (reference.Value != string.Empty)
+            serializer.WriteSimpleAttribute("Reference", Reference);
+        if (style.Value != string.Empty)
+            serializer.WriteSimpleAttribute("Style", Style);
 
-        if (!this.IsNull("Format"))
-            this.format.Serialize(serializer, "Format", null);
+        if (!IsNull("Format"))
+            format.Serialize(serializer, "Format", null);
 
         serializer.EndAttributes(pos);
 
         pos = serializer.BeginContent();
-        if (!this.IsNull("Elements"))
-            this.elements.Serialize(serializer);
+        if (!IsNull("Elements"))
+            elements.Serialize(serializer);
         serializer.EndContent(pos);
     }
 
@@ -252,8 +247,8 @@ public class Footnote : DocumentObject, IVisitable
     {
         visitor.VisitFootnote(this);
 
-        if (visitChildren && this.elements != null)
-            ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && elements != null)
+            ((IVisitable)elements).AcceptVisitor(visitor, visitChildren);
     }
 
     /// <summary>

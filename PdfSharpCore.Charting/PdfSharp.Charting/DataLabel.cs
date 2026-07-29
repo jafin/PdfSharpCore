@@ -29,7 +29,6 @@
 
 using System;
 using System.ComponentModel;
-using PdfSharpCore.Drawing;
 
 namespace PdfSharpCore.Charting;
 

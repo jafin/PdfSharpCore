@@ -31,7 +31,6 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Internal;
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Text;
 
 namespace PdfSharpCore.Fonts.OpenType;

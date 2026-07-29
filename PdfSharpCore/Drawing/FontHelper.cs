@@ -28,9 +28,7 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Fonts.OpenType;
 

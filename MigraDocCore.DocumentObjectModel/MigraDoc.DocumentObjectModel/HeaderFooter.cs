@@ -31,15 +31,11 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.IO;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -94,7 +90,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph()
     {
-        return this.Elements.AddParagraph();
+        return Elements.AddParagraph();
     }
 
     /// <summary>
@@ -102,7 +98,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph(string paragraphText)
     {
-        return this.Elements.AddParagraph(paragraphText);
+        return Elements.AddParagraph(paragraphText);
     }
 
     /// <summary>
@@ -110,7 +106,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart(ChartType type)
     {
-        return this.Elements.AddChart(type);
+        return Elements.AddChart(type);
     }
 
     /// <summary>
@@ -118,7 +114,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart()
     {
-        return this.Elements.AddChart();
+        return Elements.AddChart();
     }
 
     /// <summary>
@@ -126,7 +122,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Table AddTable()
     {
-        return this.Elements.AddTable();
+        return Elements.AddTable();
     }
 
     /// <summary>
@@ -134,7 +130,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public Image AddImage(IImageSource imageSource)
     {
-        return this.Elements.AddImage(imageSource);
+        return Elements.AddImage(imageSource);
     }
 
     /// <summary>
@@ -142,7 +138,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public TextFrame AddTextFrame()
     {
-        return this.Elements.AddTextFrame();
+        return Elements.AddTextFrame();
     }
 
     /// <summary>
@@ -150,7 +146,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public void Add(Paragraph paragraph)
     {
-        this.Elements.Add(paragraph);
+        Elements.Add(paragraph);
     }
 
     /// <summary>
@@ -158,7 +154,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public void Add(Chart chart)
     {
-        this.Elements.Add(chart);
+        Elements.Add(chart);
     }
 
     /// <summary>
@@ -166,7 +162,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public void Add(Table table)
     {
-        this.Elements.Add(table);
+        Elements.Add(table);
     }
 
     /// <summary>
@@ -174,7 +170,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public void Add(Image image)
     {
-        this.Elements.Add(image);
+        Elements.Add(image);
     }
 
     /// <summary>
@@ -182,7 +178,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public void Add(TextFrame textFrame)
     {
-        this.Elements.Add(textFrame);
+        Elements.Add(textFrame);
     }
     #endregion
 
@@ -200,24 +196,24 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// <summary>
     /// Returns true if this is a first page header or footer, false otherwise.
     /// </summary>
-    public bool IsFirstPage => ((HeadersFooters)this.parent).firstPage == this;
+    public bool IsFirstPage => ((HeadersFooters)parent).firstPage == this;
 
     /// <summary>
     /// Returns true if this is an even page header or footer, false otherwise.
     /// </summary>
-    public bool IsEvenPage => ((HeadersFooters)this.parent).evenPage == this;
+    public bool IsEvenPage => ((HeadersFooters)parent).evenPage == this;
 
     /// <summary>
     /// Returns true if this is a primary header or footer, false otherwise.
     /// </summary>
-    public bool IsPrimary => ((HeadersFooters)this.parent).primary == this;
+    public bool IsPrimary => ((HeadersFooters)parent).primary == this;
 
     /// <summary>
     /// Gets or sets the style name.
     /// </summary>
     public string Style
     {
-        get => this.style.Value;
+        get => style.Value;
         set
         {
             // Just save style name. 
@@ -238,14 +234,14 @@ public class HeaderFooter : DocumentObject, IVisitable
     {
         get
         {
-            if (this.format == null)
-                this.format = new ParagraphFormat(this);
-            return this.format;
+            if (format == null)
+                format = new ParagraphFormat(this);
+            return format;
         }
         set
         {
             SetParent(value);
-            this.format = value;
+            format = value;
         }
     }
     [DV]
@@ -258,14 +254,14 @@ public class HeaderFooter : DocumentObject, IVisitable
     {
         get
         {
-            if (this.elements == null)
-                this.elements = new DocumentElements(this);
-            return this.elements;
+            if (elements == null)
+                elements = new DocumentElements(this);
+            return elements;
         }
         set
         {
             SetParent(value);
-            this.elements = value;
+            elements = value;
         }
     }
     [DV(ItemType = typeof(DocumentObject))]
@@ -276,8 +272,8 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => this.comment.Value;
-        set => this.comment.Value = value;
+        get => comment.Value;
+        set => comment.Value = value;
     }
     [DV]
     internal NString comment = NString.NullValue;
@@ -289,13 +285,13 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        HeadersFooters headersfooters = this.parent as HeadersFooters;
+        HeadersFooters headersfooters = parent as HeadersFooters;
         if (headersfooters.Primary == this)
-            this.Serialize(serializer, "primary");
+            Serialize(serializer, "primary");
         else if (headersfooters.EvenPage == this)
-            this.Serialize(serializer, "evenpage");
+            Serialize(serializer, "evenpage");
         else if (headersfooters.FirstPage == this)
-            this.Serialize(serializer, "firstpage");
+            Serialize(serializer, "firstpage");
     }
 
     /// <summary>
@@ -303,17 +299,17 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     internal void Serialize(Serializer serializer, string prefix)
     {
-        serializer.WriteComment(this.comment.Value);
+        serializer.WriteComment(comment.Value);
         serializer.WriteLine("\\" + prefix + (IsHeader ? "header" : "footer"));
 
         int pos = serializer.BeginAttributes();
         if (!IsNull("Format"))
-            this.format.Serialize(serializer, "Format", null);
+            format.Serialize(serializer, "Format", null);
         serializer.EndAttributes(pos);
 
         serializer.BeginContent();
         if (!IsNull("Elements"))
-            this.elements.Serialize(serializer);
+            elements.Serialize(serializer);
         serializer.EndContent();
     }
 
@@ -324,8 +320,8 @@ public class HeaderFooter : DocumentObject, IVisitable
     {
         visitor.VisitHeaderFooter(this);
 
-        if (visitChildren && this.elements != null)
-            ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && elements != null)
+            ((IVisitable)elements).AcceptVisitor(visitor, visitChildren);
     }
 
     /// <summary>

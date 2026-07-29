@@ -28,7 +28,6 @@
 #endregion
 
 using System;
-using PdfSharpCore.Drawing;
 
 namespace PdfSharpCore.Charting;
 

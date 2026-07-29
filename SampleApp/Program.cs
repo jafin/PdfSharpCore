@@ -2,6 +2,7 @@
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Drawing.Layout.enums;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.Skia;
 
 namespace SampleApp;
 
@@ -34,7 +35,7 @@ public static class Program
         // PdfSharpCore has no imaging or font backend of its own; register one before use.
         PdfSharpCore.Fonts.GlobalFontSettings.FontResolver = new PdfSharpCore.Utils.SkiaFontResolver();
         MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource.ImageSourceImpl
-            = new PdfSharpCore.Utils.SkiaImageSource();
+            = new SkiaImageSource();
 
         const string outName = "test1.pdf";
 
@@ -97,6 +98,5 @@ public static class Program
         SaveDocument(document, outName);
 
         System.Console.WriteLine("Done!");
-    } // End Sub Main 
-} // End Class Program 
-// End Namespace SampleApp 
+    }
+}

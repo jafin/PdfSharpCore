@@ -32,11 +32,9 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.IO;
 using System.Reflection;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -60,7 +58,7 @@ internal class Serializer
 
     this.textWriter = textWriter;
     this.indent = indent;
-    this.writeIndent = initialIndent;
+    writeIndent = initialIndent;
     if (textWriter is StreamWriter)
       WriteStamp();
   }
@@ -82,8 +80,8 @@ internal class Serializer
   /// </summary>
   internal int Indent
   {
-    get => this.indent;
-    set => this.indent = value;
+    get => indent;
+    set => indent = value;
   }
   protected int indent = 2;
 
@@ -92,8 +90,8 @@ internal class Serializer
   /// </summary>
   internal int InitialIndent
   {
-    get => this.writeIndent;
-    set => this.writeIndent = value;
+    get => writeIndent;
+    set => writeIndent = value;
   }
   protected int writeIndent = 0;
 
@@ -118,7 +116,7 @@ internal class Serializer
   /// </summary>
   internal void WriteStamp()
   {
-    if (this.fWriteStamp)
+    if (fWriteStamp)
     {
       WriteComment("Created by empira MigraDoc Document Object Model");
       WriteComment(String.Format("generated file created {0:d} at {0:t}", DateTime.Now));
@@ -163,19 +161,19 @@ internal class Serializer
   /// </summary>
   string DoWordWrap(string str)
   {
-    if (str.Length + this.writeIndent < this.lineBreakBeyond)
+    if (str.Length + writeIndent < lineBreakBeyond)
       return str;
 
     int idxCRLF = str.IndexOf("\x0D\x0A");
-    if (idxCRLF > 0 && idxCRLF + this.writeIndent <= this.lineBreakBeyond)
+    if (idxCRLF > 0 && idxCRLF + writeIndent <= lineBreakBeyond)
       return str.Substring(0, idxCRLF + 1);
 
-    int splitIndexBlank = str.Substring(0, this.lineBreakBeyond - this.writeIndent).LastIndexOf(" ");
-    int splitIndexCRLF = str.Substring(0, this.lineBreakBeyond - this.writeIndent).LastIndexOf("\x0D\x0A");
-    int splitIndex = System.Math.Max(splitIndexBlank, splitIndexCRLF);
+    int splitIndexBlank = str.Substring(0, lineBreakBeyond - writeIndent).LastIndexOf(" ");
+    int splitIndexCRLF = str.Substring(0, lineBreakBeyond - writeIndent).LastIndexOf("\x0D\x0A");
+    int splitIndex = Math.Max(splitIndexBlank, splitIndexCRLF);
     if (splitIndex == -1)
-      splitIndex = System.Math.Min(str.IndexOf(" ", this.lineBreakBeyond - this.writeIndent + 1),
-        str.IndexOf("\x0D\x0A", this.lineBreakBeyond - this.writeIndent + 1));
+      splitIndex = Math.Min(str.IndexOf(" ", lineBreakBeyond - writeIndent + 1),
+        str.IndexOf("\x0D\x0A", lineBreakBeyond - writeIndent + 1));
     return splitIndex > 0 ? str.Substring(0, splitIndex) : str;
 
   }
@@ -222,7 +220,7 @@ internal class Serializer
     }
     CloseUpLine();
     int len;
-    int chopBeyond = this.lineBreakBeyond - this.indent - "// ".Length;
+    int chopBeyond = lineBreakBeyond - indent - "// ".Length;
     while ((len = comment.Length) > 0)
     {
       string wrt;
@@ -257,7 +255,7 @@ internal class Serializer
   /// </summary>
   internal void CloseUpLine()
   {
-    if (this.linePos > 0)
+    if (linePos > 0)
       WriteLine();
   }
 
@@ -280,7 +278,7 @@ internal class Serializer
     int len = text.Length;
     if (len > 0)
     {
-      if (this.linePos > 0)
+      if (linePos > 0)
       {
         // does not work
         // if (IsBlankRequired(this.lastChar, _text[0]))
@@ -291,26 +289,26 @@ internal class Serializer
         if (fAutoIndent)
         {
           text = Indentation + text;
-          len += this.writeIndent;
+          len += writeIndent;
         }
       }
-      this.textWriter.Write(text);
-      this.linePos += len;
+      textWriter.Write(text);
+      linePos += len;
       // wordwrap required?
-      if (this.linePos > this.lineBreakBeyond)
+      if (linePos > lineBreakBeyond)
       {
         fLineBreak = true;
         //this.textWriter.Write("//¶");  // for debugging only
       }
       else
-        this.lastChar = text[len - 1];
+        lastChar = text[len - 1];
     }
 
     if (fLineBreak)
     {
-      this.textWriter.WriteLine(String.Empty);  // what a line break is may depend on encoding
-      this.linePos = 0;
-      this.lastChar = '\x0A';
+      textWriter.WriteLine(String.Empty);  // what a line break is may depend on encoding
+      linePos = 0;
+      lastChar = '\x0A';
     }
   }
 
@@ -354,7 +352,7 @@ internal class Serializer
   /// </summary>
   internal int BeginAttributes()
   {
-    int pos = this.Position;
+    int pos = Position;
     WriteLineNoCommit("[");
     IncreaseIndent();
     BeginBlock();
@@ -366,7 +364,7 @@ internal class Serializer
   /// </summary>
   internal int BeginAttributes(string str)
   {
-    int pos = this.Position;
+    int pos = Position;
     WriteLineNoCommit(str);
     WriteLineNoCommit("[");
     IncreaseIndent();
@@ -391,7 +389,7 @@ internal class Serializer
   {
     bool commit = EndAttributes();
     if (!commit)
-      this.Position = pos;
+      Position = pos;
     return commit;
   }
 
@@ -433,7 +431,7 @@ internal class Serializer
       sb.Replace("\"", "\\\"");
       WriteLine(valueName + " = \"" + sb.ToString() + "\"");
     }
-    else if (type == typeof(int) || type.GetTypeInfo().BaseType == typeof(System.Enum) || type == typeof(Color))
+    else if (type == typeof(int) || type.GetTypeInfo().BaseType == typeof(Enum) || type == typeof(Color))
     {
       WriteLine(valueName + " = " + value.ToString());
     }
@@ -449,7 +447,7 @@ internal class Serializer
   /// </summary>
   internal int BeginContent()
   {
-    int pos = this.Position;
+    int pos = Position;
     WriteLineNoCommit("{");
     IncreaseIndent();
     BeginBlock();
@@ -461,7 +459,7 @@ internal class Serializer
   /// </summary>
   internal int BeginContent(string str)
   {
-    int pos = this.Position;
+    int pos = Position;
     WriteLineNoCommit(str);
     WriteLineNoCommit("{");
     IncreaseIndent();
@@ -486,7 +484,7 @@ internal class Serializer
   {
     bool commit = EndContent();
     if (!commit)
-      this.Position = pos;
+      Position = pos;
     return commit;
   }
 
@@ -495,7 +493,7 @@ internal class Serializer
   /// </summary>
   internal int BeginBlock()
   {
-    int pos = this.Position;
+    int pos = Position;
     if (stackIdx + 1 >= commitTextStack.Length)
       throw new ArgumentException("Block nesting level exhausted.");
     stackIdx += 1;
@@ -523,7 +521,7 @@ internal class Serializer
   {
     bool commit = EndBlock();
     if (!commit)
-      this.Position = pos;
+      Position = pos;
     return commit;
   }
 

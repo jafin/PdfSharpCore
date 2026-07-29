@@ -28,7 +28,6 @@
 #endregion
 
 using System;
-using PdfSharpCore.Internal;
 
 namespace PdfSharpCore.Drawing;
 

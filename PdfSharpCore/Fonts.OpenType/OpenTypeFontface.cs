@@ -37,8 +37,6 @@ using System.IO;
 using PdfSharpCore.Drawing;
 
 using Fixed = System.Int32;
-using FWord = System.Int16;
-using UFWord = System.UInt16;
 
 #pragma warning disable 0649
 

@@ -26,19 +26,15 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel.Tables;
@@ -103,8 +99,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     internal override void ResetCachedValues()
     {
-        this.row = null;
-        this.clm = null;
+        row = null;
+        clm = null;
     }
 
     /// <summary>
@@ -112,7 +108,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph()
     {
-        return this.Elements.AddParagraph();
+        return Elements.AddParagraph();
     }
 
     /// <summary>
@@ -120,7 +116,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph(string paragraphText)
     {
-        return this.Elements.AddParagraph(paragraphText);
+        return Elements.AddParagraph(paragraphText);
     }
 
     /// <summary>
@@ -128,7 +124,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart(ChartType type)
     {
-        return this.Elements.AddChart(type);
+        return Elements.AddChart(type);
     }
 
     /// <summary>
@@ -136,7 +132,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart()
     {
-        return this.Elements.AddChart();
+        return Elements.AddChart();
     }
 
     /// <summary>
@@ -144,15 +140,15 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public Image AddImage(IImageSource imageSource)
     {
-        return this.Elements.AddImage(imageSource);
+        return Elements.AddImage(imageSource);
     }
 
     /// <summary>
-    /// Adds a new textframe to the cell.
+    /// Adds a new text-frame to the cell.
     /// </summary>
     public TextFrame AddTextFrame()
     {
-        return this.Elements.AddTextFrame();
+        return Elements.AddTextFrame();
     }
 
     /// <summary>
@@ -160,7 +156,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public void Add(Paragraph paragraph)
     {
-        this.Elements.Add(paragraph);
+        Elements.Add(paragraph);
     }
 
     /// <summary>
@@ -168,7 +164,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public void Add(Chart chart)
     {
-        this.Elements.Add(chart);
+        Elements.Add(chart);
     }
 
     /// <summary>
@@ -176,7 +172,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public void Add(Image image)
     {
-        this.Elements.Add(image);
+        Elements.Add(image);
     }
 
     /// <summary>
@@ -184,7 +180,7 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public void Add(TextFrame textFrame)
     {
-        this.Elements.Add(textFrame);
+        Elements.Add(textFrame);
     }
     #endregion
 
@@ -196,13 +192,13 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.table == null)
+            if (table == null)
             {
-                Cells cls = this.Parent as Cells;
+                Cells cls = Parent as Cells;
                 if (cls != null)
-                    this.table = cls.Table;
+                    table = cls.Table;
             }
-            return this.table;
+            return table;
         }
     }
     Table table;
@@ -214,16 +210,16 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.clm == null)
+            if (clm == null)
             {
-                Cells cells = this.Parent as Cells;
+                Cells cells = Parent as Cells;
                 for (int index = 0; index < cells.Count; ++index)
                 {
                     if (cells[index] == this)
-                        this.clm = this.Table.Columns[index];
+                        clm = Table.Columns[index];
                 }
             }
-            return this.clm;
+            return clm;
         }
     }
     Column clm;
@@ -235,12 +231,12 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.row == null)
+            if (row == null)
             {
-                Cells cells = this.Parent as Cells;
-                this.row = cells.Row;
+                Cells cells = Parent as Cells;
+                row = cells.Row;
             }
-            return this.row;
+            return row;
         }
     }
     Row row;
@@ -250,8 +246,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => this.style.Value;
-        set => this.style.Value = value;
+        get => style.Value;
+        set => style.Value = value;
     }
     [DV]
     internal NString style = NString.NullValue;
@@ -263,15 +259,15 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.format == null)
-                this.format = new ParagraphFormat(this);
+            if (format == null)
+                format = new ParagraphFormat(this);
 
-            return this.format;
+            return format;
         }
         set
         {
             SetParent(value);
-            this.format = value;
+            format = value;
         }
     }
     [DV]
@@ -282,8 +278,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public VerticalAlignment VerticalAlignment
     {
-        get => (VerticalAlignment)this.verticalAlignment.Value;
-        set => this.verticalAlignment.Value = (int)value;
+        get => (VerticalAlignment)verticalAlignment.Value;
+        set => verticalAlignment.Value = (int)value;
     }
     [DV(Type = typeof(VerticalAlignment))]
     internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
@@ -295,18 +291,18 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.borders == null)
+            if (borders == null)
             {
-                if (this.Document == null) // BUG CMYK
+                if (Document == null) // BUG CMYK
                     GetType();
-                this.borders = new Borders(this);
+                borders = new Borders(this);
             }
-            return this.borders;
+            return borders;
         }
         set
         {
             SetParent(value);
-            this.borders = value;
+            borders = value;
         }
     }
     [DV]
@@ -319,15 +315,15 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.shading == null)
-                this.shading = new Shading(this);
+            if (shading == null)
+                shading = new Shading(this);
 
-            return this.shading;
+            return shading;
         }
         set
         {
             SetParent(value);
-            this.shading = value;
+            shading = value;
         }
     }
     [DV]
@@ -337,8 +333,8 @@ public class Cell : DocumentObject, IVisitable
     /// Specifies if the Cell should be rendered as a rounded corner.
     /// </summary>
     public RoundedCorner RoundedCorner {
-        get => (RoundedCorner)this.roundedCorner.Value;
-        set => this.roundedCorner.Value = (int)value;
+        get => (RoundedCorner)roundedCorner.Value;
+        set => roundedCorner.Value = (int)value;
     }
     [DV(Type = typeof(RoundedCorner))]
     internal NEnum roundedCorner = NEnum.NullValue(typeof(RoundedCorner));
@@ -348,8 +344,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public int MergeRight
     {
-        get => this.mergeRight ?? 0;
-        set => this.mergeRight = value;
+        get => mergeRight ?? 0;
+        set => mergeRight = value;
     }
     [DV]
     internal int? mergeRight;
@@ -359,8 +355,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public int MergeDown
     {
-        get => this.mergeDown ?? 0;
-        set => this.mergeDown = value;
+        get => mergeDown ?? 0;
+        set => mergeDown = value;
     }
     [DV]
     internal int? mergeDown;
@@ -372,15 +368,15 @@ public class Cell : DocumentObject, IVisitable
     {
         get
         {
-            if (this.elements == null)
-                this.elements = new DocumentElements(this);
+            if (elements == null)
+                elements = new DocumentElements(this);
 
-            return this.elements;
+            return elements;
         }
         set
         {
             SetParent(value);
-            this.elements = value;
+            elements = value;
         }
     }
     [DV(ItemType = typeof(DocumentObject))]
@@ -391,8 +387,8 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => this.comment.Value;
-        set => this.comment.Value = value;
+        get => comment.Value;
+        set => comment.Value = value;
     }
     [DV]
     internal NString comment = NString.NullValue;
@@ -404,40 +400,40 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(this.comment.Value);
+        serializer.WriteComment(comment.Value);
         serializer.WriteLine("\\cell");
 
         int pos = serializer.BeginAttributes();
 
-        if (this.style.Value != String.Empty)
-            serializer.WriteSimpleAttribute("Style", this.Style);
+        if (style.Value != String.Empty)
+            serializer.WriteSimpleAttribute("Style", Style);
 
-        if (!this.IsNull("Format"))
-            this.format.Serialize(serializer, "Format", null);
+        if (!IsNull("Format"))
+            format.Serialize(serializer, "Format", null);
 
-        if (this.mergeDown.HasValue)
-            serializer.WriteSimpleAttribute("MergeDown", this.MergeDown);
+        if (mergeDown.HasValue)
+            serializer.WriteSimpleAttribute("MergeDown", MergeDown);
 
-        if (this.mergeRight.HasValue)
-            serializer.WriteSimpleAttribute("MergeRight", this.MergeRight);
+        if (mergeRight.HasValue)
+            serializer.WriteSimpleAttribute("MergeRight", MergeRight);
 
-        if (!this.verticalAlignment.IsNull)
-            serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
+        if (!verticalAlignment.IsNull)
+            serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
-        if (!this.IsNull("Borders"))
-            this.borders.Serialize(serializer, null);
+        if (!IsNull("Borders"))
+            borders.Serialize(serializer, null);
 
-        if (!this.IsNull("Shading"))
-            this.shading.Serialize(serializer);
+        if (!IsNull("Shading"))
+            shading.Serialize(serializer);
 
-        if (!this.roundedCorner.IsNull)
-            serializer.WriteSimpleAttribute("RoundedCorner", this.RoundedCorner);
+        if (!roundedCorner.IsNull)
+            serializer.WriteSimpleAttribute("RoundedCorner", RoundedCorner);
 
         serializer.EndAttributes(pos);
 
         pos = serializer.BeginContent();
-        if (!this.IsNull("Elements"))
-            this.elements.Serialize(serializer);
+        if (!IsNull("Elements"))
+            elements.Serialize(serializer);
         serializer.EndContent(pos);
     }
 
@@ -448,12 +444,12 @@ public class Cell : DocumentObject, IVisitable
     {
         visitor.VisitCell(this);
 
-        if (visitChildren && this.elements != null)
-            ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && elements != null)
+            ((IVisitable)elements).AcceptVisitor(visitor, visitChildren);
     }
 
     /// <summary>
-    /// Returns the meta object of this instance.
+    /// Returns the metaobject of this instance.
     /// </summary>
     internal override Meta Meta
     {

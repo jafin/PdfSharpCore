@@ -2,7 +2,7 @@ using System.IO;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Utils;
+using PdfSharpCore.Skia;
 using SkiaSharp;
 using Xunit;
 
