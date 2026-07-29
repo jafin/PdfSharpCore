@@ -136,11 +136,11 @@ public class Series : ChartObject
   /// </summary>
   public string Name
   {
-    get => this.name.Value;
-    set => this.name.Value = value;
+    get => this.name ?? "";
+    set => this.name = value;
   }
   [DV]
-  internal NString name = NString.NullValue;
+  internal string name;
 
   /// <summary>
   /// Gets the line format of the border of each data.
@@ -296,7 +296,7 @@ public class Series : ChartObject
 
     int pos = serializer.BeginAttributes();
 
-    if (!this.name.IsNull)
+    if (this.name != null)
       serializer.WriteSimpleAttribute("Name", this.Name);
 
     if (!this.markerSize.IsNull)

@@ -168,11 +168,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets the default paragraph format of the whole chart.
@@ -555,7 +555,7 @@ public class Chart : Shape, IVisitable
     if (!this.hasDataLabel.IsNull)
       serializer.WriteSimpleAttribute("HasDataLabel", this.HasDataLabel);
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (!this.IsNull("Format"))
       this.format.Serialize(serializer, "Format", null);

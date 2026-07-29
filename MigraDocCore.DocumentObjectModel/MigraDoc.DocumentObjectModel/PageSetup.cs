@@ -319,11 +319,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public string Comment
   {
-    get => comment.Value;
-    set => comment.Value = value;
+    get => comment ?? "";
+    set => comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
   #endregion
 
   /// <summary>
@@ -417,7 +417,7 @@ public class PageSetup : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(comment.Value);
+    serializer.WriteComment((comment ?? ""));
     int pos = serializer.BeginContent("PageSetup");
 
     if (!pageHeight.IsNull)

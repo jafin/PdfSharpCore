@@ -474,11 +474,11 @@ public class FormattedText : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => style.Value;
-        set => style.Value = value;
+        get => style ?? "";
+        set => style = value;
     }
     [DV]
-    internal NString style = NString.NullValue;
+    internal string style;
 
     /// <summary>
     /// Gets or sets the name of the font.
@@ -607,7 +607,7 @@ public class FormattedText : DocumentObject, IVisitable
         }
         else
         {
-            if (!style.IsNull)
+            if (style != null)
             {
                 serializer.Write("\\font(\"" + Style + "\")");
                 isFormatted = true;

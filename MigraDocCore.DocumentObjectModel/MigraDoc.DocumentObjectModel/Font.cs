@@ -57,7 +57,7 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Font(string name, Unit size)
     {
-        this.name.Value = name;
+        this.name = name;
         this.size.Value = size;
     }
 
@@ -66,7 +66,7 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Font(string name)
     {
-        this.name.Value = name;
+        this.name = name;
     }
 
     #region Methods
@@ -86,7 +86,7 @@ public sealed class Font : DocumentObject
         if (font == null)
             throw new ArgumentNullException("font");
 
-        if ((!font.name.IsNull && font.name.Value != "") && (refFont == null || font.Name != refFont.Name))
+        if (!string.IsNullOrEmpty(font.name) && (refFont == null || font.Name != refFont.Name))
             Name = font.Name;
 
         if (!font.size.IsNull && (refFont == null || font.Size != refFont.Size))
@@ -121,7 +121,7 @@ public sealed class Font : DocumentObject
         if (font == null)
             throw new ArgumentNullException("font");
 
-        if (!font.name.IsNull && font.name.Value != "")
+        if (!string.IsNullOrEmpty(font.name))
             Name = font.Name;
 
         if (!font.size.IsNull)
@@ -155,11 +155,11 @@ public sealed class Font : DocumentObject
     /// </summary>
     public string Name
     {
-        get => name.Value;
-        set => name.Value = value;
+        get => name ?? "";
+        set => name = value;
     }
     [DV]
-    internal NString name = NString.NullValue;
+    internal string name;
 
     /// <summary>
     /// Gets or sets the size of the font.
@@ -287,7 +287,7 @@ public sealed class Font : DocumentObject
     private FontProperties CheckWhatIsNotNull()
     {
         FontProperties fp = FontProperties.None;
-        if (!name.IsNull)
+        if (name != null)
             fp |= FontProperties.Name;
         if (!size.IsNull)
             fp |= FontProperties.Size;
@@ -323,7 +323,7 @@ public sealed class Font : DocumentObject
         if (Parent is FormattedText)
         {
             string fontStyle = "";
-            if (((FormattedText)Parent).style.IsNull)
+            if (((FormattedText)Parent).style == null)
             {
                 // Check if we can use a DDL keyword.
                 FontProperties notNull = CheckWhatIsNotNull();
@@ -354,7 +354,7 @@ public sealed class Font : DocumentObject
             //bool needBlank = false;  // nice, but later...
             serializer.Write("\\font" + fontStyle + "[");
 
-            if (!name.IsNull && name.Value != "")
+            if (name != null && (name ?? "") != "")
                 serializer.WriteSimpleAttribute("Name", Name);
 
 #if DEBUG // Test
@@ -393,8 +393,8 @@ public sealed class Font : DocumentObject
 
             // Don't write null values if font is null.
             // Do write null values if font is not null!
-            if ((!name.IsNull && Name != String.Empty && font == null) ||
-                (font != null && !name.IsNull && Name != String.Empty && Name != font.Name))
+            if ((name != null && Name != String.Empty && font == null) ||
+                (font != null && name != null && Name != String.Empty && Name != font.Name))
                 serializer.WriteSimpleAttribute("Name", Name);
 
             // Test

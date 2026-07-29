@@ -113,11 +113,11 @@ public class Barcode : Shape
   /// </summary>
   public string Code
   {
-    get => this.code.Value;
-    set => this.code.Value = value;
+    get => this.code ?? "";
+    set => this.code = value;
   }
   [DV]
-  internal NString code = NString.NullValue;
+  internal string code;
 
   /// <summary>
   /// ???
@@ -159,7 +159,7 @@ public class Barcode : Shape
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (this.code.Value == "")
+    if ((this.code ?? "") == "")
       throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
 
     serializer.WriteLine("\\barcode(\"" + this.Code + "\")");

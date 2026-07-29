@@ -81,11 +81,11 @@ public class DataLabel : DocumentObject
   /// </summary>
   public string Format
   {
-    get => this.format.Value;
-    set => this.format.Value = value;
+    get => this.format ?? "";
+    set => this.format = value;
   }
   [DV]
-  internal NString format = NString.NullValue;
+  internal string format;
 
   /// <summary>
   /// Gets the Font for the DataLabel.
@@ -114,11 +114,11 @@ public class DataLabel : DocumentObject
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets or sets the position of the DataLabel.

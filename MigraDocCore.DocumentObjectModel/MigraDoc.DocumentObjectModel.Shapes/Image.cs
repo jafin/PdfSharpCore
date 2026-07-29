@@ -79,7 +79,8 @@ public class Image : Shape
     }
     //#endregion
     [DV]
-    internal NString name = NString.NullValue;
+    // Written only through the reflection layer, so it needs an initializer to count as assigned.
+    internal string name = null;
 
     public IImageSource Source { get; set; }
 
@@ -157,7 +158,7 @@ public class Image : Shape
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteLine("\\image(\"" + this.name.Value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
+        serializer.WriteLine("\\image(\"" + (this.name ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
 
         int pos = serializer.BeginAttributes();
 

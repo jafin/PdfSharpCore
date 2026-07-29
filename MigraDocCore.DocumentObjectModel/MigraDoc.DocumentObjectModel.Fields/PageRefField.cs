@@ -76,11 +76,11 @@ public class PageRefField : NumericFieldBase
   /// </summary>
   public string Name
   {
-    get => this.name.Value;
-    set => this.name.Value = value;
+    get => this.name ?? "";
+    set => this.name = value;
   }
   [DV]
-  internal NString name = NString.NullValue;
+  internal string name;
   #endregion
 
   #region Internal
@@ -92,7 +92,7 @@ public class PageRefField : NumericFieldBase
     string str = "\\field(PageRef)";
     str += "[Name = \"" + this.Name + "\"";
 
-    if (this.format.Value != "")
+    if ((this.format ?? "") != "")
       str += " Format = \"" + this.Format + "\"";
     str += "]";
 

@@ -176,22 +176,22 @@ public class Footnote : DocumentObject, IVisitable
     /// </summary>
     public string Reference
     {
-        get => reference.Value;
-        set => reference.Value = value;
+        get => reference ?? "";
+        set => reference = value;
     }
     [DV]
-    internal NString reference = NString.NullValue;
+    internal string reference;
 
     /// <summary>
     /// Gets or sets the style name of the footnote.
     /// </summary>
     public string Style
     {
-        get => style.Value;
-        set => style.Value = value;
+        get => style ?? "";
+        set => style = value;
     }
     [DV]
-    internal NString style = NString.NullValue;
+    internal string style;
 
     /// <summary>
     /// Gets the format of the footnote.
@@ -224,9 +224,9 @@ public class Footnote : DocumentObject, IVisitable
         serializer.WriteLine("\\footnote");
 
         int pos = serializer.BeginAttributes();
-        if (reference.Value != string.Empty)
+        if ((reference ?? "") != string.Empty)
             serializer.WriteSimpleAttribute("Reference", Reference);
-        if (style.Value != string.Empty)
+        if ((style ?? "") != string.Empty)
             serializer.WriteSimpleAttribute("Style", Style);
 
         if (!IsNull("Format"))

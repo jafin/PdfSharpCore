@@ -163,7 +163,9 @@ public class Meta
         if (vd == null)
             throw new ArgumentException(DomSR.InvalidValueName(name));
 
-        if (vd is NullableDescriptor || vd is ValueTypeDescriptor)
+        // A simple value answers for itself. Anything else is a DocumentObject that the rest of
+        // the name is reached through.
+        if (vd is NullableDescriptor || vd is ValueTypeDescriptor || vd is NullableMemberDescriptor)
         {
             if (trail != null)
                 throw new ArgumentException(DomSR.InvalidValueName(name));

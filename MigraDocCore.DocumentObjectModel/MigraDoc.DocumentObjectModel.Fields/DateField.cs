@@ -67,11 +67,11 @@ public class DateField : DocumentObject
   /// </summary>
   public string Format
   {
-    get => this.format.Value;
-    set => this.format.Value = value;
+    get => this.format ?? "";
+    set => this.format = value;
   }
   [DV]
-  internal NString format = NString.NullValue;
+  internal string format;
   #endregion
 
   #region Internal
@@ -81,7 +81,7 @@ public class DateField : DocumentObject
   internal override void Serialize(Serializer serializer)
   {
     string str = "\\field(Date)";
-    if (this.format.Value != string.Empty)
+    if ((this.format ?? "") != string.Empty)
       str += "[Format = \"" + this.Format + "\"]";
     else
       str += "[]"; //Has to be appended to avoid confusion with '[' in immediatly following text.

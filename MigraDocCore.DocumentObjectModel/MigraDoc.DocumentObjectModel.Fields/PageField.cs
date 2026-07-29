@@ -69,7 +69,7 @@ public class PageField : NumericFieldBase
   {
     string str = "\\field(Page)";
 
-    if (this.format.Value != "")
+    if ((this.format ?? "") != "")
       str += "[Format = \"" + this.Format + "\"]";
     else
       str += "[]"; //Has to be appended to avoid confusion with '[' in immediatly following text.

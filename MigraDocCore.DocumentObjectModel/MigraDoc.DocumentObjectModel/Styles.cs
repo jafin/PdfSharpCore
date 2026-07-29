@@ -127,8 +127,8 @@ public class Styles : DocumentObjectCollection, IVisitable
             throw new ArgumentException(name == "" ? "name" : "baseStyleName");
 
         Style style = new Style();
-        style.name.Value = name;
-        style.baseStyle.Value = baseStyleName;
+        style.name = name;
+        style.baseStyle = baseStyleName;
         Add(style);
         return style;
     }
@@ -185,11 +185,11 @@ public class Styles : DocumentObjectCollection, IVisitable
     /// </summary>
     public string Comment
     {
-        get => comment.Value;
-        set => comment.Value = value;
+        get => comment ?? "";
+        set => comment = value;
     }
     [DV]
-    internal NString comment = NString.NullValue;
+    internal string comment;
     #endregion
 
     /// <summary>
@@ -330,7 +330,7 @@ public class Styles : DocumentObjectCollection, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(comment.Value);
+        serializer.WriteComment((comment ?? ""));
         int pos = serializer.BeginContent("\\styles");
 
         // A style can only be added to Styles if its base style exists. Therefore the

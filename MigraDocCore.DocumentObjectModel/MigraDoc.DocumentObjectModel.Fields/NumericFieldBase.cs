@@ -88,17 +88,17 @@ public abstract class NumericFieldBase : DocumentObject
   /// </summary>
   public string Format
   {
-    get => this.format.Value;
+    get => this.format ?? "";
     set
     {
       if (IsValidFormat(value))
-        this.format.Value = value;
+        this.format = value;
       else
         throw new ArgumentException(DomSR.InvalidFieldFormat(value));
     }
   }
   [DV]
-  internal NString format = NString.NullValue;
+  internal string format;
   #endregion
 
   /// <summary>

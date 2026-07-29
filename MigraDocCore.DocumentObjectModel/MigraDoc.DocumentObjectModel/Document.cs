@@ -159,11 +159,11 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public string Comment
   {
-    get => comment.Value;
-    set => comment.Value = value;
+    get => comment ?? "";
+    set => comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
 
   /// <summary>
   /// Gets the document info.
@@ -272,11 +272,11 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public string ImagePath
   {
-    get => imagePath.Value;
-    set => imagePath.Value = value;
+    get => imagePath ?? "";
+    set => imagePath = value;
   }
   [DV]
-  internal NString imagePath = NString.NullValue;
+  internal string imagePath;
 
   /// <summary>
   /// Gets or sets a value indicating whether to use the CMYK color model when rendered as PDF.
@@ -323,7 +323,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(comment.Value);
+    serializer.WriteComment((comment ?? ""));
     serializer.WriteLine("\\document");
 
     int pos = serializer.BeginAttributes();
@@ -339,7 +339,7 @@ public sealed class Document : DocumentObject, IVisitable
       serializer.WriteSimpleAttribute("FootnoteNumberStyle", FootnoteNumberStyle);
     if (!footnoteStartingNumber.IsNull)
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
-    if (!imagePath.IsNull)
+    if (imagePath != null)
       serializer.WriteSimpleAttribute("ImagePath", ImagePath);
     if (!useCmykColor.IsNull)
       serializer.WriteSimpleAttribute("UseCmykColor", UseCmykColor);

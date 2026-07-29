@@ -139,11 +139,11 @@ public class Column : DocumentObject
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets the default ParagraphFormat for all cells of the column.
@@ -269,11 +269,11 @@ public class Column : DocumentObject
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => this.comment ?? "";
+    set => this.comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
   #endregion
 
   #region Internal
@@ -282,12 +282,12 @@ public class Column : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment((this.comment ?? ""));
     serializer.WriteLine("\\column");
 
     int pos = serializer.BeginAttributes();
 
-    if (this.style.Value != String.Empty)
+    if ((this.style ?? "") != String.Empty)
       serializer.WriteSimpleAttribute("Style", this.Style);
 
     if (!this.IsNull("Format"))

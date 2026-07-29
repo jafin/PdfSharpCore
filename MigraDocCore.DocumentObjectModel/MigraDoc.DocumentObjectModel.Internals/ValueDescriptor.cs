@@ -101,9 +101,6 @@ public abstract class ValueDescriptor
         if (type == typeof(NDouble))
             return new NullableDescriptor(name, typeof(Double), type, memberInfo, flags);
 
-        if (type == typeof(NString))
-            return new NullableDescriptor(name, typeof(String), type, memberInfo, flags);
-
         if (type == typeof(NEnum))
         {
             Type valueType = attr.Type;

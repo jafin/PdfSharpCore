@@ -33,7 +33,7 @@
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
 /// <summary>
-/// Interface for simple nullable values like NInt, NString etc.
+/// Interface for simple nullable values like NInt, NEnum etc.
 /// </summary>
 internal interface INullableValue
 {

@@ -453,11 +453,11 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => style.Value;
-        set => style.Value = value;
+        get => style ?? "";
+        set => style = value;
     }
     [DV]
-    internal NString style = NString.NullValue;
+    internal string style;
 
     /// <summary>
     /// Gets or sets the ParagraphFormat object of the paragraph.
@@ -506,11 +506,11 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => comment.Value;
-        set => comment.Value = value;
+        get => comment ?? "";
+        set => comment = value;
     }
     [DV]
-    internal NString comment = NString.NullValue;
+    internal string comment;
     #endregion
 
     #region Internal
@@ -542,13 +542,13 @@ public class Paragraph : DocumentObject, IVisitable
     {
         if (!serializeContentOnly)
         {
-            serializer.WriteComment(comment.Value);
+            serializer.WriteComment((comment ?? ""));
             serializer.WriteLine("\\paragraph");
 
             int pos = serializer.BeginAttributes();
 
-            if (style.Value != "")
-                serializer.WriteLine("Style = \"" + style.Value + "\"");
+            if ((style ?? "") != "")
+                serializer.WriteLine("Style = \"" + (style ?? "") + "\"");
 
             if (!IsNull("Format"))
                 format.Serialize(serializer, "Format", null);

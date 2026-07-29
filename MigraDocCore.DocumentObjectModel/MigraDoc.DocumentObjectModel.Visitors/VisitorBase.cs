@@ -145,7 +145,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenFont(Font font, Font refFont)
   {
-    if (font.name.IsNull)
+    if (font.name == null)
       font.name = refFont.name;
     if (font.size.IsNull)
       font.size = refFont.size;
@@ -419,9 +419,9 @@ public abstract class VisitorBase : DocumentObjectVisitor
   internal override void VisitChart(Chart chart)
   {
     Document document = chart.Document;
-    if (chart.style.IsNull)
-      chart.style.Value = Style.DefaultParagraphName;
-    Style style = document.Styles[chart.style.Value];
+    if (chart.style == null)
+      chart.style = Style.DefaultParagraphName;
+    Style style = document.Styles[(chart.style ?? "")];
     if (chart.format == null)
     {
       chart.format = style.paragraphFormat.Clone();
@@ -481,7 +481,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     ParagraphFormat format = null;
 
-    Style style = document.styles[footnote.style.Value];
+    Style style = document.styles[(footnote.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -507,7 +507,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     ParagraphFormat format = null;
 
     DocumentObject currentElementHolder = GetDocumentElementHolder(paragraph);
-    Style style = document.styles[paragraph.style.Value];
+    Style style = document.styles[(paragraph.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
 
@@ -545,7 +545,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     }
     else
     {
-      if (paragraph.style.Value != "")
+      if ((paragraph.style ?? "") != "")
         paragraph.Style = "InvalidStyleName";
       else
         paragraph.Style = "Normal";
@@ -573,7 +573,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       styleString = "Footer";
 
     ParagraphFormat format;
-    Style style = document.styles[headerFooter.style.Value];
+    Style style = document.styles[(headerFooter.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -705,7 +705,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       table.rightPadding = Unit.FromMillimeter(1.2);
 
     ParagraphFormat format;
-    Style style = document.styles[table.style.Value];
+    Style style = document.styles[(table.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -729,7 +729,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     {
       Column column = table.Columns[idxclm];
       ParagraphFormat colFormat;
-      style = document.styles[column.style.Value];
+      style = document.styles[(column.style ?? "")];
       if (style != null)
         colFormat = ParagraphFormatFromStyle(style);
       else
@@ -770,7 +770,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       Row row = table.Rows[idxrow];
 
       ParagraphFormat rowFormat;
-      style = document.styles[row.style.Value];
+      style = document.styles[(row.style ?? "")];
       if (style != null)
       {
         rowFormat = ParagraphFormatFromStyle(style);
@@ -787,7 +787,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
         Cell cell = row[idxclm];
 
         ParagraphFormat cellFormat;
-        Style cellStyle = document.styles[cell.style.Value];
+        Style cellStyle = document.styles[(cell.style ?? "")];
         if (cellStyle != null)
         {
           cellFormat = ParagraphFormatFromStyle(cellStyle);
@@ -870,7 +870,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
   internal override void VisitLegend(Legend legend)
   {
     ParagraphFormat parentFormat;
-    if (!legend.style.IsNull)
+    if (legend.style != null)
     {
       Style style = legend.Document.Styles[legend.Style];
       if (style == null)
@@ -899,7 +899,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     ParagraphFormat parentFormat;
 
-    if (!textArea.style.IsNull)
+    if (textArea.style != null)
     {
       Style style = textArea.Document.Styles[textArea.Style];
       if (style == null)
