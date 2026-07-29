@@ -18,7 +18,7 @@ model work — it is all standalone, and can be picked up in any order.
 | F2 | `DocumentObjectDescriptor.IsNull` discards the answer it computes | low | carried forward, pinned |
 | F3 | `FormattedText.IsNull()` can never return true | low | open |
 | F4 | Writing through a read-only style silently does nothing | medium | open |
-| F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | open |
+| F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | **done** |
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | low | open |
 | F8 | Aliased colours serialize under the name that was not declared first | low | open |
@@ -182,6 +182,25 @@ return result;
 
 Seven edits, no behaviour change, and it takes the AOT publish to warning-free. This is the highest
 value-for-effort item in this document.
+
+### Done
+
+All seven fixed. Six use `CopyTo` into a statically typed array; `PdfFlattenVisitor`'s is the one
+that differs — its `ArrayList` holds boxed `int`, so it unboxes one element at a time rather than
+relying on `Array.Copy`'s unboxing rules, which is a detail better written down than inferred.
+
+`FormattedDocument` also moved from `ContainsKey` followed by an indexer to a single `TryGetValue`,
+since the fix needed the value in a local anyway.
+
+The AOT publish is now **clean of both `IL2xxx` and `IL3050`**, and the native binary still passes
+all 25 checks. All 880 tests pass — the rendering tests exercise every one of these paths.
+
+**Consequence worth noting:** `MigraDocCore.AotSmokeTest` is now in `PdfSharpCore.slnx`. It was kept
+out precisely because these seven warnings would have appeared on every developer build; with them
+gone, having the project in the solution is a benefit rather than a cost. It is the only place in
+the repo where the DOM and the renderer are analysed together for AOT safety, so a new warning there
+now means a real hazard somewhere below it. Verified the full solution build is warning-free with it
+included.
 
 **The wider version.** `ArrayList` and `Hashtable` account for ~50 uses across the DOM and the
 renderer. The value model shed its two (`ValueDescriptorCollection`); the rest are untouched.

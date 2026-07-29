@@ -720,12 +720,15 @@ reflected and would pass either way.
 Verified: `dotnet publish -c Release -r win-x64` produces a 5.1 MB native binary that passes all 25.
 That is the proof the managed build cannot give — the value model needs no metadata at run time.
 
-CI publishes and runs it on `linux-x64` as a separate step, and the project is **not** in
-`PdfSharpCore.slnx` on purpose. See §5.1 for why.
+CI publishes and runs it on `linux-x64` as a separate step.
 
 ### 5.1 What the AOT publish found, outside the value model
 
-The publish is not warning-free, and none of it is the value model:
+**Since fixed** — see F5 in [`dom-value-model-findings.md`](dom-value-model-findings.md). Recorded
+here as it stood when the smoke app first ran, because it is the only evidence that the app does
+what it was built to do: it found something the trim analyzer could not.
+
+The publish was not warning-free, and none of it was the value model:
 
 ```
 IL3050: ArrayList.ToArray(Type) has RequiresDynamicCode
@@ -755,9 +758,11 @@ Left undone deliberately: it is a different subsystem from the value model, five
 the renderer, and folding an unrelated `ArrayList` cleanup into this work would have made the parity
 harness gate something it was not written to gate. Worth its own change.
 
-It is also why the smoke app is not in `PdfSharpCore.slnx`. `EnableAotAnalyzer` reports on code
-reached through the projects it references, so listing it in the solution would put those seven
-warnings on every developer build of everything, for a problem nobody is being asked to fix yet.
+It was also why the smoke app was initially kept out of `PdfSharpCore.slnx`: `EnableAotAnalyzer`
+reports on code reached through the projects it references, so listing it would have put those seven
+warnings on every developer build of everything. With them fixed, the project is in the solution -
+it is the only place in the repo where the DOM and the renderer are analysed together for AOT
+safety, so a new warning there now means a real hazard somewhere below it.
 
 ---
 

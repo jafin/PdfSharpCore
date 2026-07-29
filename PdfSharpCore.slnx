@@ -2,6 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path="README.md" />
   </Folder>
+  <Project Path="MigraDocCore.AotSmokeTest/MigraDocCore.AotSmokeTest.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel/MigraDocCore.DocumentObjectModel.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel.Generators/MigraDocCore.DocumentObjectModel.Generators.csproj" />
   <Project Path="MigraDocCore.Rendering/MigraDocCore.Rendering.csproj" />
