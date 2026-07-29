@@ -36,91 +36,90 @@ using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// BookmarkField is used as target for Hyperlinks or PageRefs.
+/// </summary>
+public class BookmarkField : DocumentObject
 {
   /// <summary>
-  /// BookmarkField is used as target for Hyperlinks or PageRefs.
+  /// Initializes a new instance of the BookmarkField class.
   /// </summary>
-  public class BookmarkField : DocumentObject
+  internal BookmarkField()
   {
-    /// <summary>
-    /// Initializes a new instance of the BookmarkField class.
-    /// </summary>
-    internal BookmarkField()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the BookmarkField class with the specified parent.
-    /// </summary>
-    internal BookmarkField(DocumentObject parent) : base(parent) { }
-
-    /// <summary>
-    /// Initializes a new instance of the BookmarkField class with the necessary bookmark name.
-    /// </summary>
-    public BookmarkField(string name)
-      : this()
-    {
-      this.Name = name;
-    }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new BookmarkField Clone()
-    {
-      return (BookmarkField)DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the name of the bookmark.
-    /// Used to reference the bookmark from a Hyperlink or PageRef.
-    /// </summary>
-    public string Name
-    {
-      get { return this.name.Value; }
-      set { this.name.Value = value; }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts BookmarkField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (this.name.Value == string.Empty)
-        throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
-
-      serializer.Write("\\field(Bookmark)[Name = \"" + this.Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]");
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public override bool IsNull()
-    {
-      return false;
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(BookmarkField));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the BookmarkField class with the specified parent.
+  /// </summary>
+  internal BookmarkField(DocumentObject parent) : base(parent) { }
+
+  /// <summary>
+  /// Initializes a new instance of the BookmarkField class with the necessary bookmark name.
+  /// </summary>
+  public BookmarkField(string name)
+    : this()
+  {
+    this.Name = name;
+  }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new BookmarkField Clone()
+  {
+    return (BookmarkField)DeepCopy();
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the name of the bookmark.
+  /// Used to reference the bookmark from a Hyperlink or PageRef.
+  /// </summary>
+  public string Name
+  {
+    get => this.name.Value;
+    set => this.name.Value = value;
+  }
+  [DV]
+  internal NString name = NString.NullValue;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts BookmarkField into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    if (this.name.Value == string.Empty)
+      throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
+
+    serializer.Write("\\field(Bookmark)[Name = \"" + this.Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]");
+  }
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public override bool IsNull()
+  {
+    return false;
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(BookmarkField));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

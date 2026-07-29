@@ -32,102 +32,101 @@ using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Utils;
 
-namespace PdfSharpCore.Fonts
+namespace PdfSharpCore.Fonts;
+
+/// <summary>
+/// Provides functionality to specify information about the handling of fonts in the current application domain.
+/// </summary>
+public static class GlobalFontSettings
 {
     /// <summary>
-    /// Provides functionality to specify information about the handling of fonts in the current application domain.
+    /// The name of the default font.
     /// </summary>
-    public static class GlobalFontSettings
+    public const string DefaultFontName = "PlatformDefault";
+
+    /// <summary>
+    /// Gets or sets the global font resolver for the current application domain.
+    /// This static property should be set only once and before any font operation was executed by PdfSharpCore.
+    /// If this is not easily to obtain, e.g. because your code is running on a web server, you must provide the
+    /// same instance of your font resolver in every subsequent setting of this property.
+    /// In a web application set the font resolver in Global.asax.
+    /// A resolver must be set before the first font operation. Install PdfSharpCore.Skia and use
+    /// <c>new SkiaFontResolver()</c>, install PdfSharpCore.ImageSharp and use <c>new ImageSharpFontResolver()</c>,
+    /// or derive your own from <see cref="T:PdfSharpCore.Utils.FontResolverBase"/>.
+    /// </summary>
+    public static IFontResolver FontResolver
     {
-        /// <summary>
-        /// The name of the default font.
-        /// </summary>
-        public const string DefaultFontName = "PlatformDefault";
-
-        /// <summary>
-        /// Gets or sets the global font resolver for the current application domain.
-        /// This static property should be set only once and before any font operation was executed by PdfSharpCore.
-        /// If this is not easily to obtain, e.g. because your code is running on a web server, you must provide the
-        /// same instance of your font resolver in every subsequent setting of this property.
-        /// In a web application set the font resolver in Global.asax.
-        /// A resolver must be set before the first font operation. Install PdfSharpCore.Skia and use
-        /// <c>new SkiaFontResolver()</c>, install PdfSharpCore.ImageSharp and use <c>new ImageSharpFontResolver()</c>,
-        /// or derive your own from <see cref="T:PdfSharpCore.Utils.FontResolverBase"/>.
-        /// </summary>
-        public static IFontResolver FontResolver
+        get
         {
-            get
+            try
             {
-                try
-                {
-                    Lock.EnterFontFactory();
-                    if (_fontResolver == null)
-                        throw new InvalidOperationException(
-                            "No IFontResolver has been configured. Set GlobalFontSettings.FontResolver before "
-                            + "performing any font operation, e.g. 'GlobalFontSettings.FontResolver = new SkiaFontResolver();' "
-                            + "from the PdfSharpCore.Skia package.");
-                    return _fontResolver;
-                }
-                finally { Lock.ExitFontFactory(); }
+                Lock.EnterFontFactory();
+                if (_fontResolver == null)
+                    throw new InvalidOperationException(
+                        "No IFontResolver has been configured. Set GlobalFontSettings.FontResolver before "
+                        + "performing any font operation, e.g. 'GlobalFontSettings.FontResolver = new SkiaFontResolver();' "
+                        + "from the PdfSharpCore.Skia package.");
+                return _fontResolver;
             }
-            set
-            {
-                // Cannot remove font resolver.
-                if (value == null)
-                    throw new ArgumentNullException();
-
-                try
-                {
-                    Lock.EnterFontFactory();
-                    // Ignore multiple setting e.g. in a web application.
-                    if (ReferenceEquals(_fontResolver, value))
-                        return;
-
-                    if (FontFactory.HasFontSources)
-                        throw new InvalidOperationException("Must not change font resolver after is was once used.");
-
-                    _fontResolver = value;
-                }
-                finally { Lock.ExitFontFactory(); }
-            }
+            finally { Lock.ExitFontFactory(); }
         }
-        static IFontResolver _fontResolver;
-
-        /// <summary>
-        /// Gets or sets the default font encoding used for XFont objects where encoding is not explicitly specified.
-        /// If it is not set, the default value is PdfFontEncoding.Unicode.
-        /// If you are sure your document contains only Windows-1252 characters (see https://en.wikipedia.org/wiki/Windows-1252) 
-        /// set default encoding to PdfFontEncodingj.Windows1252.
-        /// Must be set only once per app domain.
-        /// </summary>
-        public static PdfFontEncoding DefaultFontEncoding
+        set
         {
-            get
-            {
-                if (!_fontEncodingInitialized)
-                    DefaultFontEncoding = PdfFontEncoding.Unicode;
-                return _fontEncoding;
-            }
-            set
-            {
-                try
-                {
-                    Lock.EnterFontFactory();
-                    if (_fontEncodingInitialized)
-                    {
-                        // Ignore multiple setting e.g. in a web application.
-                        if (_fontEncoding == value)
-                            return;
-                        throw new InvalidOperationException("Must not change DefaultFontEncoding after is was set once.");
-                    }
+            // Cannot remove font resolver.
+            if (value == null)
+                throw new ArgumentNullException();
 
-                    _fontEncoding = value;
-                    _fontEncodingInitialized = true;
-                }
-                finally { Lock.ExitFontFactory(); }
+            try
+            {
+                Lock.EnterFontFactory();
+                // Ignore multiple setting e.g. in a web application.
+                if (ReferenceEquals(_fontResolver, value))
+                    return;
+
+                if (FontFactory.HasFontSources)
+                    throw new InvalidOperationException("Must not change font resolver after is was once used.");
+
+                _fontResolver = value;
             }
+            finally { Lock.ExitFontFactory(); }
         }
-        static PdfFontEncoding _fontEncoding;
-        static bool _fontEncodingInitialized;
     }
+    static IFontResolver _fontResolver;
+
+    /// <summary>
+    /// Gets or sets the default font encoding used for XFont objects where encoding is not explicitly specified.
+    /// If it is not set, the default value is PdfFontEncoding.Unicode.
+    /// If you are sure your document contains only Windows-1252 characters (see https://en.wikipedia.org/wiki/Windows-1252) 
+    /// set default encoding to PdfFontEncodingj.Windows1252.
+    /// Must be set only once per app domain.
+    /// </summary>
+    public static PdfFontEncoding DefaultFontEncoding
+    {
+        get
+        {
+            if (!_fontEncodingInitialized)
+                DefaultFontEncoding = PdfFontEncoding.Unicode;
+            return _fontEncoding;
+        }
+        set
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                if (_fontEncodingInitialized)
+                {
+                    // Ignore multiple setting e.g. in a web application.
+                    if (_fontEncoding == value)
+                        return;
+                    throw new InvalidOperationException("Must not change DefaultFontEncoding after is was set once.");
+                }
+
+                _fontEncoding = value;
+                _fontEncodingInitialized = true;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+    static PdfFontEncoding _fontEncoding;
+    static bool _fontEncodingInitialized;
 }

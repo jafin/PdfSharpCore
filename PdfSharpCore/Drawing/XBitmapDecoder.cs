@@ -27,28 +27,27 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Provides functionality to load a bitmap image encoded in a specific format.
+/// </summary>
+public class XBitmapDecoder
 {
+    internal XBitmapDecoder()
+    { }
+
     /// <summary>
-    /// Provides functionality to load a bitmap image encoded in a specific format.
+    /// Gets a new instance of the PNG image decoder.
     /// </summary>
-    public class XBitmapDecoder
+    public static XBitmapDecoder GetPngDecoder()
     {
-        internal XBitmapDecoder()
-        { }
-
-        /// <summary>
-        /// Gets a new instance of the PNG image decoder.
-        /// </summary>
-        public static XBitmapDecoder GetPngDecoder()
-        {
-            return new XPngBitmapDecoder();
-        }
+        return new XPngBitmapDecoder();
     }
+}
 
-    internal sealed class XPngBitmapDecoder : XBitmapDecoder
-    {
-        internal XPngBitmapDecoder()
-        { }
-    }
+internal sealed class XPngBitmapDecoder : XBitmapDecoder
+{
+    internal XPngBitmapDecoder()
+    { }
 }

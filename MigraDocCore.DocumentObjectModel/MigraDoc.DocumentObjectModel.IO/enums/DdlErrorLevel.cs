@@ -32,31 +32,30 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.IO
+namespace MigraDocCore.DocumentObjectModel.IO;
+
+/// <summary>
+/// Specifies the severity of a DDL reader diagnostic.
+/// </summary>
+public enum DdlErrorLevel
 {
   /// <summary>
-  /// Specifies the severity of a DDL reader diagnostic.
+  /// An unknown severity.
   /// </summary>
-  public enum DdlErrorLevel
-  {
-    /// <summary>
-    /// An unknown severity.
-    /// </summary>
-    None,
+  None,
 
-    /// <summary>
-    /// An information diagnostic.
-    /// </summary>
-    Info,
+  /// <summary>
+  /// An information diagnostic.
+  /// </summary>
+  Info,
 
-    /// <summary>
-    /// A warning or suggestive diagnostic.
-    /// </summary>
-    Warning,
+  /// <summary>
+  /// A warning or suggestive diagnostic.
+  /// </summary>
+  Warning,
 
-    /// <summary>
-    /// An error diagnostic.
-    /// </summary>
-    Error,
-  }
+  /// <summary>
+  /// An error diagnostic.
+  /// </summary>
+  Error,
 }

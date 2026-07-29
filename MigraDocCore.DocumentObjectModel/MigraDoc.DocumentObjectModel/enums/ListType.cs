@@ -32,18 +32,17 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the symbol or kind of numbering of the list.
+/// </summary>
+public enum ListType
 {
-  /// <summary>
-  /// Specifies the symbol or kind of numbering of the list.
-  /// </summary>
-  public enum ListType
-  {
-    BulletList1,
-    BulletList2,
-    BulletList3,
-    NumberList1,
-    NumberList2,
-    NumberList3
-  }
+  BulletList1,
+  BulletList2,
+  BulletList3,
+  NumberList1,
+  NumberList2,
+  NumberList3
 }

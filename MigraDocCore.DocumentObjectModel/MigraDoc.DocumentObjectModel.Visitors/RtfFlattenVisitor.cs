@@ -38,44 +38,43 @@ using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 
-namespace MigraDocCore.DocumentObjectModel.Visitors
+namespace MigraDocCore.DocumentObjectModel.Visitors;
+
+/// <summary>
+/// Represents the visitor for flattening the DocumentObject to be used in the RtfRenderer.
+/// </summary>
+public class RtfFlattenVisitor : VisitorBase
 {
-  /// <summary>
-  /// Represents the visitor for flattening the DocumentObject to be used in the RtfRenderer.
-  /// </summary>
-  public class RtfFlattenVisitor : VisitorBase
+  public RtfFlattenVisitor()
   {
-    public RtfFlattenVisitor()
+  }
+
+  internal override void VisitFormattedText(FormattedText formattedText)
+  {
+    Document document = formattedText.Document;
+    ParagraphFormat format = null;
+
+    Style style = document.styles[formattedText.style.Value];
+    if (style != null)
+      format = style.paragraphFormat;
+    else if (formattedText.style.Value != "")
+      format = document.styles["InvalidStyleName"].paragraphFormat;
+
+    if (format != null)
     {
+      if (formattedText.font == null)
+        formattedText.Font = format.font.Clone();
+      else if (format.font != null)
+        FlattenFont(formattedText.font, format.font);
     }
+  }
 
-    internal override void VisitFormattedText(FormattedText formattedText)
-    {
-      Document document = formattedText.Document;
-      ParagraphFormat format = null;
-
-      Style style = document.styles[formattedText.style.Value];
-      if (style != null)
-        format = style.paragraphFormat;
-      else if (formattedText.style.Value != "")
-        format = document.styles["InvalidStyleName"].paragraphFormat;
-
-      if (format != null)
-      {
-        if (formattedText.font == null)
-          formattedText.Font = format.font.Clone();
-        else if (format.font != null)
-          FlattenFont(formattedText.font, format.font);
-      }
-    }
-
-    internal override void VisitHyperlink(Hyperlink hyperlink)
-    {
-      Font styleFont = hyperlink.Document.Styles["Hyperlink"].Font;
-      if (hyperlink.font == null)
-        hyperlink.Font = styleFont.Clone();
-      else
-        FlattenFont(hyperlink.font, styleFont);
-    }
+  internal override void VisitHyperlink(Hyperlink hyperlink)
+  {
+    Font styleFont = hyperlink.Document.Styles["Hyperlink"].Font;
+    if (hyperlink.font == null)
+      hyperlink.Font = styleFont.Clone();
+    else
+      FlattenFont(hyperlink.font, styleFont);
   }
 }

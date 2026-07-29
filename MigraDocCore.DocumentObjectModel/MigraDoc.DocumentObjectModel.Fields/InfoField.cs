@@ -36,102 +36,101 @@ using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// InfoField is used to reference one of the DocumentInfo fields in the document.
+/// </summary>
+public class InfoField : DocumentObject
 {
   /// <summary>
-  /// InfoField is used to reference one of the DocumentInfo fields in the document.
+  /// Initializes a new instance of the InfoField class.
   /// </summary>
-  public class InfoField : DocumentObject
+  internal InfoField()
   {
-    /// <summary>
-    /// Initializes a new instance of the InfoField class.
-    /// </summary>
-    internal InfoField()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the InfoField class with the specified parent.
-    /// </summary>
-    internal InfoField(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new InfoField Clone()
-    {
-      return (InfoField)DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the name of the information to be shown in the field.
-    /// </summary>
-    public string Name
-    {
-      get { return this.name.Value; }
-      set
-      {
-        if (IsValidName(value))
-          this.name.Value = value;
-        else
-          throw new ArgumentException(DomSR.InvalidInfoFieldName(value));
-      }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
-
-    /// <summary>
-    /// Determines whether the name is a valid InfoFieldType.
-    /// </summary>
-    private bool IsValidName(string name)
-    {
-      foreach (string validName in validNames)
-      {
-        if (String.Compare(validName, name, true) == 0)
-          return true;
-      }
-      return false;
-    }
-    private static string[] validNames = Enum.GetNames(typeof(InfoFieldType));
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public override bool IsNull()
-    {
-      return false;
-    }
-    #region Internal
-    /// <summary>
-    /// Converts InfoField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string str = "\\field(Info)";
-      if (this.Name == "")
-        throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "InfoField"));
-      str += "[Name = \"" + this.Name + "\"]";
-
-      serializer.Write(str);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(InfoField));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the InfoField class with the specified parent.
+  /// </summary>
+  internal InfoField(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new InfoField Clone()
+  {
+    return (InfoField)DeepCopy();
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the name of the information to be shown in the field.
+  /// </summary>
+  public string Name
+  {
+    get => this.name.Value;
+    set
+    {
+      if (IsValidName(value))
+        this.name.Value = value;
+      else
+        throw new ArgumentException(DomSR.InvalidInfoFieldName(value));
+    }
+  }
+  [DV]
+  internal NString name = NString.NullValue;
+  #endregion
+
+  /// <summary>
+  /// Determines whether the name is a valid InfoFieldType.
+  /// </summary>
+  private bool IsValidName(string name)
+  {
+    foreach (string validName in validNames)
+    {
+      if (String.Compare(validName, name, true) == 0)
+        return true;
+    }
+    return false;
+  }
+  private static string[] validNames = Enum.GetNames(typeof(InfoFieldType));
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public override bool IsNull()
+  {
+    return false;
+  }
+  #region Internal
+  /// <summary>
+  /// Converts InfoField into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    string str = "\\field(Info)";
+    if (this.Name == "")
+      throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "InfoField"));
+    str += "[Name = \"" + this.Name + "\"]";
+
+    serializer.Write(str);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(InfoField));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

@@ -33,47 +33,46 @@
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Base class for all chart classes.
+/// </summary>
+public class ChartObject : DocumentObject
 {
   /// <summary>
-  /// Base class for all chart classes.
+  /// Initializes a new instance of the ChartObject class.
   /// </summary>
-  public class ChartObject : DocumentObject
+  public ChartObject()
   {
-    /// <summary>
-    /// Initializes a new instance of the ChartObject class.
-    /// </summary>
-    public ChartObject()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the ChartObject class with the specified parent.
-    /// </summary>
-    internal ChartObject(DocumentObject parent) : base(parent) { }
-
-    #region Internal
-    /// <summary>
-    /// Converts ChartObject into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer _serializer)
-    {
-      // Nothing to do
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(ChartObject));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the ChartObject class with the specified parent.
+  /// </summary>
+  internal ChartObject(DocumentObject parent) : base(parent) { }
+
+  #region Internal
+  /// <summary>
+  /// Converts ChartObject into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer _serializer)
+  {
+    // Nothing to do
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(ChartObject));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

@@ -27,26 +27,25 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+///<summary>
+/// Currently not used. Only DeviceRGB is rendered in PDF.
+/// </summary>
+public enum XColorSpace
 {
-    ///<summary>
-    /// Currently not used. Only DeviceRGB is rendered in PDF.
+    /// <summary>
+    /// Identifies the RGB color space.
     /// </summary>
-    public enum XColorSpace
-    {
-        /// <summary>
-        /// Identifies the RGB color space.
-        /// </summary>
-        Rgb,
+    Rgb,
 
-        /// <summary>
-        /// Identifies the CMYK color space.
-        /// </summary>
-        Cmyk,
+    /// <summary>
+    /// Identifies the CMYK color space.
+    /// </summary>
+    Cmyk,
 
-        /// <summary>
-        /// Identifies the gray scale color space.
-        /// </summary>
-        GrayScale,
-    }
+    /// <summary>
+    /// Identifies the gray scale color space.
+    /// </summary>
+    GrayScale,
 }

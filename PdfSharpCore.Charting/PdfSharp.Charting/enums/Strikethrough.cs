@@ -31,33 +31,32 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace PdfSharpCore.Charting
-{
-    /// <summary>
-    /// Specify the strike out type for font
-    /// </summary>
-    public enum Strikethrough
-    {
-        None,
-        Single,
-        Words,
-        Dotted,
-        Dash,
-        DotDash,
-        DotDotDash,
+namespace PdfSharpCore.Charting;
 
-        /* --- unsupported ---
-        Double          = 3,
-        Thick           = 6,
-        Wavy            = 11,
-        WavyHeavy       = 27,
-        DottedHeavy     = 20,
-        DashHeavy       = 23,
-        DotDashHeavy    = 25,
-        DotDotDashHeavy = 26,
-        DashLong        = 39,
-        DashLongHeavy   = 55,
-        WavyDouble      = 43
-        */
-    }
+/// <summary>
+/// Specify the strike out type for font
+/// </summary>
+public enum Strikethrough
+{
+    None,
+    Single,
+    Words,
+    Dotted,
+    Dash,
+    DotDash,
+    DotDotDash,
+
+    /* --- unsupported ---
+    Double          = 3,
+    Thick           = 6,
+    Wavy            = 11,
+    WavyHeavy       = 27,
+    DottedHeavy     = 20,
+    DashHeavy       = 23,
+    DotDashHeavy    = 25,
+    DotDotDashHeavy = 26,
+    DashLong        = 39,
+    DashLongHeavy   = 55,
+    WavyDouble      = 43
+    */
 }

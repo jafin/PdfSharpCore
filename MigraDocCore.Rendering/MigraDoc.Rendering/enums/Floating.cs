@@ -28,19 +28,18 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
-{
-  /// <summary>
-  /// Floating behavior of layout elements.
-  /// </summary>
-  internal enum Floating
-  {
-    TopBottom = 0, //Default
-    None, //The element is ignored
+namespace MigraDocCore.Rendering;
 
-    //Served for future extensions:
-    Left,
-    Right,
-    BothSides,
-  }
+/// <summary>
+/// Floating behavior of layout elements.
+/// </summary>
+internal enum Floating
+{
+  TopBottom = 0, //Default
+  None, //The element is ignored
+
+  //Served for future extensions:
+  Left,
+  Right,
+  BothSides,
 }

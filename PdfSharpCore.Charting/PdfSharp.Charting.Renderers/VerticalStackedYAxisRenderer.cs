@@ -31,56 +31,55 @@ using System;
 using System.Diagnostics;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Represents a Y axis renderer used for charts of type Column2D or Line.
+/// </summary>
+internal class VerticalStackedYAxisRenderer : VerticalYAxisRenderer
 {
   /// <summary>
-  /// Represents a Y axis renderer used for charts of type Column2D or Line.
+  /// Initializes a new instance of the VerticalYAxisRenderer class with the
+  /// specified renderer parameters.
   /// </summary>
-  internal class VerticalStackedYAxisRenderer : VerticalYAxisRenderer
+  internal VerticalStackedYAxisRenderer(RendererParameters parms) : base(parms)
   {
-    /// <summary>
-    /// Initializes a new instance of the VerticalYAxisRenderer class with the
-    /// specified renderer parameters.
-    /// </summary>
-    internal VerticalStackedYAxisRenderer(RendererParameters parms) : base(parms)
+  }
+
+  /// <summary>
+  /// Determines the sum of the smallest and the largest stacked column
+  /// from all series of the chart.
+  /// </summary>
+  protected override void CalcYAxis(out double yMin, out double yMax)
+  {
+    yMin = double.MaxValue;
+    yMax = double.MinValue;
+
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+
+    int maxPoints = 0;
+    foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
+      maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
+
+    for (int pointIdx = 0; pointIdx < maxPoints; ++pointIdx)
     {
-    }
-
-    /// <summary>
-    /// Determines the sum of the smallest and the largest stacked column
-    /// from all series of the chart.
-    /// </summary>
-    protected override void CalcYAxis(out double yMin, out double yMax)
-    {
-      yMin = double.MaxValue;
-      yMax = double.MinValue;
-
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-
-      int maxPoints = 0;
+      double valueSumPos = 0, valueSumNeg = 0;
       foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-        maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
-
-      for (int pointIdx = 0; pointIdx < maxPoints; ++pointIdx)
       {
-        double valueSumPos = 0, valueSumNeg = 0;
-        foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-        {
-          if (sri.pointRendererInfos.Length <= pointIdx)
-            break;
+        if (sri.pointRendererInfos.Length <= pointIdx)
+          break;
 
-          ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-          if (column.point != null && !double.IsNaN(column.point.value))
-          {
-            if (column.point.value < 0)
-              valueSumNeg += column.point.value;
-            else
-              valueSumPos += column.point.value;
-          }
+        ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
+        if (column.point != null && !double.IsNaN(column.point.value))
+        {
+          if (column.point.value < 0)
+            valueSumNeg += column.point.value;
+          else
+            valueSumPos += column.point.value;
         }
-        yMin = Math.Min(valueSumNeg, yMin);
-        yMax = Math.Max(valueSumPos, yMax);
       }
+      yMin = Math.Min(valueSumNeg, yMin);
+      yMax = Math.Max(valueSumPos, yMax);
     }
   }
 }

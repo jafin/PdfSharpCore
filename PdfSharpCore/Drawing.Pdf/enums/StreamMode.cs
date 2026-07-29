@@ -27,21 +27,20 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing.Pdf
+namespace PdfSharpCore.Drawing.Pdf;
+
+/// <summary>
+/// Indicates whether we are within a BT/ET block.
+/// </summary>
+enum StreamMode
 {
     /// <summary>
-    /// Indicates whether we are within a BT/ET block.
+    /// Graphic mode. This is default.
     /// </summary>
-    enum StreamMode
-    {
-        /// <summary>
-        /// Graphic mode. This is default.
-        /// </summary>
-        Graphic,
+    Graphic,
 
-        /// <summary>
-        /// Text mode.
-        /// </summary>
-        Text,
-    }
+    /// <summary>
+    /// Text mode.
+    /// </summary>
+    Text,
 }

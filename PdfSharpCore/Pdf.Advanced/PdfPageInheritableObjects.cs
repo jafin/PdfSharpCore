@@ -1,4 +1,5 @@
 #region PDFsharp - A .NET library for processing PDF
+
 //
 // Authors:
 //   Stefan Lange
@@ -25,49 +26,45 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
 
-namespace PdfSharpCore.Pdf.Advanced
+namespace PdfSharpCore.Pdf.Advanced;
+
+/// <summary>
+/// Represents a PDF page object.
+/// </summary>
+internal class PdfPageInheritableObjects : PdfDictionary
 {
     /// <summary>
-    /// Represents a PDF page object.
+    /// 
     /// </summary>
-    internal class PdfPageInheritableObjects : PdfDictionary
+    public PdfRectangle MediaBox
     {
-        public PdfPageInheritableObjects()
-        { }
+        get => _mediaBox;
+        set => _mediaBox = value;
+    }
 
-        // TODO Inheritable Resources not yet supported
+    PdfRectangle _mediaBox;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public PdfRectangle MediaBox
+    public PdfRectangle CropBox
+    {
+        get => _cropBox;
+        set => _cropBox = value;
+    }
+
+    PdfRectangle _cropBox;
+
+    public int Rotate
+    {
+        get;
+        set
         {
-            get { return _mediaBox; }
-            set { _mediaBox = value; }
+            if (value % 90 != 0)
+                throw new ArgumentException("Rotate", "The value must be a multiple of 90.");
+            field = value;
         }
-        PdfRectangle _mediaBox;
-
-        public PdfRectangle CropBox
-        {
-            get { return _cropBox; }
-            set { _cropBox = value; }
-        }
-        PdfRectangle _cropBox;
-
-        public int Rotate
-        {
-            get { return _rotate; }
-            set
-            {
-                if (value % 90 != 0)
-                    throw new ArgumentException("Rotate", "The value must be a multiple of 90.");
-                _rotate = value;
-            }
-        }
-        int _rotate;
     }
 }

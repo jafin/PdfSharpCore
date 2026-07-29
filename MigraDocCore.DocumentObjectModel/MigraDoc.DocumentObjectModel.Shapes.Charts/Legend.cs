@@ -35,161 +35,160 @@ using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Represents a legend of a chart.
+/// </summary>
+public class Legend : ChartObject, IVisitable
 {
   /// <summary>
-  /// Represents a legend of a chart.
+  /// Initializes a new instance of the Legend class.
   /// </summary>
-  public class Legend : ChartObject, IVisitable
+  public Legend()
   {
-    /// <summary>
-    /// Initializes a new instance of the Legend class.
-    /// </summary>
-    public Legend()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Legend class with the specified parent.
-    /// </summary>
-    internal Legend(DocumentObject parent) : base(parent) { }
-
-    #region Serialization
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Legend Clone()
-    {
-      return (Legend)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Legend legend = (Legend)base.DeepCopy();
-      if (legend.format != null)
-      {
-        legend.format = legend.format.Clone();
-        legend.format.parent = legend;
-      }
-      if (legend.lineFormat != null)
-      {
-        legend.lineFormat = legend.lineFormat.Clone();
-        legend.lineFormat.parent = legend;
-      }
-      return legend;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the style name of the legend's text.
-    /// </summary>
-    public string Style
-    {
-      get { return this.style.Value; }
-      set { this.style.Value = value; }
-    }
-    [DV]
-    internal NString style = NString.NullValue;
-
-    /// <summary>
-    /// Gets the paragraph format of the legend's text.
-    /// </summary>
-    public ParagraphFormat Format
-    {
-      get
-      {
-        if (this.format == null)
-          this.format = new ParagraphFormat(this);
-
-        return this.format;
-      }
-      set
-      {
-        SetParent(value);
-        this.format = value;
-      }
-    }
-    [DV]
-    internal ParagraphFormat format;
-
-    /// <summary>
-    /// Gets the line format of the legend's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.lineFormat = value;
-      }
-    }
-    [DV]
-    internal LineFormat lineFormat;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Legend into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.WriteLine("\\legend");
-      int pos = serializer.BeginAttributes();
-
-      if (!this.style.IsNull)
-        serializer.WriteSimpleAttribute("Style", this.Style);
-
-      if (!this.IsNull("Format"))
-        this.format.Serialize(serializer, "Format", null);
-
-      if (!this.IsNull("LineFormat"))
-        this.lineFormat.Serialize(serializer);
-
-      serializer.EndAttributes(pos);
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public override bool IsNull()
-    {
-      // legend objects are never null, i.e. the presence of this object is meaningful.
-      return false;
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Legend));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
-
-    #region IVisitable Members
-
-    void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
-    {
-      visitor.VisitLegend(this);
-    }
-
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Legend class with the specified parent.
+  /// </summary>
+  internal Legend(DocumentObject parent) : base(parent) { }
+
+  #region Serialization
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Legend Clone()
+  {
+    return (Legend)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    Legend legend = (Legend)base.DeepCopy();
+    if (legend.format != null)
+    {
+      legend.format = legend.format.Clone();
+      legend.format.parent = legend;
+    }
+    if (legend.lineFormat != null)
+    {
+      legend.lineFormat = legend.lineFormat.Clone();
+      legend.lineFormat.parent = legend;
+    }
+    return legend;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the style name of the legend's text.
+  /// </summary>
+  public string Style
+  {
+    get => this.style.Value;
+    set => this.style.Value = value;
+  }
+  [DV]
+  internal NString style = NString.NullValue;
+
+  /// <summary>
+  /// Gets the paragraph format of the legend's text.
+  /// </summary>
+  public ParagraphFormat Format
+  {
+    get
+    {
+      if (this.format == null)
+        this.format = new ParagraphFormat(this);
+
+      return this.format;
+    }
+    set
+    {
+      SetParent(value);
+      this.format = value;
+    }
+  }
+  [DV]
+  internal ParagraphFormat format;
+
+  /// <summary>
+  /// Gets the line format of the legend's border.
+  /// </summary>
+  public LineFormat LineFormat
+  {
+    get
+    {
+      if (this.lineFormat == null)
+        this.lineFormat = new LineFormat(this);
+
+      return this.lineFormat;
+    }
+    set
+    {
+      SetParent(value);
+      this.lineFormat = value;
+    }
+  }
+  [DV]
+  internal LineFormat lineFormat;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts Legend into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    serializer.WriteLine("\\legend");
+    int pos = serializer.BeginAttributes();
+
+    if (!this.style.IsNull)
+      serializer.WriteSimpleAttribute("Style", this.Style);
+
+    if (!this.IsNull("Format"))
+      this.format.Serialize(serializer, "Format", null);
+
+    if (!this.IsNull("LineFormat"))
+      this.lineFormat.Serialize(serializer);
+
+    serializer.EndAttributes(pos);
+  }
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public override bool IsNull()
+  {
+    // legend objects are never null, i.e. the presence of this object is meaningful.
+    return false;
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(Legend));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
+
+  #region IVisitable Members
+
+  void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
+  {
+    visitor.VisitLegend(this);
+  }
+
+  #endregion
 }

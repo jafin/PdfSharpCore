@@ -1,46 +1,45 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace PdfSharpCore.Test.IO
+namespace PdfSharpCore.Test.IO;
+
+/// <summary>
+///   Assembles documents written by hand, for the tests that need a document shaped in a way
+///   PdfSharpCore does not write itself.
+/// </summary>
+internal static class RawPdf
 {
     /// <summary>
-    ///   Assembles documents written by hand, for the tests that need a document shaped in a way
-    ///   PdfSharpCore does not write itself.
+    ///   Wraps the objects given in a header, a cross reference table and a trailer. The first
+    ///   object is the catalog, and objects are numbered from one in the order they are given.
     /// </summary>
-    internal static class RawPdf
+    internal static byte[] Build(IReadOnlyList<string> objects)
     {
-        /// <summary>
-        ///   Wraps the objects given in a header, a cross reference table and a trailer. The first
-        ///   object is the catalog, and objects are numbered from one in the order they are given.
-        /// </summary>
-        internal static byte[] Build(IReadOnlyList<string> objects)
+        var pdf = new StringBuilder("%PDF-1.7\n");
+        var offsets = new List<int>();
+        for (var i = 0; i < objects.Count; i++)
         {
-            var pdf = new StringBuilder("%PDF-1.7\n");
-            var offsets = new List<int>();
-            for (var i = 0; i < objects.Count; i++)
-            {
-                offsets.Add(pdf.Length);
-                pdf.Append(i + 1).Append(" 0 obj\n").Append(objects[i]).Append("\nendobj\n");
-            }
-
-            var startOfCrossReferenceTable = pdf.Length;
-            pdf.Append("xref\n0 ").Append(objects.Count + 1).Append('\n');
-            pdf.Append("0000000000 65535 f \n");
-            foreach (var offset in offsets)
-                pdf.Append(offset.ToString("D10")).Append(" 00000 n \n");
-            pdf.Append("trailer\n<</Size ").Append(objects.Count + 1).Append("/Root 1 0 R>>\n");
-            pdf.Append("startxref\n").Append(startOfCrossReferenceTable).Append("\n%%EOF\n");
-
-            // The document is plain ASCII, so a byte is a character and the offsets above hold.
-            return Encoding.Latin1.GetBytes(pdf.ToString());
+            offsets.Add(pdf.Length);
+            pdf.Append(i + 1).Append(" 0 obj\n").Append(objects[i]).Append("\nendobj\n");
         }
 
-        /// <summary>
-        ///   A stream object, its length worked out from the data.
-        /// </summary>
-        internal static string Stream(string entries, string data)
-        {
-            return "<<" + entries + "/Length " + data.Length + ">>stream\n" + data + "\nendstream";
-        }
+        var startOfCrossReferenceTable = pdf.Length;
+        pdf.Append("xref\n0 ").Append(objects.Count + 1).Append('\n');
+        pdf.Append("0000000000 65535 f \n");
+        foreach (var offset in offsets)
+            pdf.Append(offset.ToString("D10")).Append(" 00000 n \n");
+        pdf.Append("trailer\n<</Size ").Append(objects.Count + 1).Append("/Root 1 0 R>>\n");
+        pdf.Append("startxref\n").Append(startOfCrossReferenceTable).Append("\n%%EOF\n");
+
+        // The document is plain ASCII, so a byte is a character and the offsets above hold.
+        return Encoding.Latin1.GetBytes(pdf.ToString());
+    }
+
+    /// <summary>
+    ///   A stream object, its length worked out from the data.
+    /// </summary>
+    internal static string Stream(string entries, string data)
+    {
+        return "<<" + entries + "/Length " + data.Length + ">>stream\n" + data + "\nendstream";
     }
 }

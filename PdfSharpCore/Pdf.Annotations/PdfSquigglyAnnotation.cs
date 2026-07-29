@@ -32,82 +32,76 @@ using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Internal;
 
-namespace PdfSharpCore.Pdf.Annotations
+namespace PdfSharpCore.Pdf.Annotations;
+
+/// <summary>
+/// Represents a squiggly-underline annotation, which rules a wavy line beneath a run of text.
+/// </summary>
+public sealed class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
-    /// Represents a squiggly-underline annotation, which rules a wavy line beneath a run of text.
+    /// Initializes a new instance of the <see cref="PdfSquigglyAnnotation"/> class.
     /// </summary>
-    public sealed class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
+    public PdfSquigglyAnnotation()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfSquigglyAnnotation"/> class.
-        /// </summary>
-        public PdfSquigglyAnnotation()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfSquigglyAnnotation"/> class.
-        /// </summary>
-        /// <param name="document">The document.</param>
-        public PdfSquigglyAnnotation(PdfDocument document)
-            : base(document)
-        {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            Elements.SetName(Keys.Subtype, "/Squiggly");
-            Color = XColors.Green;
-        }
-
-        /// <summary>
-        /// Rules a zigzag along the foot of the quadrilateral, its peaks a tenth of the height of
-        /// the line apart, so that the wave stays inside the space the descenders occupy.
-        /// </summary>
-        protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
-        {
-            double amplitude = TextMarkupGeometry.RuleThickness(quad) * 1.4;
-            double thickness = amplitude / 2;
-            double bottom = quad.Y1 + thickness;
-            double top = bottom + amplitude;
-
-            content.Append(PdfEncoders.Format("{0:0.###} w\n", thickness));
-            content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} m\n", quad.X1, bottom));
-
-            // Half a period per segment, alternating between the trough and the crest. The last one
-            // is clipped to the end of the quadrilateral rather than allowed to overhang it.
-            double x = quad.X1;
-            bool up = true;
-            while (x < quad.X2)
-            {
-                x = Math.Min(x + amplitude, quad.X2);
-                content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} l\n", x, up ? top : bottom));
-                up = !up;
-            }
-            content.Append("S\n");
-        }
-
-        /// <summary>
-        /// Predefined keys of this dictionary.
-        /// </summary>
-        internal new class Keys : PdfTextMarkupAnnotation.Keys
-        {
-            public static new DictionaryMeta Meta
-            {
-                get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-            }
-            static DictionaryMeta _meta;
-        }
-
-        /// <summary>
-        /// Gets the KeysMeta of this dictionary type.
-        /// </summary>
-        internal override DictionaryMeta Meta
-        {
-            get { return Keys.Meta; }
-        }
+        Initialize();
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfSquigglyAnnotation"/> class.
+    /// </summary>
+    /// <param name="document">The document.</param>
+    public PdfSquigglyAnnotation(PdfDocument document)
+        : base(document)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        Elements.SetName(Keys.Subtype, "/Squiggly");
+        Color = XColors.Green;
+    }
+
+    /// <summary>
+    /// Rules a zigzag along the foot of the quadrilateral, its peaks a tenth of the height of
+    /// the line apart, so that the wave stays inside the space the descenders occupy.
+    /// </summary>
+    protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
+    {
+        double amplitude = TextMarkupGeometry.RuleThickness(quad) * 1.4;
+        double thickness = amplitude / 2;
+        double bottom = quad.Y1 + thickness;
+        double top = bottom + amplitude;
+
+        content.Append(PdfEncoders.Format("{0:0.###} w\n", thickness));
+        content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} m\n", quad.X1, bottom));
+
+        // Half a period per segment, alternating between the trough and the crest. The last one
+        // is clipped to the end of the quadrilateral rather than allowed to overhang it.
+        double x = quad.X1;
+        bool up = true;
+        while (x < quad.X2)
+        {
+            x = Math.Min(x + amplitude, quad.X2);
+            content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} l\n", x, up ? top : bottom));
+            up = !up;
+        }
+        content.Append("S\n");
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
+    /// </summary>
+    internal new class Keys : PdfTextMarkupAnnotation.Keys
+    {
+        public static new DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
+
+        static DictionaryMeta _meta;
+    }
+
+    /// <summary>
+    /// Gets the KeysMeta of this dictionary type.
+    /// </summary>
+    internal override DictionaryMeta Meta => Keys.Meta;
 }

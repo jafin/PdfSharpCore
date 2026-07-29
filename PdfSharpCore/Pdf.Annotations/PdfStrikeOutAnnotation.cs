@@ -31,67 +31,61 @@ using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Internal;
 
-namespace PdfSharpCore.Pdf.Annotations
+namespace PdfSharpCore.Pdf.Annotations;
+
+/// <summary>
+/// Represents a strike out annotation, which rules a line through a run of text.
+/// </summary>
+public sealed class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
-    /// Represents a strike out annotation, which rules a line through a run of text.
+    /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
     /// </summary>
-    public sealed class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
+    public PdfStrikeOutAnnotation()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
-        /// </summary>
-        public PdfStrikeOutAnnotation()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
-        /// </summary>
-        /// <param name="document">The document.</param>
-        public PdfStrikeOutAnnotation(PdfDocument document)
-            : base(document)
-        {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            Elements.SetName(Keys.Subtype, "/StrikeOut");
-            Color = XColors.Red;
-        }
-
-        /// <summary>
-        /// Rules a bar through the quadrilateral, a little above half its height, which is where the
-        /// middle of a lower-case letter falls once the descenders below the baseline are counted.
-        /// </summary>
-        protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
-        {
-            double thickness = TextMarkupGeometry.RuleThickness(quad);
-            double height = quad.Y2 - quad.Y1;
-            content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
-                quad.X1, quad.Y1 + height * 3 / 7, quad.X2 - quad.X1, thickness));
-        }
-
-        /// <summary>
-        /// Predefined keys of this dictionary.
-        /// </summary>
-        internal new class Keys : PdfTextMarkupAnnotation.Keys
-        {
-            public static new DictionaryMeta Meta
-            {
-                get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-            }
-            static DictionaryMeta _meta;
-        }
-
-        /// <summary>
-        /// Gets the KeysMeta of this dictionary type.
-        /// </summary>
-        internal override DictionaryMeta Meta
-        {
-            get { return Keys.Meta; }
-        }
+        Initialize();
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
+    /// </summary>
+    /// <param name="document">The document.</param>
+    public PdfStrikeOutAnnotation(PdfDocument document)
+        : base(document)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        Elements.SetName(Keys.Subtype, "/StrikeOut");
+        Color = XColors.Red;
+    }
+
+    /// <summary>
+    /// Rules a bar through the quadrilateral, a little above half its height, which is where the
+    /// middle of a lower-case letter falls once the descenders below the baseline are counted.
+    /// </summary>
+    protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
+    {
+        double thickness = TextMarkupGeometry.RuleThickness(quad);
+        double height = quad.Y2 - quad.Y1;
+        content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
+            quad.X1, quad.Y1 + height * 3 / 7, quad.X2 - quad.X1, thickness));
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
+    /// </summary>
+    internal new class Keys : PdfTextMarkupAnnotation.Keys
+    {
+        public static new DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
+
+        static DictionaryMeta _meta;
+    }
+
+    /// <summary>
+    /// Gets the KeysMeta of this dictionary type.
+    /// </summary>
+    internal override DictionaryMeta Meta => Keys.Meta;
 }

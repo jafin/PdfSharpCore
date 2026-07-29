@@ -33,154 +33,153 @@
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Represents a formatted value on the data series.
+/// </summary>
+public class Point : ChartObject
 {
   /// <summary>
-  /// Represents a formatted value on the data series.
+  /// Initializes a new instance of the Point class.
   /// </summary>
-  public class Point : ChartObject
+  internal Point()
   {
-    /// <summary>
-    /// Initializes a new instance of the Point class.
-    /// </summary>
-    internal Point()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Point class with a real value.
-    /// </summary>
-    public Point(double value)
-      : this()
-    {
-      this.Value = value;
-    }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Point Clone()
-    {
-      return (Point)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Point point = (Point)base.DeepCopy();
-      if (point.lineFormat != null)
-      {
-        point.lineFormat = point.lineFormat.Clone();
-        point.lineFormat.parent = point;
-      }
-      if (point.fillFormat != null)
-      {
-        point.fillFormat = point.fillFormat.Clone();
-        point.fillFormat.parent = point;
-      }
-      return point;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the line format of the data point's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.lineFormat = value;
-      }
-    }
-    [DV]
-    internal LineFormat lineFormat;
-
-    /// <summary>
-    /// Gets the filling format of the data point.
-    /// </summary>
-    public FillFormat FillFormat
-    {
-      get
-      {
-        if (this.fillFormat == null)
-          this.fillFormat = new FillFormat(this);
-
-        return this.fillFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.fillFormat = value;
-      }
-    }
-    [DV]
-    internal FillFormat fillFormat;
-
-    /// <summary>
-    /// The actual value of the data point.
-    /// </summary>
-    public double Value
-    {
-      get { return this.value.Value; }
-      set { this.value.Value = value; }
-    }
-    [DV]
-    internal NDouble value = NDouble.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Point into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (!this.IsNull("LineFormat") || !this.IsNull("FillFormat"))
-      {
-        serializer.WriteLine("");
-        serializer.WriteLine("\\point");
-        int pos = serializer.BeginAttributes();
-
-        if (!this.IsNull("LineFormat"))
-          this.lineFormat.Serialize(serializer);
-        if (!this.IsNull("FillFormat"))
-          this.fillFormat.Serialize(serializer);
-
-        serializer.EndAttributes(pos);
-        serializer.BeginContent();
-        serializer.WriteLine(this.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        serializer.EndContent();
-      }
-      else
-        serializer.Write(this.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
-      serializer.Write(", ");
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Point));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Point class with a real value.
+  /// </summary>
+  public Point(double value)
+    : this()
+  {
+    this.Value = value;
+  }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Point Clone()
+  {
+    return (Point)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    Point point = (Point)base.DeepCopy();
+    if (point.lineFormat != null)
+    {
+      point.lineFormat = point.lineFormat.Clone();
+      point.lineFormat.parent = point;
+    }
+    if (point.fillFormat != null)
+    {
+      point.fillFormat = point.fillFormat.Clone();
+      point.fillFormat.parent = point;
+    }
+    return point;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets the line format of the data point's border.
+  /// </summary>
+  public LineFormat LineFormat
+  {
+    get
+    {
+      if (this.lineFormat == null)
+        this.lineFormat = new LineFormat(this);
+
+      return this.lineFormat;
+    }
+    set
+    {
+      SetParent(value);
+      this.lineFormat = value;
+    }
+  }
+  [DV]
+  internal LineFormat lineFormat;
+
+  /// <summary>
+  /// Gets the filling format of the data point.
+  /// </summary>
+  public FillFormat FillFormat
+  {
+    get
+    {
+      if (this.fillFormat == null)
+        this.fillFormat = new FillFormat(this);
+
+      return this.fillFormat;
+    }
+    set
+    {
+      SetParent(value);
+      this.fillFormat = value;
+    }
+  }
+  [DV]
+  internal FillFormat fillFormat;
+
+  /// <summary>
+  /// The actual value of the data point.
+  /// </summary>
+  public double Value
+  {
+    get => this.value.Value;
+    set => this.value.Value = value;
+  }
+  [DV]
+  internal NDouble value = NDouble.NullValue;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts Point into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    if (!this.IsNull("LineFormat") || !this.IsNull("FillFormat"))
+    {
+      serializer.WriteLine("");
+      serializer.WriteLine("\\point");
+      int pos = serializer.BeginAttributes();
+
+      if (!this.IsNull("LineFormat"))
+        this.lineFormat.Serialize(serializer);
+      if (!this.IsNull("FillFormat"))
+        this.fillFormat.Serialize(serializer);
+
+      serializer.EndAttributes(pos);
+      serializer.BeginContent();
+      serializer.WriteLine(this.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+      serializer.EndContent();
+    }
+    else
+      serializer.Write(this.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    serializer.Write(", ");
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(Point));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

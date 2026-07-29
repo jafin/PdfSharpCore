@@ -32,16 +32,15 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the alignment of a paragraph.
+/// </summary>
+public enum ParagraphAlignment
 {
-  /// <summary>
-  /// Specifies the alignment of a paragraph.
-  /// </summary>
-  public enum ParagraphAlignment
-  {
-    Left,
-    Center,
-    Right,
-    Justify,
-  }
+  Left,
+  Center,
+  Right,
+  Justify,
 }

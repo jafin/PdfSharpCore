@@ -32,13 +32,12 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Visitors
+namespace MigraDocCore.DocumentObjectModel.Visitors;
+
+internal interface IVisitable
 {
-  internal interface IVisitable
-  {
-    /// <summary>
-    /// Allows the visitor object to visit the document object and it's child objects.
-    /// </summary>
-    void AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren);
-  }
+  /// <summary>
+  /// Allows the visitor object to visit the document object and it's child objects.
+  /// </summary>
+  void AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren);
 }

@@ -30,58 +30,57 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Represents a plot area renderer of areas.
+/// </summary>
+internal class AreaPlotAreaRenderer : ColumnLikePlotAreaRenderer
 {
   /// <summary>
-  /// Represents a plot area renderer of areas.
+  /// Initializes a new instance of the AreaPlotAreaRenderer class
+  /// with the specified renderer parameters.
   /// </summary>
-  internal class AreaPlotAreaRenderer : ColumnLikePlotAreaRenderer
+  internal AreaPlotAreaRenderer(RendererParameters parms)
+    : base(parms)
   {
-    /// <summary>
-    /// Initializes a new instance of the AreaPlotAreaRenderer class
-    /// with the specified renderer parameters.
-    /// </summary>
-    internal AreaPlotAreaRenderer(RendererParameters parms)
-      : base(parms)
+  }
+
+  /// <summary>
+  /// Draws the content of the area plot area.
+  /// </summary>
+  internal override void Draw()
+  {
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+    XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
+    if (plotAreaRect.IsEmpty)
+      return;
+
+    XGraphics gfx = this.rendererParms.Graphics;
+    XGraphicsState state = gfx.Save();
+    //gfx.SetClip(plotAreaRect, XCombineMode.Intersect);
+    gfx.IntersectClip(plotAreaRect);
+
+    XMatrix matrix = cri.plotAreaRendererInfo.matrix;
+    double xMajorTick = cri.xAxisRendererInfo.MajorTick;
+    foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
     {
-    }
-
-    /// <summary>
-    /// Draws the content of the area plot area.
-    /// </summary>
-    internal override void Draw()
-    {
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-      XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-      if (plotAreaRect.IsEmpty)
-        return;
-
-      XGraphics gfx = this.rendererParms.Graphics;
-      XGraphicsState state = gfx.Save();
-      //gfx.SetClip(plotAreaRect, XCombineMode.Intersect);
-      gfx.IntersectClip(plotAreaRect);
-
-      XMatrix matrix = cri.plotAreaRendererInfo.matrix;
-      double xMajorTick = cri.xAxisRendererInfo.MajorTick;
-      foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
+      int count = sri.series.Elements.Count;
+      XPoint[] points = new XPoint[count + 2];
+      points[0] = new XPoint(xMajorTick / 2, 0);
+      for (int idx = 0; idx < count; idx++)
       {
-        int count = sri.series.Elements.Count;
-        XPoint[] points = new XPoint[count + 2];
-        points[0] = new XPoint(xMajorTick / 2, 0);
-        for (int idx = 0; idx < count; idx++)
-        {
-          double pointValue = sri.series.Elements[idx].Value;
-          if (double.IsNaN(pointValue))
-            pointValue = 0;
-          points[idx + 1] = new XPoint(idx + xMajorTick / 2, pointValue);
-        }
-        points[count + 1] = new XPoint(count - 1 + xMajorTick / 2, 0);
-        matrix.TransformPoints(points);
-        gfx.DrawPolygon(sri.LineFormat, sri.FillFormat, points, XFillMode.Winding);
+        double pointValue = sri.series.Elements[idx].Value;
+        if (double.IsNaN(pointValue))
+          pointValue = 0;
+        points[idx + 1] = new XPoint(idx + xMajorTick / 2, pointValue);
       }
-
-      //gfx.ResetClip();
-      gfx.Restore(state);
+      points[count + 1] = new XPoint(count - 1 + xMajorTick / 2, 0);
+      matrix.TransformPoints(points);
+      gfx.DrawPolygon(sri.LineFormat, sri.FillFormat, points, XFillMode.Winding);
     }
+
+    //gfx.ResetClip();
+    gfx.Restore(state);
   }
 }

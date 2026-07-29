@@ -29,26 +29,25 @@
 
 using System;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Used to determine the horizontal alignment of the axis title.
+/// </summary>
+public enum HorizontalAlignment
 {
   /// <summary>
-  /// Used to determine the horizontal alignment of the axis title.
+  /// Axis title will be left aligned.
   /// </summary>
-  public enum HorizontalAlignment
-  {
-    /// <summary>
-    /// Axis title will be left aligned.
-    /// </summary>
-    Left,
+  Left,
 
-    /// <summary>
-    /// Axis title will be right aligned.
-    /// </summary>
-    Right,
+  /// <summary>
+  /// Axis title will be right aligned.
+  /// </summary>
+  Right,
     
-    /// <summary>
-    /// Axis title will be centered.
-    /// </summary>
-    Center
-  }
+  /// <summary>
+  /// Axis title will be centered.
+  /// </summary>
+  Center
 }

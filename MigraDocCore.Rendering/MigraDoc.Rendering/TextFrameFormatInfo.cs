@@ -28,13 +28,12 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Formatting information for textframes.
+/// </summary>
+internal class TextFrameFormatInfo : ShapeFormatInfo
 {
-  /// <summary>
-  /// Formatting information for textframes.
-  /// </summary>
-  internal class TextFrameFormatInfo : ShapeFormatInfo
-  {
-    internal FormattedTextFrame formattedTextFrame;
-  }
+  internal FormattedTextFrame formattedTextFrame;
 }

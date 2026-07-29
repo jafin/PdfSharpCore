@@ -27,15 +27,14 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Represents the internal state of an XGraphics object.
+/// This class is used as a handle for restoring the context.
+/// </summary>
+public sealed class XGraphicsState
 {
-    /// <summary>
-    /// Represents the internal state of an XGraphics object.
-    /// This class is used as a handle for restoring the context.
-    /// </summary>
-    public sealed class XGraphicsState
-    {
-        // This class is simply a wrapper of InternalGraphicsState.
-        internal InternalGraphicsState InternalState;
-    }
+    // This class is simply a wrapper of InternalGraphicsState.
+    internal InternalGraphicsState InternalState;
 }

@@ -35,64 +35,63 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// PageField is used to reference the number of the current page.
+/// </summary>
+public class PageField : NumericFieldBase
 {
   /// <summary>
-  /// PageField is used to reference the number of the current page.
+  /// Initializes a new instance of the PageField class.
   /// </summary>
-  public class PageField : NumericFieldBase
+  public PageField()
   {
-    /// <summary>
-    /// Initializes a new instance of the PageField class.
-    /// </summary>
-    public PageField()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the PageField class with the specified parent.
-    /// </summary>
-    internal PageField(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new PageField Clone()
-    {
-      return (PageField)DeepCopy();
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts PageField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string str = "\\field(Page)";
-
-      if (this.format.Value != "")
-        str += "[Format = \"" + this.Format + "\"]";
-      else
-        str += "[]"; //Has to be appended to avoid confusion with '[' in immediatly following text.
-
-      serializer.Write(str);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(PageField));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the PageField class with the specified parent.
+  /// </summary>
+  internal PageField(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new PageField Clone()
+  {
+    return (PageField)DeepCopy();
+  }
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts PageField into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    string str = "\\field(Page)";
+
+    if (this.format.Value != "")
+      str += "[Format = \"" + this.Format + "\"]";
+    else
+      str += "[]"; //Has to be appended to avoid confusion with '[' in immediatly following text.
+
+    serializer.Write(str);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(PageField));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

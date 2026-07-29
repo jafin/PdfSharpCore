@@ -32,94 +32,93 @@ using System;
 using System.Collections.Generic;
 using PdfSharpCore.Drawing;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Field information used to fill fields when rendering or formatting.
+/// </summary>
+internal class FieldInfos
 {
-  /// <summary>
-  /// Field information used to fill fields when rendering or formatting.
-  /// </summary>
-  internal class FieldInfos
+  internal FieldInfos(Dictionary<string, BookmarkInfo> bookmarks)
   {
-    internal FieldInfos(Dictionary<string, BookmarkInfo> bookmarks)
-    {
-      this.bookmarks = bookmarks;
-    }
-
-    internal struct BookmarkInfo
-    {
-      internal BookmarkInfo(int physicalPageNumber, int displayPageNumber, double top)
-      {
-        this.displayPageNumber = physicalPageNumber;
-        shownPageNumber = displayPageNumber;
-        this.top = top;
-      }
-
-      internal int displayPageNumber;
-      internal int shownPageNumber;
-
-      /// <summary>
-      /// How far up the page the bookmark sits, in the coordinates a PDF page is measured in.
-      /// NaN when the page height was not known and the position could not be worked out.
-      /// </summary>
-      internal double top;
-    }
-
-    internal void AddBookmark(string name, XUnit verticalPosition)
-    {
-      if (pyhsicalPageNr <= 0)
-        return;
-
-      if (bookmarks.ContainsKey(name))
-        bookmarks.Remove(name);
-
-      // A document is laid out from the top of the page down and a PDF page is measured from the
-      // bottom up, so the one has to be turned into the other before it can be a destination.
-      double top = pageHeight.Point > 0 ? pageHeight.Point - verticalPosition.Point : double.NaN;
-      bookmarks.Add(name, new BookmarkInfo(pyhsicalPageNr, displayPageNr, top));
-    }
-
-    /// <summary>
-    /// How far up its page the named bookmark sits, in the coordinates a PDF page is measured in,
-    /// or NaN when there is no such bookmark or its position is not known.
-    /// </summary>
-    internal double GetBookmarkTop(string bookmarkName)
-    {
-      if (bookmarks.ContainsKey(bookmarkName))
-        return bookmarks[bookmarkName].top;
-      return double.NaN;
-    }
-
-    internal int GetShownPageNumber(string bookmarkName)
-    {
-      if (bookmarks.ContainsKey(bookmarkName))
-      {
-        BookmarkInfo bi = bookmarks[bookmarkName];
-        return bi.shownPageNumber;
-      }
-      return -1;
-    }
-
-    internal int GetPhysicalPageNumber(string bookmarkName)
-    {
-      if (bookmarks.ContainsKey(bookmarkName))
-      {
-        BookmarkInfo bi = bookmarks[bookmarkName];
-        return bi.displayPageNumber;
-      }
-      return -1;
-    }
-
-    Dictionary<string, BookmarkInfo> bookmarks;
-    internal int displayPageNr;
-    internal int pyhsicalPageNr;
-
-    /// <summary>
-    /// The height of the page these infos belong to, which is what turns a distance down the page
-    /// into a distance up it. Zero when it has not been set, and then no bookmark carries a position.
-    /// </summary>
-    internal XUnit pageHeight;
-    internal int section;
-    internal int sectionPages;
-    internal int numPages;
-    internal DateTime date;
+    this.bookmarks = bookmarks;
   }
+
+  internal struct BookmarkInfo
+  {
+    internal BookmarkInfo(int physicalPageNumber, int displayPageNumber, double top)
+    {
+      this.displayPageNumber = physicalPageNumber;
+      shownPageNumber = displayPageNumber;
+      this.top = top;
+    }
+
+    internal int displayPageNumber;
+    internal int shownPageNumber;
+
+    /// <summary>
+    /// How far up the page the bookmark sits, in the coordinates a PDF page is measured in.
+    /// NaN when the page height was not known and the position could not be worked out.
+    /// </summary>
+    internal double top;
+  }
+
+  internal void AddBookmark(string name, XUnit verticalPosition)
+  {
+    if (pyhsicalPageNr <= 0)
+      return;
+
+    if (bookmarks.ContainsKey(name))
+      bookmarks.Remove(name);
+
+    // A document is laid out from the top of the page down and a PDF page is measured from the
+    // bottom up, so the one has to be turned into the other before it can be a destination.
+    double top = pageHeight.Point > 0 ? pageHeight.Point - verticalPosition.Point : double.NaN;
+    bookmarks.Add(name, new BookmarkInfo(pyhsicalPageNr, displayPageNr, top));
+  }
+
+  /// <summary>
+  /// How far up its page the named bookmark sits, in the coordinates a PDF page is measured in,
+  /// or NaN when there is no such bookmark or its position is not known.
+  /// </summary>
+  internal double GetBookmarkTop(string bookmarkName)
+  {
+    if (bookmarks.ContainsKey(bookmarkName))
+      return bookmarks[bookmarkName].top;
+    return double.NaN;
+  }
+
+  internal int GetShownPageNumber(string bookmarkName)
+  {
+    if (bookmarks.ContainsKey(bookmarkName))
+    {
+      BookmarkInfo bi = bookmarks[bookmarkName];
+      return bi.shownPageNumber;
+    }
+    return -1;
+  }
+
+  internal int GetPhysicalPageNumber(string bookmarkName)
+  {
+    if (bookmarks.ContainsKey(bookmarkName))
+    {
+      BookmarkInfo bi = bookmarks[bookmarkName];
+      return bi.displayPageNumber;
+    }
+    return -1;
+  }
+
+  Dictionary<string, BookmarkInfo> bookmarks;
+  internal int displayPageNr;
+  internal int pyhsicalPageNr;
+
+  /// <summary>
+  /// The height of the page these infos belong to, which is what turns a distance down the page
+  /// into a distance up it. Zero when it has not been set, and then no bookmark carries a position.
+  /// </summary>
+  internal XUnit pageHeight;
+  internal int section;
+  internal int sectionPages;
+  internal int numPages;
+  internal DateTime date;
 }

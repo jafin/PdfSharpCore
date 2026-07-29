@@ -4,134 +4,133 @@ using System.IO;
 using ImageMagick;
 using PdfSharpCore.Pdf;
 
-namespace PdfSharpCore.Test.Helpers
+namespace PdfSharpCore.Test.Helpers;
+
+public class PdfHelper
 {
-    public class PdfHelper
-    {
-        private static readonly string _rootPath = PathHelper.GetInstance().RootDir;
+    private static readonly string _rootPath = PathHelper.GetInstance().RootDir;
 
-        /// <summary>
-        ///   Rasterize all pages within a PDF to PNG images
-        /// </summary>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
-        public static RasterizeOutput Rasterize(PdfDocument document)
+    /// <summary>
+    ///   Rasterize all pages within a PDF to PNG images
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public static RasterizeOutput Rasterize(PdfDocument document)
+    {
+        var readerSettings = new MagickReadSettings
         {
-            var readerSettings = new MagickReadSettings
-            {
-                Density = new Density(300, 300),
-                BackgroundColor = MagickColors.White
-            };
-            var images = new MagickImageCollection();
+            Density = new Density(300, 300),
+            BackgroundColor = MagickColors.White
+        };
+        var images = new MagickImageCollection();
             
-            // Add all pages to the collection
-            using var ms = new MemoryStream();
-            document.Save(ms);
+        // Add all pages to the collection
+        using var ms = new MemoryStream();
+        document.Save(ms);
 
-            try
-            {
-                images.Read(ms, readerSettings);
-            }
-            catch (MagickDelegateErrorException ex)
-            {
-                throw new Exception("Ghostscript is not installed or is an incompatible version, unable to rasterize PDF", ex);
-            }
+        try
+        {
+            images.Read(ms, readerSettings);
+        }
+        catch (MagickDelegateErrorException ex)
+        {
+            throw new Exception("Ghostscript is not installed or is an incompatible version, unable to rasterize PDF", ex);
+        }
             
-            // Composite onto white, to guarantee a standard background. Remove rather than
-            // Deactivate: Deactivate merely drops the alpha channel and leaves whatever colour was
-            // underneath it, so every pixel of a transparency group that was never painted comes
-            // out black. A page carrying an annotation drawn under a blend mode is such a page.
-            foreach (var img in images)
-            {
-                img.BackgroundColor = MagickColors.White;
-                img.Alpha(AlphaOption.Remove);
-            }
-
-            return new RasterizeOutput
-            {
-                ImageCollection = images,
-            };
-        }
-        
-        public static List<string> WriteImageCollection(MagickImageCollection images, string outDir, string filePrefix)
+        // Composite onto white, to guarantee a standard background. Remove rather than
+        // Deactivate: Deactivate merely drops the alpha channel and leaves whatever colour was
+        // underneath it, so every pixel of a transparency group that was never painted comes
+        // out black. A page carrying an annotation drawn under a blend mode is such a page.
+        foreach (var img in images)
         {
-            var outPaths = new List<string>();
-            for (var pageNum = 0; pageNum < images.Count; pageNum++)
-            {
-                var outPath = GetOutFilePath(outDir, $"{filePrefix}_{pageNum+1}.png");
-                images[pageNum].Write(outPath);
-                outPaths.Add(outPath);
-            }
-
-            return outPaths;
+            img.BackgroundColor = MagickColors.White;
+            img.Alpha(AlphaOption.Remove);
         }
-        
-        public static string WriteImage(IMagickImage image, string outDir, string fileNameWithoutExtension)
+
+        return new RasterizeOutput
         {
-            var outPath = GetOutFilePath(outDir, $"{fileNameWithoutExtension}.png");
-            image.Write(outPath);
-            return outPath;
-        }
-
-        // Note: For diff to function properly, it requires the underlying image to be in the proper format
-        //   For instance, actual and expected must both be sourced from .png files
-        /// <summary>
-        /// How much the pages are shrunk before they are compared. Two rasterizers disagree about
-        /// the pixels along the edge of a glyph, and that disagreement is as fine as the pixels
-        /// themselves, so shrinking the pages averages it away. Text that sits in the wrong place
-        /// is a difference the width of a line or the height of one, which survives.
-        /// </summary>
-        private const int ComparedAtPercent = 25;
-
-        // Note: For diff to function properly, it requires the underlying image to be in the proper format
-        //   For instance, actual and expected must both be sourced from .png files
-        public static DiffOutput Diff(string actualImagePath, string expectedImagePath, string outputPath = null, string filePrefix = null)
-        {
-            var actual = new MagickImage(actualImagePath);
-            var expected = new MagickImage(expectedImagePath);
-
-            actual.Resize(new Percentage(ComparedAtPercent));
-            expected.Resize(new Percentage(ComparedAtPercent));
-
-            // Root mean squared rather than a count, so the answer is a share of how far a page
-            // can differ at all, and does not grow with the size of the page.
-            var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
-
-            if (diffVal > 0 && outputPath != null && filePrefix != null)
-            {
-                WriteImage(diffImg, outputPath, $"{filePrefix}_diff");
-            }
-
-            return new DiffOutput
-            {
-                DiffValue = diffVal,
-                DiffImage = diffImg
-            };
-        }
-        
-        private static string GetOutFilePath(string outDir, string name)
-        {
-            var dir = Path.Combine(_rootPath, outDir);
-            Directory.CreateDirectory(dir);
-            return Path.Combine(dir, name);
-        }
+            ImageCollection = images,
+        };
     }
-
-    public class RasterizeOutput
+        
+    public static List<string> WriteImageCollection(MagickImageCollection images, string outDir, string filePrefix)
     {
-        public List<string> OutputPaths;
-        public MagickImageCollection ImageCollection;
-    }
+        var outPaths = new List<string>();
+        for (var pageNum = 0; pageNum < images.Count; pageNum++)
+        {
+            var outPath = GetOutFilePath(outDir, $"{filePrefix}_{pageNum+1}.png");
+            images[pageNum].Write(outPath);
+            outPaths.Add(outPath);
+        }
 
-    public class DiffOutput
+        return outPaths;
+    }
+        
+    public static string WriteImage(IMagickImage image, string outDir, string fileNameWithoutExtension)
     {
-        public IMagickImage DiffImage;
-
-        /// <summary>
-        /// How far the two images stand apart, from 0 for a pair that matches to 1 for black
-        /// against white. Text that moved shows up here in the percents, while the edges of glyphs
-        /// drawn by one rasterizer rather than another stay far below.
-        /// </summary>
-        public double DiffValue;
+        var outPath = GetOutFilePath(outDir, $"{fileNameWithoutExtension}.png");
+        image.Write(outPath);
+        return outPath;
     }
+
+    // Note: For diff to function properly, it requires the underlying image to be in the proper format
+    //   For instance, actual and expected must both be sourced from .png files
+    /// <summary>
+    /// How much the pages are shrunk before they are compared. Two rasterizers disagree about
+    /// the pixels along the edge of a glyph, and that disagreement is as fine as the pixels
+    /// themselves, so shrinking the pages averages it away. Text that sits in the wrong place
+    /// is a difference the width of a line or the height of one, which survives.
+    /// </summary>
+    private const int ComparedAtPercent = 25;
+
+    // Note: For diff to function properly, it requires the underlying image to be in the proper format
+    //   For instance, actual and expected must both be sourced from .png files
+    public static DiffOutput Diff(string actualImagePath, string expectedImagePath, string outputPath = null, string filePrefix = null)
+    {
+        var actual = new MagickImage(actualImagePath);
+        var expected = new MagickImage(expectedImagePath);
+
+        actual.Resize(new Percentage(ComparedAtPercent));
+        expected.Resize(new Percentage(ComparedAtPercent));
+
+        // Root mean squared rather than a count, so the answer is a share of how far a page
+        // can differ at all, and does not grow with the size of the page.
+        var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
+
+        if (diffVal > 0 && outputPath != null && filePrefix != null)
+        {
+            WriteImage(diffImg, outputPath, $"{filePrefix}_diff");
+        }
+
+        return new DiffOutput
+        {
+            DiffValue = diffVal,
+            DiffImage = diffImg
+        };
+    }
+        
+    private static string GetOutFilePath(string outDir, string name)
+    {
+        var dir = Path.Combine(_rootPath, outDir);
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, name);
+    }
+}
+
+public class RasterizeOutput
+{
+    public List<string> OutputPaths;
+    public MagickImageCollection ImageCollection;
+}
+
+public class DiffOutput
+{
+    public IMagickImage DiffImage;
+
+    /// <summary>
+    /// How far the two images stand apart, from 0 for a pair that matches to 1 for black
+    /// against white. Text that moved shows up here in the percents, while the edges of glyphs
+    /// drawn by one rasterizer rather than another stay far below.
+    /// </summary>
+    public double DiffValue;
 }

@@ -29,18 +29,17 @@
 
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Pdf.Advanced
+namespace PdfSharpCore.Pdf.Advanced;
+
+internal interface IContentStream
 {
-    internal interface IContentStream
-    {
-        PdfResources Resources { get; }
+    PdfResources Resources { get; }
 
-        string GetFontName(XFont font, out PdfFont pdfFont);
+    string GetFontName(XFont font, out PdfFont pdfFont);
 
-        string GetFontName(string idName, byte[] fontData, out PdfFont pdfFont);
+    string GetFontName(string idName, byte[] fontData, out PdfFont pdfFont);
 
-        string GetImageName(XImage image);
+    string GetImageName(XImage image);
 
-        string GetFormName(XForm form);
-    }
+    string GetFormName(XForm form);
 }

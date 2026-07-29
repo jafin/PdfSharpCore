@@ -31,43 +31,42 @@
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Provides information necessary to render the page.
+/// </summary>
+public class PageInfo
 {
-  /// <summary>
-  /// Provides information necessary to render the page.
-  /// </summary>
-  public class PageInfo
+  internal PageInfo(XUnit width, XUnit height, PageOrientation orientation)
   {
-    internal PageInfo(XUnit width, XUnit height, PageOrientation orientation)
-    {
-      this.width = width;
-      this.height = height;
-      this.orientation = orientation;
-    }
-
-    /// <summary>
-    /// Gets the with of the described page as specified in Document.PageSetup, i.e. the orientation
-    /// is not taken into account.
-    /// </summary>
-    public XUnit Width => width;
-
-    private XUnit width;
-
-    /// <summary>
-    /// Gets the height of the described page as specified in Document.PageSetup, i.e. the orientation
-    /// is not taken into account.
-    /// </summary>
-    public XUnit Height => height;
-
-    private XUnit height;
-
-    /// <summary>
-    /// Gets the orientation of the described page as specified in Document.PageSetup.
-    /// The value has no influence on the properties Width or Height, i.e. if the result is PageOrientation.Landscape
-    /// you must exchange the values of Width or Height to get the real page size.
-    /// </summary>
-    public PageOrientation Orientation => orientation;
-
-    private PageOrientation orientation;
+    this.width = width;
+    this.height = height;
+    this.orientation = orientation;
   }
+
+  /// <summary>
+  /// Gets the with of the described page as specified in Document.PageSetup, i.e. the orientation
+  /// is not taken into account.
+  /// </summary>
+  public XUnit Width => width;
+
+  private XUnit width;
+
+  /// <summary>
+  /// Gets the height of the described page as specified in Document.PageSetup, i.e. the orientation
+  /// is not taken into account.
+  /// </summary>
+  public XUnit Height => height;
+
+  private XUnit height;
+
+  /// <summary>
+  /// Gets the orientation of the described page as specified in Document.PageSetup.
+  /// The value has no influence on the properties Width or Height, i.e. if the result is PageOrientation.Landscape
+  /// you must exchange the values of Width or Height to get the real page size.
+  /// </summary>
+  public PageOrientation Orientation => orientation;
+
+  private PageOrientation orientation;
 }

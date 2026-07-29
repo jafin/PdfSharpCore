@@ -35,45 +35,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Deals with image file names, searches along the image path, checks if images exist etc.
+/// </summary>
+public class ImageHelper
 {
   /// <summary>
-  /// Deals with image file names, searches along the image path, checks if images exist etc.
+  /// Gets the first existing image from the subfolders.
   /// </summary>
-  public class ImageHelper
+  public static string GetImageName(string root, string filename, string imagePath)
   {
-    /// <summary>
-    /// Gets the first existing image from the subfolders.
-    /// </summary>
-    public static string GetImageName(string root, string filename, string imagePath)
-    {
-      try
-      {
-        List<string> subfolders = new List<string>(imagePath.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
-        subfolders.Add("");
-
-        foreach (string subfolder in subfolders)
-        {
-          string fullname = System.IO.Path.Combine(System.IO.Path.Combine(root, subfolder), filename);
-          int pageNumber;
-          string realFile = ExtractPageNumber(fullname, out pageNumber);
-
-          if (System.IO.File.Exists(realFile))
-            return fullname;
-        }
-      }
-      catch (Exception ex)
-      {
-        Debug.Assert(false, "Should never occur with properly formatted Wiki texts. " + ex);
-        //throw;
-      }
-      return null;
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether the filename given in the referenceFilename exists in the subfolders.
-    /// </summary>
-    public static bool InSubfolder(string root, string filename, string imagePath, string referenceFilename)
+    try
     {
       List<string> subfolders = new List<string>(imagePath.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
       subfolders.Add("");
@@ -83,51 +57,76 @@ namespace MigraDocCore.DocumentObjectModel
         string fullname = System.IO.Path.Combine(System.IO.Path.Combine(root, subfolder), filename);
         int pageNumber;
         string realFile = ExtractPageNumber(fullname, out pageNumber);
+
         if (System.IO.File.Exists(realFile))
-        {
-          if (fullname == referenceFilename)
-            return true;
-        }
+          return fullname;
       }
-      return false;
     }
-
-    /// <summary>
-    /// Extracts the page number if the path has the form 'MyFile.pdf#123' and returns
-    /// the actual path without the number sign and the following digits.
-    /// </summary>
-    public static string ExtractPageNumber(string path, out int pageNumber)
+    catch (Exception ex)
     {
-      // Note: duplicated from class XPdfForm
-      if (path == null)
-        throw new ArgumentNullException("path");
+      Debug.Assert(false, "Should never occur with properly formatted Wiki texts. " + ex);
+      //throw;
+    }
+    return null;
+  }
 
-      pageNumber = 0;
-      int length = path.Length;
-      if (length != 0)
+  /// <summary>
+  /// Gets a value indicating whether the filename given in the referenceFilename exists in the subfolders.
+  /// </summary>
+  public static bool InSubfolder(string root, string filename, string imagePath, string referenceFilename)
+  {
+    List<string> subfolders = new List<string>(imagePath.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
+    subfolders.Add("");
+
+    foreach (string subfolder in subfolders)
+    {
+      string fullname = System.IO.Path.Combine(System.IO.Path.Combine(root, subfolder), filename);
+      int pageNumber;
+      string realFile = ExtractPageNumber(fullname, out pageNumber);
+      if (System.IO.File.Exists(realFile))
       {
-        length--;
-        if (Char.IsDigit(path, length))
+        if (fullname == referenceFilename)
+          return true;
+      }
+    }
+    return false;
+  }
+
+  /// <summary>
+  /// Extracts the page number if the path has the form 'MyFile.pdf#123' and returns
+  /// the actual path without the number sign and the following digits.
+  /// </summary>
+  public static string ExtractPageNumber(string path, out int pageNumber)
+  {
+    // Note: duplicated from class XPdfForm
+    if (path == null)
+      throw new ArgumentNullException("path");
+
+    pageNumber = 0;
+    int length = path.Length;
+    if (length != 0)
+    {
+      length--;
+      if (Char.IsDigit(path, length))
+      {
+        while (Char.IsDigit(path, length) && length >= 0)
+          length--;
+        if (length > 0 && path[length] == '#')
         {
-          while (Char.IsDigit(path, length) && length >= 0)
-            length--;
-          if (length > 0 && path[length] == '#')
+          // must have at least one dot left of colon to distinguish from e.g. '#123'
+          if (path.IndexOf('.') != -1)
           {
-            // must have at least one dot left of colon to distinguish from e.g. '#123'
-            if (path.IndexOf('.') != -1)
-            {
-              pageNumber = Int32.Parse(path.Substring(length + 1));
-              path = path.Substring(0, length);
-            }
+            pageNumber = Int32.Parse(path.Substring(length + 1));
+            path = path.Substring(0, length);
           }
         }
       }
-      return path;
     }
+    return path;
+  }
 
-        internal static string GetImageName(string filePath, object name, string imagePath)
-        {
-            throw new NotImplementedException();
-        }
-    }
+  internal static string GetImageName(string filePath, object name, string imagePath)
+  {
+    throw new NotImplementedException();
+  }
 }

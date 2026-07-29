@@ -1,0 +1,25 @@
+# EditorConfig - https://editorconfig.org
+root = true
+
+# The file-scoped namespace conversion stripped the trailing newline from 725
+# files, which adds a spurious "\ No newline at end of file" line to every
+# subsequent diff that touches the end of a file. This stops it recurring.
+#
+# Line endings are deliberately not set here: .gitattributes normalises them
+# with "* text=auto", so leaving end_of_line unspecified avoids the two
+# fighting each other.
+[*]
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+
+# Binary assets. PdfSharpCore.Test/Assets/NotAValid.pdf is a deliberately
+# malformed PDF read byte for byte by PdfSharpCore.Test/IO/PdfReader.cs, so
+# nothing should be appended to it.
+[*.pdf]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+# Markdown uses two trailing spaces as a hard line break.
+[*.md]
+trim_trailing_whitespace = false

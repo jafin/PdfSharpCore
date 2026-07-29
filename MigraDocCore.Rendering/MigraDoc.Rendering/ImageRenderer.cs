@@ -35,275 +35,274 @@ using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using PdfSharpCore.Fonts;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Renders images.
+/// </summary>
+internal class ImageRenderer : ShapeRenderer
 {
-    /// <summary>
-    /// Renders images.
-    /// </summary>
-    internal class ImageRenderer : ShapeRenderer
+    internal ImageRenderer(XGraphics gfx, Image image, FieldInfos fieldInfos)
+        : base(gfx, image, fieldInfos)
     {
-        internal ImageRenderer(XGraphics gfx, Image image, FieldInfos fieldInfos)
-          : base(gfx, image, fieldInfos)
-        {
-            this.image = image;
-            ImageRenderInfo renderInfo = new ImageRenderInfo();
-            renderInfo.shape = shape;
-            this.renderInfo = renderInfo;
-        }
-
-        internal ImageRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
-          : base(gfx, renderInfo, fieldInfos)
-        {
-            image = (Image)renderInfo.DocumentObject;
-        }
-
-        internal override void Format(Area area, FormatInfo previousFormatInfo)
-        {
-            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
-            formatInfo.ImageSource = image.Source;
-            formatInfo.Failure = failure;
-            CalculateImageDimensions();
-            base.Format(area, previousFormatInfo);
-        }
-
-        protected override XUnit ShapeHeight
-        {
-            get
-            {
-                ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
-                return formatInfo.Height + lineFormatRenderer.GetWidth();
-            }
-        }
-
-        protected override XUnit ShapeWidth
-        {
-            get
-            {
-                ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
-                return formatInfo.Width + lineFormatRenderer.GetWidth();
-            }
-        }
-
-        internal override void Render()
-        {
-            RenderFilling();
-
-            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
-            Area contentArea = renderInfo.LayoutInfo.ContentArea;
-            XRect destRect = new XRect(contentArea.X, contentArea.Y, formatInfo.Width, formatInfo.Height);
-
-            if (formatInfo.Failure == ImageFailure.None)
-            {
-                try
-                {
-                    XRect srcRect = new XRect(formatInfo.CropX, formatInfo.CropY, formatInfo.CropWidth, formatInfo.CropHeight);
-                    using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
-                        gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
-                }
-                catch (Exception)
-                {
-                    RenderFailureImage(destRect);
-                }
-            }
-            else
-                RenderFailureImage(destRect);
-
-            RenderLine();
-        }
-
-        void RenderFailureImage(XRect destRect)
-        {
-            gfx.DrawRectangle(XBrushes.LightGray, destRect);
-            string failureString;
-            ImageFormatInfo formatInfo = (ImageFormatInfo)RenderInfo.FormatInfo;
-
-            switch (formatInfo.Failure)
-            {
-                case ImageFailure.EmptySize:
-                    failureString = AppResources.DisplayEmptyImageSize;
-                    break;
-
-                case ImageFailure.FileNotFound:
-                    failureString = AppResources.DisplayImageFileNotFound;
-                    break;
-
-                case ImageFailure.InvalidType:
-                    failureString = AppResources.DisplayInvalidImageType;
-                    break;
-
-                case ImageFailure.NotRead:
-                default:
-                    failureString = AppResources.DisplayImageNotRead;
-                    break;
-            }
-
-            // Create stub font
-            XFont font = new XFont(GlobalFontSettings.FontResolver.DefaultFontName, 8);
-            gfx.DrawString(failureString, font, XBrushes.Red, destRect, XStringFormats.Center);
-        }
-
-        private void CalculateImageDimensions()
-        {
-            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
-
-            if (formatInfo.Failure == ImageFailure.None)
-            {
-                XImage xImage = null;
-                try
-                {
-                    xImage = XImage.FromImageSource(formatInfo.ImageSource);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Debug.WriteLine(string.Format(AppResources.InvalidImageType, ex.Message));
-                    formatInfo.Failure = ImageFailure.InvalidType;
-                }
-
-                try
-                {
-                    XUnit usrWidth = image.Width.Point;
-                    XUnit usrHeight = image.Height.Point;
-                    bool usrWidthSet = !image.IsNull("Width");
-                    bool usrHeightSet = !image.IsNull("Height");
-
-                    XUnit resultWidth = usrWidth;
-                    XUnit resultHeight = usrHeight;
-
-                    double xPixels = xImage.PixelWidth;
-                    bool usrResolutionSet = !image.IsNull("Resolution");
-
-                    double horzRes = usrResolutionSet ? (double)image.Resolution : xImage.HorizontalResolution;
-                    XUnit inherentWidth = XUnit.FromInch(xPixels / horzRes);
-                    double yPixels = xImage.PixelHeight;
-                    double vertRes = usrResolutionSet ? (double)image.Resolution : xImage.VerticalResolution;
-                    XUnit inherentHeight = XUnit.FromInch(yPixels / vertRes);
-
-                    bool lockRatio = image.IsNull("LockAspectRatio") ? true : image.LockAspectRatio;
-
-                    double scaleHeight = image.ScaleHeight;
-                    double scaleWidth = image.ScaleWidth;
-                    bool scaleHeightSet = !image.IsNull("ScaleHeight");
-                    bool scaleWidthSet = !image.IsNull("ScaleWidth");
-
-                    if (lockRatio)
-                    {
-                        if (usrWidthSet && usrHeightSet)
-                        {
-                            if (inherentHeight / usrHeight > inherentWidth / usrWidth)
-                            {
-                                usrWidthSet = false;
-                            }
-                            else
-                            {
-                                usrHeightSet = false;
-                            }
-                        }
-                        if (usrWidthSet && !usrHeightSet)
-                        {
-                            resultHeight = inherentHeight / inherentWidth * usrWidth;
-                        }
-                        else if (usrHeightSet && !usrWidthSet)
-                        {
-                            resultWidth = inherentWidth / inherentHeight * usrHeight;
-                        }
-                        else if (!usrHeightSet && !usrWidthSet)
-                        {
-                            resultHeight = inherentHeight;
-                            resultWidth = inherentWidth;
-                        }
-
-                        if (scaleHeightSet || scaleHeightSet && scaleWidthSet && scaleHeight < scaleWidth)
-                        {
-                            resultHeight = resultHeight * scaleHeight;
-                            resultWidth = resultWidth * scaleHeight;
-                        }
-                        else if (scaleWidthSet || scaleHeightSet && scaleWidthSet && scaleHeight > scaleWidth)
-                        {
-                            resultHeight = resultHeight * scaleWidth;
-                            resultWidth = resultWidth * scaleWidth;
-                        }
-                    }
-                    else
-                    {
-                        if (!usrHeightSet)
-                            resultHeight = inherentHeight;
-
-                        if (!usrWidthSet)
-                            resultWidth = inherentWidth;
-
-                        if (scaleHeightSet)
-                            resultHeight = resultHeight * scaleHeight;
-                        if (scaleWidthSet)
-                            resultWidth = resultWidth * scaleWidth;
-                    }
-
-                    formatInfo.CropWidth = (int)xPixels;
-                    formatInfo.CropHeight = (int)yPixels;
-                    if (!image.IsNull("PictureFormat"))
-                    {
-                        PictureFormat picFormat = image.PictureFormat;
-                        //Cropping in pixels.
-                        XUnit cropLeft = picFormat.CropLeft.Point;
-                        XUnit cropRight = picFormat.CropRight.Point;
-                        XUnit cropTop = picFormat.CropTop.Point;
-                        XUnit cropBottom = picFormat.CropBottom.Point;
-                        formatInfo.CropX = (int)(horzRes * cropLeft.Inch);
-                        formatInfo.CropY = (int)(vertRes * cropTop.Inch);
-                        formatInfo.CropWidth -= (int)(horzRes * ((XUnit)(cropLeft + cropRight)).Inch);
-                        formatInfo.CropHeight -= (int)(vertRes * ((XUnit)(cropTop + cropBottom)).Inch);
-
-                        //Scaled cropping of the height and width.
-                        double xScale = resultWidth / inherentWidth;
-                        double yScale = resultHeight / inherentHeight;
-
-                        cropLeft = xScale * cropLeft;
-                        cropRight = xScale * cropRight;
-                        cropTop = yScale * cropTop;
-                        cropBottom = yScale * cropBottom;
-
-                        resultHeight = resultHeight - cropTop - cropBottom;
-                        resultWidth = resultWidth - cropLeft - cropRight;
-                    }
-                    if (resultHeight <= 0 || resultWidth <= 0)
-                    {
-                        formatInfo.Width = XUnit.FromCentimeter(2.5);
-                        formatInfo.Height = XUnit.FromCentimeter(2.5);
-                        Debug.WriteLine(AppResources.EmptyImageSize);
-                        failure = ImageFailure.EmptySize;
-                    }
-                    else
-                    {
-                        formatInfo.Width = resultWidth;
-                        formatInfo.Height = resultHeight;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source.ToString(), ex.Message));
-                    formatInfo.Failure = ImageFailure.NotRead;
-                }
-                finally
-                {
-                    if (xImage != null)
-                        xImage.Dispose();
-                }
-            }
-            if (formatInfo.Failure != ImageFailure.None)
-            {
-                if (!image.IsNull("Width"))
-                    formatInfo.Width = image.Width.Point;
-                else
-                    formatInfo.Width = XUnit.FromCentimeter(2.5);
-
-                if (!image.IsNull("Height"))
-                    formatInfo.Height = image.Height.Point;
-                else
-                    formatInfo.Height = XUnit.FromCentimeter(2.5);
-                return;
-            }
-        }
-
-        Image image;
-        ImageFailure failure;
+        this.image = image;
+        ImageRenderInfo renderInfo = new ImageRenderInfo();
+        renderInfo.shape = shape;
+        this.renderInfo = renderInfo;
     }
+
+    internal ImageRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
+        : base(gfx, renderInfo, fieldInfos)
+    {
+        image = (Image)renderInfo.DocumentObject;
+    }
+
+    internal override void Format(Area area, FormatInfo previousFormatInfo)
+    {
+        ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+        formatInfo.ImageSource = image.Source;
+        formatInfo.Failure = failure;
+        CalculateImageDimensions();
+        base.Format(area, previousFormatInfo);
+    }
+
+    protected override XUnit ShapeHeight
+    {
+        get
+        {
+            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+            return formatInfo.Height + lineFormatRenderer.GetWidth();
+        }
+    }
+
+    protected override XUnit ShapeWidth
+    {
+        get
+        {
+            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+            return formatInfo.Width + lineFormatRenderer.GetWidth();
+        }
+    }
+
+    internal override void Render()
+    {
+        RenderFilling();
+
+        ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+        Area contentArea = renderInfo.LayoutInfo.ContentArea;
+        XRect destRect = new XRect(contentArea.X, contentArea.Y, formatInfo.Width, formatInfo.Height);
+
+        if (formatInfo.Failure == ImageFailure.None)
+        {
+            try
+            {
+                XRect srcRect = new XRect(formatInfo.CropX, formatInfo.CropY, formatInfo.CropWidth, formatInfo.CropHeight);
+                using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
+                    gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
+            }
+            catch (Exception)
+            {
+                RenderFailureImage(destRect);
+            }
+        }
+        else
+            RenderFailureImage(destRect);
+
+        RenderLine();
+    }
+
+    void RenderFailureImage(XRect destRect)
+    {
+        gfx.DrawRectangle(XBrushes.LightGray, destRect);
+        string failureString;
+        ImageFormatInfo formatInfo = (ImageFormatInfo)RenderInfo.FormatInfo;
+
+        switch (formatInfo.Failure)
+        {
+            case ImageFailure.EmptySize:
+                failureString = AppResources.DisplayEmptyImageSize;
+                break;
+
+            case ImageFailure.FileNotFound:
+                failureString = AppResources.DisplayImageFileNotFound;
+                break;
+
+            case ImageFailure.InvalidType:
+                failureString = AppResources.DisplayInvalidImageType;
+                break;
+
+            case ImageFailure.NotRead:
+            default:
+                failureString = AppResources.DisplayImageNotRead;
+                break;
+        }
+
+        // Create stub font
+        XFont font = new XFont(GlobalFontSettings.FontResolver.DefaultFontName, 8);
+        gfx.DrawString(failureString, font, XBrushes.Red, destRect, XStringFormats.Center);
+    }
+
+    private void CalculateImageDimensions()
+    {
+        ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+
+        if (formatInfo.Failure == ImageFailure.None)
+        {
+            XImage xImage = null;
+            try
+            {
+                xImage = XImage.FromImageSource(formatInfo.ImageSource);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Debug.WriteLine(string.Format(AppResources.InvalidImageType, ex.Message));
+                formatInfo.Failure = ImageFailure.InvalidType;
+            }
+
+            try
+            {
+                XUnit usrWidth = image.Width.Point;
+                XUnit usrHeight = image.Height.Point;
+                bool usrWidthSet = !image.IsNull("Width");
+                bool usrHeightSet = !image.IsNull("Height");
+
+                XUnit resultWidth = usrWidth;
+                XUnit resultHeight = usrHeight;
+
+                double xPixels = xImage.PixelWidth;
+                bool usrResolutionSet = !image.IsNull("Resolution");
+
+                double horzRes = usrResolutionSet ? (double)image.Resolution : xImage.HorizontalResolution;
+                XUnit inherentWidth = XUnit.FromInch(xPixels / horzRes);
+                double yPixels = xImage.PixelHeight;
+                double vertRes = usrResolutionSet ? (double)image.Resolution : xImage.VerticalResolution;
+                XUnit inherentHeight = XUnit.FromInch(yPixels / vertRes);
+
+                bool lockRatio = image.IsNull("LockAspectRatio") ? true : image.LockAspectRatio;
+
+                double scaleHeight = image.ScaleHeight;
+                double scaleWidth = image.ScaleWidth;
+                bool scaleHeightSet = !image.IsNull("ScaleHeight");
+                bool scaleWidthSet = !image.IsNull("ScaleWidth");
+
+                if (lockRatio)
+                {
+                    if (usrWidthSet && usrHeightSet)
+                    {
+                        if (inherentHeight / usrHeight > inherentWidth / usrWidth)
+                        {
+                            usrWidthSet = false;
+                        }
+                        else
+                        {
+                            usrHeightSet = false;
+                        }
+                    }
+                    if (usrWidthSet && !usrHeightSet)
+                    {
+                        resultHeight = inherentHeight / inherentWidth * usrWidth;
+                    }
+                    else if (usrHeightSet && !usrWidthSet)
+                    {
+                        resultWidth = inherentWidth / inherentHeight * usrHeight;
+                    }
+                    else if (!usrHeightSet && !usrWidthSet)
+                    {
+                        resultHeight = inherentHeight;
+                        resultWidth = inherentWidth;
+                    }
+
+                    if (scaleHeightSet || scaleHeightSet && scaleWidthSet && scaleHeight < scaleWidth)
+                    {
+                        resultHeight = resultHeight * scaleHeight;
+                        resultWidth = resultWidth * scaleHeight;
+                    }
+                    else if (scaleWidthSet || scaleHeightSet && scaleWidthSet && scaleHeight > scaleWidth)
+                    {
+                        resultHeight = resultHeight * scaleWidth;
+                        resultWidth = resultWidth * scaleWidth;
+                    }
+                }
+                else
+                {
+                    if (!usrHeightSet)
+                        resultHeight = inherentHeight;
+
+                    if (!usrWidthSet)
+                        resultWidth = inherentWidth;
+
+                    if (scaleHeightSet)
+                        resultHeight = resultHeight * scaleHeight;
+                    if (scaleWidthSet)
+                        resultWidth = resultWidth * scaleWidth;
+                }
+
+                formatInfo.CropWidth = (int)xPixels;
+                formatInfo.CropHeight = (int)yPixels;
+                if (!image.IsNull("PictureFormat"))
+                {
+                    PictureFormat picFormat = image.PictureFormat;
+                    //Cropping in pixels.
+                    XUnit cropLeft = picFormat.CropLeft.Point;
+                    XUnit cropRight = picFormat.CropRight.Point;
+                    XUnit cropTop = picFormat.CropTop.Point;
+                    XUnit cropBottom = picFormat.CropBottom.Point;
+                    formatInfo.CropX = (int)(horzRes * cropLeft.Inch);
+                    formatInfo.CropY = (int)(vertRes * cropTop.Inch);
+                    formatInfo.CropWidth -= (int)(horzRes * ((XUnit)(cropLeft + cropRight)).Inch);
+                    formatInfo.CropHeight -= (int)(vertRes * ((XUnit)(cropTop + cropBottom)).Inch);
+
+                    //Scaled cropping of the height and width.
+                    double xScale = resultWidth / inherentWidth;
+                    double yScale = resultHeight / inherentHeight;
+
+                    cropLeft = xScale * cropLeft;
+                    cropRight = xScale * cropRight;
+                    cropTop = yScale * cropTop;
+                    cropBottom = yScale * cropBottom;
+
+                    resultHeight = resultHeight - cropTop - cropBottom;
+                    resultWidth = resultWidth - cropLeft - cropRight;
+                }
+                if (resultHeight <= 0 || resultWidth <= 0)
+                {
+                    formatInfo.Width = XUnit.FromCentimeter(2.5);
+                    formatInfo.Height = XUnit.FromCentimeter(2.5);
+                    Debug.WriteLine(AppResources.EmptyImageSize);
+                    failure = ImageFailure.EmptySize;
+                }
+                else
+                {
+                    formatInfo.Width = resultWidth;
+                    formatInfo.Height = resultHeight;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source.ToString(), ex.Message));
+                formatInfo.Failure = ImageFailure.NotRead;
+            }
+            finally
+            {
+                if (xImage != null)
+                    xImage.Dispose();
+            }
+        }
+        if (formatInfo.Failure != ImageFailure.None)
+        {
+            if (!image.IsNull("Width"))
+                formatInfo.Width = image.Width.Point;
+            else
+                formatInfo.Width = XUnit.FromCentimeter(2.5);
+
+            if (!image.IsNull("Height"))
+                formatInfo.Height = image.Height.Point;
+            else
+                formatInfo.Height = XUnit.FromCentimeter(2.5);
+            return;
+        }
+    }
+
+    Image image;
+    ImageFailure failure;
 }

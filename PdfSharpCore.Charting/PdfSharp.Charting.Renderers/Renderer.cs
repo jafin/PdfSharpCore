@@ -31,46 +31,45 @@ using System;
 using System.Diagnostics;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Base class of all renderers.
+/// </summary>
+internal abstract class Renderer
 {
   /// <summary>
-  /// Base class of all renderers.
+  /// Initializes a new instance of the Renderer class with the specified renderer parameters.
   /// </summary>
-  internal abstract class Renderer
+  internal Renderer(RendererParameters rendererParms)
   {
-    /// <summary>
-    /// Initializes a new instance of the Renderer class with the specified renderer parameters.
-    /// </summary>
-    internal Renderer(RendererParameters rendererParms)
-    {
-      this.rendererParms = rendererParms;
-    }
-
-    /// <summary>
-    /// Derived renderer should return an initialized and renderer specific rendererInfo,
-    /// e. g. XAxisRenderer returns an new instance of AxisRendererInfo class.
-    /// </summary>
-    internal virtual RendererInfo Init()
-    {
-      return null;
-    }
-
-    /// <summary>
-    /// Layouts and calculates the space used by the renderer's drawing item.
-    /// </summary>
-    internal virtual void Format()
-    {
-      // nothing to do
-    }
-
-    /// <summary>
-    /// Draws the item.
-    /// </summary>
-    internal abstract void Draw();
-
-    /// <summary>
-    /// Holds all necessary rendering information.
-    /// </summary>
-    protected RendererParameters rendererParms;
+    this.rendererParms = rendererParms;
   }
+
+  /// <summary>
+  /// Derived renderer should return an initialized and renderer specific rendererInfo,
+  /// e. g. XAxisRenderer returns an new instance of AxisRendererInfo class.
+  /// </summary>
+  internal virtual RendererInfo Init()
+  {
+    return null;
+  }
+
+  /// <summary>
+  /// Layouts and calculates the space used by the renderer's drawing item.
+  /// </summary>
+  internal virtual void Format()
+  {
+    // nothing to do
+  }
+
+  /// <summary>
+  /// Draws the item.
+  /// </summary>
+  internal abstract void Draw();
+
+  /// <summary>
+  /// Holds all necessary rendering information.
+  /// </summary>
+  protected RendererParameters rendererParms;
 }

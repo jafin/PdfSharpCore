@@ -33,91 +33,90 @@ using System.Collections;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Represents a formatted header or footer.
+/// </summary>
+internal class FormattedHeaderFooter : IAreaProvider
 {
-  /// <summary>
-  /// Represents a formatted header or footer.
-  /// </summary>
-  internal class FormattedHeaderFooter : IAreaProvider
+  internal FormattedHeaderFooter(HeaderFooter headerFooter, DocumentRenderer documentRenderer, FieldInfos fieldInfos)
   {
-    internal FormattedHeaderFooter(HeaderFooter headerFooter, DocumentRenderer documentRenderer, FieldInfos fieldInfos)
-    {
-      this.headerFooter = headerFooter;
-      this.fieldInfos = fieldInfos;
-      this.documentRenderer = documentRenderer;
-    }
-
-    internal void Format(XGraphics gfx)
-    {
-      this.gfx = gfx;
-      isFirstArea = true;
-      formatter = new TopDownFormatter(this, documentRenderer, headerFooter.Elements);
-      formatter.FormatOnAreas(gfx, false);
-      contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
-    }
-
-    Area IAreaProvider.GetNextArea()
-    {
-      if (isFirstArea)
-        return new Rectangle(ContentRect.X, ContentRect.Y, ContentRect.Width, double.MaxValue);
-
-      return null;
-    }
-
-    Area IAreaProvider.ProbeNextArea()
-    {
-      return null;
-    }
-
-    FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
-
-    void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
-    {
-      this.renderInfos = renderInfos;
-    }
-
-    bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
-    {
-      return false;
-    }
-
-
-    internal RenderInfo[] GetRenderInfos()
-    {
-      if (renderInfos != null)
-        return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
-
-      return new RenderInfo[0];
-    }
-
-    internal Rectangle ContentRect
-    {
-      get => contentRect;
-      set => contentRect = value;
-    }
-    private Rectangle contentRect;
-
-    XUnit ContentHeight => contentHeight;
-
-    bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
-    {
-      IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
-      return formattedDoc.PositionVertically(layoutInfo);
-    }
-
-    bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
-    {
-      IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
-      return formattedDoc.PositionHorizontally(layoutInfo); ;
-    }
-
-    private HeaderFooter headerFooter;
-    private FieldInfos fieldInfos;
-    private TopDownFormatter formatter;
-    private ArrayList renderInfos;
-    private XGraphics gfx;
-    private bool isFirstArea;
-    private XUnit contentHeight;
-    private DocumentRenderer documentRenderer;
+    this.headerFooter = headerFooter;
+    this.fieldInfos = fieldInfos;
+    this.documentRenderer = documentRenderer;
   }
+
+  internal void Format(XGraphics gfx)
+  {
+    this.gfx = gfx;
+    isFirstArea = true;
+    formatter = new TopDownFormatter(this, documentRenderer, headerFooter.Elements);
+    formatter.FormatOnAreas(gfx, false);
+    contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
+  }
+
+  Area IAreaProvider.GetNextArea()
+  {
+    if (isFirstArea)
+      return new Rectangle(ContentRect.X, ContentRect.Y, ContentRect.Width, double.MaxValue);
+
+    return null;
+  }
+
+  Area IAreaProvider.ProbeNextArea()
+  {
+    return null;
+  }
+
+  FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
+
+  void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
+  {
+    this.renderInfos = renderInfos;
+  }
+
+  bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
+  {
+    return false;
+  }
+
+
+  internal RenderInfo[] GetRenderInfos()
+  {
+    if (renderInfos != null)
+      return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
+
+    return new RenderInfo[0];
+  }
+
+  internal Rectangle ContentRect
+  {
+    get => contentRect;
+    set => contentRect = value;
+  }
+  private Rectangle contentRect;
+
+  XUnit ContentHeight => contentHeight;
+
+  bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
+  {
+    IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
+    return formattedDoc.PositionVertically(layoutInfo);
+  }
+
+  bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
+  {
+    IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
+    return formattedDoc.PositionHorizontally(layoutInfo); ;
+  }
+
+  private HeaderFooter headerFooter;
+  private FieldInfos fieldInfos;
+  private TopDownFormatter formatter;
+  private ArrayList renderInfos;
+  private XGraphics gfx;
+  private bool isFirstArea;
+  private XUnit contentHeight;
+  private DocumentRenderer documentRenderer;
 }

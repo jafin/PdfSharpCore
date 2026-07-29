@@ -30,51 +30,47 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Represents the collection of values on the X-Axis.
+/// </summary>
+public class XValues : DocumentObjectCollection
 {
   /// <summary>
-  /// Represents the collection of values on the X-Axis.
+  /// Initializes a new instance of the XValues class.
   /// </summary>
-  public class XValues : DocumentObjectCollection
+  public XValues()
   {
-    /// <summary>
-    /// Initializes a new instance of the XValues class.
-    /// </summary>
-    public XValues()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the XValues class with the specified parent.
-    /// </summary>
-    internal XValues(DocumentObject parent) : base(parent) {}
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XValues Clone()
-    {
-      return (XValues)DeepCopy();
-    }
-
-    /// <summary>
-    /// Gets an XSeries by its index.
-    /// </summary>
-    public new XSeries this[int index]
-    {
-      get {return base[index] as XSeries;}
-    }
-
-    /// <summary>
-    /// Adds a new XSeries to the collection.
-    /// </summary>
-    public XSeries AddXSeries()
-    {
-      XSeries xSeries = new XSeries();
-      Add(xSeries);
-      return xSeries;
-    }
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the XValues class with the specified parent.
+  /// </summary>
+  internal XValues(DocumentObject parent) : base(parent) {}
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new XValues Clone()
+  {
+    return (XValues)DeepCopy();
+  }
+
+  /// <summary>
+  /// Gets an XSeries by its index.
+  /// </summary>
+  public new XSeries this[int index] => base[index] as XSeries;
+
+  /// <summary>
+  /// Adds a new XSeries to the collection.
+  /// </summary>
+  public XSeries AddXSeries()
+  {
+    XSeries xSeries = new XSeries();
+    Add(xSeries);
+    return xSeries;
+  }
+  #endregion
 }

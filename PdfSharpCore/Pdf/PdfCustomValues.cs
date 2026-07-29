@@ -29,73 +29,72 @@
 
 using System;
 
-namespace PdfSharpCore.Pdf
+namespace PdfSharpCore.Pdf;
+
+/// <summary>
+/// This class is intended for empira internal use only and may change or drop in future releases.
+/// </summary>
+public class PdfCustomValues : PdfDictionary
 {
+    private PdfCustomValues()
+    { }
+
+    internal PdfCustomValues(PdfDocument document)
+        : base(document)
+    { }
+
+    private PdfCustomValues(PdfDictionary dict)
+        : base(dict)
+    { }
+
     /// <summary>
-    /// This class is intended for empira internal use only and may change or drop in future releases.
+    /// This function is intended for empira internal use only.
     /// </summary>
-    public class PdfCustomValues : PdfDictionary
+    public PdfCustomValue this[string key]
     {
-        private PdfCustomValues()
-        { }
-
-        internal PdfCustomValues(PdfDocument document)
-            : base(document)
-        { }
-
-        private PdfCustomValues(PdfDictionary dict)
-            : base(dict)
-        { }
-
-        /// <summary>
-        /// This function is intended for empira internal use only.
-        /// </summary>
-        public PdfCustomValue this[string key]
+        get
         {
-            get
-            {
-                var dict = Elements.GetDictionary(key);
-                if (dict == null)
-                    return null;
-                if (dict is not PdfCustomValue cust)
-                    cust = new PdfCustomValue(dict);
-                return cust;
-            }
-            set
-            {
-                if (value == null)
-                {
-                    Elements.Remove(key);
-                }
-                else
-                {
-                    Owner.Internals.AddObject(value);
-                    Elements.SetReference(key, value);
-                }
-            }
-        }
-
-        internal static PdfCustomValues Get(DictionaryElements elem)
-        {
-            var key = elem.Owner.Owner.Internals.CustomValueKey;
-            PdfCustomValues customValues;
-            var dict = elem.GetDictionary(key);
+            var dict = Elements.GetDictionary(key);
             if (dict == null)
+                return null;
+            if (dict is not PdfCustomValue cust)
+                cust = new PdfCustomValue(dict);
+            return cust;
+        }
+        set
+        {
+            if (value == null)
             {
-                customValues = new PdfCustomValues();
-                elem.Owner.Owner.Internals.AddObject(customValues);
-                elem.Add(key, customValues);
+                Elements.Remove(key);
             }
             else
             {
-                customValues = dict as PdfCustomValues ?? new PdfCustomValues(dict);
+                Owner.Internals.AddObject(value);
+                Elements.SetReference(key, value);
             }
-            return customValues;
         }
+    }
 
-        internal static void Remove(DictionaryElements elem)
+    internal static PdfCustomValues Get(DictionaryElements elem)
+    {
+        var key = elem.Owner.Owner.Internals.CustomValueKey;
+        PdfCustomValues customValues;
+        var dict = elem.GetDictionary(key);
+        if (dict == null)
         {
-            elem.Remove(elem.Owner.Owner.Internals.CustomValueKey);
+            customValues = new PdfCustomValues();
+            elem.Owner.Owner.Internals.AddObject(customValues);
+            elem.Add(key, customValues);
         }
+        else
+        {
+            customValues = dict as PdfCustomValues ?? new PdfCustomValues(dict);
+        }
+        return customValues;
+    }
+
+    internal static void Remove(DictionaryElements elem)
+    {
+        elem.Remove(elem.Owner.Owner.Internals.CustomValueKey);
     }
 }

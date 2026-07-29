@@ -32,28 +32,27 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes
+namespace MigraDocCore.DocumentObjectModel.Shapes;
+
+/// <summary>
+/// Reference point of the Top attribute.
+/// </summary>
+public enum RelativeVertical
 {
   /// <summary>
-  /// Reference point of the Top attribute.
+  /// Alignment relative to the bottom side of the previous element.
   /// </summary>
-  public enum RelativeVertical
-  {
-    /// <summary>
-    /// Alignment relative to the bottom side of the previous element.
-    /// </summary>
-    Line,
-    /// <summary>
-    /// Alignment relative to page margin.
-    /// </summary>
-    Margin,
-    /// <summary>
-    /// Alignment relative to page edge.
-    /// </summary>
-    Page,
-    /// <summary>
-    /// Alignment relative to the bottom line of the previous element.
-    /// </summary>
-    Paragraph
-  }
+  Line,
+  /// <summary>
+  /// Alignment relative to page margin.
+  /// </summary>
+  Margin,
+  /// <summary>
+  /// Alignment relative to page edge.
+  /// </summary>
+  Page,
+  /// <summary>
+  /// Alignment relative to the bottom line of the previous element.
+  /// </summary>
+  Paragraph
 }

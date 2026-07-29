@@ -32,45 +32,44 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// Indicates that this field can be accessed via SetValue and GetValue.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+internal class DVAttribute : Attribute
 {
   /// <summary>
-  /// Indicates that this field can be accessed via SetValue and GetValue.
+  /// Initializes a new instance of the DVAttribute class.
   /// </summary>
-  [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-  internal class DVAttribute : Attribute
+  public DVAttribute()
   {
-    /// <summary>
-    /// Initializes a new instance of the DVAttribute class.
-    /// </summary>
-    public DVAttribute()
-    {
-      RefOnly = false;
-      ItemType = null;
-    }
-
-    /// <summary>
-    /// Gets or sets the type of the reflected value. Must be specified by NEnum.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-    public Type Type
-    {
-      get { return this.type; }
-      set { this.type = value; }
-    }
-    
-    [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-    internal Type type;
-
-    /// <summary>
-    /// Determines whether the field is RefOnly and should be excluded from recursive operations.
-    /// </summary>
-    public bool RefOnly;
-
-    // TODO: Check type in value descriptor
-    /// <summary>
-    /// Describes the type of the elements a collection contains.
-    /// </summary>
-    public Type ItemType;
+    RefOnly = false;
+    ItemType = null;
   }
+
+  /// <summary>
+  /// Gets or sets the type of the reflected value. Must be specified by NEnum.
+  /// </summary>
+  [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+  public Type Type
+  {
+    get => this.type;
+    set => this.type = value;
+  }
+    
+  [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+  internal Type type;
+
+  /// <summary>
+  /// Determines whether the field is RefOnly and should be excluded from recursive operations.
+  /// </summary>
+  public bool RefOnly;
+
+  // TODO: Check type in value descriptor
+  /// <summary>
+  /// Describes the type of the elements a collection contains.
+  /// </summary>
+  public Type ItemType;
 }

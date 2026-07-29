@@ -31,41 +31,40 @@ using System;
 using System.Diagnostics;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Base class for all plot area renderers.
+/// </summary>
+internal abstract class ColumnLikePlotAreaRenderer : PlotAreaRenderer
 {
   /// <summary>
-  /// Base class for all plot area renderers.
+  /// Initializes a new instance of the ColumnLikePlotAreaRenderer class with the
+  /// specified renderer parameters.
   /// </summary>
-  internal abstract class ColumnLikePlotAreaRenderer : PlotAreaRenderer
+  internal ColumnLikePlotAreaRenderer(RendererParameters parms)
+    : base(parms)
   {
-    /// <summary>
-    /// Initializes a new instance of the ColumnLikePlotAreaRenderer class with the
-    /// specified renderer parameters.
-    /// </summary>
-    internal ColumnLikePlotAreaRenderer(RendererParameters parms)
-      : base(parms)
-    {
-    }
+  }
 
-    /// <summary>
-    /// Layouts and calculates the space for column like plot areas.
-    /// </summary>
-    internal override void Format()
-    {
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+  /// <summary>
+  /// Layouts and calculates the space for column like plot areas.
+  /// </summary>
+  internal override void Format()
+  {
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
-      double xMin = cri.xAxisRendererInfo.MinimumScale;
-      double xMax = cri.xAxisRendererInfo.MaximumScale;
-      double yMin = cri.yAxisRendererInfo.MinimumScale;
-      double yMax = cri.yAxisRendererInfo.MaximumScale;
+    double xMin = cri.xAxisRendererInfo.MinimumScale;
+    double xMax = cri.xAxisRendererInfo.MaximumScale;
+    double yMin = cri.yAxisRendererInfo.MinimumScale;
+    double yMax = cri.yAxisRendererInfo.MaximumScale;
 
-      XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
+    XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
 
-      cri.plotAreaRendererInfo.matrix = new XMatrix();  //XMatrix.Identity;
-      cri.plotAreaRendererInfo.matrix.TranslatePrepend(-xMin, yMax);
-      cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / xMax, plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);
-      cri.plotAreaRendererInfo.matrix.ScalePrepend(1, -1);
-      cri.plotAreaRendererInfo.matrix.Translate(plotAreaBox.X, plotAreaBox.Y, XMatrixOrder.Append);
-    }
+    cri.plotAreaRendererInfo.matrix = new XMatrix();  //XMatrix.Identity;
+    cri.plotAreaRendererInfo.matrix.TranslatePrepend(-xMin, yMax);
+    cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / xMax, plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);
+    cri.plotAreaRendererInfo.matrix.ScalePrepend(1, -1);
+    cri.plotAreaRendererInfo.matrix.Translate(plotAreaBox.X, plotAreaBox.Y, XMatrixOrder.Append);
   }
 }

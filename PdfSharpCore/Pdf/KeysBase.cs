@@ -30,16 +30,15 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace PdfSharpCore.Pdf
+namespace PdfSharpCore.Pdf;
+
+/// <summary>
+/// Base class for all dictionary Keys classes.
+/// </summary>
+public class KeysBase
 {
-    /// <summary>
-    /// Base class for all dictionary Keys classes.
-    /// </summary>
-    public class KeysBase
+    internal static DictionaryMeta CreateMeta([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] Type type)
     {
-        internal static DictionaryMeta CreateMeta([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] Type type)
-        {
-            return new DictionaryMeta(type);
-        }
+        return new DictionaryMeta(type);
     }
 }

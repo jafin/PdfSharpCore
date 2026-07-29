@@ -108,7 +108,7 @@ public sealed class PdfReference : PdfItem
     /// </summary>
     public PdfObjectID ObjectID
     {
-        get { return _objectID; }
+        get => _objectID;
         set
         {
             // Ignore redundant invokations.
@@ -130,26 +130,20 @@ public sealed class PdfReference : PdfItem
     /// <summary>
     /// Gets the object number of the object identifier.
     /// </summary>
-    public int ObjectNumber
-    {
-        get { return _objectID.ObjectNumber; }
-    }
+    public int ObjectNumber => _objectID.ObjectNumber;
 
     /// <summary>
     /// Gets the generation number of the object identifier.
     /// </summary>
-    public int GenerationNumber
-    {
-        get { return _objectID.GenerationNumber; }
-    }
+    public int GenerationNumber => _objectID.GenerationNumber;
 
     /// <summary>
     /// Gets or sets the file position of the related PdfObject.
     /// </summary>
     public long Position
     {
-        get { return _position; }
-        set { _position = value; }
+        get => _position;
+        set => _position = value;
     }
     long _position;
 
@@ -165,7 +159,7 @@ public sealed class PdfReference : PdfItem
     /// </summary>
     public PdfObject Value
     {
-        get { return _value; }
+        get => _value;
         set
         {
             Debug.Assert(value != null, "The value of a PdfReference must never be null.");
@@ -190,8 +184,8 @@ public sealed class PdfReference : PdfItem
     /// </summary>
     public PdfDocument Document
     {
-        get { return _document; }
-        set { _document = value; }
+        get => _document;
+        set => _document = value;
     }
     PdfDocument _document;
 
@@ -203,10 +197,7 @@ public sealed class PdfReference : PdfItem
         return _objectID + " R";
     }
 
-    internal static PdfReferenceComparer Comparer
-    {
-        get { return new PdfReferenceComparer(); }
-    }
+    internal static PdfReferenceComparer Comparer => new();
 
     /// <summary>
     /// Implements a comparer that compares PdfReference objects by their PdfObjectID.

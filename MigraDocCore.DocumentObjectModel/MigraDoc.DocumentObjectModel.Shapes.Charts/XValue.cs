@@ -33,70 +33,69 @@
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Represents the actual value on the XSeries.
+/// </summary>
+public class XValue : ChartObject
 {
   /// <summary>
-  /// Represents the actual value on the XSeries.
+  /// Initializes a new instance of the XValue class.
   /// </summary>
-  public class XValue : ChartObject
+  internal XValue()
   {
-    /// <summary>
-    /// Initializes a new instance of the XValue class.
-    /// </summary>
-    internal XValue()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the XValue class with the specified value.
-    /// </summary>
-    public XValue(string value)
-      : this()
-    {
-      if (value == null)
-        throw new ArgumentNullException("value");
-
-      this.Value = value;
-    }
-
-    /// <summary>
-    /// The actual value of the XValue.
-    /// </summary>
-    [DV] // No Get- and Set -Property.
-    protected string Value;
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new XValue Clone()
-    {
-      return (XValue)DeepCopy();
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts XValue into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      serializer.Write("\"" + this.Value + "\", ");
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(XValue));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the XValue class with the specified value.
+  /// </summary>
+  public XValue(string value)
+    : this()
+  {
+    if (value == null)
+      throw new ArgumentNullException("value");
+
+    this.Value = value;
+  }
+
+  /// <summary>
+  /// The actual value of the XValue.
+  /// </summary>
+  [DV] // No Get- and Set -Property.
+  protected string Value;
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new XValue Clone()
+  {
+    return (XValue)DeepCopy();
+  }
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts XValue into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    serializer.Write("\"" + this.Value + "\", ");
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(XValue));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

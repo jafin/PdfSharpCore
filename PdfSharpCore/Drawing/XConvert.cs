@@ -27,12 +27,11 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Converts XGraphics enums to GDI+ enums.
+/// </summary>
+internal static class XConvert
 {
-    /// <summary>
-    /// Converts XGraphics enums to GDI+ enums.
-    /// </summary>
-    internal static class XConvert
-    {
-    }
 }

@@ -35,111 +35,108 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Shading represents the background color of a document object.
+/// </summary>
+public sealed class Shading : DocumentObject
 {
   /// <summary>
-  /// Shading represents the background color of a document object.
+  /// Initializes a new instance of the Shading class.
   /// </summary>
-  public sealed class Shading : DocumentObject
+  public Shading()
   {
-    /// <summary>
-    /// Initializes a new instance of the Shading class.
-    /// </summary>
-    public Shading()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Shading class with the specified parent.
-    /// </summary>
-    internal Shading(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Shading Clone()
-    {
-      return (Shading)DeepCopy();
-    }
-
-    /// <summary>
-    /// Clears the Shading object. Additionally 'Shading = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public void Clear()
-    {
-      this.isCleared = true;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets a value indicating whether the shading is visible.
-    /// </summary>
-    public bool Visible
-    {
-      get { return this.visible.Value; }
-      set { this.visible.Value = value; }
-    }
-    [DV]
-    internal NBool visible = NBool.NullValue;
-
-    /// <summary>
-    /// Gets or sets the shading color.
-    /// </summary>
-    public Color Color
-    {
-      get { return this.color; }
-      set { this.color = value; }
-    }
-    [DV]
-    internal Color color = Color.Empty;
-
-    /// <summary>
-    /// Gets the information if the shading is marked as cleared. Additionally 'Shading = null'
-    /// is written to the DDL stream when serialized.
-    /// </summary>
-    public bool IsCleared
-    {
-      get { return this.isCleared; }
-    }
-    internal bool isCleared = false;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Shading into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (isCleared)
-        serializer.WriteLine("Shading = null");
-
-      int pos = serializer.BeginContent("Shading");
-
-      if (!this.visible.IsNull)
-        serializer.WriteSimpleAttribute("Visible", this.Visible);
-
-      if (!this.color.IsNull)
-        serializer.WriteSimpleAttribute("Color", this.Color);
-
-      serializer.EndContent(pos);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Shading));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Shading class with the specified parent.
+  /// </summary>
+  internal Shading(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Shading Clone()
+  {
+    return (Shading)DeepCopy();
+  }
+
+  /// <summary>
+  /// Clears the Shading object. Additionally 'Shading = null'
+  /// is written to the DDL stream when serialized.
+  /// </summary>
+  public void Clear()
+  {
+    this.isCleared = true;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets a value indicating whether the shading is visible.
+  /// </summary>
+  public bool Visible
+  {
+    get => this.visible.Value;
+    set => this.visible.Value = value;
+  }
+  [DV]
+  internal NBool visible = NBool.NullValue;
+
+  /// <summary>
+  /// Gets or sets the shading color.
+  /// </summary>
+  public Color Color
+  {
+    get => this.color;
+    set => this.color = value;
+  }
+  [DV]
+  internal Color color = Color.Empty;
+
+  /// <summary>
+  /// Gets the information if the shading is marked as cleared. Additionally 'Shading = null'
+  /// is written to the DDL stream when serialized.
+  /// </summary>
+  public bool IsCleared => this.isCleared;
+
+  internal bool isCleared = false;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts Shading into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    if (isCleared)
+      serializer.WriteLine("Shading = null");
+
+    int pos = serializer.BeginContent("Shading");
+
+    if (!this.visible.IsNull)
+      serializer.WriteSimpleAttribute("Visible", this.Visible);
+
+    if (!this.color.IsNull)
+      serializer.WriteSimpleAttribute("Color", this.Color);
+
+    serializer.EndContent(pos);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(Shading));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

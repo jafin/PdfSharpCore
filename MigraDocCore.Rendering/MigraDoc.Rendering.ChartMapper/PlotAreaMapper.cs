@@ -30,37 +30,36 @@
 
 using PdfSharpCore.Charting;
 
-namespace MigraDocCore.Rendering.ChartMapper
+namespace MigraDocCore.Rendering.ChartMapper;
+
+/// <summary>
+/// The PlotAreaMapper class.
+/// </summary>
+public class PlotAreaMapper
 {
   /// <summary>
-  /// The PlotAreaMapper class.
+  /// Initializes a new instance of the <see cref="PlotAreaMapper"/> class.
   /// </summary>
-  public class PlotAreaMapper
+  public PlotAreaMapper()
   {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PlotAreaMapper"/> class.
-    /// </summary>
-    public PlotAreaMapper()
-    {
-    }
+  }
 
-    void MapObject(PlotArea plotArea, DocumentObjectModel.Shapes.Charts.PlotArea domPlotArea)
-    {
-      plotArea.BottomPadding = domPlotArea.BottomPadding.Point;
-      plotArea.RightPadding = domPlotArea.RightPadding.Point;
-      plotArea.LeftPadding = domPlotArea.LeftPadding.Point;
-      plotArea.TopPadding = domPlotArea.TopPadding.Point;
+  void MapObject(PlotArea plotArea, DocumentObjectModel.Shapes.Charts.PlotArea domPlotArea)
+  {
+    plotArea.BottomPadding = domPlotArea.BottomPadding.Point;
+    plotArea.RightPadding = domPlotArea.RightPadding.Point;
+    plotArea.LeftPadding = domPlotArea.LeftPadding.Point;
+    plotArea.TopPadding = domPlotArea.TopPadding.Point;
 
-      if (!domPlotArea.IsNull("LineFormat"))
-        LineFormatMapper.Map(plotArea.LineFormat, domPlotArea.LineFormat);
-      if (!domPlotArea.IsNull("FillFormat"))
-        FillFormatMapper.Map(plotArea.FillFormat, domPlotArea.FillFormat);
-    }
+    if (!domPlotArea.IsNull("LineFormat"))
+      LineFormatMapper.Map(plotArea.LineFormat, domPlotArea.LineFormat);
+    if (!domPlotArea.IsNull("FillFormat"))
+      FillFormatMapper.Map(plotArea.FillFormat, domPlotArea.FillFormat);
+  }
 
-    internal static void Map(PlotArea plotArea, DocumentObjectModel.Shapes.Charts.PlotArea domPlotArea)
-    {
-      PlotAreaMapper mapper = new PlotAreaMapper();
-      mapper.MapObject(plotArea, domPlotArea);
-    }
+  internal static void Map(PlotArea plotArea, DocumentObjectModel.Shapes.Charts.PlotArea domPlotArea)
+  {
+    PlotAreaMapper mapper = new PlotAreaMapper();
+    mapper.MapObject(plotArea, domPlotArea);
   }
 }

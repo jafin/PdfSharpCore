@@ -33,80 +33,76 @@
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// The collection of data series.
+/// </summary>
+public class SeriesCollection : DocumentObjectCollection
 {
   /// <summary>
-  /// The collection of data series.
+  /// Initializes a new instance of the SeriesCollection class.
   /// </summary>
-  public class SeriesCollection : DocumentObjectCollection
+  internal SeriesCollection()
   {
-    /// <summary>
-    /// Initializes a new instance of the SeriesCollection class.
-    /// </summary>
-    internal SeriesCollection()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the SeriesCollection class with the specified parent.
-    /// </summary>
-    internal SeriesCollection(DocumentObject parent) : base(parent) { }
-
-    /// <summary>
-    /// Gets a series by it's index.
-    /// </summary>
-    public new Series this[int index]
-    {
-      get { return base[index] as Series; }
-    }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new SeriesCollection Clone()
-    {
-      return (SeriesCollection)DeepCopy();
-    }
-
-    /// <summary>
-    /// Adds a new series to the collection.
-    /// </summary>
-    public Series AddSeries()
-    {
-      Series series = new Series();
-      Add(series);
-      return series;
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts SeriesCollection into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int count = Count;
-      for (int index = 0; index < count; ++index)
-      {
-        Series series = this[index];
-        series.Serialize(serializer);
-      }
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(SeriesCollection));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the SeriesCollection class with the specified parent.
+  /// </summary>
+  internal SeriesCollection(DocumentObject parent) : base(parent) { }
+
+  /// <summary>
+  /// Gets a series by it's index.
+  /// </summary>
+  public new Series this[int index] => base[index] as Series;
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new SeriesCollection Clone()
+  {
+    return (SeriesCollection)DeepCopy();
+  }
+
+  /// <summary>
+  /// Adds a new series to the collection.
+  /// </summary>
+  public Series AddSeries()
+  {
+    Series series = new Series();
+    Add(series);
+    return series;
+  }
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts SeriesCollection into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    int count = Count;
+    for (int index = 0; index < count; ++index)
+    {
+      Series series = this[index];
+      series.Serialize(serializer);
+    }
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(SeriesCollection));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

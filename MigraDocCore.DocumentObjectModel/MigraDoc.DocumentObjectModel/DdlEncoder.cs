@@ -35,144 +35,143 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Provides functions for encoding and decoding of DDL text.
+/// </summary>
+public sealed class DdlEncoder
 {
   /// <summary>
-  /// Provides functions for encoding and decoding of DDL text.
+  /// Initializes a new instance of the DdlEncoder class.
   /// </summary>
-  public sealed class DdlEncoder
+  DdlEncoder()
   {
-    /// <summary>
-    /// Initializes a new instance of the DdlEncoder class.
-    /// </summary>
-    DdlEncoder()
-    {
-    }
-
-    /// <summary>
-    /// Converts a string into a text phrase.
-    /// </summary>
-    public static string StringToText(string str)
-    {
-      if (str == null)
-        return null;
-
-      int length = str.Length;
-      StringBuilder strb = new StringBuilder(length + (int)(length >> 2));
-      for (int index = 0; index < length; ++index)
-      {
-        // Don't convert characters into DDL.
-        char ch = str[index];
-        switch (ch)
-        {
-          case '\\':
-            strb.Append("\\\\");
-            break;
-
-          case '{':
-            strb.Append("\\{");
-            break;
-
-          case '}':
-            strb.Append("\\}");
-            break;
-
-          // escape comments
-          case '/':
-            if (index < length - 1 && str[index + 1] == '/')
-            {
-              strb.Append("\\//");
-              ++index;
-            }
-            else
-              strb.Append("/");
-            break;
-
-          default:
-            strb.Append(ch);
-            break;
-        }
-      }
-      return strb.ToString();
-    }
-
-    /// <summary>
-    /// Converts a string into a string literal (a quoted string).
-    /// </summary>
-    public static string StringToLiteral(string str)
-    {
-      int length = 0;
-      if (str == null || (length = str.Length) == 0)
-        return "\"\"";
-
-      StringBuilder strb = new StringBuilder(length + (int)(length >> 2));
-      strb.Append("\"");
-      for (int index = 0; index < length; ++index)
-      {
-        char ch = str[index];
-        switch (ch)
-        {
-          case '\\':
-            strb.Append("\\\\");
-            break;
-
-          case '"':
-            strb.Append("\\\"");
-            break;
-
-          default:
-            strb.Append(ch);
-            break;
-        }
-      }
-      strb.Append("\"");
-
-      return strb.ToString();
-    }
-
-    /// <summary>
-    /// Scans the given string for characters which are invalid for identifiers.
-    /// Strings are limited to 64 characters.
-    /// </summary>
-    internal static bool IsDdeIdentifier(string name)
-    {
-      if (name == null || name == String.Empty)
-        return false;
-
-      int len = name.Length;
-      if (len > 64)
-        return false;
-
-      for (int index = 0; index < len; index++)
-      {
-        char ch = name[index];
-        if (ch == ' ')
-          return false;
-
-        if (index == 0)
-        {
-          if (!Char.IsLetter(ch) && ch != '_')
-            return false;
-        }
-        else
-        {
-          if (!Char.IsLetterOrDigit(ch) && ch != '_')
-            return false;
-        }
-      }
-      return true;
-    }
-
-    /// <summary>
-    /// Quotes the given name, if it contains characters which are invalid for identifiers.
-    /// </summary>
-    internal static string QuoteIfNameContainsBlanks(string name)
-    {
-      if (IsDdeIdentifier(name))
-        return name;
-      else
-        return "\"" + name + "\"";
-    }
-
   }
+
+  /// <summary>
+  /// Converts a string into a text phrase.
+  /// </summary>
+  public static string StringToText(string str)
+  {
+    if (str == null)
+      return null;
+
+    int length = str.Length;
+    StringBuilder strb = new StringBuilder(length + (int)(length >> 2));
+    for (int index = 0; index < length; ++index)
+    {
+      // Don't convert characters into DDL.
+      char ch = str[index];
+      switch (ch)
+      {
+        case '\\':
+          strb.Append("\\\\");
+          break;
+
+        case '{':
+          strb.Append("\\{");
+          break;
+
+        case '}':
+          strb.Append("\\}");
+          break;
+
+        // escape comments
+        case '/':
+          if (index < length - 1 && str[index + 1] == '/')
+          {
+            strb.Append("\\//");
+            ++index;
+          }
+          else
+            strb.Append("/");
+          break;
+
+        default:
+          strb.Append(ch);
+          break;
+      }
+    }
+    return strb.ToString();
+  }
+
+  /// <summary>
+  /// Converts a string into a string literal (a quoted string).
+  /// </summary>
+  public static string StringToLiteral(string str)
+  {
+    int length = 0;
+    if (str == null || (length = str.Length) == 0)
+      return "\"\"";
+
+    StringBuilder strb = new StringBuilder(length + (int)(length >> 2));
+    strb.Append("\"");
+    for (int index = 0; index < length; ++index)
+    {
+      char ch = str[index];
+      switch (ch)
+      {
+        case '\\':
+          strb.Append("\\\\");
+          break;
+
+        case '"':
+          strb.Append("\\\"");
+          break;
+
+        default:
+          strb.Append(ch);
+          break;
+      }
+    }
+    strb.Append("\"");
+
+    return strb.ToString();
+  }
+
+  /// <summary>
+  /// Scans the given string for characters which are invalid for identifiers.
+  /// Strings are limited to 64 characters.
+  /// </summary>
+  internal static bool IsDdeIdentifier(string name)
+  {
+    if (name == null || name == String.Empty)
+      return false;
+
+    int len = name.Length;
+    if (len > 64)
+      return false;
+
+    for (int index = 0; index < len; index++)
+    {
+      char ch = name[index];
+      if (ch == ' ')
+        return false;
+
+      if (index == 0)
+      {
+        if (!Char.IsLetter(ch) && ch != '_')
+          return false;
+      }
+      else
+      {
+        if (!Char.IsLetterOrDigit(ch) && ch != '_')
+          return false;
+      }
+    }
+    return true;
+  }
+
+  /// <summary>
+  /// Quotes the given name, if it contains characters which are invalid for identifiers.
+  /// </summary>
+  internal static string QuoteIfNameContainsBlanks(string name)
+  {
+    if (IsDdeIdentifier(name))
+      return name;
+    else
+      return "\"" + name + "\"";
+  }
+
 }

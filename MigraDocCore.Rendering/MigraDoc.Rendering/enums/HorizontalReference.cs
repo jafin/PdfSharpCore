@@ -28,15 +28,14 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Horizontal reference point of alignment.
+/// </summary>
+internal enum HorizontalReference
 {
-  /// <summary>
-  /// Horizontal reference point of alignment.
-  /// </summary>
-  internal enum HorizontalReference
-  {
-    AreaBoundary = 0, //Default
-    PageMargin,
-    Page
-  }
+  AreaBoundary = 0, //Default
+  PageMargin,
+  Page
 }

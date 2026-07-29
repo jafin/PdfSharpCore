@@ -32,44 +32,43 @@ using System.ComponentModel;
 using System.Threading;
 using PdfSharpCore.Pdf.Internal;
 
-namespace PdfSharpCore.Internal
+namespace PdfSharpCore.Internal;
+
+/// <summary>
+/// Static locking functions to make PDFsharp thread save.
+/// </summary>
+internal static class Lock
 {
-    /// <summary>
-    /// Static locking functions to make PDFsharp thread save.
-    /// </summary>
-    internal static class Lock
+    public static void EnterGdiPlus()
     {
-        public static void EnterGdiPlus()
-        {
-            //if (_fontFactoryLockCount > 0)
-            //    throw new InvalidOperationException("");
+        //if (_fontFactoryLockCount > 0)
+        //    throw new InvalidOperationException("");
 
-            Monitor.Enter(GdiPlus);
-            _gdiPlusLockCount++;
-        }
-
-        public static void ExitGdiPlus()
-        {
-            _gdiPlusLockCount--;
-            Monitor.Exit(GdiPlus);
-        }
-
-        static readonly object GdiPlus = new object();
-        static int _gdiPlusLockCount;
-
-        public static void EnterFontFactory()
-        {
-            Monitor.Enter(FontFactory);
-            _fontFactoryLockCount++;
-        }
-
-        public static void ExitFontFactory()
-        {
-            _fontFactoryLockCount--;
-            Monitor.Exit(FontFactory);
-        }
-        static readonly object FontFactory = new object();
-        [ThreadStatic]
-        static int _fontFactoryLockCount;
+        Monitor.Enter(GdiPlus);
+        _gdiPlusLockCount++;
     }
+
+    public static void ExitGdiPlus()
+    {
+        _gdiPlusLockCount--;
+        Monitor.Exit(GdiPlus);
+    }
+
+    static readonly object GdiPlus = new();
+    static int _gdiPlusLockCount;
+
+    public static void EnterFontFactory()
+    {
+        Monitor.Enter(FontFactory);
+        _fontFactoryLockCount++;
+    }
+
+    public static void ExitFontFactory()
+    {
+        _fontFactoryLockCount--;
+        Monitor.Exit(FontFactory);
+    }
+    static readonly object FontFactory = new();
+    [ThreadStatic]
+    static int _fontFactoryLockCount;
 }

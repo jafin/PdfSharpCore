@@ -28,23 +28,22 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
-{
-  /// <summary>
-  /// Summary description for TextFrameRenderInfo.
-  /// </summary>
-  internal class TextFrameRenderInfo : ShapeRenderInfo
-  {
-    internal override FormatInfo FormatInfo
-    {
-      get
-      {
-        if (formatInfo == null)
-          formatInfo = new TextFrameFormatInfo();
+namespace MigraDocCore.Rendering;
 
-        return formatInfo;
-      }
+/// <summary>
+/// Summary description for TextFrameRenderInfo.
+/// </summary>
+internal class TextFrameRenderInfo : ShapeRenderInfo
+{
+  internal override FormatInfo FormatInfo
+  {
+    get
+    {
+      if (formatInfo == null)
+        formatInfo = new TextFrameFormatInfo();
+
+      return formatInfo;
     }
-    private TextFrameFormatInfo formatInfo;
   }
+  private TextFrameFormatInfo formatInfo;
 }

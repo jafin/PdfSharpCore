@@ -31,182 +31,181 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Abstract base class for all areas to render in.
+/// </summary>
+public abstract class Area
 {
-  /// <summary>
-  /// Abstract base class for all areas to render in.
-  /// </summary>
-  public abstract class Area
+  internal Area()
   {
-    internal Area()
-    {
-    }
-
-    /// <summary>
-    /// Gets the left boundary of the area.
-    /// </summary>
-    public abstract XUnit X
-    {
-      get;
-      set;
-    }
-
-    /// <summary>
-    /// Gets the top boundary of the area.
-    /// </summary>
-    public abstract XUnit Y
-    {
-      get;
-      set;
-    }
-
-    /// <summary>
-    /// Gets the largest fitting rect with the given y position and height.
-    /// </summary>
-    /// <param name="yPosition">Top bound of the searched rectangle.</param>
-    /// <param name="height">Height of the searched rectangle.</param>
-    /// <returns>
-    /// The largest fitting rect with the given y position and height.
-    /// Null if yPosition exceeds the area.
-    /// </returns>
-    internal abstract Rectangle GetFittingRect(XUnit yPosition, XUnit height);
-
-    /// <summary>
-    /// Gets or sets the height of the smallest rectangle containing the area. 
-    /// </summary>
-    public abstract XUnit Height
-    {
-      get;
-      set;
-    }
-
-    /// <summary>
-    /// Gets or sets the width of the smallest rectangle containing the area. 
-    /// </summary>
-    public abstract XUnit Width
-    {
-      get;
-      set;
-    }
-
-    /// <summary>
-    /// Returns the union of this area snd the given one.
-    /// </summary>
-    /// <param name="area">The area to unite with.</param>
-    /// <returns>The union of the two areas.</returns>
-    internal abstract Area Unite(Area area);
-
-    /// <summary>
-    /// Lowers the area and makes it smaller.
-    /// </summary>
-    /// <param name="verticalOffset">The measure of lowering.</param>
-    /// <returns>The lowered Area.</returns>
-    internal abstract Area Lower(XUnit verticalOffset);
   }
 
-  internal class Rectangle : Area
+  /// <summary>
+  /// Gets the left boundary of the area.
+  /// </summary>
+  public abstract XUnit X
   {
-    /// <summary>
-    /// Initializes a new rectangle object.
-    /// </summary>
-    /// <param name="x">Left bound of the rectangle.</param>
-    /// <param name="y">Upper bound of the rectangle.</param>
-    /// <param name="width">Width of the rectangle.</param>
-    /// <param name="height">Height of the rectangle.</param>
-    internal Rectangle(XUnit x, XUnit y, XUnit width, XUnit height)
-    {
-      this.x = x;
-      this.y = y;
-      this.width = width;
-      this.height = height;
-    }
+    get;
+    set;
+  }
 
-    /// <summary>
-    /// Initializes a new Rectangle by copying its values.
-    /// </summary>
-    /// <param name="rect">The rectangle to copy.</param>
-    internal Rectangle(Rectangle rect)
-    {
-      x = rect.x;
-      y = rect.y;
-      width = rect.width;
-      height = rect.height;
-    }
+  /// <summary>
+  /// Gets the top boundary of the area.
+  /// </summary>
+  public abstract XUnit Y
+  {
+    get;
+    set;
+  }
 
-    /// <summary>
-    /// Gets the largest fitting rect with the given y position and height.
-    /// </summary>
-    /// <param name="yPosition">Top bound of the searched rectangle.</param>
-    /// <param name="height">Height of the searched rectangle.</param>
-    /// <returns>The largest fitting rect with the given y position and height</returns>
-    internal override Rectangle GetFittingRect(XUnit yPosition, XUnit height)
-    {
-      // BUG: Code removed because null is not handled in caller
-      if (yPosition + height > y + this.height + Renderer.Tolerance)
-        return null;
-      return new Rectangle(x, yPosition, width, height);
-    }
+  /// <summary>
+  /// Gets the largest fitting rect with the given y position and height.
+  /// </summary>
+  /// <param name="yPosition">Top bound of the searched rectangle.</param>
+  /// <param name="height">Height of the searched rectangle.</param>
+  /// <returns>
+  /// The largest fitting rect with the given y position and height.
+  /// Null if yPosition exceeds the area.
+  /// </returns>
+  internal abstract Rectangle GetFittingRect(XUnit yPosition, XUnit height);
 
-    /// <summary>
-    /// Gets or sets the left boundary of the rectangle. 
-    /// </summary>
-    public override XUnit X
-    {
-      get => x;
-      set => x = value;
-    }
-    XUnit x;
+  /// <summary>
+  /// Gets or sets the height of the smallest rectangle containing the area. 
+  /// </summary>
+  public abstract XUnit Height
+  {
+    get;
+    set;
+  }
 
-    /// <summary>
-    /// Gets or sets the top boundary of the rectangle. 
-    /// </summary>
-    public override XUnit Y
-    {
-      get => y;
-      set => y = value;
-    }
-    XUnit y;
+  /// <summary>
+  /// Gets or sets the width of the smallest rectangle containing the area. 
+  /// </summary>
+  public abstract XUnit Width
+  {
+    get;
+    set;
+  }
 
-    /// <summary>
-    /// Gets or sets the top boundary of the rectangle. 
-    /// </summary>
-    public override XUnit Width
-    {
-      get => width;
-      set => width = value;
-    }
-    XUnit width;
+  /// <summary>
+  /// Returns the union of this area snd the given one.
+  /// </summary>
+  /// <param name="area">The area to unite with.</param>
+  /// <returns>The union of the two areas.</returns>
+  internal abstract Area Unite(Area area);
 
-    /// <summary>
-    /// Gets or sets the height of the rectangle. 
-    /// </summary>
-    public override XUnit Height
-    {
-      get => height;
-      set => height = value;
-    }
-    XUnit height;
+  /// <summary>
+  /// Lowers the area and makes it smaller.
+  /// </summary>
+  /// <param name="verticalOffset">The measure of lowering.</param>
+  /// <returns>The lowered Area.</returns>
+  internal abstract Area Lower(XUnit verticalOffset);
+}
 
-    /// <summary>
-    /// Returns the union of the rectangle and the given area.
-    /// </summary>
-    /// <param name="area">The area to unite with.</param>
-    /// <returns>The union of the two areas.</returns>
-    internal override Area Unite(Area area)
-    {
-      if (area == null)
-        return this;
-      //This implementation is of course not correct, but it works for our purposes.
-      XUnit minTop = Math.Min(y, area.Y);
-      XUnit minLeft = Math.Min(x, area.X);
-      XUnit maxRight = Math.Max(x + width, area.X + area.Width);
-      XUnit maxBottom = Math.Max(y + height, area.Y + area.Height);
-      return new Rectangle(minLeft, minTop, maxRight - minLeft, maxBottom - minTop);
-    }
+internal class Rectangle : Area
+{
+  /// <summary>
+  /// Initializes a new rectangle object.
+  /// </summary>
+  /// <param name="x">Left bound of the rectangle.</param>
+  /// <param name="y">Upper bound of the rectangle.</param>
+  /// <param name="width">Width of the rectangle.</param>
+  /// <param name="height">Height of the rectangle.</param>
+  internal Rectangle(XUnit x, XUnit y, XUnit width, XUnit height)
+  {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  }
 
-    internal override Area Lower(XUnit verticalOffset)
-    {
-      return new Rectangle(x, y + verticalOffset, width, height - verticalOffset);
-    }
+  /// <summary>
+  /// Initializes a new Rectangle by copying its values.
+  /// </summary>
+  /// <param name="rect">The rectangle to copy.</param>
+  internal Rectangle(Rectangle rect)
+  {
+    x = rect.x;
+    y = rect.y;
+    width = rect.width;
+    height = rect.height;
+  }
+
+  /// <summary>
+  /// Gets the largest fitting rect with the given y position and height.
+  /// </summary>
+  /// <param name="yPosition">Top bound of the searched rectangle.</param>
+  /// <param name="height">Height of the searched rectangle.</param>
+  /// <returns>The largest fitting rect with the given y position and height</returns>
+  internal override Rectangle GetFittingRect(XUnit yPosition, XUnit height)
+  {
+    // BUG: Code removed because null is not handled in caller
+    if (yPosition + height > y + this.height + Renderer.Tolerance)
+      return null;
+    return new Rectangle(x, yPosition, width, height);
+  }
+
+  /// <summary>
+  /// Gets or sets the left boundary of the rectangle. 
+  /// </summary>
+  public override XUnit X
+  {
+    get => x;
+    set => x = value;
+  }
+  XUnit x;
+
+  /// <summary>
+  /// Gets or sets the top boundary of the rectangle. 
+  /// </summary>
+  public override XUnit Y
+  {
+    get => y;
+    set => y = value;
+  }
+  XUnit y;
+
+  /// <summary>
+  /// Gets or sets the top boundary of the rectangle. 
+  /// </summary>
+  public override XUnit Width
+  {
+    get => width;
+    set => width = value;
+  }
+  XUnit width;
+
+  /// <summary>
+  /// Gets or sets the height of the rectangle. 
+  /// </summary>
+  public override XUnit Height
+  {
+    get => height;
+    set => height = value;
+  }
+  XUnit height;
+
+  /// <summary>
+  /// Returns the union of the rectangle and the given area.
+  /// </summary>
+  /// <param name="area">The area to unite with.</param>
+  /// <returns>The union of the two areas.</returns>
+  internal override Area Unite(Area area)
+  {
+    if (area == null)
+      return this;
+    //This implementation is of course not correct, but it works for our purposes.
+    XUnit minTop = Math.Min(y, area.Y);
+    XUnit minLeft = Math.Min(x, area.X);
+    XUnit maxRight = Math.Max(x + width, area.X + area.Width);
+    XUnit maxBottom = Math.Max(y + height, area.Y + area.Height);
+    return new Rectangle(minLeft, minTop, maxRight - minLeft, maxBottom - minTop);
+  }
+
+  internal override Area Lower(XUnit verticalOffset)
+  {
+    return new Rectangle(x, y + verticalOffset, width, height - verticalOffset);
   }
 }

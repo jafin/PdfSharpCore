@@ -31,94 +31,93 @@
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using System;
 using System.Diagnostics;
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Formats numbers roman or with letters.
+/// </summary>
+internal class NumberFormatter
 {
-    /// <summary>
-    /// Formats numbers roman or with letters.
-    /// </summary>
-    internal class NumberFormatter
+    internal static string Format(int number, string format)
     {
-        internal static string Format(int number, string format)
+        switch (format)
         {
-            switch (format)
+            case "ROMAN":
+                return AsRoman(number, false);
+
+            case "roman":
+                return AsRoman(number, true);
+
+            case "ALPHABETIC":
+                return AsLetters(number, false);
+
+            case "alphabetic":
+                return AsLetters(number, true);
+        }
+        return number.ToString();
+    }
+
+
+    static string AsRoman(int number, bool lowercase)
+    {
+        if (Math.Abs(number) > 32768)
+        {
+            Debug.WriteLine(string.Format(AppResources.NumberTooLargeForRoman, number), "warning");
+            return number.ToString();
+        }
+        if (number == 0)
+            return "0";
+
+        string res = "";
+        if (number < 0)
+            res += "-";
+
+        number = Math.Abs(number);
+
+        string[] roman;
+        if (lowercase)
+            roman = new string[] { "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
+        else
+            roman = new string[] { "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
+
+        int[] numberValues = new int[] { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
+
+        for (int i = 0; i < numberValues.Length; ++i)
+        {
+            while (number >= numberValues[i])
             {
-                case "ROMAN":
-                    return AsRoman(number, false);
-
-                case "roman":
-                    return AsRoman(number, true);
-
-                case "ALPHABETIC":
-                    return AsLetters(number, false);
-
-                case "alphabetic":
-                    return AsLetters(number, true);
+                res += roman[i];
+                number -= numberValues[i];
             }
+        }
+        return res;
+    }
+
+    static string AsLetters(int number, bool lowercase)
+    {
+        if (Math.Abs(number) > 32768)
+        {
+            Debug.WriteLine(string.Format(AppResources.NumberTooLargeForLetters, number));
             return number.ToString();
         }
 
+        if (number == 0)
+            return "0";
 
-        static string AsRoman(int number, bool lowercase)
-        {
-            if (Math.Abs(number) > 32768)
-            {
-                Debug.WriteLine(string.Format(AppResources.NumberTooLargeForRoman, number), "warning");
-                return number.ToString();
-            }
-            if (number == 0)
-                return "0";
+        string str = "";
+        if (number < 0)
+            str += "-";
 
-            string res = "";
-            if (number < 0)
-                res += "-";
+        number = Math.Abs(number);
+        char cr;
+        if (lowercase)
+            cr = (char)('a' + (number - 1) % 26);
+        else
+            cr = (char)('A' + (number - 1) % 26);
 
-            number = Math.Abs(number);
+        for (int n = 0; n <= (int)((number - 1) / 26); ++n)
+            str += cr;
 
-            string[] roman;
-            if (lowercase)
-                roman = new string[] { "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
-            else
-                roman = new string[] { "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
-
-            int[] numberValues = new int[] { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
-
-            for (int i = 0; i < numberValues.Length; ++i)
-            {
-                while (number >= numberValues[i])
-                {
-                    res += roman[i];
-                    number -= numberValues[i];
-                }
-            }
-            return res;
-        }
-
-        static string AsLetters(int number, bool lowercase)
-        {
-            if (Math.Abs(number) > 32768)
-            {
-                Debug.WriteLine(string.Format(AppResources.NumberTooLargeForLetters, number));
-                return number.ToString();
-            }
-
-            if (number == 0)
-                return "0";
-
-            string str = "";
-            if (number < 0)
-                str += "-";
-
-            number = Math.Abs(number);
-            char cr;
-            if (lowercase)
-                cr = (char)('a' + (number - 1) % 26);
-            else
-                cr = (char)('A' + (number - 1) % 26);
-
-            for (int n = 0; n <= (int)((number - 1) / 26); ++n)
-                str += cr;
-
-            return str;
-        }
+        return str;
     }
 }

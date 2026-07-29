@@ -31,65 +31,59 @@ using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Internal;
 
-namespace PdfSharpCore.Pdf.Annotations
+namespace PdfSharpCore.Pdf.Annotations;
+
+/// <summary>
+/// Represents a text highlight annotation, which marks a run of text with a wash of colour.
+/// </summary>
+public sealed class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
-    /// Represents a text highlight annotation, which marks a run of text with a wash of colour.
+    /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
     /// </summary>
-    public sealed class PdfHighlightAnnotation : PdfTextMarkupAnnotation
+    public PdfHighlightAnnotation()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
-        /// </summary>
-        public PdfHighlightAnnotation()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
-        /// </summary>
-        /// <param name="document">The document.</param>
-        public PdfHighlightAnnotation(PdfDocument document)
-            : base(document)
-        {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            Elements.SetName(Keys.Subtype, "/Highlight");
-            Color = XColors.Yellow;
-        }
-
-        /// <summary>
-        /// Washes the whole quadrilateral. Drawn under the Multiply blend mode of the base class,
-        /// so the text keeps showing through rather than being painted over.
-        /// </summary>
-        protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
-        {
-            content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
-                quad.X1, quad.Y1, quad.X2 - quad.X1, quad.Y2 - quad.Y1));
-        }
-
-        /// <summary>
-        /// Predefined keys of this dictionary.
-        /// </summary>
-        internal new class Keys : PdfTextMarkupAnnotation.Keys
-        {
-            public static new DictionaryMeta Meta
-            {
-                get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-            }
-            static DictionaryMeta _meta;
-        }
-
-        /// <summary>
-        /// Gets the KeysMeta of this dictionary type.
-        /// </summary>
-        internal override DictionaryMeta Meta
-        {
-            get { return Keys.Meta; }
-        }
+        Initialize();
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
+    /// </summary>
+    /// <param name="document">The document.</param>
+    public PdfHighlightAnnotation(PdfDocument document)
+        : base(document)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        Elements.SetName(Keys.Subtype, "/Highlight");
+        Color = XColors.Yellow;
+    }
+
+    /// <summary>
+    /// Washes the whole quadrilateral. Drawn under the Multiply blend mode of the base class,
+    /// so the text keeps showing through rather than being painted over.
+    /// </summary>
+    protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
+    {
+        content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
+            quad.X1, quad.Y1, quad.X2 - quad.X1, quad.Y2 - quad.Y1));
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
+    /// </summary>
+    internal new class Keys : PdfTextMarkupAnnotation.Keys
+    {
+        public static new DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
+
+        static DictionaryMeta _meta;
+    }
+
+    /// <summary>
+    /// Gets the KeysMeta of this dictionary type.
+    /// </summary>
+    internal override DictionaryMeta Meta => Keys.Meta;
 }

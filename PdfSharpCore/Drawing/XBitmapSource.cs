@@ -28,35 +28,22 @@
 #endregion
 
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Defines an abstract base class for pixel based images.
+/// </summary>
+public abstract class XBitmapSource : XImage
 {
+    // TODO: Move code from XImage to this class.
+
     /// <summary>
-    /// Defines an abstract base class for pixel based images.
+    /// Gets the width of the image in pixels.
     /// </summary>
-    public abstract class XBitmapSource : XImage
-    {
-        // TODO: Move code from XImage to this class.
+    public override int PixelWidth => PixelWidth;
 
-        /// <summary>
-        /// Gets the width of the image in pixels.
-        /// </summary>
-        public override int PixelWidth
-        {
-            get
-            {
-                return PixelWidth;
-            }
-        }
-
-        /// <summary>
-        /// Gets the height of the image in pixels.
-        /// </summary>
-        public override int PixelHeight
-        {
-            get
-            {
-                return PixelHeight;
-            }
-        }
-    }
+    /// <summary>
+    /// Gets the height of the image in pixels.
+    /// </summary>
+    public override int PixelHeight => PixelHeight;
 }

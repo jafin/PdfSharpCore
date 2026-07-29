@@ -32,28 +32,27 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes
+namespace MigraDocCore.DocumentObjectModel.Shapes;
+
+/// <summary>
+/// Reference point of the Left attribute.
+/// </summary>
+public enum RelativeHorizontal
 {
   /// <summary>
-  /// Reference point of the Left attribute.
+  /// Alignment relative to the right side of the previous element.
   /// </summary>
-  public enum RelativeHorizontal
-  {
-    /// <summary>
-    /// Alignment relative to the right side of the previous element.
-    /// </summary>
-    Character,
-    /// <summary>
-    /// Alignment relative to the right side of the previous element.
-    /// </summary>
-    Column,
-    /// <summary>
-    /// Alignment relative to page margin.
-    /// </summary>
-    Margin,
-    /// <summary>
-    /// Alignment relative to page edge.
-    /// </summary>
-    Page
-  }
+  Character,
+  /// <summary>
+  /// Alignment relative to the right side of the previous element.
+  /// </summary>
+  Column,
+  /// <summary>
+  /// Alignment relative to page margin.
+  /// </summary>
+  Margin,
+  /// <summary>
+  /// Alignment relative to page edge.
+  /// </summary>
+  Page
 }

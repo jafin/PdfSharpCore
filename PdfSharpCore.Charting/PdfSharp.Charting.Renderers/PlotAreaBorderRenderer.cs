@@ -30,33 +30,32 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Represents the border renderer for plot areas.
+/// </summary>
+internal class PlotAreaBorderRenderer : Renderer
 {
   /// <summary>
-  /// Represents the border renderer for plot areas.
+  /// Initializes a new instance of the PlotAreaBorderRenderer class with the specified
+  /// renderer parameters.
   /// </summary>
-  internal class PlotAreaBorderRenderer : Renderer
-  {
-    /// <summary>
-    /// Initializes a new instance of the PlotAreaBorderRenderer class with the specified
-    /// renderer parameters.
-    /// </summary>
-    internal PlotAreaBorderRenderer(RendererParameters parms)
-      : base(parms)
-    { }
+  internal PlotAreaBorderRenderer(RendererParameters parms)
+    : base(parms)
+  { }
 
-    /// <summary>
-    /// Draws the border around the plot area.
-    /// </summary>
-    internal override void Draw()
+  /// <summary>
+  /// Draws the border around the plot area.
+  /// </summary>
+  internal override void Draw()
+  {
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+    if (cri.plotAreaRendererInfo.LineFormat != null && cri.plotAreaRendererInfo.LineFormat.Width > 0)
     {
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-      if (cri.plotAreaRendererInfo.LineFormat != null && cri.plotAreaRendererInfo.LineFormat.Width > 0)
-      {
-        XGraphics gfx = this.rendererParms.Graphics;
-        LineFormatRenderer lineFormatRenderer = new LineFormatRenderer(gfx, cri.plotAreaRendererInfo.LineFormat);
-        lineFormatRenderer.DrawRectangle(cri.plotAreaRendererInfo.Rect);
-      }
+      XGraphics gfx = this.rendererParms.Graphics;
+      LineFormatRenderer lineFormatRenderer = new LineFormatRenderer(gfx, cri.plotAreaRendererInfo.LineFormat);
+      lineFormatRenderer.DrawRectangle(cri.plotAreaRendererInfo.Rect);
     }
   }
 }

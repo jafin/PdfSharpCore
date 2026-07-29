@@ -29,27 +29,26 @@
 #endregion
 
 using MigraDocCore.DocumentObjectModel;
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Represents rendering information for a paragraph.
+/// </summary>
+internal class ParagraphRenderInfo : RenderInfo
 {
-  /// <summary>
-  /// Represents rendering information for a paragraph.
-  /// </summary>
-  internal class ParagraphRenderInfo : RenderInfo
+  internal override FormatInfo FormatInfo => formatInfo;
+
+  ParagraphFormatInfo formatInfo = new ParagraphFormatInfo();
+
+  public override DocumentObject DocumentObject => paragraph;
+
+  internal Paragraph paragraph;
+
+  internal override void RemoveEnding()
   {
-    internal override FormatInfo FormatInfo => formatInfo;
-
-    ParagraphFormatInfo formatInfo = new ParagraphFormatInfo();
-
-    public override DocumentObject DocumentObject => paragraph;
-
-    internal Paragraph paragraph;
-
-    internal override void RemoveEnding()
-    {
-      ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)FormatInfo;
-      pfInfo.RemoveEnding();
-      Area contentArea = LayoutInfo.ContentArea;
-      contentArea.Height -= LayoutInfo.TrailingHeight;
-    }
+    ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)FormatInfo;
+    pfInfo.RemoveEnding();
+    Area contentArea = LayoutInfo.ContentArea;
+    contentArea.Height -= LayoutInfo.TrailingHeight;
   }
 }

@@ -32,102 +32,98 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// Represents a nullable integer value.
+/// </summary>
+internal struct NInt : INullableValue
 {
-  /// <summary>
-  /// Represents a nullable integer value.
-  /// </summary>
-  internal struct NInt : INullableValue
+  public NInt(int val)
   {
-    public NInt(int val)
-    {
-      this.val = val;
-    }
-
-    /// <summary>
-    /// Gets or sets the value of the instance.
-    /// </summary>
-    public int Value
-    {
-      get { return this.val != int.MinValue ? this.val : 0; }
-      set { this.val = value; }
-    }
-
-    /// <summary>
-    /// Gets the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
-
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (int)value;
-    }
-
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = int.MinValue;
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return this.val == int.MinValue; }
-    }
-
-    public static implicit operator NInt(int val)
-    {
-      return new NInt(val);
-    }
-
-    public static implicit operator int(NInt val)
-    {
-      return val.Value;
-    }
-
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NInt)
-        return this == (NInt)value;
-      return false;
-    }
-
-    public override int GetHashCode()
-    {
-      return this.val.GetHashCode();
-    }
-
-    public static bool operator ==(NInt l, NInt r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
-
-    public static bool operator !=(NInt l, NInt r)
-    {
-      return !(l == r);
-    }
-
-    public static readonly NInt NullValue = new NInt(int.MinValue);
-
-    int val;
+    this.val = val;
   }
+
+  /// <summary>
+  /// Gets or sets the value of the instance.
+  /// </summary>
+  public int Value
+  {
+    get => this.val != int.MinValue ? this.val : 0;
+    set => this.val = value;
+  }
+
+  /// <summary>
+  /// Gets the value of the instance.
+  /// </summary>
+  object INullableValue.GetValue()
+  {
+    return this.Value;
+  }
+
+  /// <summary>
+  /// Sets the value of the instance.
+  /// </summary>
+  void INullableValue.SetValue(object value)
+  {
+    this.val = (int)value;
+  }
+
+  /// <summary>
+  /// Resets this instance,
+  /// i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public void SetNull()
+  {
+    this.val = int.MinValue;
+  }
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public bool IsNull => this.val == int.MinValue;
+
+  public static implicit operator NInt(int val)
+  {
+    return new NInt(val);
+  }
+
+  public static implicit operator int(NInt val)
+  {
+    return val.Value;
+  }
+
+  /// <summary>
+  /// Returns a value indicating whether this instance is equal to the specified object.
+  /// </summary>
+  public override bool Equals(object value)
+  {
+    if (value is NInt)
+      return this == (NInt)value;
+    return false;
+  }
+
+  public override int GetHashCode()
+  {
+    return this.val.GetHashCode();
+  }
+
+  public static bool operator ==(NInt l, NInt r)
+  {
+    if (l.IsNull)
+      return r.IsNull;
+    else if (r.IsNull)
+      return false;
+    else
+      return l.Value == r.Value;
+  }
+
+  public static bool operator !=(NInt l, NInt r)
+  {
+    return !(l == r);
+  }
+
+  public static readonly NInt NullValue = new NInt(int.MinValue);
+
+  int val;
 }

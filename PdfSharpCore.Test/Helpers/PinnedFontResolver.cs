@@ -4,96 +4,95 @@ using System.IO;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 
-namespace PdfSharpCore.Test.Helpers
+namespace PdfSharpCore.Test.Helpers;
+
+/// <summary>
+///   Answers every request with the fonts shipped alongside the tests, rather than with
+///   whatever the machine happens to have installed.
+/// </summary>
+/// <remarks>
+///   The resolver the library ships scans the font directories of the platform, so a document
+///   built by the tests is laid out with Arial here and with whatever stands in for it there.
+///   That decides more than the shape of the glyphs: their widths decide where a line wraps,
+///   and the height of a line against the height of its characters decides whether the line
+///   fits at all. Tests that assert either of those cannot pass on both machines while the
+///   font is chosen for them. Liberation Sans is used because it carries the metrics of Arial,
+///   which the assertions and the reference images were written against.
+/// </remarks>
+internal sealed class PinnedFontResolver : IFontResolver
 {
+    private static readonly ConcurrentDictionary<string, byte[]> Fonts =
+        new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
-    ///   Answers every request with the fonts shipped alongside the tests, rather than with
-    ///   whatever the machine happens to have installed.
+    ///   The one family here that is not Liberation. Its outlines are PostScript (CFF) rather
+    ///   than TrueType, which is a different embedding path entirely, and nothing else shipped
+    ///   with the tests exercises it.
     /// </summary>
-    /// <remarks>
-    ///   The resolver the library ships scans the font directories of the platform, so a document
-    ///   built by the tests is laid out with Arial here and with whatever stands in for it there.
-    ///   That decides more than the shape of the glyphs: their widths decide where a line wraps,
-    ///   and the height of a line against the height of its characters decides whether the line
-    ///   fits at all. Tests that assert either of those cannot pass on both machines while the
-    ///   font is chosen for them. Liberation Sans is used because it carries the metrics of Arial,
-    ///   which the assertions and the reference images were written against.
-    /// </remarks>
-    internal sealed class PinnedFontResolver : IFontResolver
+    public const string CffFamilyName = "Source Code Pro";
+
+    private const string CffFaceName = "SourceCodePro-Regular.otf";
+
+    /// <summary>
+    ///   Families a test builds the bytes for itself. The resolver is installed once for the
+    ///   whole assembly, so a test that needs a font of its own adds one here rather than
+    ///   replacing the resolver under every other test running beside it.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, string> Registered =
+        new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///   Serves <paramref name="fontBytes"/> to anything asking for <paramref name="familyName"/>.
+    ///   Registering the same family twice with different bytes is a test colliding with
+    ///   another, so the first registration wins and the caller is told.
+    /// </summary>
+    public static void Register(string familyName, byte[] fontBytes)
     {
-        private static readonly ConcurrentDictionary<string, byte[]> Fonts =
-            new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        string faceName = familyName + ".test";
+        Fonts.TryAdd(faceName, fontBytes);
+        Registered.TryAdd(familyName, faceName);
+    }
 
-        /// <summary>
-        ///   The one family here that is not Liberation. Its outlines are PostScript (CFF) rather
-        ///   than TrueType, which is a different embedding path entirely, and nothing else shipped
-        ///   with the tests exercises it.
-        /// </summary>
-        public const string CffFamilyName = "Source Code Pro";
+    public string DefaultFontName => "Arial";
 
-        private const string CffFaceName = "SourceCodePro-Regular.otf";
+    public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
+    {
+        if (Registered.TryGetValue(familyName, out string testFaceName))
+            return new FontResolverInfo(testFaceName);
 
-        /// <summary>
-        ///   Families a test builds the bytes for itself. The resolver is installed once for the
-        ///   whole assembly, so a test that needs a font of its own adds one here rather than
-        ///   replacing the resolver under every other test running beside it.
-        /// </summary>
-        private static readonly ConcurrentDictionary<string, string> Registered =
-            new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
-        ///   Serves <paramref name="fontBytes"/> to anything asking for <paramref name="familyName"/>.
-        ///   Registering the same family twice with different bytes is a test colliding with
-        ///   another, so the first registration wins and the caller is told.
-        /// </summary>
-        public static void Register(string familyName, byte[] fontBytes)
+        if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
         {
-            string faceName = familyName + ".test";
-            Fonts.TryAdd(faceName, fontBytes);
-            Registered.TryAdd(familyName, faceName);
+            // A regular face is all that is shipped for this family, so a bold or an italic has
+            // to be drawn on. That also gives the style-simulation tests a family to work with:
+            // the same file answers every request, so only the simulation differs.
+            XStyleSimulations simulations =
+                (isBold ? XStyleSimulations.BoldSimulation : XStyleSimulations.None)
+                | (isItalic ? XStyleSimulations.ItalicSimulation : XStyleSimulations.None);
+
+            return new FontResolverInfo(CffFaceName, simulations);
         }
 
-        public string DefaultFontName => "Arial";
+        // Every other family is answered, so that a document asking for a font that is not
+        // shipped is laid out the same way everywhere instead of falling back to the machine.
+        return new FontResolverInfo(FaceNameOf(isBold, isItalic));
+    }
 
-        public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
-        {
-            if (Registered.TryGetValue(familyName, out string testFaceName))
-                return new FontResolverInfo(testFaceName);
+    public byte[] GetFont(string faceName)
+    {
+        return Fonts.GetOrAdd(faceName, name => File.ReadAllBytes(
+            name == CffFaceName
+                ? PathHelper.GetInstance().GetAssetPath("Fonts", CffFaceName)
+                : PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + name + ".ttf")));
+    }
 
-            if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
-            {
-                // A regular face is all that is shipped for this family, so a bold or an italic has
-                // to be drawn on. That also gives the style-simulation tests a family to work with:
-                // the same file answers every request, so only the simulation differs.
-                XStyleSimulations simulations =
-                    (isBold ? XStyleSimulations.BoldSimulation : XStyleSimulations.None)
-                    | (isItalic ? XStyleSimulations.ItalicSimulation : XStyleSimulations.None);
-
-                return new FontResolverInfo(CffFaceName, simulations);
-            }
-
-            // Every other family is answered, so that a document asking for a font that is not
-            // shipped is laid out the same way everywhere instead of falling back to the machine.
-            return new FontResolverInfo(FaceNameOf(isBold, isItalic));
-        }
-
-        public byte[] GetFont(string faceName)
-        {
-            return Fonts.GetOrAdd(faceName, name => File.ReadAllBytes(
-                name == CffFaceName
-                    ? PathHelper.GetInstance().GetAssetPath("Fonts", CffFaceName)
-                    : PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + name + ".ttf")));
-        }
-
-        private static string FaceNameOf(bool isBold, bool isItalic)
-        {
-            if (isBold && isItalic)
-                return "BoldItalic";
-            if (isBold)
-                return "Bold";
-            if (isItalic)
-                return "Italic";
-            return "Regular";
-        }
+    private static string FaceNameOf(bool isBold, bool isItalic)
+    {
+        if (isBold && isItalic)
+            return "BoldItalic";
+        if (isBold)
+            return "Bold";
+        if (isItalic)
+            return "Italic";
+        return "Regular";
     }
 }

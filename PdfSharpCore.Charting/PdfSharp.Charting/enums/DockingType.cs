@@ -29,28 +29,27 @@
 
 using System;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Specifies the legend's position inside the chart.
+/// </summary>
+public enum DockingType
 {
   /// <summary>
-  /// Specifies the legend's position inside the chart.
+  /// Above the chart.
   /// </summary>
-  public enum DockingType
-  {
-    /// <summary>
-    /// Above the chart.
-    /// </summary>
-    Top,
-    /// <summary>
-    /// Below the chart.
-    /// </summary>
-    Bottom,
-    /// <summary>
-    /// Left from the chart.
-    /// </summary>
-    Left,
-    /// <summary>
-    /// Right from the chart.
-    /// </summary>
-    Right
-  }
+  Top,
+  /// <summary>
+  /// Below the chart.
+  /// </summary>
+  Bottom,
+  /// <summary>
+  /// Left from the chart.
+  /// </summary>
+  Left,
+  /// <summary>
+  /// Right from the chart.
+  /// </summary>
+  Right
 }

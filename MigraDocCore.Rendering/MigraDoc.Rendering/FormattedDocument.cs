@@ -36,720 +36,719 @@ using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Represents a formatted document.
+/// </summary>
+public class FormattedDocument : IAreaProvider
 {
-    /// <summary>
-    /// Represents a formatted document.
-    /// </summary>
-    public class FormattedDocument : IAreaProvider
+    enum PagePosition
     {
-        enum PagePosition
+        First,
+        Odd,
+        Even
+    }
+
+    private struct HeaderFooterPosition
+    {
+        internal HeaderFooterPosition(int sectionNr, PagePosition pagePosition)
         {
-            First,
-            Odd,
-            Even
+            this.sectionNr = sectionNr;
+            this.pagePosition = pagePosition;
         }
 
-        private struct HeaderFooterPosition
+        public override bool Equals(object obj)
         {
-            internal HeaderFooterPosition(int sectionNr, PagePosition pagePosition)
+            if (obj is HeaderFooterPosition)
             {
-                this.sectionNr = sectionNr;
-                this.pagePosition = pagePosition;
+                HeaderFooterPosition hfp = (HeaderFooterPosition)obj;
+                return sectionNr == hfp.sectionNr && pagePosition == hfp.pagePosition;
             }
-
-            public override bool Equals(object obj)
-            {
-                if (obj is HeaderFooterPosition)
-                {
-                    HeaderFooterPosition hfp = (HeaderFooterPosition)obj;
-                    return sectionNr == hfp.sectionNr && pagePosition == hfp.pagePosition;
-                }
-                return false;
-            }
-
-            public override int GetHashCode()
-            {
-                return sectionNr.GetHashCode() ^ pagePosition.GetHashCode();
-            }
-            internal int sectionNr;
-            internal PagePosition pagePosition;
+            return false;
         }
 
-        internal FormattedDocument(Document document, DocumentRenderer documentRenderer)
+        public override int GetHashCode()
         {
-            this.document = document;
-            this.documentRenderer = documentRenderer;
+            return sectionNr.GetHashCode() ^ pagePosition.GetHashCode();
         }
+        internal int sectionNr;
+        internal PagePosition pagePosition;
+    }
 
-        /// <summary>
-        /// Formats the document by performing line breaks and page breaks.
-        /// </summary>
-        internal void Format(XGraphics gfx)
+    internal FormattedDocument(Document document, DocumentRenderer documentRenderer)
+    {
+        this.document = document;
+        this.documentRenderer = documentRenderer;
+    }
+
+    /// <summary>
+    /// Formats the document by performing line breaks and page breaks.
+    /// </summary>
+    internal void Format(XGraphics gfx)
+    {
+        bookmarks = new Dictionary<string, FieldInfos.BookmarkInfo>();
+        pageRenderInfos = new Dictionary<int, ArrayList>();
+        pageInfos = new Dictionary<int, PageInfo>();
+        pageFieldInfos = new Dictionary<int, FieldInfos>();
+        formattedHeaders = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
+        formattedFooters = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
+        this.gfx = gfx;
+        currentPage = 0;
+        sectionNumber = 0;
+        pageCount = 0;
+        shownPageNumber = 0;
+        documentRenderer.ProgressCompleted = 0;
+        documentRenderer.ProgressMaximum = 0;
+        if (documentRenderer.HasPrepareDocumentProgress)
         {
-            bookmarks = new Dictionary<string, FieldInfos.BookmarkInfo>();
-            pageRenderInfos = new Dictionary<int, ArrayList>();
-            pageInfos = new Dictionary<int, PageInfo>();
-            pageFieldInfos = new Dictionary<int, FieldInfos>();
-            formattedHeaders = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
-            formattedFooters = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
-            this.gfx = gfx;
-            currentPage = 0;
-            sectionNumber = 0;
-            pageCount = 0;
-            shownPageNumber = 0;
-            documentRenderer.ProgressCompleted = 0;
-            documentRenderer.ProgressMaximum = 0;
-            if (documentRenderer.HasPrepareDocumentProgress)
-            {
-                foreach (Section section in document.Sections)
-                    documentRenderer.ProgressMaximum += section.Elements.Count;
-            }
             foreach (Section section in document.Sections)
-            {
-                isNewSection = true;
-                currentSection = section;
-                ++sectionNumber;
-                if (NeedsEmptyPage())
-                    InsertEmptyPage();
-
-                TopDownFormatter formatter = new TopDownFormatter(this, documentRenderer, section.Elements);
-                formatter.FormatOnAreas(gfx, true);
-                FillSectionPagesInfo();
-                documentRenderer.ProgressCompleted += section.Elements.Count;
-            }
-            pageCount = currentPage;
-            FillNumPagesInfo();
+                documentRenderer.ProgressMaximum += section.Elements.Count;
         }
-
-        PagePosition CurrentPagePosition
+        foreach (Section section in document.Sections)
         {
-            get
-            {
-                if (isNewSection)
-                    return PagePosition.First;
-                else if (currentPage % 2 == 0)
-                    return PagePosition.Even;
-                else
-                    return PagePosition.Odd;
-            }
+            isNewSection = true;
+            currentSection = section;
+            ++sectionNumber;
+            if (NeedsEmptyPage())
+                InsertEmptyPage();
+
+            TopDownFormatter formatter = new TopDownFormatter(this, documentRenderer, section.Elements);
+            formatter.FormatOnAreas(gfx, true);
+            FillSectionPagesInfo();
+            documentRenderer.ProgressCompleted += section.Elements.Count;
         }
+        pageCount = currentPage;
+        FillNumPagesInfo();
+    }
 
-        void FormatHeadersFooters()
-        {
-            HeadersFooters headers = (HeadersFooters)currentSection.GetValue("Headers", GV.ReadOnly);
-            if (headers != null)
-            {
-                PagePosition pagePos = CurrentPagePosition;
-                HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
-                if (!formattedHeaders.ContainsKey(hfp))
-                    FormatHeader(hfp, ChooseHeaderFooter(headers, pagePos));
-            }
-
-            HeadersFooters footers = (HeadersFooters)currentSection.GetValue("Footers", GV.ReadOnly);
-            if (footers != null)
-            {
-                PagePosition pagePos = CurrentPagePosition;
-                HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
-                if (!formattedFooters.ContainsKey(hfp))
-                    FormatFooter(hfp, ChooseHeaderFooter(footers, pagePos));
-            }
-        }
-
-
-        void FormatHeader(HeaderFooterPosition hfp, HeaderFooter header)
-        {
-            if (header != null && !formattedHeaders.ContainsKey(hfp))
-            {
-                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(header, documentRenderer, currentFieldInfos);
-                formattedHeaderFooter.ContentRect = GetHeaderArea(currentSection, currentPage);
-                formattedHeaderFooter.Format(gfx);
-                formattedHeaders.Add(hfp, formattedHeaderFooter);
-            }
-        }
-
-
-        void FormatFooter(HeaderFooterPosition hfp, HeaderFooter footer)
-        {
-            if (footer != null && !formattedFooters.ContainsKey(hfp))
-            {
-                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(footer, documentRenderer, currentFieldInfos);
-                formattedHeaderFooter.ContentRect = GetFooterArea(currentSection, currentPage);
-                formattedHeaderFooter.Format(gfx);
-                formattedFooters.Add(hfp, formattedHeaderFooter);
-            }
-        }
-
-        /// <summary>
-        /// Fills the number pages information after formatting the document.
-        /// </summary>
-        void FillNumPagesInfo()
-        {
-            for (int page = 1; page <= pageCount; ++page)
-            {
-                if (IsEmptyPage(page))
-                    continue;
-
-                FieldInfos fieldInfos = pageFieldInfos[page];
-                fieldInfos.numPages = pageCount;
-            }
-        }
-
-        /// <summary>
-        /// Fills the section pages information after formatting a section.
-        /// </summary>
-        void FillSectionPagesInfo()
-        {
-            for (int page = currentPage; page > 0; --page)
-            {
-                if (IsEmptyPage(page))
-                    continue;
-
-                FieldInfos fieldInfos = pageFieldInfos[page];
-                if (fieldInfos.section != sectionNumber)
-                    break;
-
-                fieldInfos.sectionPages = sectionPages;
-            }
-        }
-
-        Rectangle CalcContentRect(int page)
-        {
-            PageSetup pageSetup = currentSection.PageSetup;
-            XUnit width;
-            if (pageSetup.Orientation == Orientation.Portrait)
-                width = pageSetup.PageWidth.Point;
-            else
-                width = pageSetup.PageHeight.Point;
-
-            width -= pageSetup.RightMargin.Point;
-            width -= pageSetup.LeftMargin.Point;
-
-            XUnit height;
-            if (pageSetup.Orientation == Orientation.Portrait)
-                height = pageSetup.PageHeight.Point;
-            else
-                height = pageSetup.PageWidth.Point;
-
-            height -= pageSetup.TopMargin.Point;
-            height -= pageSetup.BottomMargin.Point;
-            XUnit x;
-            XUnit y;
-            y = pageSetup.TopMargin.Point;
-            if (pageSetup.MirrorMargins)
-                x = page % 2 == 0 ? pageSetup.RightMargin.Point : pageSetup.LeftMargin.Point;
-            else
-                x = pageSetup.LeftMargin.Point;
-            return new Rectangle(x, y, width, height);
-        }
-
-        /// <summary>
-        /// Gets the rendering information for the page content.
-        /// </summary>
-        /// <param name="page">The page to render.</param>
-        /// <returns>Rendering information for the page content.</returns>
-        internal RenderInfo[] GetRenderInfos(int page)
-        {
-            if (pageRenderInfos.ContainsKey(page))
-                return (RenderInfo[])(pageRenderInfos[page]).ToArray(typeof(RenderInfo));
-            return null;
-        }
-        private Dictionary<int, ArrayList> pageRenderInfos;
-
-        /// <summary>
-        /// Gets a formatted headerfooter object for header of the given page.
-        /// </summary>
-        /// <param name="page">The page the header shall appear on.</param>
-        /// <returns>The required header, null if none exists to render.</returns>
-        internal FormattedHeaderFooter GetFormattedHeader(int page)
-        {
-            PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
-
-            FieldInfos fieldInfos = pageFieldInfos[page];
-
-            if (page == 1)
-                pagePos = PagePosition.First;
-            else //page > 1
-            {
-                if (IsEmptyPage(page - 1)) // these empty pages only occur between sections.
-                    pagePos = PagePosition.First;
-                else
-                {
-                    FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
-                    if (fieldInfos.section != prevFieldInfos.section)
-                        pagePos = PagePosition.First;
-                }
-            }
-            HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
-            if (formattedHeaders.ContainsKey(hfp))
-                return formattedHeaders[hfp];
-            return null;
-        }
-
-        /// <summary>
-        /// Gets a formatted headerfooter object for footer of the given page.
-        /// </summary>
-        /// <param name="page">The page the footer shall appear on.</param>
-        /// <returns>The required footer, null if none exists to render.</returns>
-        internal FormattedHeaderFooter GetFormattedFooter(int page)
-        {
-            PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
-
-            FieldInfos fieldInfos = pageFieldInfos[page];
-
-            if (page == 1)
-                pagePos = PagePosition.First;
-
-            else //page > 1
-            {
-                if (IsEmptyPage(page - 1)) // these empty pages only occur between sections.
-                    pagePos = PagePosition.First;
-                else
-                {
-                    FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
-                    if (fieldInfos.section != prevFieldInfos.section)
-                        pagePos = PagePosition.First;
-                }
-            }
-            HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
-            if (formattedFooters.ContainsKey(hfp))
-                return formattedFooters[hfp];
-            return null;
-        }
-
-        private Rectangle GetHeaderArea(Section section, int page)
-        {
-            PageSetup pageSetup = section.PageSetup;
-            XUnit xPos;
-            if (pageSetup.MirrorMargins && page % 2 == 0)
-                xPos = pageSetup.RightMargin.Point;
-            else
-                xPos = pageSetup.LeftMargin.Point;
-
-            XUnit width;
-            if (pageSetup.Orientation == Orientation.Portrait)
-                width = pageSetup.PageWidth.Point;
-            else
-                width = pageSetup.PageHeight.Point;
-
-            width -= pageSetup.LeftMargin + pageSetup.RightMargin;
-
-            XUnit yPos = pageSetup.HeaderDistance.Point;
-            XUnit height = pageSetup.TopMargin - pageSetup.HeaderDistance;
-            return new Rectangle(xPos, yPos, width, height);
-        }
-
-        internal Rectangle GetHeaderArea(int page)
-        {
-            FieldInfos fieldInfos = pageFieldInfos[page];
-            Section section = document.Sections[fieldInfos.section - 1];
-            return GetHeaderArea(section, page);
-        }
-
-        internal Rectangle GetFooterArea(int page)
-        {
-            FieldInfos fieldInfos = pageFieldInfos[page];
-            Section section = document.Sections[fieldInfos.section - 1];
-            return GetFooterArea(section, page);
-        }
-
-        private Rectangle GetFooterArea(Section section, int page)
-        {
-            PageSetup pageSetup = section.PageSetup;
-            XUnit xPos;
-            if (pageSetup.MirrorMargins && page % 2 == 0)
-                xPos = pageSetup.RightMargin.Point;
-            else
-                xPos = pageSetup.LeftMargin.Point;
-
-            XUnit width;
-            if (pageSetup.Orientation == Orientation.Portrait)
-                width = pageSetup.PageWidth.Point;
-            else
-                width = pageSetup.PageHeight.Point;
-            width -= pageSetup.LeftMargin + pageSetup.RightMargin;
-            XUnit yPos;
-            if (pageSetup.Orientation == Orientation.Portrait)
-                yPos = pageSetup.PageHeight.Point;
-            else
-                yPos = pageSetup.PageWidth.Point;
-
-            yPos -= pageSetup.BottomMargin.Point;
-            XUnit height = pageSetup.BottomMargin - pageSetup.FooterDistance;
-            return new Rectangle(xPos, yPos, width, height);
-        }
-
-
-        private HeaderFooter ChooseHeaderFooter(HeadersFooters hfs, PagePosition pagePos)
-        {
-            if (hfs == null)
-                return null;
-
-            PageSetup pageSetup = currentSection.PageSetup;
-
-            if (pagePos == PagePosition.First)
-            {
-                if (pageSetup.DifferentFirstPageHeaderFooter)
-                    return (HeaderFooter)hfs.GetValue("FirstPage", GV.ReadOnly);
-            }
-            if (pagePos == PagePosition.Even || currentPage % 2 == 0)
-            {
-                if (pageSetup.OddAndEvenPagesHeaderFooter)
-                    return (HeaderFooter)hfs.GetValue("EvenPage", GV.ReadOnly);
-            }
-            return (HeaderFooter)hfs.GetValue("Primary", GV.ReadOnly);
-        }
-
-        /// <summary>
-        /// Gets the number of pages of the document.
-        /// </summary>
-        public int PageCount => pageCount;
-
-        int pageCount;
-
-
-        /// <summary>
-        /// Gets information about the specified page.
-        /// </summary>
-        /// <param name="page">The page the information is asked for.</param>
-        /// <returns>The page information.</returns>
-        public PageInfo GetPageInfo(int page)
-        {
-            if (page < 1 || page > pageCount)
-                throw new ArgumentOutOfRangeException("page");
-
-            return pageInfos[page];
-        }
-
-
-        /// <summary>
-        /// Returns the absolute Y position of the last item on the last page in points.
-        /// Must be called after rendering the document.
-        /// </summary>
-        /// <returns>The current Y position at the end of the last page.</returns>
-        public double GetCurrentMigraDocPosition()
-        {
-            RenderInfo[] RenderInfos = GetRenderInfos(PageCount);
-            RenderInfo r = RenderInfos[RenderInfos.Length - 1];
-            return r.LayoutInfo.ContentArea.Y + r.LayoutInfo.ContentArea.Height;
-        }
-
-        #region IAreaProvider Members
-
-        Area IAreaProvider.GetNextArea()
+    PagePosition CurrentPagePosition
+    {
+        get
         {
             if (isNewSection)
-                sectionPages = 0;
-
-            ++currentPage;
-            ++shownPageNumber;
-            ++sectionPages;
-            InitFieldInfos();
-            FormatHeadersFooters();
-            isNewSection = false;
-            return CalcContentRect(currentPage);
+                return PagePosition.First;
+            else if (currentPage % 2 == 0)
+                return PagePosition.Even;
+            else
+                return PagePosition.Odd;
         }
-        int currentPage;
-
-        Area IAreaProvider.ProbeNextArea()
-        {
-            return CalcContentRect(currentPage + 1);
-        }
-
-        void InitFieldInfos()
-        {
-            currentFieldInfos = new FieldInfos(bookmarks);
-            currentFieldInfos.pyhsicalPageNr = currentPage;
-            currentFieldInfos.section = sectionNumber;
-            // A landscape page is the page setup turned on its side, the same way CalcContentRect
-            // reads it. This is what lets a bookmark record where up the page it sits.
-            PageSetup pageSetup = currentSection.PageSetup;
-            currentFieldInfos.pageHeight = pageSetup.Orientation == Orientation.Portrait
-                ? pageSetup.PageHeight.Point
-                : pageSetup.PageWidth.Point;
-
-            if (isNewSection && !currentSection.PageSetup.IsNull("StartingNumber"))
-                shownPageNumber = currentSection.PageSetup.StartingNumber;
-
-            currentFieldInfos.displayPageNr = shownPageNumber;
-        }
-
-        void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
-        {
-            pageRenderInfos.Add(currentPage, renderInfos);
-            XSize pageSize = CalcPageSize(currentSection.PageSetup);
-            PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
-            PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
-            pageInfos.Add(currentPage, pageInfo);
-            pageFieldInfos.Add(currentPage, currentFieldInfos);
-        }
-
-        PageOrientation CalcPageOrientation(PageSetup pageSetup)
-        {
-            PageOrientation pageOrientation = PageOrientation.Portrait;
-            if (currentSection.PageSetup.Orientation == Orientation.Landscape)
-                pageOrientation = PageOrientation.Landscape;
-
-            return pageOrientation;
-        }
-
-        XSize CalcPageSize(PageSetup pageSetup)
-        {
-            return new XSize(pageSetup.PageWidth.Point, pageSetup.PageHeight.Point);
-        }
-
-        bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
-        {
-            switch (layoutInfo.HorizontalReference)
-            {
-                case HorizontalReference.PageMargin:
-                case HorizontalReference.AreaBoundary:
-                    return PositionHorizontallyToMargin(layoutInfo);
-
-                case HorizontalReference.Page:
-                    return PositionHorizontallyToPage(layoutInfo);
-            }
-            return false;
-        }
-
-        //New KlPo 27.08.07
-        /// <summary>
-        /// Gets the alignment depending on the currentPage for the alignments "Outside" and "Inside".
-        /// </summary>
-        /// <param name="alignment">The original alignment</param>
-        /// <returns>the alignment depending on the currentPage for the alignments "Outside" and "Inside"</returns>
-        private ElementAlignment GetCurrentAlignment(ElementAlignment alignment)
-        {
-            ElementAlignment align = alignment;
-
-            if (align == ElementAlignment.Inside)
-            {
-                if (currentPage % 2 == 0)
-                    align = ElementAlignment.Far;
-                else
-                    align = ElementAlignment.Near;
-            }
-            else if (align == ElementAlignment.Outside)
-            {
-                if (currentPage % 2 == 0)
-                    align = ElementAlignment.Near;
-                else
-                    align = ElementAlignment.Far;
-            }
-            return align;
-        }
-
-        bool PositionHorizontallyToMargin(LayoutInfo layoutInfo)
-        {
-            Rectangle rect = CalcContentRect(currentPage);
-            ElementAlignment align = GetCurrentAlignment(layoutInfo.HorizontalAlignment);
-
-
-            switch (align)
-            {
-                case ElementAlignment.Near:
-                    if (layoutInfo.Left != 0)
-                    {
-                        layoutInfo.ContentArea.X += layoutInfo.Left;
-                        return true;
-                    }
-                    else if (layoutInfo.MarginLeft != 0)
-                    {
-                        layoutInfo.ContentArea.X += layoutInfo.MarginLeft;
-                        return true;
-                    }
-                    return false;
-
-                case ElementAlignment.Far:
-                    XUnit xPos = rect.X + rect.Width;
-                    xPos -= layoutInfo.ContentArea.Width;
-                    xPos -= layoutInfo.MarginRight;
-                    layoutInfo.ContentArea.X = xPos;
-                    return true;
-
-                case ElementAlignment.Center:
-                    xPos = rect.Width;
-                    xPos -= layoutInfo.ContentArea.Width;
-                    xPos = rect.X + xPos / 2;
-                    layoutInfo.ContentArea.X = xPos;
-                    return true;
-            }
-            return false;
-        }
-
-        bool PositionHorizontallyToPage(LayoutInfo layoutInfo)
-        {
-            XUnit xPos;
-            ElementAlignment align = GetCurrentAlignment(layoutInfo.HorizontalAlignment);
-            switch (align)
-            {
-                case ElementAlignment.Near:
-                    // Allow negative offsets (supporting "Anschnitt" for images)
-                    if (layoutInfo.HorizontalReference == HorizontalReference.Page ||
-                      layoutInfo.HorizontalReference == HorizontalReference.PageMargin)
-                        xPos = layoutInfo.MarginLeft; // Ignore layoutInfo.Left if absolute position is specified
-                    else
-                        xPos = Math.Max(layoutInfo.MarginLeft, layoutInfo.Left);
-
-                    layoutInfo.ContentArea.X = xPos;
-                    break;
-
-                case ElementAlignment.Far:
-                    xPos = currentSection.PageSetup.PageWidth.Point;
-                    xPos -= layoutInfo.ContentArea.Width;
-                    xPos -= layoutInfo.MarginRight;
-                    layoutInfo.ContentArea.X = xPos;
-                    break;
-
-                case ElementAlignment.Center:
-                    xPos = currentSection.PageSetup.PageWidth.Point;
-                    xPos -= layoutInfo.ContentArea.Width;
-                    xPos /= 2;
-                    layoutInfo.ContentArea.X = xPos;
-                    break;
-            }
-            return true;
-        }
-
-        bool PositionVerticallyToMargin(LayoutInfo layoutInfo)
-        {
-            Rectangle rect = CalcContentRect(currentPage);
-            XUnit yPos;
-            switch (layoutInfo.VerticalAlignment)
-            {
-                case ElementAlignment.Near:
-                    yPos = rect.Y;
-                    //Added KlPo 12.07.07:
-                    if (layoutInfo.Top == 0)
-                        yPos += layoutInfo.MarginTop;
-                    else
-                        yPos += layoutInfo.Top;
-                    //Removed KlPo 12.07.07
-                    //yPos += Math.Max(layoutInfo.Top, layoutInfo.MarginTop);
-
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-
-                case ElementAlignment.Far:
-                    yPos = rect.Y + rect.Height;
-                    yPos -= layoutInfo.ContentArea.Height;
-                    yPos -= layoutInfo.MarginBottom;
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-
-                case ElementAlignment.Center:
-                    yPos = rect.Height;
-                    yPos -= layoutInfo.ContentArea.Height;
-                    yPos = rect.Y + yPos / 2;
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-            }
-            return true;
-        }
-
-        bool NeedsEmptyPage()
-        {
-            int nextPage = currentPage + 1;
-            PageSetup pageSetup = currentSection.PageSetup;
-            bool startOnEvenPage = pageSetup.SectionStart == BreakType.BreakEvenPage;
-            bool startOnOddPage = pageSetup.SectionStart == BreakType.BreakOddPage;
-
-            if (startOnOddPage)
-                return nextPage % 2 == 0;
-            else if (startOnEvenPage)
-                return nextPage % 2 == 1;
-
-            return false;
-        }
-
-        void InsertEmptyPage()
-        {
-            ++currentPage;
-            ++shownPageNumber;
-            emptyPages.Add(currentPage, null);
-
-            XSize pageSize = CalcPageSize(currentSection.PageSetup);
-            PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
-            PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
-            pageInfos.Add(currentPage, pageInfo);
-        }
-
-        bool PositionVerticallyToPage(LayoutInfo layoutInfo)
-        {
-            XUnit yPos;
-            switch (layoutInfo.VerticalAlignment)
-            {
-                case ElementAlignment.Near:
-                    yPos = Math.Max(layoutInfo.MarginTop, layoutInfo.Top);
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-
-                case ElementAlignment.Far:
-                    yPos = currentSection.PageSetup.PageHeight.Point;
-                    yPos -= layoutInfo.ContentArea.Height;
-                    yPos -= layoutInfo.MarginBottom;
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-
-                case ElementAlignment.Center:
-                    yPos = currentSection.PageSetup.PageHeight.Point;
-                    yPos -= layoutInfo.ContentArea.Height;
-                    yPos /= 2;
-                    layoutInfo.ContentArea.Y = yPos;
-                    break;
-            }
-            return true;
-        }
-
-        bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
-        {
-            switch (layoutInfo.VerticalReference)
-            {
-                case VerticalReference.PreviousElement:
-                    return false;
-
-                case VerticalReference.AreaBoundary:
-                case VerticalReference.PageMargin:
-                    return PositionVerticallyToMargin(layoutInfo);
-
-                case VerticalReference.Page:
-                    return PositionVerticallyToPage(layoutInfo);
-            }
-            return false;
-        }
-
-        internal FieldInfos GetFieldInfos(int page)
-        {
-            return pageFieldInfos[page];
-        }
-
-        FieldInfos IAreaProvider.AreaFieldInfos => currentFieldInfos;
-
-        bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
-        {
-            return layoutInfo.PageBreakBefore;
-        }
-
-        internal bool IsEmptyPage(int page)
-        {
-            return emptyPages.ContainsKey(page);
-        }
-        #endregion
-
-        Dictionary<string, FieldInfos.BookmarkInfo> bookmarks;
-        int sectionPages;
-        int shownPageNumber;
-        int sectionNumber;
-        Section currentSection;
-        bool isNewSection;
-        FieldInfos currentFieldInfos;
-        Dictionary<int, FieldInfos> pageFieldInfos;
-        Dictionary<HeaderFooterPosition, FormattedHeaderFooter> formattedHeaders;
-        Dictionary<HeaderFooterPosition, FormattedHeaderFooter> formattedFooters;
-        DocumentRenderer documentRenderer;
-        XGraphics gfx;
-        Dictionary<int, PageInfo> pageInfos;
-        Dictionary<int, object> emptyPages = new Dictionary<int, object>();
-        Document document;
     }
+
+    void FormatHeadersFooters()
+    {
+        HeadersFooters headers = (HeadersFooters)currentSection.GetValue("Headers", GV.ReadOnly);
+        if (headers != null)
+        {
+            PagePosition pagePos = CurrentPagePosition;
+            HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
+            if (!formattedHeaders.ContainsKey(hfp))
+                FormatHeader(hfp, ChooseHeaderFooter(headers, pagePos));
+        }
+
+        HeadersFooters footers = (HeadersFooters)currentSection.GetValue("Footers", GV.ReadOnly);
+        if (footers != null)
+        {
+            PagePosition pagePos = CurrentPagePosition;
+            HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
+            if (!formattedFooters.ContainsKey(hfp))
+                FormatFooter(hfp, ChooseHeaderFooter(footers, pagePos));
+        }
+    }
+
+
+    void FormatHeader(HeaderFooterPosition hfp, HeaderFooter header)
+    {
+        if (header != null && !formattedHeaders.ContainsKey(hfp))
+        {
+            FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(header, documentRenderer, currentFieldInfos);
+            formattedHeaderFooter.ContentRect = GetHeaderArea(currentSection, currentPage);
+            formattedHeaderFooter.Format(gfx);
+            formattedHeaders.Add(hfp, formattedHeaderFooter);
+        }
+    }
+
+
+    void FormatFooter(HeaderFooterPosition hfp, HeaderFooter footer)
+    {
+        if (footer != null && !formattedFooters.ContainsKey(hfp))
+        {
+            FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(footer, documentRenderer, currentFieldInfos);
+            formattedHeaderFooter.ContentRect = GetFooterArea(currentSection, currentPage);
+            formattedHeaderFooter.Format(gfx);
+            formattedFooters.Add(hfp, formattedHeaderFooter);
+        }
+    }
+
+    /// <summary>
+    /// Fills the number pages information after formatting the document.
+    /// </summary>
+    void FillNumPagesInfo()
+    {
+        for (int page = 1; page <= pageCount; ++page)
+        {
+            if (IsEmptyPage(page))
+                continue;
+
+            FieldInfos fieldInfos = pageFieldInfos[page];
+            fieldInfos.numPages = pageCount;
+        }
+    }
+
+    /// <summary>
+    /// Fills the section pages information after formatting a section.
+    /// </summary>
+    void FillSectionPagesInfo()
+    {
+        for (int page = currentPage; page > 0; --page)
+        {
+            if (IsEmptyPage(page))
+                continue;
+
+            FieldInfos fieldInfos = pageFieldInfos[page];
+            if (fieldInfos.section != sectionNumber)
+                break;
+
+            fieldInfos.sectionPages = sectionPages;
+        }
+    }
+
+    Rectangle CalcContentRect(int page)
+    {
+        PageSetup pageSetup = currentSection.PageSetup;
+        XUnit width;
+        if (pageSetup.Orientation == Orientation.Portrait)
+            width = pageSetup.PageWidth.Point;
+        else
+            width = pageSetup.PageHeight.Point;
+
+        width -= pageSetup.RightMargin.Point;
+        width -= pageSetup.LeftMargin.Point;
+
+        XUnit height;
+        if (pageSetup.Orientation == Orientation.Portrait)
+            height = pageSetup.PageHeight.Point;
+        else
+            height = pageSetup.PageWidth.Point;
+
+        height -= pageSetup.TopMargin.Point;
+        height -= pageSetup.BottomMargin.Point;
+        XUnit x;
+        XUnit y;
+        y = pageSetup.TopMargin.Point;
+        if (pageSetup.MirrorMargins)
+            x = page % 2 == 0 ? pageSetup.RightMargin.Point : pageSetup.LeftMargin.Point;
+        else
+            x = pageSetup.LeftMargin.Point;
+        return new Rectangle(x, y, width, height);
+    }
+
+    /// <summary>
+    /// Gets the rendering information for the page content.
+    /// </summary>
+    /// <param name="page">The page to render.</param>
+    /// <returns>Rendering information for the page content.</returns>
+    internal RenderInfo[] GetRenderInfos(int page)
+    {
+        if (pageRenderInfos.ContainsKey(page))
+            return (RenderInfo[])(pageRenderInfos[page]).ToArray(typeof(RenderInfo));
+        return null;
+    }
+    private Dictionary<int, ArrayList> pageRenderInfos;
+
+    /// <summary>
+    /// Gets a formatted headerfooter object for header of the given page.
+    /// </summary>
+    /// <param name="page">The page the header shall appear on.</param>
+    /// <returns>The required header, null if none exists to render.</returns>
+    internal FormattedHeaderFooter GetFormattedHeader(int page)
+    {
+        PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
+
+        FieldInfos fieldInfos = pageFieldInfos[page];
+
+        if (page == 1)
+            pagePos = PagePosition.First;
+        else //page > 1
+        {
+            if (IsEmptyPage(page - 1)) // these empty pages only occur between sections.
+                pagePos = PagePosition.First;
+            else
+            {
+                FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
+                if (fieldInfos.section != prevFieldInfos.section)
+                    pagePos = PagePosition.First;
+            }
+        }
+        HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
+        if (formattedHeaders.ContainsKey(hfp))
+            return formattedHeaders[hfp];
+        return null;
+    }
+
+    /// <summary>
+    /// Gets a formatted headerfooter object for footer of the given page.
+    /// </summary>
+    /// <param name="page">The page the footer shall appear on.</param>
+    /// <returns>The required footer, null if none exists to render.</returns>
+    internal FormattedHeaderFooter GetFormattedFooter(int page)
+    {
+        PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
+
+        FieldInfos fieldInfos = pageFieldInfos[page];
+
+        if (page == 1)
+            pagePos = PagePosition.First;
+
+        else //page > 1
+        {
+            if (IsEmptyPage(page - 1)) // these empty pages only occur between sections.
+                pagePos = PagePosition.First;
+            else
+            {
+                FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
+                if (fieldInfos.section != prevFieldInfos.section)
+                    pagePos = PagePosition.First;
+            }
+        }
+        HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
+        if (formattedFooters.ContainsKey(hfp))
+            return formattedFooters[hfp];
+        return null;
+    }
+
+    private Rectangle GetHeaderArea(Section section, int page)
+    {
+        PageSetup pageSetup = section.PageSetup;
+        XUnit xPos;
+        if (pageSetup.MirrorMargins && page % 2 == 0)
+            xPos = pageSetup.RightMargin.Point;
+        else
+            xPos = pageSetup.LeftMargin.Point;
+
+        XUnit width;
+        if (pageSetup.Orientation == Orientation.Portrait)
+            width = pageSetup.PageWidth.Point;
+        else
+            width = pageSetup.PageHeight.Point;
+
+        width -= pageSetup.LeftMargin + pageSetup.RightMargin;
+
+        XUnit yPos = pageSetup.HeaderDistance.Point;
+        XUnit height = pageSetup.TopMargin - pageSetup.HeaderDistance;
+        return new Rectangle(xPos, yPos, width, height);
+    }
+
+    internal Rectangle GetHeaderArea(int page)
+    {
+        FieldInfos fieldInfos = pageFieldInfos[page];
+        Section section = document.Sections[fieldInfos.section - 1];
+        return GetHeaderArea(section, page);
+    }
+
+    internal Rectangle GetFooterArea(int page)
+    {
+        FieldInfos fieldInfos = pageFieldInfos[page];
+        Section section = document.Sections[fieldInfos.section - 1];
+        return GetFooterArea(section, page);
+    }
+
+    private Rectangle GetFooterArea(Section section, int page)
+    {
+        PageSetup pageSetup = section.PageSetup;
+        XUnit xPos;
+        if (pageSetup.MirrorMargins && page % 2 == 0)
+            xPos = pageSetup.RightMargin.Point;
+        else
+            xPos = pageSetup.LeftMargin.Point;
+
+        XUnit width;
+        if (pageSetup.Orientation == Orientation.Portrait)
+            width = pageSetup.PageWidth.Point;
+        else
+            width = pageSetup.PageHeight.Point;
+        width -= pageSetup.LeftMargin + pageSetup.RightMargin;
+        XUnit yPos;
+        if (pageSetup.Orientation == Orientation.Portrait)
+            yPos = pageSetup.PageHeight.Point;
+        else
+            yPos = pageSetup.PageWidth.Point;
+
+        yPos -= pageSetup.BottomMargin.Point;
+        XUnit height = pageSetup.BottomMargin - pageSetup.FooterDistance;
+        return new Rectangle(xPos, yPos, width, height);
+    }
+
+
+    private HeaderFooter ChooseHeaderFooter(HeadersFooters hfs, PagePosition pagePos)
+    {
+        if (hfs == null)
+            return null;
+
+        PageSetup pageSetup = currentSection.PageSetup;
+
+        if (pagePos == PagePosition.First)
+        {
+            if (pageSetup.DifferentFirstPageHeaderFooter)
+                return (HeaderFooter)hfs.GetValue("FirstPage", GV.ReadOnly);
+        }
+        if (pagePos == PagePosition.Even || currentPage % 2 == 0)
+        {
+            if (pageSetup.OddAndEvenPagesHeaderFooter)
+                return (HeaderFooter)hfs.GetValue("EvenPage", GV.ReadOnly);
+        }
+        return (HeaderFooter)hfs.GetValue("Primary", GV.ReadOnly);
+    }
+
+    /// <summary>
+    /// Gets the number of pages of the document.
+    /// </summary>
+    public int PageCount => pageCount;
+
+    int pageCount;
+
+
+    /// <summary>
+    /// Gets information about the specified page.
+    /// </summary>
+    /// <param name="page">The page the information is asked for.</param>
+    /// <returns>The page information.</returns>
+    public PageInfo GetPageInfo(int page)
+    {
+        if (page < 1 || page > pageCount)
+            throw new ArgumentOutOfRangeException("page");
+
+        return pageInfos[page];
+    }
+
+
+    /// <summary>
+    /// Returns the absolute Y position of the last item on the last page in points.
+    /// Must be called after rendering the document.
+    /// </summary>
+    /// <returns>The current Y position at the end of the last page.</returns>
+    public double GetCurrentMigraDocPosition()
+    {
+        RenderInfo[] RenderInfos = GetRenderInfos(PageCount);
+        RenderInfo r = RenderInfos[RenderInfos.Length - 1];
+        return r.LayoutInfo.ContentArea.Y + r.LayoutInfo.ContentArea.Height;
+    }
+
+    #region IAreaProvider Members
+
+    Area IAreaProvider.GetNextArea()
+    {
+        if (isNewSection)
+            sectionPages = 0;
+
+        ++currentPage;
+        ++shownPageNumber;
+        ++sectionPages;
+        InitFieldInfos();
+        FormatHeadersFooters();
+        isNewSection = false;
+        return CalcContentRect(currentPage);
+    }
+    int currentPage;
+
+    Area IAreaProvider.ProbeNextArea()
+    {
+        return CalcContentRect(currentPage + 1);
+    }
+
+    void InitFieldInfos()
+    {
+        currentFieldInfos = new FieldInfos(bookmarks);
+        currentFieldInfos.pyhsicalPageNr = currentPage;
+        currentFieldInfos.section = sectionNumber;
+        // A landscape page is the page setup turned on its side, the same way CalcContentRect
+        // reads it. This is what lets a bookmark record where up the page it sits.
+        PageSetup pageSetup = currentSection.PageSetup;
+        currentFieldInfos.pageHeight = pageSetup.Orientation == Orientation.Portrait
+            ? pageSetup.PageHeight.Point
+            : pageSetup.PageWidth.Point;
+
+        if (isNewSection && !currentSection.PageSetup.IsNull("StartingNumber"))
+            shownPageNumber = currentSection.PageSetup.StartingNumber;
+
+        currentFieldInfos.displayPageNr = shownPageNumber;
+    }
+
+    void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
+    {
+        pageRenderInfos.Add(currentPage, renderInfos);
+        XSize pageSize = CalcPageSize(currentSection.PageSetup);
+        PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
+        PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
+        pageInfos.Add(currentPage, pageInfo);
+        pageFieldInfos.Add(currentPage, currentFieldInfos);
+    }
+
+    PageOrientation CalcPageOrientation(PageSetup pageSetup)
+    {
+        PageOrientation pageOrientation = PageOrientation.Portrait;
+        if (currentSection.PageSetup.Orientation == Orientation.Landscape)
+            pageOrientation = PageOrientation.Landscape;
+
+        return pageOrientation;
+    }
+
+    XSize CalcPageSize(PageSetup pageSetup)
+    {
+        return new XSize(pageSetup.PageWidth.Point, pageSetup.PageHeight.Point);
+    }
+
+    bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
+    {
+        switch (layoutInfo.HorizontalReference)
+        {
+            case HorizontalReference.PageMargin:
+            case HorizontalReference.AreaBoundary:
+                return PositionHorizontallyToMargin(layoutInfo);
+
+            case HorizontalReference.Page:
+                return PositionHorizontallyToPage(layoutInfo);
+        }
+        return false;
+    }
+
+    //New KlPo 27.08.07
+    /// <summary>
+    /// Gets the alignment depending on the currentPage for the alignments "Outside" and "Inside".
+    /// </summary>
+    /// <param name="alignment">The original alignment</param>
+    /// <returns>the alignment depending on the currentPage for the alignments "Outside" and "Inside"</returns>
+    private ElementAlignment GetCurrentAlignment(ElementAlignment alignment)
+    {
+        ElementAlignment align = alignment;
+
+        if (align == ElementAlignment.Inside)
+        {
+            if (currentPage % 2 == 0)
+                align = ElementAlignment.Far;
+            else
+                align = ElementAlignment.Near;
+        }
+        else if (align == ElementAlignment.Outside)
+        {
+            if (currentPage % 2 == 0)
+                align = ElementAlignment.Near;
+            else
+                align = ElementAlignment.Far;
+        }
+        return align;
+    }
+
+    bool PositionHorizontallyToMargin(LayoutInfo layoutInfo)
+    {
+        Rectangle rect = CalcContentRect(currentPage);
+        ElementAlignment align = GetCurrentAlignment(layoutInfo.HorizontalAlignment);
+
+
+        switch (align)
+        {
+            case ElementAlignment.Near:
+                if (layoutInfo.Left != 0)
+                {
+                    layoutInfo.ContentArea.X += layoutInfo.Left;
+                    return true;
+                }
+                else if (layoutInfo.MarginLeft != 0)
+                {
+                    layoutInfo.ContentArea.X += layoutInfo.MarginLeft;
+                    return true;
+                }
+                return false;
+
+            case ElementAlignment.Far:
+                XUnit xPos = rect.X + rect.Width;
+                xPos -= layoutInfo.ContentArea.Width;
+                xPos -= layoutInfo.MarginRight;
+                layoutInfo.ContentArea.X = xPos;
+                return true;
+
+            case ElementAlignment.Center:
+                xPos = rect.Width;
+                xPos -= layoutInfo.ContentArea.Width;
+                xPos = rect.X + xPos / 2;
+                layoutInfo.ContentArea.X = xPos;
+                return true;
+        }
+        return false;
+    }
+
+    bool PositionHorizontallyToPage(LayoutInfo layoutInfo)
+    {
+        XUnit xPos;
+        ElementAlignment align = GetCurrentAlignment(layoutInfo.HorizontalAlignment);
+        switch (align)
+        {
+            case ElementAlignment.Near:
+                // Allow negative offsets (supporting "Anschnitt" for images)
+                if (layoutInfo.HorizontalReference == HorizontalReference.Page ||
+                    layoutInfo.HorizontalReference == HorizontalReference.PageMargin)
+                    xPos = layoutInfo.MarginLeft; // Ignore layoutInfo.Left if absolute position is specified
+                else
+                    xPos = Math.Max(layoutInfo.MarginLeft, layoutInfo.Left);
+
+                layoutInfo.ContentArea.X = xPos;
+                break;
+
+            case ElementAlignment.Far:
+                xPos = currentSection.PageSetup.PageWidth.Point;
+                xPos -= layoutInfo.ContentArea.Width;
+                xPos -= layoutInfo.MarginRight;
+                layoutInfo.ContentArea.X = xPos;
+                break;
+
+            case ElementAlignment.Center:
+                xPos = currentSection.PageSetup.PageWidth.Point;
+                xPos -= layoutInfo.ContentArea.Width;
+                xPos /= 2;
+                layoutInfo.ContentArea.X = xPos;
+                break;
+        }
+        return true;
+    }
+
+    bool PositionVerticallyToMargin(LayoutInfo layoutInfo)
+    {
+        Rectangle rect = CalcContentRect(currentPage);
+        XUnit yPos;
+        switch (layoutInfo.VerticalAlignment)
+        {
+            case ElementAlignment.Near:
+                yPos = rect.Y;
+                //Added KlPo 12.07.07:
+                if (layoutInfo.Top == 0)
+                    yPos += layoutInfo.MarginTop;
+                else
+                    yPos += layoutInfo.Top;
+                //Removed KlPo 12.07.07
+                //yPos += Math.Max(layoutInfo.Top, layoutInfo.MarginTop);
+
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+
+            case ElementAlignment.Far:
+                yPos = rect.Y + rect.Height;
+                yPos -= layoutInfo.ContentArea.Height;
+                yPos -= layoutInfo.MarginBottom;
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+
+            case ElementAlignment.Center:
+                yPos = rect.Height;
+                yPos -= layoutInfo.ContentArea.Height;
+                yPos = rect.Y + yPos / 2;
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+        }
+        return true;
+    }
+
+    bool NeedsEmptyPage()
+    {
+        int nextPage = currentPage + 1;
+        PageSetup pageSetup = currentSection.PageSetup;
+        bool startOnEvenPage = pageSetup.SectionStart == BreakType.BreakEvenPage;
+        bool startOnOddPage = pageSetup.SectionStart == BreakType.BreakOddPage;
+
+        if (startOnOddPage)
+            return nextPage % 2 == 0;
+        else if (startOnEvenPage)
+            return nextPage % 2 == 1;
+
+        return false;
+    }
+
+    void InsertEmptyPage()
+    {
+        ++currentPage;
+        ++shownPageNumber;
+        emptyPages.Add(currentPage, null);
+
+        XSize pageSize = CalcPageSize(currentSection.PageSetup);
+        PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
+        PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
+        pageInfos.Add(currentPage, pageInfo);
+    }
+
+    bool PositionVerticallyToPage(LayoutInfo layoutInfo)
+    {
+        XUnit yPos;
+        switch (layoutInfo.VerticalAlignment)
+        {
+            case ElementAlignment.Near:
+                yPos = Math.Max(layoutInfo.MarginTop, layoutInfo.Top);
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+
+            case ElementAlignment.Far:
+                yPos = currentSection.PageSetup.PageHeight.Point;
+                yPos -= layoutInfo.ContentArea.Height;
+                yPos -= layoutInfo.MarginBottom;
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+
+            case ElementAlignment.Center:
+                yPos = currentSection.PageSetup.PageHeight.Point;
+                yPos -= layoutInfo.ContentArea.Height;
+                yPos /= 2;
+                layoutInfo.ContentArea.Y = yPos;
+                break;
+        }
+        return true;
+    }
+
+    bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
+    {
+        switch (layoutInfo.VerticalReference)
+        {
+            case VerticalReference.PreviousElement:
+                return false;
+
+            case VerticalReference.AreaBoundary:
+            case VerticalReference.PageMargin:
+                return PositionVerticallyToMargin(layoutInfo);
+
+            case VerticalReference.Page:
+                return PositionVerticallyToPage(layoutInfo);
+        }
+        return false;
+    }
+
+    internal FieldInfos GetFieldInfos(int page)
+    {
+        return pageFieldInfos[page];
+    }
+
+    FieldInfos IAreaProvider.AreaFieldInfos => currentFieldInfos;
+
+    bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
+    {
+        return layoutInfo.PageBreakBefore;
+    }
+
+    internal bool IsEmptyPage(int page)
+    {
+        return emptyPages.ContainsKey(page);
+    }
+    #endregion
+
+    Dictionary<string, FieldInfos.BookmarkInfo> bookmarks;
+    int sectionPages;
+    int shownPageNumber;
+    int sectionNumber;
+    Section currentSection;
+    bool isNewSection;
+    FieldInfos currentFieldInfos;
+    Dictionary<int, FieldInfos> pageFieldInfos;
+    Dictionary<HeaderFooterPosition, FormattedHeaderFooter> formattedHeaders;
+    Dictionary<HeaderFooterPosition, FormattedHeaderFooter> formattedFooters;
+    DocumentRenderer documentRenderer;
+    XGraphics gfx;
+    Dictionary<int, PageInfo> pageInfos;
+    Dictionary<int, object> emptyPages = new Dictionary<int, object>();
+    Document document;
 }

@@ -35,98 +35,97 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// A ListInfo is the representation of a series of paragraphs as a list.
+/// </summary>
+public class ListInfo : DocumentObject
 {
   /// <summary>
-  /// A ListInfo is the representation of a series of paragraphs as a list.
+  /// Initializes a new instance of the ListInfo class.
   /// </summary>
-  public class ListInfo : DocumentObject
+  public ListInfo()
   {
-    /// <summary>
-    /// Initializes a new instance of the ListInfo class.
-    /// </summary>
-    public ListInfo()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the ListInfo class with the specified parent.
-    /// </summary>
-    internal ListInfo(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new ListInfo Clone()
-    {
-      return (ListInfo)DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the type of the list.
-    /// </summary>
-    public ListType ListType
-    {
-      get { return (ListType)this.listType.Value; }
-      set { this.listType.Value = (int)value; }
-    }
-    [DV(Type = typeof(ListType))]
-    internal NEnum listType = NEnum.NullValue(typeof(ListType));
-
-    /// <summary>
-    /// Gets or sets the left indent of the list symbol.
-    /// </summary>
-    public Unit NumberPosition
-    {
-      get { return this.numberPosition; }
-      set { this.numberPosition = value; }
-    }
-    [DV]
-    internal Unit numberPosition = Unit.NullValue;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether
-    /// the previous list numbering should be continued.
-    /// </summary>
-    public bool ContinuePreviousList
-    {
-      get { return this.continuePreviousList.Value; }
-      set { this.continuePreviousList.Value = value; }
-    }
-    [DV]
-    internal NBool continuePreviousList = NBool.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts ListInfo into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      if (!this.listType.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.ListType", this.ListType);
-      if (!this.numberPosition.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.NumberPosition", this.NumberPosition);
-      if (!this.continuePreviousList.IsNull)
-        serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", this.ContinuePreviousList);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(ListInfo));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the ListInfo class with the specified parent.
+  /// </summary>
+  internal ListInfo(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new ListInfo Clone()
+  {
+    return (ListInfo)DeepCopy();
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the type of the list.
+  /// </summary>
+  public ListType ListType
+  {
+    get => (ListType)this.listType.Value;
+    set => this.listType.Value = (int)value;
+  }
+  [DV(Type = typeof(ListType))]
+  internal NEnum listType = NEnum.NullValue(typeof(ListType));
+
+  /// <summary>
+  /// Gets or sets the left indent of the list symbol.
+  /// </summary>
+  public Unit NumberPosition
+  {
+    get => this.numberPosition;
+    set => this.numberPosition = value;
+  }
+  [DV]
+  internal Unit numberPosition = Unit.NullValue;
+
+  /// <summary>
+  /// Gets or sets a value indicating whether
+  /// the previous list numbering should be continued.
+  /// </summary>
+  public bool ContinuePreviousList
+  {
+    get => this.continuePreviousList.Value;
+    set => this.continuePreviousList.Value = value;
+  }
+  [DV]
+  internal NBool continuePreviousList = NBool.NullValue;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts ListInfo into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    if (!this.listType.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.ListType", this.ListType);
+    if (!this.numberPosition.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.NumberPosition", this.NumberPosition);
+    if (!this.continuePreviousList.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", this.ContinuePreviousList);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(ListInfo));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

@@ -27,54 +27,53 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Pdf.Actions
+namespace PdfSharpCore.Pdf.Actions;
+
+/// <summary>
+/// Represents the base class for all PDF actions.
+/// </summary>
+public sealed class PdfGoToAction : PdfAction
 {
     /// <summary>
-    /// Represents the base class for all PDF actions.
+    /// Initializes a new instance of the <see cref="PdfGoToAction"/> class.
     /// </summary>
-    public sealed class PdfGoToAction : PdfAction
+    public PdfGoToAction()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfGoToAction"/> class.
-        /// </summary>
-        public PdfGoToAction()
-        {
-            Inititalize();
-        }
+        Inititalize();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfGoToAction"/> class.
+    /// </summary>
+    /// <param name="document">The document that owns this object.</param>
+    public PdfGoToAction(PdfDocument document)
+        : base(document)
+    {
+        Inititalize();
+    }
+
+    void Inititalize()
+    {
+        Elements.SetName(PdfAction.Keys.Type, "/Action");
+        Elements.SetName(PdfAction.Keys.S, "/Goto");
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
+    /// </summary>
+    internal new class Keys : PdfAction.Keys
+    {
+        ///// <summary>
+        ///// (Required) The type of action that this dictionary describes;
+        ///// must be GoTo for a go-to action.
+        ///// </summary>
+        //[KeyInfo(KeyType.Name | KeyType.Required, FixedValue = "Goto")]
+        //public const string S = "/S";
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PdfGoToAction"/> class.
+        /// (Required) The destination to jump to (see Section 8.2.1, “Destinations”).
         /// </summary>
-        /// <param name="document">The document that owns this object.</param>
-        public PdfGoToAction(PdfDocument document)
-            : base(document)
-        {
-            Inititalize();
-        }
-
-        void Inititalize()
-        {
-            Elements.SetName(PdfAction.Keys.Type, "/Action");
-            Elements.SetName(PdfAction.Keys.S, "/Goto");
-        }
-
-        /// <summary>
-        /// Predefined keys of this dictionary.
-        /// </summary>
-        internal new class Keys : PdfAction.Keys
-        {
-            ///// <summary>
-            ///// (Required) The type of action that this dictionary describes;
-            ///// must be GoTo for a go-to action.
-            ///// </summary>
-            //[KeyInfo(KeyType.Name | KeyType.Required, FixedValue = "Goto")]
-            //public const string S = "/S";
-
-            /// <summary>
-            /// (Required) The destination to jump to (see Section 8.2.1, “Destinations”).
-            /// </summary>
-            [KeyInfo(KeyType.Name | KeyType.ByteString | KeyType.Array | KeyType.Required)]
-            public const string D = "/D";
-        }
+        [KeyInfo(KeyType.Name | KeyType.ByteString | KeyType.Array | KeyType.Required)]
+        public const string D = "/D";
     }
 }

@@ -31,66 +31,60 @@ using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Internal;
 
-namespace PdfSharpCore.Pdf.Annotations
+namespace PdfSharpCore.Pdf.Annotations;
+
+/// <summary>
+/// Represents an underline annotation, which rules a line beneath a run of text.
+/// </summary>
+public sealed class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
-    /// Represents an underline annotation, which rules a line beneath a run of text.
+    /// Initializes a new instance of the <see cref="PdfUnderlineAnnotation"/> class.
     /// </summary>
-    public sealed class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
+    public PdfUnderlineAnnotation()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfUnderlineAnnotation"/> class.
-        /// </summary>
-        public PdfUnderlineAnnotation()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfUnderlineAnnotation"/> class.
-        /// </summary>
-        /// <param name="document">The document.</param>
-        public PdfUnderlineAnnotation(PdfDocument document)
-            : base(document)
-        {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            Elements.SetName(Keys.Subtype, "/Underline");
-            Color = XColors.Black;
-        }
-
-        /// <summary>
-        /// Rules a bar across the foot of the quadrilateral, one fourteenth of its height thick and
-        /// sitting that far above the bottom, which is about where the descenders of the line end.
-        /// </summary>
-        protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
-        {
-            double thickness = TextMarkupGeometry.RuleThickness(quad);
-            content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
-                quad.X1, quad.Y1 + thickness, quad.X2 - quad.X1, thickness));
-        }
-
-        /// <summary>
-        /// Predefined keys of this dictionary.
-        /// </summary>
-        internal new class Keys : PdfTextMarkupAnnotation.Keys
-        {
-            public static new DictionaryMeta Meta
-            {
-                get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-            }
-            static DictionaryMeta _meta;
-        }
-
-        /// <summary>
-        /// Gets the KeysMeta of this dictionary type.
-        /// </summary>
-        internal override DictionaryMeta Meta
-        {
-            get { return Keys.Meta; }
-        }
+        Initialize();
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfUnderlineAnnotation"/> class.
+    /// </summary>
+    /// <param name="document">The document.</param>
+    public PdfUnderlineAnnotation(PdfDocument document)
+        : base(document)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        Elements.SetName(Keys.Subtype, "/Underline");
+        Color = XColors.Black;
+    }
+
+    /// <summary>
+    /// Rules a bar across the foot of the quadrilateral, one fourteenth of its height thick and
+    /// sitting that far above the bottom, which is about where the descenders of the line end.
+    /// </summary>
+    protected override void DrawQuad(StringBuilder content, PdfRectangle quad)
+    {
+        double thickness = TextMarkupGeometry.RuleThickness(quad);
+        content.Append(PdfEncoders.Format("{0:0.###} {1:0.###} {2:0.###} {3:0.###} re f\n",
+            quad.X1, quad.Y1 + thickness, quad.X2 - quad.X1, thickness));
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
+    /// </summary>
+    internal new class Keys : PdfTextMarkupAnnotation.Keys
+    {
+        public static new DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
+
+        static DictionaryMeta _meta;
+    }
+
+    /// <summary>
+    /// Gets the KeysMeta of this dictionary type.
+    /// </summary>
+    internal override DictionaryMeta Meta => Keys.Meta;
 }

@@ -37,16 +37,15 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// Interface for simple nullable values like NInt, NString etc.
+/// </summary>
+internal interface INullableValue
 {
-  /// <summary>
-  /// Interface for simple nullable values like NInt, NString etc.
-  /// </summary>
-  internal interface INullableValue
-  {
-    object GetValue();
-    void SetValue(object value);
-    void SetNull();
-    bool IsNull { get;}
-  }
+  object GetValue();
+  void SetValue(object value);
+  void SetNull();
+  bool IsNull { get;}
 }

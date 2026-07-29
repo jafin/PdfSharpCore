@@ -35,183 +35,182 @@ using System.IO;
 using System.Text;
 using MigraDocCore.DocumentObjectModel;
 
-namespace MigraDocCore.DocumentObjectModel.IO
+namespace MigraDocCore.DocumentObjectModel.IO;
+
+/// <summary>
+/// Represents a reader that provides access to DDL data.
+/// </summary>
+public class DdlReader : IDisposable
 {
     /// <summary>
-    /// Represents a reader that provides access to DDL data.
+    /// Initializes a new instance of the DdlReader class with the specified Stream.
     /// </summary>
-    public class DdlReader : IDisposable
+    public DdlReader(Stream stream)
+        : this(stream, null)
     {
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified Stream.
-        /// </summary>
-        public DdlReader(Stream stream)
-          : this(stream, null)
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the DdlReader class with the specified Stream and ErrorManager2.
+    /// </summary>
+    public DdlReader(Stream stream, DdlReaderErrors errors)
+    {
+        this.errorManager = errors;
+        this.reader = new StreamReader(stream);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the DdlReader class with the specified filename.
+    /// </summary>
+    public DdlReader(string filename)
+        : this(filename, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the DdlReader class with the specified filename and ErrorManager2.
+    /// </summary>
+    public DdlReader(string filename, DdlReaderErrors errors)
+    {
+        this.fileName = filename;
+        this.errorManager = errors;
+        this.reader = new StreamReader(File.OpenRead(filename), Encoding.UTF8, false, 1028, false);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the DdlReader class with the specified TextReader.
+    /// </summary>
+    public DdlReader(TextReader reader)
+        : this(reader, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the DdlReader class with the specified TextReader and ErrorManager2.
+    /// </summary>
+    public DdlReader(TextReader reader, DdlReaderErrors errors)
+    {
+        this.errorManager = errors;
+        this.reader = reader;
+    }
+
+    /// <summary>
+    /// Reads and returns a Document from a file or a DDL string.
+    /// </summary>
+    public Document ReadDocument()
+    {
+        string ddl = this.reader.ReadToEnd();
+
+        Document document = null;
+        if (this.fileName != null && this.fileName != "")
         {
+            DdlParser parser = new DdlParser(this.fileName, ddl, this.errorManager);
+            document = parser.ParseDocument(null);
+            document.ddlFile = this.fileName;
+        }
+        else
+        {
+            DdlParser parser = new DdlParser(ddl, this.errorManager);
+            document = parser.ParseDocument(null);
         }
 
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified Stream and ErrorManager2.
-        /// </summary>
-        public DdlReader(Stream stream, DdlReaderErrors errors)
-        {
-            this.errorManager = errors;
-            this.reader = new StreamReader(stream);
-        }
+        return document;
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified filename.
-        /// </summary>
-        public DdlReader(string filename)
-          : this(filename, null)
-        {
-        }
+    /// <summary>
+    /// Reads and returns a DocumentObject from a file or a DDL string.
+    /// </summary>
+    public DocumentObject ReadObject()
+    {
+        string ddl = this.reader.ReadToEnd();
 
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified filename and ErrorManager2.
-        /// </summary>
-        public DdlReader(string filename, DdlReaderErrors errors)
-        {
-            this.fileName = filename;
-            this.errorManager = errors;
-            this.reader = new StreamReader(File.OpenRead(filename), Encoding.UTF8, false, 1028, false);
-        }
+        DdlParser parser = null;
+        if (this.fileName != null && this.fileName != "")
+            parser = new DdlParser(this.fileName, ddl, this.errorManager);
+        else
+            parser = new DdlParser(ddl, this.errorManager);
+        return parser.ParseDocumentObject();
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified TextReader.
-        /// </summary>
-        public DdlReader(TextReader reader)
-          : this(reader, null)
-        {
-        }
+    /// <summary>
+    /// Reads and returns a Document from the specified file.
+    /// </summary>
+    public static Document DocumentFromFile(string documentFileName) //, ErrorManager2 _errorManager)
+    {
+        using (var reader = new DdlReader(documentFileName))
+            return reader.ReadDocument();
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the DdlReader class with the specified TextReader and ErrorManager2.
-        /// </summary>
-        public DdlReader(TextReader reader, DdlReaderErrors errors)
+    /// <summary>
+    /// Reads and returns a Document from the specified DDL string.
+    /// </summary>
+    public static Document DocumentFromString(string ddl)
+    {
+        using (var stringReader = new StringReader(ddl))
         {
-            this.errorManager = errors;
-            this.reader = reader;
-        }
-
-        /// <summary>
-        /// Reads and returns a Document from a file or a DDL string.
-        /// </summary>
-        public Document ReadDocument()
-        {
-            string ddl = this.reader.ReadToEnd();
-
-            Document document = null;
-            if (this.fileName != null && this.fileName != "")
+            using (var reader = new DdlReader(stringReader))
             {
-                DdlParser parser = new DdlParser(this.fileName, ddl, this.errorManager);
-                document = parser.ParseDocument(null);
-                document.ddlFile = this.fileName;
-            }
-            else
-            {
-                DdlParser parser = new DdlParser(ddl, this.errorManager);
-                document = parser.ParseDocument(null);
-            }
-
-            return document;
-        }
-
-        /// <summary>
-        /// Reads and returns a DocumentObject from a file or a DDL string.
-        /// </summary>
-        public DocumentObject ReadObject()
-        {
-            string ddl = this.reader.ReadToEnd();
-
-            DdlParser parser = null;
-            if (this.fileName != null && this.fileName != "")
-                parser = new DdlParser(this.fileName, ddl, this.errorManager);
-            else
-                parser = new DdlParser(ddl, this.errorManager);
-            return parser.ParseDocumentObject();
-        }
-
-        /// <summary>
-        /// Reads and returns a Document from the specified file.
-        /// </summary>
-        public static Document DocumentFromFile(string documentFileName) //, ErrorManager2 _errorManager)
-        {
-            using (var reader = new DdlReader(documentFileName))
                 return reader.ReadDocument();
-        }
-
-        /// <summary>
-        /// Reads and returns a Document from the specified DDL string.
-        /// </summary>
-        public static Document DocumentFromString(string ddl)
-        {
-            using (var stringReader = new StringReader(ddl))
-            {
-                using (var reader = new DdlReader(stringReader))
-                {
-                    return reader.ReadDocument();
-                }
             }
         }
+    }
 
-        /// <summary>
-        /// Reads and returns a domain object from the specified file.
-        /// </summary>
-        public static DocumentObject ObjectFromFile(string documentFileName, DdlReaderErrors errors)
+    /// <summary>
+    /// Reads and returns a domain object from the specified file.
+    /// </summary>
+    public static DocumentObject ObjectFromFile(string documentFileName, DdlReaderErrors errors)
+    {
+        using (var reader = new DdlReader(documentFileName, errors))
+            return reader.ReadObject();
+    }
+
+    /// <summary>
+    /// Reads and returns a domain object from the specified file.
+    /// </summary>
+    public static DocumentObject ObjectFromFile(string documentFileName)
+    {
+        return ObjectFromFile(documentFileName, null);
+    }
+
+    /// <summary>
+    /// Reads and returns a domain object from the specified DDL string.
+    /// </summary>
+    public static DocumentObject ObjectFromString(string ddl, DdlReaderErrors errors)
+    {
+        using (var stringReader = new StringReader(ddl))
         {
-            using (var reader = new DdlReader(documentFileName, errors))
+
+            using (var reader = new DdlReader(stringReader))
                 return reader.ReadObject();
         }
-
-        /// <summary>
-        /// Reads and returns a domain object from the specified file.
-        /// </summary>
-        public static DocumentObject ObjectFromFile(string documentFileName)
-        {
-            return ObjectFromFile(documentFileName, null);
-        }
-
-        /// <summary>
-        /// Reads and returns a domain object from the specified DDL string.
-        /// </summary>
-        public static DocumentObject ObjectFromString(string ddl, DdlReaderErrors errors)
-        {
-            using (var stringReader = new StringReader(ddl))
-            {
-
-                using (var reader = new DdlReader(stringReader))
-                    return reader.ReadObject();
-            }
-        }
-
-        /// <summary>
-        /// Reads and returns a domain object from the specified DDL string.
-        /// </summary>
-        public static DocumentObject ObjectFromString(string ddl)
-        {
-            return ObjectFromString(ddl, null);
-        }
-
-        public void Dispose()
-        {
-            // Dispose of unmanaged resources.
-            Dispose(true);
-            // Suppress finalization.
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (this.reader != null)
-            {
-                this.reader.Dispose();
-                this.reader = null;
-            }
-        }
-
-        TextReader reader;
-        DdlReaderErrors errorManager;
-        string fileName;
     }
+
+    /// <summary>
+    /// Reads and returns a domain object from the specified DDL string.
+    /// </summary>
+    public static DocumentObject ObjectFromString(string ddl)
+    {
+        return ObjectFromString(ddl, null);
+    }
+
+    public void Dispose()
+    {
+        // Dispose of unmanaged resources.
+        Dispose(true);
+        // Suppress finalization.
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (this.reader != null)
+        {
+            this.reader.Dispose();
+            this.reader = null;
+        }
+    }
+
+    TextReader reader;
+    DdlReaderErrors errorManager;
+    string fileName;
 }

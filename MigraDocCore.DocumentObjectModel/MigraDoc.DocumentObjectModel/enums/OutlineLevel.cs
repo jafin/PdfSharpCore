@@ -32,22 +32,21 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the level of a paragraph.
+/// </summary>
+public enum OutlineLevel
 {
-  /// <summary>
-  /// Specifies the level of a paragraph.
-  /// </summary>
-  public enum OutlineLevel
-  {
-    BodyText,
-    Level1,
-    Level2,
-    Level3,
-    Level4,
-    Level5,
-    Level6,
-    Level7,
-    Level8,
-    Level9,
-  }
+  BodyText,
+  Level1,
+  Level2,
+  Level3,
+  Level4,
+  Level5,
+  Level6,
+  Level7,
+  Level8,
+  Level9,
 }
