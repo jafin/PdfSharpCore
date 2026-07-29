@@ -31,8 +31,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -190,7 +188,7 @@ public class TabStops : DocumentObjectCollection
   public void ClearAll()
   {
     Clear();
-    this.fClearAll = true;
+    fClearAll = true;
   }
   #endregion
 
@@ -199,7 +197,7 @@ public class TabStops : DocumentObjectCollection
   /// Gets the information if the collection is marked as cleared. Additionally 'TabStops = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool TabsCleared => this.fClearAll;
+  public bool TabsCleared => fClearAll;
 
   internal bool fClearAll = false;
   #endregion
@@ -228,7 +226,7 @@ public class TabStops : DocumentObjectCollection
   {
     // Only non empty and not cleared tabstops (TabStops = null) are null.
     if (base.IsNull())
-      return !this.fClearAll;
+      return !fClearAll;
     return false;
   }
 

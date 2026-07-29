@@ -28,9 +28,7 @@
 #endregion
 
 using System;
-using System.ComponentModel;
 using System.Threading;
-using PdfSharpCore.Pdf.Internal;
 
 namespace PdfSharpCore.Internal;
 

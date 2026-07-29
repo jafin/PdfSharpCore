@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
@@ -97,7 +94,7 @@ public class HeadersFooters : DocumentObject, IVisitable
   {
     get
     {
-      Section sec = (Section)this.parent;
+      Section sec = (Section)parent;
       return sec.headers == this;
     }
   }
@@ -112,7 +109,7 @@ public class HeadersFooters : DocumentObject, IVisitable
   /// </summary>
   public bool HasHeaderFooter(HeaderFooterIndex index)
   {
-    return !this.IsNull(index.ToString());
+    return !IsNull(index.ToString());
   }
 
   /// <summary>
@@ -122,15 +119,15 @@ public class HeadersFooters : DocumentObject, IVisitable
   {
     get
     {
-      if (this.evenPage == null)
-        this.evenPage = new HeaderFooter(this);
+      if (evenPage == null)
+        evenPage = new HeaderFooter(this);
 
-      return this.evenPage;
+      return evenPage;
     }
     set
     {
       SetParent(value);
-      this.evenPage = value;
+      evenPage = value;
     }
   }
   [DV]
@@ -143,15 +140,15 @@ public class HeadersFooters : DocumentObject, IVisitable
   {
     get
     {
-      if (this.firstPage == null)
-        this.firstPage = new HeaderFooter(this);
+      if (firstPage == null)
+        firstPage = new HeaderFooter(this);
 
-      return this.firstPage;
+      return firstPage;
     }
     set
     {
       SetParent(value);
-      this.firstPage = value;
+      firstPage = value;
     }
   }
   [DV]
@@ -164,15 +161,15 @@ public class HeadersFooters : DocumentObject, IVisitable
   {
     get
     {
-      if (this.primary == null)
-        this.primary = new HeaderFooter(this);
+      if (primary == null)
+        primary = new HeaderFooter(this);
 
-      return this.primary;
+      return primary;
     }
     set
     {
       SetParent(value);
-      this.primary = value;
+      primary = value;
     }
   }
   [DV]
@@ -212,11 +209,11 @@ public class HeadersFooters : DocumentObject, IVisitable
     if (visitChildren)
     {
       if (HasHeaderFooter(HeaderFooterIndex.Primary))
-        ((IVisitable)this.primary).AcceptVisitor(visitor, visitChildren);
+        ((IVisitable)primary).AcceptVisitor(visitor, visitChildren);
       if (HasHeaderFooter(HeaderFooterIndex.EvenPage))
-        ((IVisitable)this.evenPage).AcceptVisitor(visitor, visitChildren);
+        ((IVisitable)evenPage).AcceptVisitor(visitor, visitChildren);
       if (HasHeaderFooter(HeaderFooterIndex.FirstPage))
-        ((IVisitable)this.firstPage).AcceptVisitor(visitor, visitChildren);
+        ((IVisitable)firstPage).AcceptVisitor(visitor, visitChildren);
     }
   }
 

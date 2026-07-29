@@ -30,7 +30,6 @@
 using System;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Utils;
 
 namespace PdfSharpCore.Fonts;
 

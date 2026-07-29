@@ -31,8 +31,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
@@ -69,7 +67,7 @@ public sealed class Style : DocumentObject, IVisitable
       throw new ArgumentException("name");
 
     this.name.Value = name;
-    this.baseStyle.Value = baseStyleName;
+    baseStyle.Value = baseStyleName;
   }
 
   #region Methods
@@ -117,7 +115,7 @@ public sealed class Style : DocumentObject, IVisitable
   /// <summary>
   /// Indicates whether the style is read-only. 
   /// </summary>
-  public bool IsReadOnly => this.readOnly;
+  public bool IsReadOnly => readOnly;
 
   internal bool readOnly;
 
@@ -136,7 +134,7 @@ public sealed class Style : DocumentObject, IVisitable
   /// <summary>
   /// Gets the name of the style.
   /// </summary>
-  public string Name => this.name.Value;
+  public string Name => name.Value;
 
   [DV]
   internal NString name = NString.NullValue;
@@ -149,16 +147,16 @@ public sealed class Style : DocumentObject, IVisitable
   {
     get
     {
-      if (this.paragraphFormat == null)
-        this.paragraphFormat = new ParagraphFormat(this);
-      if (this.readOnly)
-        return this.paragraphFormat.Clone();
-      return this.paragraphFormat;
+      if (paragraphFormat == null)
+        paragraphFormat = new ParagraphFormat(this);
+      if (readOnly)
+        return paragraphFormat.Clone();
+      return paragraphFormat;
     }
     set
     {
       SetParent(value);
-      this.paragraphFormat = value;
+      paragraphFormat = value;
     }
   }
   [DV]
@@ -182,14 +180,14 @@ public sealed class Style : DocumentObject, IVisitable
         return;
       }
 
-      if (String.Compare(this.name.Value, Style.DefaultParagraphName, true) == 0 ||
-          String.Compare(this.name.Value, Style.DefaultParagraphFontName, true) == 0)
+      if (String.Compare(name.Value, DefaultParagraphName, true) == 0 ||
+          String.Compare(name.Value, DefaultParagraphFontName, true) == 0)
       {
-        string msg = String.Format("Style '{0}' has no base style and that cannot be altered.", this.name);
+        string msg = String.Format("Style '{0}' has no base style and that cannot be altered.", name);
         throw new ArgumentException(msg);
       }
 
-      Styles styles = (Styles)this.parent;
+      Styles styles = (Styles)parent;
       // The base style must exists
       int idxBaseStyle = styles.GetIndex(value);
       if (idxBaseStyle == -1)
@@ -242,20 +240,20 @@ public sealed class Style : DocumentObject, IVisitable
       //}
       //return styleType;
 
-      if (this.styleType.IsNull)
+      if (styleType.IsNull)
       {
         if (String.Compare(this.baseStyle.Value, DefaultParagraphFontName, true) == 0)
-          this.styleType.Value = (int)StyleType.Character;
+          styleType.Value = (int)StyleType.Character;
         else
         {
           Style baseStyle = GetBaseStyle();
           if (baseStyle == null)
             throw new InvalidOperationException("User defined style has no valid base Style.");
 
-          this.styleType.Value = (int)baseStyle.Type;
+          styleType.Value = (int)baseStyle.Type;
         }
       }
-      return (StyleType)this.styleType.Value;
+      return (StyleType)styleType.Value;
     }
   }
   [DV(Type = typeof(StyleType))]
@@ -264,8 +262,8 @@ public sealed class Style : DocumentObject, IVisitable
   /// <summary>
   /// Determines whether the style is the style Normal or DefaultParagraphFont.
   /// </summary>
-  internal bool IsRootStyle => String.Compare(this.Name, DefaultParagraphFontName, true) == 0 ||
-                               String.Compare(this.Name, DefaultParagraphName, true) == 0;
+  internal bool IsRootStyle => String.Compare(Name, DefaultParagraphFontName, true) == 0 ||
+                               String.Compare(Name, DefaultParagraphName, true) == 0;
 
   /// <summary>
   /// Get the BaseStyle of the current style.
@@ -279,21 +277,21 @@ public sealed class Style : DocumentObject, IVisitable
     if (styles == null)
       //??? 'owner of a parent'? eher 'owned by a parent' oder einfach: "A parent object is required for this operation."
       throw new InvalidOperationException("This instance of 'style' is currently not owner of a parent; access failed");
-    if (this.baseStyle.Value == "")
+    if (baseStyle.Value == "")
       throw new ArgumentException("User defined Style defined without a BaseStyle");
 
     //REVIEW KlPo4StLa Spezialbehandlung für den DefaultParagraphFont krüppelig(DefaultParagraphFont wird bei zugrif über styles["name"] nicht zurückgeliefert).
     //Da hast Du Recht -> siehe IsReadOnly
-    if (this.baseStyle.Value == DefaultParagraphFontName)
+    if (baseStyle.Value == DefaultParagraphFontName)
       return styles[0];
 
-    return styles[this.baseStyle.Value];
+    return styles[baseStyle.Value];
   }
 
   /// <summary>
   /// Indicates whether the style is a predefined (build in) style.
   /// </summary>
-  public bool BuildIn => this.buildIn.Value;
+  public bool BuildIn => buildIn.Value;
 
   [DV]
   internal NBool buildIn = NBool.NullValue;
@@ -304,8 +302,8 @@ public sealed class Style : DocumentObject, IVisitable
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => comment.Value;
+    set => comment.Value = value;
   }
   [DV]
   internal NString comment = NString.NullValue;
@@ -339,38 +337,38 @@ public sealed class Style : DocumentObject, IVisitable
     Font refFont = null;
     ParagraphFormat refFormat = null;
 
-    serializer.WriteComment(this.comment.Value);
-    if (this.buildIn.Value)
+    serializer.WriteComment(comment.Value);
+    if (buildIn.Value)
     {
       // BaseStyle is never null, but empty only for "Normal" and "DefaultParagraphFont"
-      if (this.BaseStyle == "")
+      if (BaseStyle == "")
       {
         // case: style is "Normal"
-        if (String.Compare(this.name.Value, Style.DefaultParagraphName, true) != 0)
+        if (String.Compare(this.name.Value, DefaultParagraphName, true) != 0)
           throw new ArgumentException("Internal Error: BaseStyle not set.");
 
-        refStyle = buildInStyles[buildInStyles.GetIndex(this.Name)];
+        refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
         refFormat = refStyle.ParagraphFormat;
         refFont = refFormat.Font;
-        string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
+        string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
         serializer.WriteLineNoCommit(name);
       }
       else
       {
         // case: any build-in style except "Normal"
-        refStyle = buildInStyles[buildInStyles.GetIndex(this.Name)];
+        refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
         refFormat = refStyle.ParagraphFormat;
         refFont = refFormat.Font;
-        if (String.Compare(this.BaseStyle, refStyle.BaseStyle, true) == 0)
+        if (String.Compare(BaseStyle, refStyle.BaseStyle, true) == 0)
         {
           // case: build-in style with unmodified base style name
-          string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
+          string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
           serializer.WriteLineNoCommit(name);
           // It's fine if we have the predefined base style, but ...
           // ... the base style may have been modified or may even have a modified base style.
           // Methinks it's wrong to compare with the built-in style, so let's compare with the
           // real base style:
-          refStyle = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
+          refStyle = Document.Styles[Document.Styles.GetIndex(baseStyle.Value)];
           refFormat = refStyle.ParagraphFormat;
           refFont = refFormat.Font;
           // Note: we must write "Underline = none" if the base style has "Underline = single" - we cannot
@@ -381,10 +379,10 @@ public sealed class Style : DocumentObject, IVisitable
         else
         {
           // case: build-in style with modified base style name
-          string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-          string baseName = DdlEncoder.QuoteIfNameContainsBlanks(this.BaseStyle);
+          string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+          string baseName = DdlEncoder.QuoteIfNameContainsBlanks(BaseStyle);
           serializer.WriteLine(name + " : " + baseName);
-          refStyle = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
+          refStyle = Document.Styles[Document.Styles.GetIndex(baseStyle.Value)];
           refFormat = refStyle.ParagraphFormat;
           refFont = refFormat.Font;
         }
@@ -394,24 +392,24 @@ public sealed class Style : DocumentObject, IVisitable
     {
       // case: user-defined style; base style always exists
 
-      string name = DdlEncoder.QuoteIfNameContainsBlanks(this.Name);
-      string baseName = DdlEncoder.QuoteIfNameContainsBlanks(this.BaseStyle);
+      string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
+      string baseName = DdlEncoder.QuoteIfNameContainsBlanks(BaseStyle);
       serializer.WriteLine(name + " : " + baseName);
-      Style refStyle0 = Document.Styles[Document.Styles.GetIndex(this.baseStyle.Value)];
-      refStyle = Document.Styles[this.baseStyle.Value];
+      Style refStyle0 = Document.Styles[Document.Styles.GetIndex(baseStyle.Value)];
+      refStyle = Document.Styles[baseStyle.Value];
       refFormat = refStyle != null ? refStyle.ParagraphFormat : null;
       refFont = refStyle.Font;
     }
 
     serializer.BeginContent();
 
-    if (!this.IsNull("ParagraphFormat"))
+    if (!IsNull("ParagraphFormat"))
     {
-      if (!this.ParagraphFormat.IsNull("Font"))
-        this.Font.Serialize(serializer, refFormat != null ? refFormat.Font : null);
+      if (!ParagraphFormat.IsNull("Font"))
+        Font.Serialize(serializer, refFormat != null ? refFormat.Font : null);
 
-      if (this.Type == StyleType.Paragraph)
-        this.ParagraphFormat.Serialize(serializer, "ParagraphFormat", refFormat);
+      if (Type == StyleType.Paragraph)
+        ParagraphFormat.Serialize(serializer, "ParagraphFormat", refFormat);
     }
 
     serializer.EndContent();

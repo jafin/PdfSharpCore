@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -70,8 +67,8 @@ public class ListInfo : DocumentObject
   /// </summary>
   public ListType ListType
   {
-    get => (ListType)this.listType.Value;
-    set => this.listType.Value = (int)value;
+    get => (ListType)listType.Value;
+    set => listType.Value = (int)value;
   }
   [DV(Type = typeof(ListType))]
   internal NEnum listType = NEnum.NullValue(typeof(ListType));
@@ -81,8 +78,8 @@ public class ListInfo : DocumentObject
   /// </summary>
   public Unit NumberPosition
   {
-    get => this.numberPosition;
-    set => this.numberPosition = value;
+    get => numberPosition;
+    set => numberPosition = value;
   }
   [DV]
   internal Unit numberPosition = Unit.NullValue;
@@ -93,8 +90,8 @@ public class ListInfo : DocumentObject
   /// </summary>
   public bool ContinuePreviousList
   {
-    get => this.continuePreviousList.Value;
-    set => this.continuePreviousList.Value = value;
+    get => continuePreviousList.Value;
+    set => continuePreviousList.Value = value;
   }
   [DV]
   internal NBool continuePreviousList = NBool.NullValue;
@@ -106,12 +103,12 @@ public class ListInfo : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (!this.listType.IsNull)
-      serializer.WriteSimpleAttribute("ListInfo.ListType", this.ListType);
-    if (!this.numberPosition.IsNull)
-      serializer.WriteSimpleAttribute("ListInfo.NumberPosition", this.NumberPosition);
-    if (!this.continuePreviousList.IsNull)
-      serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", this.ContinuePreviousList);
+    if (!listType.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.ListType", ListType);
+    if (!numberPosition.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.NumberPosition", NumberPosition);
+    if (!continuePreviousList.IsNull)
+      serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", ContinuePreviousList);
   }
 
   /// <summary>

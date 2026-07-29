@@ -26,11 +26,9 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
-
-using System;
 
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
@@ -41,12 +39,12 @@ internal struct NBool : INullableValue
 {
   public NBool(bool value)
   {
-    this.val = value ? (sbyte)1 : (sbyte)0;
+    val = value ? (sbyte)1 : (sbyte)0;
   }
 
   NBool(sbyte value)
   {
-    this.val = value;
+    val = value;
   }
 
   /// <summary>
@@ -54,8 +52,8 @@ internal struct NBool : INullableValue
   /// </summary>
   public bool Value
   {
-    get => this.val == 1;
-    set => this.val = value ? (sbyte)1 : (sbyte)0;
+    get => val == 1;
+    set => val = value ? (sbyte)1 : (sbyte)0;
   }
 
   /// <summary>
@@ -63,7 +61,7 @@ internal struct NBool : INullableValue
   /// </summary>
   object INullableValue.GetValue()
   {
-    return this.Value;
+    return Value;
   }
 
   /// <summary>
@@ -71,22 +69,22 @@ internal struct NBool : INullableValue
   /// </summary>
   void INullableValue.SetValue(object value)
   {
-    this.val = (bool)value ? (sbyte)1 : (sbyte)0;
+    val = (bool)value ? (sbyte)1 : (sbyte)0;
   }
 
   /// <summary>
   /// Resets this instance,
-  /// i.e. IsNull() will return true afterwards.
+  /// i.e. IsNull() will return true afterward.
   /// </summary>
   public void SetNull()
   {
-    this.val = -1;
+    val = -1;
   }
 
   /// <summary>
   /// Determines whether this instance is null (not set).
   /// </summary>
-  public bool IsNull => this.val == -1;
+  public bool IsNull => val == -1;
 
   /// <summary>
   /// Returns a value indicating whether this instance is equal to the specified object.
@@ -100,7 +98,7 @@ internal struct NBool : INullableValue
 
   public override int GetHashCode()
   {
-    return this.val.GetHashCode();
+    return val.GetHashCode();
   }
 
   public static bool operator ==(NBool l, NBool r)
@@ -118,7 +116,7 @@ internal struct NBool : INullableValue
     return !(l == r);
   }
 
-  public static readonly NBool NullValue = new NBool(-1);
+  public static readonly NBool NullValue = new(-1);
 
   /// <summary>
   /// -1 (undefined), 0 (false), or 1 (true).

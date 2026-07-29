@@ -61,7 +61,7 @@ public sealed class TextMeasurement
         if (!Enum.IsDefined(typeof(UnitType), unitType))
             throw new ArgumentException();
 
-        var size = graphics.MeasureString(text, this.XFont);
+        var size = graphics.MeasureString(text, XFont);
         switch (unitType)
         {
             case UnitType.Point:
@@ -107,15 +107,15 @@ public sealed class TextMeasurement
     /// </summary>
     public Font Font
     {
-        get => this.font;
+        get => font;
         set
         {
             if (value == null)
                 throw new ArgumentNullException("value");
-            if (this.font != value)
+            if (font != value)
             {
-                this.font = value;
-                this.xFont = null;
+                font = value;
+                xFont = null;
             }
         }
     }
@@ -126,22 +126,22 @@ public sealed class TextMeasurement
     private XFont XFont
     {
         get { 
-            if (this.xFont == null)
+            if (xFont == null)
             {
                 var style = XFontStyle.Regular;
-                if (this.Font.Bold)
+                if (Font.Bold)
                 {
                     style |= XFontStyle.Bold;
                 }
-                if (this.Font.Italic)
+                if (Font.Italic)
                 {
                     style |= XFontStyle.Italic;
                 }
 
-                this.xFont = new XFont(this.Font.Name, this.Font.Size, style);
+                xFont = new XFont(Font.Name, Font.Size, style);
             }
 
-            return this.xFont;
+            return xFont;
         }
     }
 

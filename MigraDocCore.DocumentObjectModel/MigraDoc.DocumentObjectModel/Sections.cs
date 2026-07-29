@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
@@ -75,7 +72,7 @@ public class Sections : DocumentObjectCollection, IVisitable
   public Section AddSection()
   {
     Section section = new Section();
-    this.Add(section);
+    Add(section);
     return section;
   }
   #endregion

@@ -32,8 +32,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
@@ -92,7 +90,7 @@ public abstract class DocumentObject
   /// <summary>
   /// Gets the parent object.
   /// </summary>
-  internal DocumentObject Parent => this.parent;
+  internal DocumentObject Parent => parent;
 
   [DV(RefOnly = true)]
   protected internal DocumentObject parent;
@@ -211,8 +209,8 @@ public abstract class DocumentObject
   /// </summary>
   public object Tag
   {
-    get => this.tag;
-    set => this.tag = value;
+    get => tag;
+    set => tag = value;
   }
   object tag;
 

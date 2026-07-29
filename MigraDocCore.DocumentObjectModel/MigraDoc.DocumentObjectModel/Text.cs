@@ -30,9 +30,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -61,7 +58,7 @@ public class Text : DocumentObject
     : this()
   {
     //is this constructor needed? or just the default constructor?
-    this.Content = content;
+    Content = content;
   }
 
   #region Methods
@@ -80,8 +77,8 @@ public class Text : DocumentObject
   /// </summary>
   public string Content
   {
-    get => this.content.Value;
-    set => this.content.Value = value;
+    get => content.Value;
+    set => content.Value = value;
   }
   [DV]
   internal NString content = NString.NullValue;

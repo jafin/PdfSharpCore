@@ -34,7 +34,6 @@ using System;
 using System.Diagnostics;
 using System.Collections;
 using System.Globalization;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
@@ -51,9 +50,9 @@ public struct Color : INullableValue
     /// </summary>
     public Color(uint argb)
     {
-        this.isCmyk = false;
+        isCmyk = false;
         this.argb = argb;
-        this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+        a = c = m = y = k = 0f; // Compiler enforces this line of code
         InitCmykFromRgb();
     }
 
@@ -62,9 +61,9 @@ public struct Color : INullableValue
     /// </summary>
     public Color(byte r, byte g, byte b)
     {
-        this.isCmyk = false;
-        this.argb = 0xFF000000 | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
-        this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+        isCmyk = false;
+        argb = 0xFF000000 | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+        a = c = m = y = k = 0f; // Compiler enforces this line of code
         InitCmykFromRgb();
     }
 
@@ -73,9 +72,9 @@ public struct Color : INullableValue
     /// </summary>
     public Color(byte a, byte r, byte g, byte b)
     {
-        this.isCmyk = false;
-        this.argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
-        this.a = this.c = this.m = this.y = this.k = 0f; // Compiler enforces this line of code
+        isCmyk = false;
+        argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+        this.a = c = m = y = k = 0f; // Compiler enforces this line of code
         InitCmykFromRgb();
     }
 
@@ -85,13 +84,13 @@ public struct Color : INullableValue
     /// </summary>
     public Color(double alpha, double cyan, double magenta, double yellow, double black)
     {
-        this.isCmyk = true;
-        this.a = (float)(alpha > 100 ? 100 : (alpha < 0 ? 0 : alpha));
-        this.c = (float)(cyan > 100 ? 100 : (cyan < 0 ? 0 : cyan));
-        this.m = (float)(magenta > 100 ? 100 : (magenta < 0 ? 0 : magenta));
-        this.y = (float)(yellow > 100 ? 100 : (yellow < 0 ? 0 : yellow));
-        this.k = (float)(black > 100 ? 100 : (black < 0 ? 0 : black));
-        this.argb = 0; // Compiler enforces this line of code
+        isCmyk = true;
+        a = (float)(alpha > 100 ? 100 : (alpha < 0 ? 0 : alpha));
+        c = (float)(cyan > 100 ? 100 : (cyan < 0 ? 0 : cyan));
+        m = (float)(magenta > 100 ? 100 : (magenta < 0 ? 0 : magenta));
+        y = (float)(yellow > 100 ? 100 : (yellow < 0 ? 0 : yellow));
+        k = (float)(black > 100 ? 100 : (black < 0 ? 0 : black));
+        argb = 0; // Compiler enforces this line of code
         InitRgbFromCmyk();
     }
 
@@ -106,7 +105,7 @@ public struct Color : INullableValue
     void InitCmykFromRgb()
     {
         // Similar formula as in PDFsharp
-        this.isCmyk = false;
+        isCmyk = false;
         int c = 255 - (int)R;
         int m = 255 - (int)G;
         int y = 255 - (int)B;
@@ -121,31 +120,31 @@ public struct Color : INullableValue
             this.y = 100f * (y - k) / black;
         }
         this.k = 100f * k / 255f;
-        this.a = A / 2.55f;
+        a = A / 2.55f;
     }
 
     void InitRgbFromCmyk()
     {
         // Similar formula as in PDFsharp
-        this.isCmyk = true;
-        float black = this.k * 2.55f + 0.5f;
+        isCmyk = true;
+        float black = k * 2.55f + 0.5f;
         float factor = (255f - black) / 100f;
         byte a = (byte)(this.a * 2.55 + 0.5);
-        byte r = (byte)(255 - Math.Min(255f, this.c * factor + black));
-        byte g = (byte)(255 - Math.Min(255f, this.m * factor + black));
-        byte b = (byte)(255 - Math.Min(255f, this.y * factor + black));
-        this.argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+        byte r = (byte)(255 - Math.Min(255f, c * factor + black));
+        byte g = (byte)(255 - Math.Min(255f, m * factor + black));
+        byte b = (byte)(255 - Math.Min(255f, y * factor + black));
+        argb = ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
     }
 
     /// <summary>
     /// Gets a value indicating whether this instance is a CMYK color.
     /// </summary>
-    public bool IsCmyk => this.isCmyk;
+    public bool IsCmyk => isCmyk;
 
     /// <summary>
     /// Determines whether this color is empty.
     /// </summary>
-    public bool IsEmpty => this == Color.Empty;
+    public bool IsEmpty => this == Empty;
 
     /// <summary>
     /// Returns the value.
@@ -161,9 +160,9 @@ public struct Color : INullableValue
     void INullableValue.SetValue(object value)
     {
         if (value is uint)
-            this.argb = (uint)value;
+            argb = (uint)value;
         else
-            this = Color.Parse(value.ToString());
+            this = Parse(value.ToString());
     }
 
     /// <summary>
@@ -171,18 +170,18 @@ public struct Color : INullableValue
     /// </summary>
     void INullableValue.SetNull()
     {
-        this = Color.Empty;
+        this = Empty;
     }
 
     /// <summary>
     /// Determines whether this instance is null (not set).
     /// </summary>
-    bool INullableValue.IsNull => this == Color.Empty;
+    bool INullableValue.IsNull => this == Empty;
 
     /// <summary>
     /// Determines whether this instance is null (not set).
     /// </summary>
-    internal bool IsNull => this == Color.Empty;
+    internal bool IsNull => this == Empty;
 
     /// <summary>
     /// Gets or sets the ARGB value.
@@ -192,7 +191,7 @@ public struct Color : INullableValue
         get => argb;
         set
         {
-            if (this.isCmyk)
+            if (isCmyk)
                 throw new InvalidOperationException("Cannot change a CMYK color.");
             argb = value;
             InitCmykFromRgb();
@@ -207,7 +206,7 @@ public struct Color : INullableValue
         get => argb;
         set
         {
-            if (this.isCmyk)
+            if (isCmyk)
                 throw new InvalidOperationException("Cannot change a CMYK color.");
             argb = value;
             InitCmykFromRgb();
@@ -222,12 +221,12 @@ public struct Color : INullableValue
         if (obj is Color)
         {
             Color color = (Color)obj;
-            if (this.isCmyk ^ color.isCmyk)
+            if (isCmyk ^ color.isCmyk)
                 return false;
-            if (this.isCmyk)
-                return this.a == color.a && this.c == color.c && this.m == color.m && this.y == color.y && this.k == color.k;
+            if (isCmyk)
+                return a == color.a && c == color.c && m == color.m && y == color.y && k == color.k;
             else
-                return this.argb == color.argb;
+                return argb == color.argb;
         }
         return false;
     }
@@ -237,7 +236,7 @@ public struct Color : INullableValue
     /// </summary>
     public override int GetHashCode()
     {
-        return (int)this.argb ^ this.a.GetHashCode() ^ this.c.GetHashCode() ^ this.m.GetHashCode() ^ this.y.GetHashCode() ^ this.k.GetHashCode();
+        return (int)argb ^ a.GetHashCode() ^ c.GetHashCode() ^ m.GetHashCode() ^ y.GetHashCode() ^ k.GetHashCode();
     }
 
     /// <summary>
@@ -288,11 +287,11 @@ public struct Color : INullableValue
                 //ignore exception cause it's not a ColorName.
             }
 
-            System.Globalization.NumberStyles numberStyle = System.Globalization.NumberStyles.Integer;
+            NumberStyles numberStyle = NumberStyles.Integer;
             string number = color.ToLower();
             if (number.StartsWith("0x"))
             {
-                numberStyle = System.Globalization.NumberStyles.HexNumber;
+                numberStyle = NumberStyles.HexNumber;
                 number = color.Substring(2);
             }
             clr = uint.Parse(number, numberStyle);
@@ -308,55 +307,55 @@ public struct Color : INullableValue
     /// Gets the alpha (transparency) part of the RGB Color.
     /// The values is in the range between 0 to 255.
     /// </summary>
-    public uint A => (this.argb & 0xFF000000) >> 24;
+    public uint A => (argb & 0xFF000000) >> 24;
 
     /// <summary>
     /// Gets the red part of the Color.
     /// The values is in the range between 0 to 255.
     /// </summary>
-    public uint R => (this.argb & 0xFF0000) >> 16;
+    public uint R => (argb & 0xFF0000) >> 16;
 
     /// <summary>
     /// Gets the green part of the Color.
     /// The values is in the range between 0 to 255.
     /// </summary>
-    public uint G => (this.argb & 0x00FF00) >> 8;
+    public uint G => (argb & 0x00FF00) >> 8;
 
     /// <summary>
     /// Gets the blue part of the Color.
     /// The values is in the range between 0 to 255.
     /// </summary>
-    public uint B => this.argb & 0x0000FF;
+    public uint B => argb & 0x0000FF;
 
     /// <summary>
     /// Gets the alpha (transparency) part of the CMYK Color.
     /// The values is in the range between 0 (transparent) to 100 (opaque) percent.
     /// </summary>
-    public double Alpha => this.a;
+    public double Alpha => a;
 
     /// <summary>
     /// Gets the cyan part of the Color.
     /// The values is in the range between 0 to 100 percent.
     /// </summary>
-    public double C => this.c;
+    public double C => c;
 
     /// <summary>
     /// Gets the magenta part of the Color.
     /// The values is in the range between 0 to 100 percent.
     /// </summary>
-    public double M => this.m;
+    public double M => m;
 
     /// <summary>
     /// Gets the yellow part of the Color.
     /// The values is in the range between 0 to 100 percent.
     /// </summary>
-    public double Y => this.y;
+    public double Y => y;
 
     /// <summary>
     /// Gets the key (black) part of the Color.
     /// The values is in the range between 0 to 100 percent.
     /// </summary>
-    public double K => this.k;
+    public double K => k;
 
     /// <summary>
     /// Gets a non transparent color brightened in terms of transparency if any is given(A &lt; 255),
@@ -402,7 +401,7 @@ public struct Color : INullableValue
                     stdColors.Add(d, c);
             }
         }
-        if (this.isCmyk)
+        if (isCmyk)
         {
             string s;
             if (Alpha == 100.0)
@@ -417,11 +416,11 @@ public struct Color : INullableValue
                 return (string)stdColors[argb];
             else
             {
-                if ((this.argb & 0xFF000000) == 0xFF000000)
+                if ((argb & 0xFF000000) == 0xFF000000)
                     return "RGB(" +
-                           ((this.argb & 0xFF0000) >> 16).ToString(CultureInfo.InvariantCulture) + "," +
-                           ((this.argb & 0x00FF00) >> 8).ToString(CultureInfo.InvariantCulture) + "," +
-                           (this.argb & 0x0000FF).ToString(CultureInfo.InvariantCulture) + ")";
+                           ((argb & 0xFF0000) >> 16).ToString(CultureInfo.InvariantCulture) + "," +
+                           ((argb & 0x00FF00) >> 8).ToString(CultureInfo.InvariantCulture) + "," +
+                           (argb & 0x0000FF).ToString(CultureInfo.InvariantCulture) + ")";
                 else
                     return "0x" + argb.ToString("X");
             }

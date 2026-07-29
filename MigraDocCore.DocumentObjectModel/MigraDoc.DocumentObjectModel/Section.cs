@@ -30,16 +30,11 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using System.IO;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -117,7 +112,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph()
     {
-        return this.Elements.AddParagraph();
+        return Elements.AddParagraph();
     }
 
     /// <summary>
@@ -125,7 +120,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph(string paragraphText)
     {
-        return this.Elements.AddParagraph(paragraphText);
+        return Elements.AddParagraph(paragraphText);
     }
 
     /// <summary>
@@ -133,7 +128,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Paragraph AddParagraph(string paragraphText, string style)
     {
-        return this.Elements.AddParagraph(paragraphText, style);
+        return Elements.AddParagraph(paragraphText, style);
     }
 
     /// <summary>
@@ -141,7 +136,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart(ChartType type)
     {
-        return this.Elements.AddChart(type);
+        return Elements.AddChart(type);
     }
 
     /// <summary>
@@ -149,7 +144,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Chart AddChart()
     {
-        return this.Elements.AddChart();
+        return Elements.AddChart();
     }
 
     /// <summary>
@@ -157,7 +152,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Table AddTable()
     {
-        return this.Elements.AddTable();
+        return Elements.AddTable();
     }
 
     /// <summary>
@@ -165,7 +160,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void AddPageBreak()
     {
-        this.Elements.AddPageBreak();
+        Elements.AddPageBreak();
     }
 
     /// <summary>
@@ -173,7 +168,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public Image AddImage(IImageSource imageSource)
     {
-        return this.Elements.AddImage(imageSource);
+        return Elements.AddImage(imageSource);
     }
 
     /// <summary>
@@ -181,7 +176,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public TextFrame AddTextFrame()
     {
-        return this.Elements.AddTextFrame();
+        return Elements.AddTextFrame();
     }
 
     /// <summary>
@@ -189,7 +184,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void Add(Paragraph paragraph)
     {
-        this.Elements.Add(paragraph);
+        Elements.Add(paragraph);
     }
 
     /// <summary>
@@ -197,7 +192,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void Add(Chart chart)
     {
-        this.Elements.Add(chart);
+        Elements.Add(chart);
     }
 
     /// <summary>
@@ -205,7 +200,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void Add(Table table)
     {
-        this.Elements.Add(table);
+        Elements.Add(table);
     }
 
     /// <summary>
@@ -213,7 +208,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void Add(Image image)
     {
-        this.Elements.Add(image);
+        Elements.Add(image);
     }
 
     /// <summary>
@@ -221,7 +216,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public void Add(TextFrame textFrame)
     {
-        this.Elements.Add(textFrame);
+        Elements.Add(textFrame);
     }
     #endregion
 
@@ -233,15 +228,15 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            if (this.pageSetup == null)
-                this.pageSetup = new PageSetup(this);
+            if (pageSetup == null)
+                pageSetup = new PageSetup(this);
 
-            return this.pageSetup;
+            return pageSetup;
         }
         set
         {
             SetParent(value);
-            this.pageSetup = value;
+            pageSetup = value;
         }
     }
     [DV]
@@ -254,15 +249,15 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            if (this.headers == null)
-                this.headers = new HeadersFooters(this);
+            if (headers == null)
+                headers = new HeadersFooters(this);
 
-            return this.headers;
+            return headers;
         }
         set
         {
             SetParent(value);
-            this.headers = value;
+            headers = value;
         }
     }
     [DV]
@@ -275,15 +270,15 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            if (this.footers == null)
-                this.footers = new HeadersFooters(this);
+            if (footers == null)
+                footers = new HeadersFooters(this);
 
-            return this.footers;
+            return footers;
         }
         set
         {
             SetParent(value);
-            this.footers = value;
+            footers = value;
         }
     }
     [DV]
@@ -296,15 +291,15 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            if (this.elements == null)
-                this.elements = new DocumentElements(this);
+            if (elements == null)
+                elements = new DocumentElements(this);
 
-            return this.elements;
+            return elements;
         }
         set
         {
             SetParent(value);
-            this.elements = value;
+            elements = value;
         }
     }
     [DV]
@@ -315,8 +310,8 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => this.comment.Value;
-        set => this.comment.Value = value;
+        get => comment.Value;
+        set => comment.Value = value;
     }
     [DV]
     internal NString comment = NString.NullValue;
@@ -328,11 +323,11 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            int count = this.elements.Count;
+            int count = elements.Count;
             for (int idx = count - 1; idx >= 0; idx--)
             {
-                if (this.elements[idx] is Paragraph)
-                    return (Paragraph)this.elements[idx];
+                if (elements[idx] is Paragraph)
+                    return (Paragraph)elements[idx];
             }
             return null;
         }
@@ -345,11 +340,11 @@ public class Section : DocumentObject, IVisitable
     {
         get
         {
-            int count = this.elements.Count;
+            int count = elements.Count;
             for (int idx = count - 1; idx >= 0; idx--)
             {
-                if (this.elements[idx] is Table)
-                    return (Table)this.elements[idx];
+                if (elements[idx] is Table)
+                    return (Table)elements[idx];
             }
             return null;
         }
@@ -362,21 +357,21 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(this.comment.Value);
+        serializer.WriteComment(comment.Value);
         serializer.WriteLine("\\section");
 
         int pos = serializer.BeginAttributes();
-        if (!this.IsNull("PageSetup"))
-            this.PageSetup.Serialize(serializer);
+        if (!IsNull("PageSetup"))
+            PageSetup.Serialize(serializer);
         serializer.EndAttributes(pos);
 
         serializer.BeginContent();
-        if (!this.IsNull("headers"))
-            this.headers.Serialize(serializer);
-        if (!this.IsNull("footers"))
-            this.footers.Serialize(serializer);
-        if (!this.IsNull("elements"))
-            this.elements.Serialize(serializer);
+        if (!IsNull("headers"))
+            headers.Serialize(serializer);
+        if (!IsNull("footers"))
+            footers.Serialize(serializer);
+        if (!IsNull("elements"))
+            elements.Serialize(serializer);
 
         serializer.EndContent();
     }
@@ -388,13 +383,13 @@ public class Section : DocumentObject, IVisitable
     {
         visitor.VisitSection(this);
 
-        if (visitChildren && this.headers != null)
-            ((IVisitable)this.headers).AcceptVisitor(visitor, visitChildren);
-        if (visitChildren && this.footers != null)
-            ((IVisitable)this.footers).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && headers != null)
+            ((IVisitable)headers).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && footers != null)
+            ((IVisitable)footers).AcceptVisitor(visitor, visitChildren);
 
-        if (visitChildren && this.elements != null)
-            ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && elements != null)
+            ((IVisitable)elements).AcceptVisitor(visitor, visitChildren);
     }
 
     /// <summary>

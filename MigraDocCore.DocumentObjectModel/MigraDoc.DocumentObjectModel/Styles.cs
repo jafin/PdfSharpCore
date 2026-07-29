@@ -32,8 +32,6 @@
 
 using System;
 using System.Collections;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
@@ -131,7 +129,7 @@ public class Styles : DocumentObjectCollection, IVisitable
         Style style = new Style();
         style.name.Value = name;
         style.baseStyle.Value = baseStyleName;
-        this.Add(style);
+        Add(style);
         return style;
     }
 
@@ -187,8 +185,8 @@ public class Styles : DocumentObjectCollection, IVisitable
     /// </summary>
     public string Comment
     {
-        get => this.comment.Value;
-        set => this.comment.Value = value;
+        get => comment.Value;
+        set => comment.Value = value;
     }
     [DV]
     internal NString comment = NString.NullValue;
@@ -208,7 +206,7 @@ public class Styles : DocumentObjectCollection, IVisitable
         };
         style.styleType.Value = (int)StyleType.Character;
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // Normal 'Standard' (Paragraph Style)
         style = new Style(Style.DefaultParagraphName, null);
@@ -236,86 +234,86 @@ public class Styles : DocumentObjectCollection, IVisitable
         style.ParagraphFormat.OutlineLevel = OutlineLevel.BodyText;
         style.ParagraphFormat.PageBreakBefore = false;
         style.ParagraphFormat.WidowControl = true;
-        this.Add(style);
+        Add(style);
 
         // Heading1 'Überschrift 1' (Paragraph Style)
         style = new Style("Heading1", "Normal");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level1;
-        this.Add(style);
+        Add(style);
 
         // Heading2 'Überschrift 2' (Paragraph Style)
         style = new Style("Heading2", "Heading1");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level2;
-        this.Add(style);
+        Add(style);
 
         // Heading3 'Überschrift 3' (Paragraph Style)
         style = new Style("Heading3", "Heading2");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level3;
-        this.Add(style);
+        Add(style);
 
         // Heading4 'Überschrift 4' (Paragraph Style)
         style = new Style("Heading4", "Heading3");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level4;
-        this.Add(style);
+        Add(style);
 
         // Heading5 'Überschrift 5' (Paragraph Style)
         style = new Style("Heading5", "Heading4");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level5;
-        this.Add(style);
+        Add(style);
 
         // Heading6 'Überschrift 6' (Paragraph Style)
         style = new Style("Heading6", "Heading5");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level6;
-        this.Add(style);
+        Add(style);
 
         // Heading7 'Überschrift 7' (Paragraph Style)
         style = new Style("Heading7", "Heading6");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level7;
-        this.Add(style);
+        Add(style);
 
         // Heading8 'Überschrift 8' (Paragraph Style)
         style = new Style("Heading8", "Heading7");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level8;
-        this.Add(style);
+        Add(style);
 
         // Heading9 'Überschrift 9' (Paragraph Style)
         style = new Style("Heading9", "Heading8");
         style.buildIn.Value = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level9;
-        this.Add(style);
+        Add(style);
 
         // List 'Liste' (Paragraph Style)
         style = new Style("List", "Normal");
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // Footnote 'Fußnote' (Paragraph Style)
         style = new Style("Footnote", "Normal");
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // Header 'Kopfzeile' (Paragraph Style)
         style = new Style("Header", "Normal");
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // -33: Footer 'Fußzeile' (Paragraph Style)
         style = new Style("Footer", "Normal");
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // Hyperlink 'Hyperlink' (Character Style)
         style = new Style("Hyperlink", "DefaultParagraphFont");
         style.buildIn.Value = true;
-        this.Add(style);
+        Add(style);
 
         // InvalidStyleName 'Ungültiger Formatvorlagenname' (Paragraph Style)
         style = new Style("InvalidStyleName", "Normal");
@@ -323,7 +321,7 @@ public class Styles : DocumentObjectCollection, IVisitable
         style.Font.Bold = true;
         style.Font.Underline = Underline.Dash;
         style.Font.Color = new Color(0xFF00FF00);
-        this.Add(style);
+        Add(style);
     }
 
     #region Internal
@@ -332,7 +330,7 @@ public class Styles : DocumentObjectCollection, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(this.comment.Value);
+        serializer.WriteComment(comment.Value);
         int pos = serializer.BeginContent("\\styles");
 
         // A style can only be added to Styles if its base style exists. Therefore the

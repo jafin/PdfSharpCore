@@ -26,14 +26,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Globalization;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -71,7 +68,7 @@ public class Border : DocumentObject
   /// </summary>
   public void Clear()
   {
-    this.fClear.Value = true;
+    fClear.Value = true;
   }
   #endregion
 
@@ -81,8 +78,8 @@ public class Border : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => this.visible.Value;
-    set => this.visible.Value = value;
+    get => visible.Value;
+    set => visible.Value = value;
   }
   [DV]
   internal NBool visible = NBool.NullValue;
@@ -92,8 +89,8 @@ public class Border : DocumentObject
   /// </summary>
   public BorderStyle Style
   {
-    get => (BorderStyle)this.style.Value;
-    set => this.style.Value = (int)value;
+    get => (BorderStyle)style.Value;
+    set => style.Value = (int)value;
   }
   [DV(Type = typeof(BorderStyle))]
   internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
@@ -103,8 +100,8 @@ public class Border : DocumentObject
   /// </summary>
   public Unit Width
   {
-    get => this.width;
-    set => this.width = value;
+    get => width;
+    set => width = value;
   }
   [DV]
   internal Unit width = Unit.NullValue;
@@ -114,8 +111,8 @@ public class Border : DocumentObject
   /// </summary>
   public Color Color
   {
-    get => this.color;
-    set => this.color = value;
+    get => color;
+    set => color = value;
   }
   [DV]
   internal Color color = Color.Empty;
@@ -129,7 +126,7 @@ public class Border : DocumentObject
   /// Gets the information if the border is marked as cleared. Additionally 'xxx = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool BorderCleared => this.fClear.Value;
+  public bool BorderCleared => fClear.Value;
 
   internal NBool fClear = new NBool(false);
   #endregion
@@ -148,22 +145,22 @@ public class Border : DocumentObject
   /// </summary>
   internal void Serialize(Serializer serializer, string name, Border refBorder)
   {
-    if (this.fClear.Value)
+    if (fClear.Value)
       serializer.WriteLine(name + " = null");
 
     int pos = serializer.BeginContent(name);
 
-    if (!this.visible.IsNull && (refBorder == null || (this.Visible != refBorder.Visible)))
-      serializer.WriteSimpleAttribute("Visible", this.Visible);
+    if (!visible.IsNull && (refBorder == null || (Visible != refBorder.Visible)))
+      serializer.WriteSimpleAttribute("Visible", Visible);
 
-    if (!this.style.IsNull && (refBorder == null || (this.Style != refBorder.Style)))
-      serializer.WriteSimpleAttribute("Style", this.Style);
+    if (!style.IsNull && (refBorder == null || (Style != refBorder.Style)))
+      serializer.WriteSimpleAttribute("Style", Style);
 
-    if (!this.width.IsNull && (refBorder == null || (this.Width != refBorder.Width)))
-      serializer.WriteSimpleAttribute("Width", this.Width);
+    if (!width.IsNull && (refBorder == null || (Width != refBorder.Width)))
+      serializer.WriteSimpleAttribute("Width", Width);
 
-    if (!this.color.IsNull && (refBorder == null || (this.Color != refBorder.Color)))
-      serializer.WriteSimpleAttribute("Color", this.Color);
+    if (!color.IsNull && (refBorder == null || (Color != refBorder.Color)))
+      serializer.WriteSimpleAttribute("Color", Color);
 
     serializer.EndContent(pos);
   }

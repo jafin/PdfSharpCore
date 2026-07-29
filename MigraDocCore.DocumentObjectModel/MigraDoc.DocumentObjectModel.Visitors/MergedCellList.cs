@@ -31,11 +31,8 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.Visitors;

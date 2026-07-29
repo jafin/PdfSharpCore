@@ -29,7 +29,7 @@
 
 using System;
 using System.ComponentModel;
-using PdfSharpCore.Internal;
+
 // ReSharper disable RedundantNameQualifier because it is required for hybrid build
 
 namespace PdfSharpCore.Drawing;

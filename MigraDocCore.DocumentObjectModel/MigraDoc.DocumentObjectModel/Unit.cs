@@ -31,7 +31,6 @@
 #endregion
 
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
@@ -49,9 +48,9 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public Unit(double point)
     {
-        this.value = (float)point;
-        this.type = UnitType.Point;
-        this.initialized = true;
+        value = (float)point;
+        type = UnitType.Point;
+        initialized = true;
     }
 
     /// <summary>
@@ -65,7 +64,7 @@ public struct Unit : IFormattable, INullableValue
             throw new ArgumentException("type");
         this.value = (float)value;
         this.type = type;
-        this.initialized = true;
+        initialized = true;
     }
 
     /// <summary>
@@ -101,9 +100,9 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     void INullableValue.SetNull()
     {
-        this.value = 0;
-        this.type = UnitType.Point;
-        this.initialized = false;
+        value = 0;
+        type = UnitType.Point;
+        initialized = false;
     }
 
     // Explicit interface implementations cannot contain access specifiers, i.e. they are accessible by a
@@ -117,7 +116,7 @@ public struct Unit : IFormattable, INullableValue
     /// <summary>
     /// Determines whether this instance is null (not set).
     /// </summary>
-    internal bool IsNull => !this.initialized;
+    internal bool IsNull => !initialized;
 
     #region Properties
     /// <summary>
@@ -126,18 +125,18 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public double Value
     {
-        get => (IsNull ? 0 : this.value);
+        get => (IsNull ? 0 : value);
         set
         {
             this.value = (float)value;
-            this.initialized = true;
+            initialized = true;
         }
     }
 
     /// <summary>
     /// Gets the UnitType of the object.
     /// </summary>
-    public UnitType Type => this.type;
+    public UnitType Type => type;
 
     /// <summary>
     /// Gets or sets the value in point.
@@ -149,22 +148,22 @@ public struct Unit : IFormattable, INullableValue
             if (IsNull)
                 return 0;
 
-            switch (this.type)
+            switch (type)
             {
                 case UnitType.Centimeter:
-                    return this.value * 72 / 2.54;
+                    return value * 72 / 2.54;
 
                 case UnitType.Inch:
-                    return this.value * 72;
+                    return value * 72;
 
                 case UnitType.Millimeter:
-                    return this.value * 72 / 25.4;
+                    return value * 72 / 25.4;
 
                 case UnitType.Pica:
-                    return this.value * 12;
+                    return value * 12;
 
                 case UnitType.Point:
-                    return this.value;
+                    return value;
 
                 default:
                     Debug.Assert(false, "Missing unit type.");
@@ -174,8 +173,8 @@ public struct Unit : IFormattable, INullableValue
         set
         {
             this.value = (float)value;
-            this.type = UnitType.Point;
-            this.initialized = true;
+            type = UnitType.Point;
+            initialized = true;
         }
     }
 
@@ -189,22 +188,22 @@ public struct Unit : IFormattable, INullableValue
             if (IsNull)
                 return 0;
 
-            switch (this.type)
+            switch (type)
             {
                 case UnitType.Centimeter:
-                    return this.value;
+                    return value;
 
                 case UnitType.Inch:
-                    return this.value * 2.54;
+                    return value * 2.54;
 
                 case UnitType.Millimeter:
-                    return this.value / 10;
+                    return value / 10;
 
                 case UnitType.Pica:
-                    return this.value * 12 * 2.54 / 72;
+                    return value * 12 * 2.54 / 72;
 
                 case UnitType.Point:
-                    return this.value * 2.54 / 72;
+                    return value * 2.54 / 72;
 
                 default:
                     Debug.Assert(false, "Missing unit type");
@@ -214,8 +213,8 @@ public struct Unit : IFormattable, INullableValue
         set
         {
             this.value = (float)value;
-            this.type = UnitType.Centimeter;
-            this.initialized = true;
+            type = UnitType.Centimeter;
+            initialized = true;
         }
     }
 
@@ -229,22 +228,22 @@ public struct Unit : IFormattable, INullableValue
             if (IsNull)
                 return 0;
 
-            switch (this.type)
+            switch (type)
             {
                 case UnitType.Centimeter:
-                    return this.value / 2.54;
+                    return value / 2.54;
 
                 case UnitType.Inch:
-                    return this.value;
+                    return value;
 
                 case UnitType.Millimeter:
-                    return this.value / 25.4;
+                    return value / 25.4;
 
                 case UnitType.Pica:
-                    return this.value * 12 / 72;
+                    return value * 12 / 72;
 
                 case UnitType.Point:
-                    return this.value / 72;
+                    return value / 72;
 
                 default:
                     Debug.Assert(false, "Missing unit type");
@@ -254,8 +253,8 @@ public struct Unit : IFormattable, INullableValue
         set
         {
             this.value = (float)value;
-            this.type = UnitType.Inch;
-            this.initialized = true;
+            type = UnitType.Inch;
+            initialized = true;
         }
     }
 
@@ -269,22 +268,22 @@ public struct Unit : IFormattable, INullableValue
             if (IsNull)
                 return 0;
 
-            switch (this.type)
+            switch (type)
             {
                 case UnitType.Centimeter:
-                    return this.value * 10;
+                    return value * 10;
 
                 case UnitType.Inch:
-                    return this.value * 25.4;
+                    return value * 25.4;
 
                 case UnitType.Millimeter:
-                    return this.value;
+                    return value;
 
                 case UnitType.Pica:
-                    return this.value * 12 * 25.4 / 72;
+                    return value * 12 * 25.4 / 72;
 
                 case UnitType.Point:
-                    return this.value * 25.4 / 72;
+                    return value * 25.4 / 72;
 
                 default:
                     Debug.Assert(false, "Missing unit type");
@@ -294,8 +293,8 @@ public struct Unit : IFormattable, INullableValue
         set
         {
             this.value = (float)value;
-            this.type = UnitType.Millimeter;
-            this.initialized = true;
+            type = UnitType.Millimeter;
+            initialized = true;
         }
     }
 
@@ -309,22 +308,22 @@ public struct Unit : IFormattable, INullableValue
             if (IsNull)
                 return 0;
 
-            switch (this.type)
+            switch (type)
             {
                 case UnitType.Centimeter:
-                    return this.value * 72 / 2.54 / 12;
+                    return value * 72 / 2.54 / 12;
 
                 case UnitType.Inch:
-                    return this.value * 72 / 12;
+                    return value * 72 / 12;
 
                 case UnitType.Millimeter:
-                    return this.value * 72 / 25.4 / 12;
+                    return value * 72 / 25.4 / 12;
 
                 case UnitType.Pica:
-                    return this.value;
+                    return value;
 
                 case UnitType.Point:
-                    return this.value / 12;
+                    return value / 12;
 
                 default:
                     Debug.Assert(false, "Missing unit type");
@@ -334,8 +333,8 @@ public struct Unit : IFormattable, INullableValue
         set
         {
             this.value = (float)value;
-            this.type = UnitType.Pica;
-            this.initialized = true;
+            type = UnitType.Pica;
+            initialized = true;
         }
     }
     #endregion
@@ -345,13 +344,13 @@ public struct Unit : IFormattable, INullableValue
     /// Returns the object as string using the format information.
     /// Measure will be added to the end of the string.
     /// </summary>
-    public string ToString(System.IFormatProvider formatProvider)
+    public string ToString(IFormatProvider formatProvider)
     {
         if (IsNull)
             return 0.ToString(formatProvider); // TODO: ?? can it be anything other than "0"??
 
         string valuestring;
-        valuestring = this.value.ToString(formatProvider) + GetSuffix();
+        valuestring = value.ToString(formatProvider) + GetSuffix();
         return valuestring;
     }
 
@@ -365,7 +364,7 @@ public struct Unit : IFormattable, INullableValue
             return 0.ToString(format); // TODO: ?? can it be anything other than "0"??
 
         string valuestring;
-        valuestring = this.value.ToString(format) + GetSuffix();
+        valuestring = value.ToString(format) + GetSuffix();
         return valuestring;
     }
 
@@ -373,13 +372,13 @@ public struct Unit : IFormattable, INullableValue
     /// Returns the object as string using the specified format and format information.
     /// Measure will be added to the end of the string.
     /// </summary>
-    string System.IFormattable.ToString(string format, IFormatProvider formatProvider)
+    string IFormattable.ToString(string format, IFormatProvider formatProvider)
     {
         if (IsNull)
             return 0.ToString(format, formatProvider);
 
         string valuestring;
-        valuestring = this.value.ToString(format, formatProvider) + GetSuffix();
+        valuestring = value.ToString(format, formatProvider) + GetSuffix();
         return valuestring;
     }
 
@@ -392,7 +391,7 @@ public struct Unit : IFormattable, INullableValue
             return 0.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         string valuestring;
-        valuestring = this.value.ToString(System.Globalization.CultureInfo.InvariantCulture) + GetSuffix();
+        valuestring = value.ToString(System.Globalization.CultureInfo.InvariantCulture) + GetSuffix();
         return valuestring;
     }
 
@@ -401,7 +400,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     string GetSuffix()
     {
-        switch (this.type)
+        switch (type)
         {
             case UnitType.Centimeter:
                 return "cm";
@@ -430,7 +429,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit FromCentimeter(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Centimeter;
         return unit;
@@ -441,7 +440,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit FromMillimeter(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Millimeter;
         return unit;
@@ -452,7 +451,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit FromPoint(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Point;
         return unit;
@@ -463,7 +462,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit FromInch(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Inch;
         return unit;
@@ -474,7 +473,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit FromPica(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Pica;
         return unit;
@@ -488,7 +487,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static implicit operator Unit(string value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         value = value.Trim();
 
         // For Germans...
@@ -552,7 +551,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static implicit operator Unit(int value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = value;
         unit.type = UnitType.Point;
         return unit;
@@ -563,7 +562,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static implicit operator Unit(float value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = value;
         unit.type = UnitType.Point;
         return unit;
@@ -574,7 +573,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static implicit operator Unit(double value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit.value = (float)value;
         unit.type = UnitType.Point;
         return unit;
@@ -635,7 +634,7 @@ public struct Unit : IFormattable, INullableValue
     /// </summary>
     public static Unit Parse(string value)
     {
-        Unit unit = Unit.Zero;
+        Unit unit = Zero;
         unit = value;
         return unit;
     }
@@ -654,27 +653,27 @@ public struct Unit : IFormattable, INullableValue
         switch (type)
         {
             case UnitType.Centimeter:
-                this.value = (float)this.Centimeter;
+                value = (float)Centimeter;
                 this.type = UnitType.Centimeter;
                 break;
 
             case UnitType.Inch:
-                this.value = (float)this.Inch;
+                value = (float)Inch;
                 this.type = UnitType.Inch;
                 break;
 
             case UnitType.Millimeter:
-                this.value = (float)this.Millimeter;
+                value = (float)Millimeter;
                 this.type = UnitType.Millimeter;
                 break;
 
             case UnitType.Pica:
-                this.value = (float)this.Pica;
+                value = (float)Pica;
                 this.type = UnitType.Pica;
                 break;
 
             case UnitType.Point:
-                this.value = (float)this.Point;
+                value = (float)Point;
                 this.type = UnitType.Point;
                 break;
 
@@ -698,7 +697,7 @@ public struct Unit : IFormattable, INullableValue
     /// <summary>
     /// Represents the uninitialized Unit object. Same as Unit.Empty.
     /// </summary>
-    internal static readonly Unit NullValue = Unit.Empty;
+    internal static readonly Unit NullValue = Empty;
 
     bool initialized;
     float value;

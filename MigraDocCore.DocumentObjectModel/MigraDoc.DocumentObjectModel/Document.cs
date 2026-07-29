@@ -31,12 +31,9 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 //using System.Drawing.Text;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.DocumentObjectModel;
 
@@ -50,7 +47,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public Document()
   {
-    this.styles = new Styles(this);
+    styles = new Styles(this);
   }
 
   #region Methods
@@ -92,7 +89,7 @@ public sealed class Document : DocumentObject, IVisitable
   public void BindToRenderer(object renderer)
   {
     //if (this.renderer != null && this.renderer != renderer)
-    if (this.renderer != null && renderer != null && !Object.ReferenceEquals(this.renderer, renderer))
+    if (this.renderer != null && renderer != null && !ReferenceEquals(this.renderer, renderer))
     {
       throw new InvalidOperationException("The document is already bound to another renderer. " +
                                           "A MigraDoc document can be rendered by only one renderer, because the rendering process " +
@@ -107,14 +104,14 @@ public sealed class Document : DocumentObject, IVisitable
   /// Indicates whether the document is bound to a renderer. A bound document must not be modified anymore.
   /// Modifying it leads to undefined results of the rendering process.
   /// </summary>
-  public bool IsBoundToRenderer => this.renderer != null;
+  public bool IsBoundToRenderer => renderer != null;
 
   /// <summary>
   /// Adds a new section to the document.
   /// </summary>
   public Section AddSection()
   {
-    return this.Sections.AddSection();
+    return Sections.AddSection();
   }
 
   /// <summary>
@@ -129,7 +126,7 @@ public sealed class Document : DocumentObject, IVisitable
     if (name == "" || baseStyle == "")
       throw new ArgumentException(name == "" ? "name" : "baseStyle");
 
-    return this.Styles.AddStyle(name, baseStyle);
+    return Styles.AddStyle(name, baseStyle);
   }
 
   /// <summary>
@@ -137,7 +134,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public void Add(Section section)
   {
-    this.Sections.Add(section);
+    Sections.Add(section);
   }
 
   /// <summary>
@@ -145,7 +142,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public void Add(Style style)
   {
-    this.Styles.Add(style);
+    Styles.Add(style);
   }
   #endregion
 
@@ -154,16 +151,16 @@ public sealed class Document : DocumentObject, IVisitable
   /// <summary>
   /// Gets the last section of the document, or null, if the document has no sections.
   /// </summary>
-  public Section LastSection => (this.sections != null && this.sections.Count > 0) ?
-    this.sections.LastObject as Section : null;
+  public Section LastSection => (sections != null && sections.Count > 0) ?
+    sections.LastObject as Section : null;
 
   /// <summary>
   /// Gets or sets a comment associated with this object.
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => comment.Value;
+    set => comment.Value = value;
   }
   [DV]
   internal NString comment = NString.NullValue;
@@ -175,15 +172,15 @@ public sealed class Document : DocumentObject, IVisitable
   {
     get
     {
-      if (this.info == null)
-        this.info = new DocumentInfo(this);
+      if (info == null)
+        info = new DocumentInfo(this);
 
       return info;
     }
     set
     {
       SetParent(value);
-      this.info = value;
+      info = value;
     }
   }
   [DV]
@@ -196,15 +193,15 @@ public sealed class Document : DocumentObject, IVisitable
   {
     get
     {
-      if (this.styles == null)
-        this.styles = new Styles(this);
+      if (styles == null)
+        styles = new Styles(this);
 
-      return this.styles;
+      return styles;
     }
     set
     {
       SetParent(value);
-      this.styles = value;
+      styles = value;
     }
   }
   [DV]
@@ -215,8 +212,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public Unit DefaultTabStop
   {
-    get => this.defaultTabStop;
-    set => this.defaultTabStop = value;
+    get => defaultTabStop;
+    set => defaultTabStop = value;
   }
   [DV]
   internal Unit defaultTabStop = Unit.NullValue;
@@ -231,8 +228,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public FootnoteLocation FootnoteLocation
   {
-    get => (FootnoteLocation)this.footnoteLocation.Value;
-    set => this.footnoteLocation.Value = (int)value;
+    get => (FootnoteLocation)footnoteLocation.Value;
+    set => footnoteLocation.Value = (int)value;
   }
   [DV(Type = typeof(FootnoteLocation))]
   internal NEnum footnoteLocation = NEnum.NullValue(typeof(FootnoteLocation));
@@ -242,8 +239,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public FootnoteNumberingRule FootnoteNumberingRule
   {
-    get => (FootnoteNumberingRule)this.footnoteNumberingRule.Value;
-    set => this.footnoteNumberingRule.Value = (int)value;
+    get => (FootnoteNumberingRule)footnoteNumberingRule.Value;
+    set => footnoteNumberingRule.Value = (int)value;
   }
   [DV(Type = typeof(FootnoteNumberingRule))]
   internal NEnum footnoteNumberingRule = NEnum.NullValue(typeof(FootnoteNumberingRule));
@@ -253,8 +250,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public FootnoteNumberStyle FootnoteNumberStyle
   {
-    get => (FootnoteNumberStyle)this.footnoteNumberStyle.Value;
-    set => this.footnoteNumberStyle.Value = (int)value;
+    get => (FootnoteNumberStyle)footnoteNumberStyle.Value;
+    set => footnoteNumberStyle.Value = (int)value;
   }
   [DV(Type = typeof(FootnoteNumberStyle))]
   internal NEnum footnoteNumberStyle = NEnum.NullValue(typeof(FootnoteNumberStyle));
@@ -264,8 +261,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public int FootnoteStartingNumber
   {
-    get => this.footnoteStartingNumber.Value;
-    set => this.footnoteStartingNumber.Value = value;
+    get => footnoteStartingNumber.Value;
+    set => footnoteStartingNumber.Value = value;
   }
   [DV]
   internal NInt footnoteStartingNumber = NInt.NullValue;
@@ -275,8 +272,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public string ImagePath
   {
-    get => this.imagePath.Value;
-    set => this.imagePath.Value = value;
+    get => imagePath.Value;
+    set => imagePath.Value = value;
   }
   [DV]
   internal NString imagePath = NString.NullValue;
@@ -286,8 +283,8 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public bool UseCmykColor
   {
-    get => this.useCmykColor.Value;
-    set => this.useCmykColor.Value = value;
+    get => useCmykColor.Value;
+    set => useCmykColor.Value = value;
   }
   [DV]
   internal NBool useCmykColor = NBool.NullValue;
@@ -299,14 +296,14 @@ public sealed class Document : DocumentObject, IVisitable
   {
     get
     {
-      if (this.sections == null)
-        this.sections = new Sections(this);
-      return this.sections;
+      if (sections == null)
+        sections = new Sections(this);
+      return sections;
     }
     set
     {
       SetParent(value);
-      this.sections = value;
+      sections = value;
     }
   }
   [DV]
@@ -316,7 +313,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// <summary>
   /// Gets the DDL file name.
   /// </summary>
-  public string DdlFile => this.ddlFile;
+  public string DdlFile => ddlFile;
 
   internal string ddlFile = "";
 
@@ -326,32 +323,32 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment(comment.Value);
     serializer.WriteLine("\\document");
 
     int pos = serializer.BeginAttributes();
-    if (!this.IsNull("Info"))
-      this.Info.Serialize(serializer);
-    if (!this.defaultTabStop.IsNull)
+    if (!IsNull("Info"))
+      Info.Serialize(serializer);
+    if (!defaultTabStop.IsNull)
       serializer.WriteSimpleAttribute("DefaultTabStop", DefaultTabStop);
-    if (!this.footnoteLocation.IsNull)
+    if (!footnoteLocation.IsNull)
       serializer.WriteSimpleAttribute("FootnoteLocation", FootnoteLocation);
-    if (!this.footnoteNumberingRule.IsNull)
+    if (!footnoteNumberingRule.IsNull)
       serializer.WriteSimpleAttribute("FootnoteNumberingRule", FootnoteNumberingRule);
-    if (!this.footnoteNumberStyle.IsNull)
+    if (!footnoteNumberStyle.IsNull)
       serializer.WriteSimpleAttribute("FootnoteNumberStyle", FootnoteNumberStyle);
-    if (!this.footnoteStartingNumber.IsNull)
+    if (!footnoteStartingNumber.IsNull)
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
-    if (!this.imagePath.IsNull)
+    if (!imagePath.IsNull)
       serializer.WriteSimpleAttribute("ImagePath", ImagePath);
-    if (!this.useCmykColor.IsNull)
+    if (!useCmykColor.IsNull)
       serializer.WriteSimpleAttribute("UseCmykColor", UseCmykColor);
     serializer.EndAttributes(pos);
 
     serializer.BeginContent();
     Styles.Serialize(serializer);
 
-    if (!this.IsNull("Sections"))
+    if (!IsNull("Sections"))
       Sections.Serialize(serializer);
     serializer.EndContent();
     serializer.Flush();

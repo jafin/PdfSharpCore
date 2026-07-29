@@ -27,7 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Fonts.OpenType;
 

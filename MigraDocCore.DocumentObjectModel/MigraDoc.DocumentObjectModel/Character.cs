@@ -31,8 +31,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -87,7 +85,7 @@ public class Character : DocumentObject
   {
     //DaSt: uint wird nicht akzeptiert, muss auf int casten
     //SetValue("SymbolName", (int)(uint)name);
-    this.symbolName.Value = (int)name;
+    symbolName.Value = (int)name;
   }
 
   #region Properties
@@ -96,8 +94,8 @@ public class Character : DocumentObject
   /// </summary>
   public SymbolName SymbolName
   {
-    get => (SymbolName)this.symbolName.Value;
-    set => this.symbolName.Value = (int)value;
+    get => (SymbolName)symbolName.Value;
+    set => symbolName.Value = (int)value;
   }
   [DV(Type = typeof(SymbolName))]
   internal NEnum symbolName = NEnum.NullValue(typeof(SymbolName));
@@ -114,7 +112,7 @@ public class Character : DocumentObject
       else
         return '\0';
     }
-    set => this.symbolName.Value = (int)value;
+    set => symbolName.Value = (int)value;
   }
 
   /// <summary>
@@ -122,8 +120,8 @@ public class Character : DocumentObject
   /// </summary>
   public int Count
   {
-    get => this.count.Value;
-    set => this.count.Value = value;
+    get => count.Value;
+    set => count.Value = value;
   }
   [DV]
   internal NInt count = new NInt(1);

@@ -1,5 +1,4 @@
 #region MigraDoc - Creating Documents on the Fly
-//
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
 //   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
@@ -26,15 +25,12 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Collections;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
@@ -45,472 +41,492 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// </summary>
 public class Table : DocumentObject, IVisitable
 {
-  /// <summary>
-  /// Initializes a new instance of the Table class.
-  /// </summary>
-  public Table()
-  {
-  }
-
-  /// <summary>
-  /// Initializes a new instance of the Table class with the specified parent.
-  /// </summary>
-  internal Table(DocumentObject parent) : base(parent) { }
-
-  #region Methods
-  /// <summary>
-  /// Creates a deep copy of this object.
-  /// </summary>
-  public new Table Clone()
-  {
-    return (Table)DeepCopy();
-  }
-
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Table table = (Table)base.DeepCopy();
-    if (table.columns != null)
+    /// <summary>
+    /// Initializes a new instance of the Table class.
+    /// </summary>
+    public Table()
     {
-      table.columns = table.columns.Clone();
-      table.columns.parent = table;
     }
-    if (table.rows != null)
+
+    /// <summary>
+    /// Initializes a new instance of the Table class with the specified parent.
+    /// </summary>
+    internal Table(DocumentObject parent) : base(parent)
     {
-      table.rows = table.rows.Clone();
-      table.rows.parent = table;
     }
-    if (table.format != null)
+
+    #region Methods
+
+    /// <summary>
+    /// Creates a deep copy of this object.
+    /// </summary>
+    public new Table Clone()
     {
-      table.format = table.format.Clone();
-      table.format.parent = table;
+        return (Table)DeepCopy();
     }
-    if (table.borders != null)
+
+    /// <summary>
+    /// Implements the deep copy of the object.
+    /// </summary>
+    protected override object DeepCopy()
     {
-      table.borders = table.borders.Clone();
-      table.borders.parent = table;
-    }
-    if (table.shading != null)
-    {
-      table.shading = table.shading.Clone();
-      table.shading.parent = table;
-    }
-    return table;
-  }
-
-  /// <summary>
-  /// Adds a new column to the table. Allowed only before any row was added.
-  /// </summary>
-  public Column AddColumn()
-  {
-    return this.Columns.AddColumn();
-  }
-
-  /// <summary>
-  /// Adds a new column of the specified width to the table. Allowed only before any row was added.
-  /// </summary>
-  public Column AddColumn(Unit width)
-  {
-    Column clm = this.Columns.AddColumn();
-    clm.Width = width;
-    return clm;
-  }
-
-  /// <summary>
-  /// Adds a new row to the table. Allowed only if at least one column was added.
-  /// </summary>
-  public Row AddRow()
-  {
-    return this.rows.AddRow();
-  }
-
-  /// <summary>
-  /// Returns true if no cell exists in the table.
-  /// </summary>
-  public bool IsEmpty => this.Rows.Count == 0 || this.Columns.Count == 0;
-
-  /// <summary>
-  /// Sets a shading of the specified Color in the specified Tablerange.
-  /// </summary>
-  public void SetShading(int clm, int row, int clms, int rows, Color clr)
-  {
-    int rowsCount = this.rows.Count;
-    int clmsCount = this.columns.Count;
-
-    if (row < 0 || row >= rowsCount)
-      throw new ArgumentOutOfRangeException("row", row, "Invalid row index.");
-
-    if (clm < 0 || clm >= clmsCount)
-      throw new ArgumentOutOfRangeException("clm", clm, "Invalid column index.");
-
-    if (rows <= 0 || row + rows > rowsCount)
-      throw new ArgumentOutOfRangeException("rows", rows, "Invalid row count.");
-
-    if (clms <= 0 || clm + clms > clmsCount)
-      throw new ArgumentOutOfRangeException("clms", clms, "Invalid column count.");
-
-    int maxRow = row + rows - 1;
-    int maxClm = clm + clms - 1;
-    for (int r = row; r <= maxRow; r++)
-    {
-      Row currentRow = this.rows[r];
-      for (int c = clm; c <= maxClm; c++)
-        currentRow[c].Shading.Color = clr;
-    }
-  }
-
-  /// <summary>
-  /// Sets the borders surrounding the specified range of the table.
-  /// </summary>
-  public void SetEdge(int clm, int row, int clms, int rows,
-    Edge edge, BorderStyle style, Unit width, Color clr)
-  {
-    Border border;
-    int maxRow = row + rows - 1;
-    int maxClm = clm + clms - 1;
-    for (int r = row; r <= maxRow; r++)
-    {
-      Row currentRow = this.rows[r];
-      for (int c = clm; c <= maxClm; c++)
-      {
-        Cell currentCell = currentRow[c];
-        if ((edge & Edge.Top) == Edge.Top && r == row)
+        var table = (Table)base.DeepCopy();
+        if (table.columns != null)
         {
-          border = currentCell.Borders.Top;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            table.columns = table.columns.Clone();
+            table.columns.parent = table;
         }
-        if ((edge & Edge.Left) == Edge.Left && c == clm)
+
+        if (table.rows != null)
         {
-          border = currentCell.Borders.Left;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            table.rows = table.rows.Clone();
+            table.rows.parent = table;
         }
-        if ((edge & Edge.Bottom) == Edge.Bottom && r == maxRow)
+
+        if (table.format != null)
         {
-          border = currentCell.Borders.Bottom;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            table.format = table.format.Clone();
+            table.format.parent = table;
         }
-        if ((edge & Edge.Right) == Edge.Right && c == maxClm)
+
+        if (table.borders != null)
         {
-          border = currentCell.Borders.Right;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            table.borders = table.borders.Clone();
+            table.borders.parent = table;
         }
-        if ((edge & Edge.Horizontal) == Edge.Horizontal && r < maxRow)
+
+        if (table.shading != null)
         {
-          border = currentCell.Borders.Bottom;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            table.shading = table.shading.Clone();
+            table.shading.parent = table;
         }
-        if ((edge & Edge.Vertical) == Edge.Vertical && c < maxClm)
+
+        return table;
+    }
+
+    /// <summary>
+    /// Adds a new column to the table. Allowed only before any row was added.
+    /// </summary>
+    public Column AddColumn()
+    {
+        return Columns.AddColumn();
+    }
+
+    /// <summary>
+    /// Adds a new column of the specified width to the table. Allowed only before any row was added.
+    /// </summary>
+    public Column AddColumn(Unit width)
+    {
+        var clm = Columns.AddColumn();
+        clm.Width = width;
+        return clm;
+    }
+
+    /// <summary>
+    /// Adds a new row to the table. Allowed only if at least one column was added.
+    /// </summary>
+    public Row AddRow()
+    {
+        return rows.AddRow();
+    }
+
+    /// <summary>
+    /// Returns true if no cell exists in the table.
+    /// </summary>
+    public bool IsEmpty => Rows.Count == 0 || Columns.Count == 0;
+
+    /// <summary>
+    /// Sets a shading of the specified Color in the specified Tablerange.
+    /// </summary>
+    public void SetShading(int clm, int row, int clms, int rows, Color clr)
+    {
+        var rowsCount = this.rows.Count;
+        var clmsCount = columns.Count;
+
+        if (row < 0 || row >= rowsCount)
+            throw new ArgumentOutOfRangeException(nameof(row), row, "Invalid row index.");
+
+        if (clm < 0 || clm >= clmsCount)
+            throw new ArgumentOutOfRangeException(nameof(clm), clm, "Invalid column index.");
+
+        if (rows <= 0 || row + rows > rowsCount)
+            throw new ArgumentOutOfRangeException(nameof(rows), rows, "Invalid row count.");
+
+        if (clms <= 0 || clm + clms > clmsCount)
+            throw new ArgumentOutOfRangeException(nameof(clms), clms, "Invalid column count.");
+
+        var maxRow = row + rows - 1;
+        var maxClm = clm + clms - 1;
+        for (var r = row; r <= maxRow; r++)
         {
-          border = currentCell.Borders.Right;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            var currentRow = this.rows[r];
+            for (var c = clm; c <= maxClm; c++)
+                currentRow[c].Shading.Color = clr;
         }
-        if ((edge & Edge.DiagonalDown) == Edge.DiagonalDown)
+    }
+
+    /// <summary>
+    /// Sets the borders surrounding the specified range of the table.
+    /// </summary>
+    public void SetEdge(int clm, int row, int clms, int rows,
+        Edge edge, BorderStyle style, Unit width, Color clr)
+    {
+        var maxRow = row + rows - 1;
+        var maxClm = clm + clms - 1;
+        for (var r = row; r <= maxRow; r++)
         {
-          border = currentCell.Borders.DiagonalDown;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            var currentRow = this.rows[r];
+            for (var c = clm; c <= maxClm; c++)
+            {
+                var currentCell = currentRow[c];
+                Border border;
+                if ((edge & Edge.Top) == Edge.Top && r == row)
+                {
+                    border = currentCell.Borders.Top;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.Left) == Edge.Left && c == clm)
+                {
+                    border = currentCell.Borders.Left;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.Bottom) == Edge.Bottom && r == maxRow)
+                {
+                    border = currentCell.Borders.Bottom;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.Right) == Edge.Right && c == maxClm)
+                {
+                    border = currentCell.Borders.Right;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.Horizontal) == Edge.Horizontal && r < maxRow)
+                {
+                    border = currentCell.Borders.Bottom;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.Vertical) == Edge.Vertical && c < maxClm)
+                {
+                    border = currentCell.Borders.Right;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.DiagonalDown) == Edge.DiagonalDown)
+                {
+                    border = currentCell.Borders.DiagonalDown;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+
+                if ((edge & Edge.DiagonalUp) == Edge.DiagonalUp)
+                {
+                    border = currentCell.Borders.DiagonalUp;
+                    border.Style = style;
+                    border.Width = width;
+                    if (clr != Color.Empty)
+                        border.Color = clr;
+                }
+            }
         }
-        if ((edge & Edge.DiagonalUp) == Edge.DiagonalUp)
+    }
+
+    /// <summary>
+    /// Sets the borders surrounding the specified range of the table.
+    /// </summary>
+    public void SetEdge(int clm, int row, int clms, int rows, Edge edge, BorderStyle style, Unit width)
+    {
+        SetEdge(clm, row, clms, rows, edge, style, width, Color.Empty);
+    }
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// Gets or sets the Columns collection of the table.
+    /// </summary>
+    public Columns Columns
+    {
+        get
         {
-          border = currentCell.Borders.DiagonalUp;
-          border.Style = style;
-          border.Width = width;
-          if (clr != Color.Empty)
-            border.Color = clr;
+            if (columns == null)
+                columns = new Columns(this);
+
+            return columns;
         }
-      }
+        set
+        {
+            SetParent(value);
+            columns = value;
+        }
     }
-  }
 
-  /// <summary>
-  /// Sets the borders surrounding the specified range of the table.
-  /// </summary>
-  public void SetEdge(int clm, int row, int clms, int rows, Edge edge, BorderStyle style, Unit width)
-  {
-    SetEdge(clm, row, clms, rows, edge, style, width, Color.Empty);
-  }
+    [DV] internal Columns columns;
 
-  #endregion
-
-  #region Properties
-  /// <summary>
-  /// Gets or sets the Columns collection of the table.
-  /// </summary>
-  public Columns Columns
-  {
-    get
+    /// <summary>
+    /// Gets the Rows collection of the table.
+    /// </summary>
+    public Rows Rows
     {
-      if (this.columns == null)
-        this.columns = new Columns(this);
+        get
+        {
+            if (rows == null)
+                rows = new Rows(this);
 
-      return this.columns;
+            return rows;
+        }
+        set
+        {
+            SetParent(value);
+            rows = value;
+        }
     }
-    set
+
+    [DV] internal Rows rows;
+
+    /// <summary>
+    /// Sets or gets the default style name for all rows and columns of the table.
+    /// </summary>
+    public string Style
     {
-      SetParent(value);
-      this.columns = value;
+        get => style.Value;
+        set => style.Value = value;
     }
-  }
-  [DV]
-  internal Columns columns;
 
-  /// <summary>
-  /// Gets the Rows collection of the table.
-  /// </summary>
-  public Rows Rows
-  {
-    get
+    [DV] internal NString style = NString.NullValue;
+
+    /// <summary>
+    /// Gets the default ParagraphFormat for all rows and columns of the table.
+    /// </summary>
+    public ParagraphFormat Format
     {
-      if (this.rows == null)
-        this.rows = new Rows(this);
+        get
+        {
+            if (format == null)
+                format = new ParagraphFormat(this);
 
-      return this.rows;
+            return format;
+        }
+        set
+        {
+            SetParent(value);
+            format = value;
+        }
     }
-    set
+
+    [DV] internal ParagraphFormat format;
+
+    /// <summary>
+    /// Gets or sets the default top padding for all cells of the table.
+    /// </summary>
+    public Unit TopPadding
     {
-      SetParent(value);
-      this.rows = value;
+        get => topPadding;
+        set => topPadding = value;
     }
-  }
-  [DV]
-  internal Rows rows;
 
-  /// <summary>
-  /// Sets or gets the default style name for all rows and columns of the table.
-  /// </summary>
-  public string Style
-  {
-    get => this.style.Value;
-    set => this.style.Value = value;
-  }
-  [DV]
-  internal NString style = NString.NullValue;
+    [DV] internal Unit topPadding = Unit.NullValue;
 
-  /// <summary>
-  /// Gets the default ParagraphFormat for all rows and columns of the table.
-  /// </summary>
-  public ParagraphFormat Format
-  {
-    get
+    /// <summary>
+    /// Gets or sets the default bottom padding for all cells of the table.
+    /// </summary>
+    public Unit BottomPadding
     {
-      if (this.format == null)
-        this.format = new ParagraphFormat(this);
-
-      return this.format;
+        get => bottomPadding;
+        set => bottomPadding = value;
     }
-    set
+
+    [DV] internal Unit bottomPadding = Unit.NullValue;
+
+    /// <summary>
+    /// Gets or sets the default left padding for all cells of the table.
+    /// </summary>
+    public Unit LeftPadding
     {
-      SetParent(value);
-      this.format = value;
+        get => leftPadding;
+        set => leftPadding = value;
     }
-  }
-  [DV]
-  internal ParagraphFormat format;
 
-  /// <summary>
-  /// Gets or sets the default top padding for all cells of the table.
-  /// </summary>
-  public Unit TopPadding
-  {
-    get => this.topPadding;
-    set => this.topPadding = value;
-  }
-  [DV]
-  internal Unit topPadding = Unit.NullValue;
+    [DV] internal Unit leftPadding = Unit.NullValue;
 
-  /// <summary>
-  /// Gets or sets the default bottom padding for all cells of the table.
-  /// </summary>
-  public Unit BottomPadding
-  {
-    get => this.bottomPadding;
-    set => this.bottomPadding = value;
-  }
-  [DV]
-  internal Unit bottomPadding = Unit.NullValue;
-
-  /// <summary>
-  /// Gets or sets the default left padding for all cells of the table.
-  /// </summary>
-  public Unit LeftPadding
-  {
-    get => this.leftPadding;
-    set => this.leftPadding = value;
-  }
-  [DV]
-  internal Unit leftPadding = Unit.NullValue;
-
-  /// <summary>
-  /// Gets or sets the default right padding for all cells of the table.
-  /// </summary>
-  public Unit RightPadding
-  {
-    get => this.rightPadding;
-    set => this.rightPadding = value;
-  }
-  [DV]
-  internal Unit rightPadding = Unit.NullValue;
-
-  /// <summary>
-  /// Gets the default Borders object for all cells of the column.
-  /// </summary>
-  public Borders Borders
-  {
-    get
+    /// <summary>
+    /// Gets or sets the default right padding for all cells of the table.
+    /// </summary>
+    public Unit RightPadding
     {
-      if (this.borders == null)
-        this.borders = new Borders(this);
-
-      return this.borders;
+        get => rightPadding;
+        set => rightPadding = value;
     }
-    set
+
+    [DV] internal Unit rightPadding = Unit.NullValue;
+
+    /// <summary>
+    /// Gets the default Borders object for all cells of the column.
+    /// </summary>
+    public Borders Borders
     {
-      SetParent(value);
-      this.borders = value;
-    }
-  }
-  [DV]
-  internal Borders borders;
+        get
+        {
+            if (borders == null)
+                borders = new Borders(this);
 
-  /// <summary>
-  /// Gets the default Shading object for all cells of the column.
-  /// </summary>
-  public Shading Shading
-  {
-    get
+            return borders;
+        }
+        set
+        {
+            SetParent(value);
+            borders = value;
+        }
+    }
+
+    [DV] internal Borders borders;
+
+    /// <summary>
+    /// Gets the default Shading object for all cells of the column.
+    /// </summary>
+    public Shading Shading
     {
-      if (this.shading == null)
-        this.shading = new Shading(this);
+        get
+        {
+            if (shading == null)
+                shading = new Shading(this);
 
-      return this.shading;
+            return shading;
+        }
+        set
+        {
+            SetParent(value);
+            shading = value;
+        }
     }
-    set
+
+    [DV] internal Shading shading;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether
+    /// to keep all the table rows on the same page.
+    /// </summary>
+    public bool KeepTogether
     {
-      SetParent(value);
-      this.shading = value;
+        get => keepTogether.Value;
+        set => keepTogether.Value = value;
     }
-  }
-  [DV]
-  internal Shading shading;
 
-  /// <summary>
-  /// Gets or sets a value indicating whether
-  /// to keep all the table rows on the same page.
-  /// </summary>
-  public bool KeepTogether
-  {
-    get => this.keepTogether.Value;
-    set => this.keepTogether.Value = value;
-  }
-  [DV]
-  internal NBool keepTogether = NBool.NullValue;
+    [DV] internal NBool keepTogether = NBool.NullValue;
 
-  /// <summary>
-  /// Gets or sets a comment associated with this object.
-  /// </summary>
-  public string Comment
-  {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
-  }
-  [DV]
-  internal NString comment = NString.NullValue;
-  #endregion
-
-  #region Internal
-  /// <summary>
-  /// Converts Table into DDL.
-  /// </summary>
-  internal override void Serialize(Serializer serializer)
-  {
-    serializer.WriteComment(this.comment.Value);
-
-    serializer.WriteLine("\\table");
-
-    int pos = serializer.BeginAttributes();
-
-    if (this.style.Value != String.Empty)
-      serializer.WriteSimpleAttribute("Style", this.Style);
-
-    if (!this.IsNull("Format"))
-      this.format.Serialize(serializer, "Format", null);
-
-    if (!this.topPadding.IsNull)
-      serializer.WriteSimpleAttribute("TopPadding", this.TopPadding);
-
-    if (!this.leftPadding.IsNull)
-      serializer.WriteSimpleAttribute("LeftPadding", this.LeftPadding);
-
-    if (!this.rightPadding.IsNull)
-      serializer.WriteSimpleAttribute("RightPadding", this.RightPadding);
-
-    if (!this.bottomPadding.IsNull)
-      serializer.WriteSimpleAttribute("BottomPadding", this.BottomPadding);
-
-    if (!this.IsNull("Borders"))
-      this.borders.Serialize(serializer, null);
-
-    if (!this.IsNull("Shading"))
-      this.shading.Serialize(serializer);
-
-    serializer.EndAttributes(pos);
-
-    serializer.BeginContent();
-    this.Columns.Serialize(serializer);
-    this.Rows.Serialize(serializer);
-    serializer.EndContent();
-  }
-
-  /// <summary>
-  /// Allows the visitor object to visit the document object and it's child objects.
-  /// </summary>
-  void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
-  {
-    visitor.VisitTable(this);
-
-    ((IVisitable)this.columns).AcceptVisitor(visitor, visitChildren);
-    ((IVisitable)this.rows).AcceptVisitor(visitor, visitChildren);
-  }
-
-  /// <summary>
-  /// Gets the cell with the given row and column indices.
-  /// </summary>
-  public Cell this[int rwIdx, int clmIdx] => this.Rows[rwIdx].Cells[clmIdx];
-
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta
-  {
-    get
+    /// <summary>
+    /// Gets or sets a comment associated with this object.
+    /// </summary>
+    public string Comment
     {
-      if (meta == null)
-        meta = new Meta(typeof(Table));
-      return meta;
+        get => comment.Value;
+        set => comment.Value = value;
     }
-  }
-  static Meta meta;
-  #endregion
+
+    [DV] internal NString comment = NString.NullValue;
+
+    #endregion
+
+    #region Internal
+
+    /// <summary>
+    /// Converts Table into DDL.
+    /// </summary>
+    internal override void Serialize(Serializer serializer)
+    {
+        serializer.WriteComment(comment.Value);
+
+        serializer.WriteLine("\\table");
+
+        var pos = serializer.BeginAttributes();
+
+        if (style.Value != String.Empty)
+            serializer.WriteSimpleAttribute("Style", Style);
+
+        if (!IsNull("Format"))
+            format.Serialize(serializer, "Format", null);
+
+        if (!topPadding.IsNull)
+            serializer.WriteSimpleAttribute("TopPadding", TopPadding);
+
+        if (!leftPadding.IsNull)
+            serializer.WriteSimpleAttribute("LeftPadding", LeftPadding);
+
+        if (!rightPadding.IsNull)
+            serializer.WriteSimpleAttribute("RightPadding", RightPadding);
+
+        if (!bottomPadding.IsNull)
+            serializer.WriteSimpleAttribute("BottomPadding", BottomPadding);
+
+        if (!IsNull("Borders"))
+            borders.Serialize(serializer, null);
+
+        if (!IsNull("Shading"))
+            shading.Serialize(serializer);
+
+        serializer.EndAttributes(pos);
+
+        serializer.BeginContent();
+        Columns.Serialize(serializer);
+        Rows.Serialize(serializer);
+        serializer.EndContent();
+    }
+
+    /// <summary>
+    /// Allows the visitor object to visit the document object and it's child objects.
+    /// </summary>
+    void IVisitable.AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
+    {
+        visitor.VisitTable(this);
+
+        ((IVisitable)columns).AcceptVisitor(visitor, visitChildren);
+        ((IVisitable)rows).AcceptVisitor(visitor, visitChildren);
+    }
+
+    /// <summary>
+    /// Gets the cell with the given row and column indices.
+    /// </summary>
+    public Cell this[int rwIdx, int clmIdx] => Rows[rwIdx].Cells[clmIdx];
+
+    /// <summary>
+    /// Returns the metaobject of this instance.
+    /// </summary>
+    internal override Meta Meta
+    {
+        get
+        {
+            if (meta == null)
+                meta = new Meta(typeof(Table));
+            return meta;
+        }
+    }
+
+    static Meta meta;
+
+    #endregion
 }

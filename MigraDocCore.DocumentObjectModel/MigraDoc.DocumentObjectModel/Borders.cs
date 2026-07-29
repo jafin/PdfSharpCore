@@ -31,11 +31,7 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Globalization;
 using System.Collections;
-using System.ComponentModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -66,7 +62,7 @@ public class Borders : DocumentObject, IEnumerable
             //throw new InvalidEnumArgumentException("type");
             throw new ArgumentException("type");
 
-        return !(this.IsNull(type.ToString()));
+        return !(IsNull(type.ToString()));
     }
 
     #region Methods
@@ -123,12 +119,12 @@ public class Borders : DocumentObject, IEnumerable
     IEnumerator IEnumerable.GetEnumerator()
     {
         Hashtable ht = new Hashtable();
-        ht.Add("Top", this.top);
-        ht.Add("Left", this.left);
-        ht.Add("Bottom", this.bottom);
-        ht.Add("Right", this.right);
-        ht.Add("DiagonalUp", this.diagonalUp);
-        ht.Add("DiagonalDown", this.diagonalDown);
+        ht.Add("Top", top);
+        ht.Add("Left", left);
+        ht.Add("Bottom", bottom);
+        ht.Add("Right", right);
+        ht.Add("DiagonalUp", diagonalUp);
+        ht.Add("DiagonalDown", diagonalDown);
 
         return new BorderEnumerator(ht);
     }
@@ -139,7 +135,7 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public void ClearAll()
     {
-        this.clearAll = true;
+        clearAll = true;
     }
     #endregion
 
@@ -151,15 +147,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.top == null)
-                this.top = new Border(this);
+            if (top == null)
+                top = new Border(this);
 
-            return this.top;
+            return top;
         }
         set
         {
             SetParent(value);
-            this.top = value;
+            top = value;
         }
     }
     [DV]
@@ -172,15 +168,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.left == null)
-                this.left = new Border(this);
+            if (left == null)
+                left = new Border(this);
 
-            return this.left;
+            return left;
         }
         set
         {
             SetParent(value);
-            this.left = value;
+            left = value;
         }
     }
     [DV]
@@ -193,15 +189,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.bottom == null)
-                this.bottom = new Border(this);
+            if (bottom == null)
+                bottom = new Border(this);
 
-            return this.bottom;
+            return bottom;
         }
         set
         {
             SetParent(value);
-            this.bottom = value;
+            bottom = value;
         }
     }
     [DV]
@@ -214,15 +210,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.right == null)
-                this.right = new Border(this);
+            if (right == null)
+                right = new Border(this);
 
-            return this.right;
+            return right;
         }
         set
         {
             SetParent(value);
-            this.right = value;
+            right = value;
         }
     }
     [DV]
@@ -235,15 +231,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.diagonalUp == null)
-                this.diagonalUp = new Border(this);
+            if (diagonalUp == null)
+                diagonalUp = new Border(this);
 
-            return this.diagonalUp;
+            return diagonalUp;
         }
         set
         {
             SetParent(value);
-            this.diagonalUp = value;
+            diagonalUp = value;
         }
     }
     [DV]
@@ -256,15 +252,15 @@ public class Borders : DocumentObject, IEnumerable
     {
         get
         {
-            if (this.diagonalDown == null)
-                this.diagonalDown = new Border(this);
+            if (diagonalDown == null)
+                diagonalDown = new Border(this);
 
             return diagonalDown;
         }
         set
         {
             SetParent(value);
-            this.diagonalDown = value;
+            diagonalDown = value;
         }
     }
     [DV]
@@ -275,8 +271,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public bool Visible
     {
-        get => this.visible.Value;
-        set => this.visible.Value = value;
+        get => visible.Value;
+        set => visible.Value = value;
     }
     [DV]
     internal NBool visible = NBool.NullValue;
@@ -286,8 +282,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public BorderStyle Style
     {
-        get => (BorderStyle)this.style.Value;
-        set => this.style.Value = (int)value;
+        get => (BorderStyle)style.Value;
+        set => style.Value = (int)value;
     }
     [DV(Type = typeof(BorderStyle))]
     internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
@@ -297,8 +293,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Unit Width
     {
-        get => this.width;
-        set => this.width = value;
+        get => width;
+        set => width = value;
     }
     [DV]
     internal Unit width = Unit.NullValue;
@@ -308,8 +304,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Color Color
     {
-        get => this.color;
-        set => this.color = value;
+        get => color;
+        set => color = value;
     }
     [DV]
     internal Color color = Color.Empty;
@@ -319,8 +315,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Unit DistanceFromTop
     {
-        get => this.distanceFromTop;
-        set => this.distanceFromTop = value;
+        get => distanceFromTop;
+        set => distanceFromTop = value;
     }
     [DV]
     internal Unit distanceFromTop = Unit.NullValue;
@@ -330,8 +326,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Unit DistanceFromBottom
     {
-        get => this.distanceFromBottom;
-        set => this.distanceFromBottom = value;
+        get => distanceFromBottom;
+        set => distanceFromBottom = value;
     }
     [DV]
     internal Unit distanceFromBottom = Unit.NullValue;
@@ -341,8 +337,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Unit DistanceFromLeft
     {
-        get => this.distanceFromLeft;
-        set => this.distanceFromLeft = value;
+        get => distanceFromLeft;
+        set => distanceFromLeft = value;
     }
     [DV]
     internal Unit distanceFromLeft = Unit.NullValue;
@@ -352,8 +348,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public Unit DistanceFromRight
     {
-        get => this.distanceFromRight;
-        set => this.distanceFromRight = value;
+        get => distanceFromRight;
+        set => distanceFromRight = value;
     }
     [DV]
     internal Unit distanceFromRight = Unit.NullValue;
@@ -365,10 +361,10 @@ public class Borders : DocumentObject, IEnumerable
     {
         set
         {
-            this.DistanceFromTop = value;
-            this.DistanceFromBottom = value;
-            this.DistanceFromLeft = value;
-            this.distanceFromRight = value;
+            DistanceFromTop = value;
+            DistanceFromBottom = value;
+            DistanceFromLeft = value;
+            distanceFromRight = value;
         }
     }
 
@@ -378,8 +374,8 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public bool BordersCleared
     {
-        get => this.clearAll;
-        set => this.clearAll = value;
+        get => clearAll;
+        set => clearAll = value;
     }
     protected bool clearAll = false;
     #endregion
@@ -390,7 +386,7 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        this.Serialize(serializer, null);
+        Serialize(serializer, null);
     }
 
     /// <summary>
@@ -398,52 +394,52 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     internal void Serialize(Serializer serializer, Borders refBorders)
     {
-        if (this.clearAll)
+        if (clearAll)
             serializer.WriteLine("Borders = null");
 
         int pos = serializer.BeginContent("Borders");
 
-        if (!this.visible.IsNull && (refBorders == null || refBorders.visible.IsNull || (this.Visible != refBorders.Visible)))
-            serializer.WriteSimpleAttribute("Visible", this.Visible);
+        if (!visible.IsNull && (refBorders == null || refBorders.visible.IsNull || (Visible != refBorders.Visible)))
+            serializer.WriteSimpleAttribute("Visible", Visible);
 
-        if (!this.style.IsNull && (refBorders == null || (this.Style != refBorders.Style)))
-            serializer.WriteSimpleAttribute("Style", this.Style);
+        if (!style.IsNull && (refBorders == null || (Style != refBorders.Style)))
+            serializer.WriteSimpleAttribute("Style", Style);
 
-        if (!this.width.IsNull && (refBorders == null || (this.width.Value != refBorders.width.Value)))
-            serializer.WriteSimpleAttribute("Width", this.Width);
+        if (!width.IsNull && (refBorders == null || (width.Value != refBorders.width.Value)))
+            serializer.WriteSimpleAttribute("Width", Width);
 
-        if (!this.color.IsNull && (refBorders == null || ((this.Color.Argb != refBorders.Color.Argb))))
-            serializer.WriteSimpleAttribute("Color", this.Color);
+        if (!color.IsNull && (refBorders == null || ((Color.Argb != refBorders.Color.Argb))))
+            serializer.WriteSimpleAttribute("Color", Color);
 
-        if (!this.distanceFromTop.IsNull && (refBorders == null || (this.DistanceFromTop.Point != refBorders.DistanceFromTop.Point)))
-            serializer.WriteSimpleAttribute("DistanceFromTop", this.DistanceFromTop);
+        if (!distanceFromTop.IsNull && (refBorders == null || (DistanceFromTop.Point != refBorders.DistanceFromTop.Point)))
+            serializer.WriteSimpleAttribute("DistanceFromTop", DistanceFromTop);
 
-        if (!this.distanceFromBottom.IsNull && (refBorders == null || (this.DistanceFromBottom.Point != refBorders.DistanceFromBottom.Point)))
-            serializer.WriteSimpleAttribute("DistanceFromBottom", this.DistanceFromBottom);
+        if (!distanceFromBottom.IsNull && (refBorders == null || (DistanceFromBottom.Point != refBorders.DistanceFromBottom.Point)))
+            serializer.WriteSimpleAttribute("DistanceFromBottom", DistanceFromBottom);
 
-        if (!this.distanceFromLeft.IsNull && (refBorders == null || (this.DistanceFromLeft.Point != refBorders.DistanceFromLeft.Point)))
-            serializer.WriteSimpleAttribute("DistanceFromLeft", this.DistanceFromLeft);
+        if (!distanceFromLeft.IsNull && (refBorders == null || (DistanceFromLeft.Point != refBorders.DistanceFromLeft.Point)))
+            serializer.WriteSimpleAttribute("DistanceFromLeft", DistanceFromLeft);
 
-        if (!this.distanceFromRight.IsNull && (refBorders == null || (this.DistanceFromRight.Point != refBorders.DistanceFromRight.Point)))
-            serializer.WriteSimpleAttribute("DistanceFromRight", this.DistanceFromRight);
+        if (!distanceFromRight.IsNull && (refBorders == null || (DistanceFromRight.Point != refBorders.DistanceFromRight.Point)))
+            serializer.WriteSimpleAttribute("DistanceFromRight", DistanceFromRight);
 
-        if (!this.IsNull("Top"))
-            this.top.Serialize(serializer, "Top", null);
+        if (!IsNull("Top"))
+            top.Serialize(serializer, "Top", null);
 
-        if (!this.IsNull("Left"))
-            this.left.Serialize(serializer, "Left", null);
+        if (!IsNull("Left"))
+            left.Serialize(serializer, "Left", null);
 
-        if (!this.IsNull("Bottom"))
-            this.bottom.Serialize(serializer, "Bottom", null);
+        if (!IsNull("Bottom"))
+            bottom.Serialize(serializer, "Bottom", null);
 
-        if (!this.IsNull("Right"))
-            this.right.Serialize(serializer, "Right", null);
+        if (!IsNull("Right"))
+            right.Serialize(serializer, "Right", null);
 
-        if (!this.IsNull("DiagonalDown"))
-            this.diagonalDown.Serialize(serializer, "DiagonalDown", null);
+        if (!IsNull("DiagonalDown"))
+            diagonalDown.Serialize(serializer, "DiagonalDown", null);
 
-        if (!this.IsNull("DiagonalUp"))
-            this.diagonalUp.Serialize(serializer, "DiagonalUp", null);
+        if (!IsNull("DiagonalUp"))
+            diagonalUp.Serialize(serializer, "DiagonalUp", null);
 
         serializer.EndContent(pos);
     }
@@ -453,17 +449,17 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     internal string GetMyName(Border border)
     {
-        if (border == this.top)
+        if (border == top)
             return "Top";
-        else if (border == this.bottom)
+        else if (border == bottom)
             return "Bottom";
-        else if (border == this.left)
+        else if (border == left)
             return "Left";
-        else if (border == this.right)
+        else if (border == right)
             return "Right";
-        else if (border == this.diagonalUp)
+        else if (border == diagonalUp)
             return "DiagonalUp";
-        else if (border == this.diagonalDown)
+        else if (border == diagonalDown)
             return "DiagonalDown";
         return null;
     }
@@ -511,7 +507,7 @@ public class Borders : DocumentObject, IEnumerable
         /// <summary>
         /// Gets the current element in the border collection.
         /// </summary>
-        object IEnumerator.Current => this.Current;
+        object IEnumerator.Current => Current;
 
         /// <summary>
         /// Advances the enumerator to the next element of the border collection.

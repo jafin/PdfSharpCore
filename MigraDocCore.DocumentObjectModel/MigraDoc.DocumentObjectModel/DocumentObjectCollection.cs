@@ -32,9 +32,6 @@
 
 using System;
 using System.Collections;
-using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -49,7 +46,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   internal DocumentObjectCollection()
   {
-    this.elements = new ArrayList();
+    elements = new ArrayList();
   }
 
   /// <summary>
@@ -58,7 +55,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   internal DocumentObjectCollection(DocumentObject parent)
     : base(parent)
   {
-    this.elements = new ArrayList();
+    elements = new ArrayList();
   }
 
   /// <summary>
@@ -111,7 +108,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   public void CopyTo(Array array, int index)
   {
-    this.elements.CopyTo(array, index);
+    elements.CopyTo(array, index);
   }
 
   /// <summary>
@@ -137,7 +134,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// <summary>
   /// Gets the number of elements actually contained in the collection.
   /// </summary>
-  public int Count => this.elements.Count;
+  public int Count => elements.Count;
 
   /// <summary>
   /// Removes all elements from the collection.
@@ -176,11 +173,11 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   public virtual DocumentObject this[int index]
   {
-    get => this.elements[index] as DocumentObject;
+    get => elements[index] as DocumentObject;
     set
     {
       SetParent(value);
-      this.elements[index] = value;
+      elements[index] = value;
     }
   }
 
@@ -191,9 +188,9 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   {
     get
     {
-      int count = this.elements.Count;
+      int count = elements.Count;
       if (count > 0)
-        return (DocumentObject)this.elements[count - 1];
+        return (DocumentObject)elements[count - 1];
       return null;
     }
   }
@@ -219,7 +216,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   public virtual void Add(DocumentObject value)
   {
     SetParent(value);
-    this.elements.Add(value);
+    elements.Add(value);
   }
 
   /// <summary>
@@ -229,7 +226,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   {
     if (!Meta.IsNull(this))
       return false;
-    if (this.elements == null)
+    if (elements == null)
       return true;
     foreach (DocumentObject docObject in elements)
     {
@@ -259,7 +256,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   public IEnumerator GetEnumerator()
   {
-    return this.elements.GetEnumerator();
+    return elements.GetEnumerator();
   }
 
   ArrayList elements;
@@ -270,8 +267,8 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   object IList.this[int index]
   {
-    get => this.elements[index];
-    set => this.elements[index] = value;
+    get => elements[index];
+    set => elements[index] = value;
   }
 
   /// <summary>
@@ -279,7 +276,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   void IList.RemoveAt(int index)
   {
-    this.elements.RemoveAt(index);
+    elements.RemoveAt(index);
   }
 
   /// <summary>
@@ -287,7 +284,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   void IList.Insert(int index, object value)
   {
-    this.elements.Insert(index, value);
+    elements.Insert(index, value);
   }
 
   /// <summary>
@@ -295,7 +292,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   void IList.Remove(object value)
   {
-    this.elements.Remove(value);
+    elements.Remove(value);
   }
 
   /// <summary>
@@ -303,7 +300,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   bool IList.Contains(object value)
   {
-    return this.elements.Contains(value);
+    return elements.Contains(value);
   }
 
   /// <summary>
@@ -311,7 +308,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   int IList.IndexOf(object value)
   {
-    return this.elements.IndexOf(value);
+    return elements.IndexOf(value);
   }
 
   /// <summary>
@@ -319,7 +316,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   int IList.Add(object value)
   {
-    return this.elements.Add(value);
+    return elements.Add(value);
   }
 
   /// <summary>
@@ -327,7 +324,7 @@ public abstract class DocumentObjectCollection : DocumentObject, IList, IVisitab
   /// </summary>
   void IList.Clear()
   {
-    this.elements.Clear();
+    elements.Clear();
   }
   #endregion
 }

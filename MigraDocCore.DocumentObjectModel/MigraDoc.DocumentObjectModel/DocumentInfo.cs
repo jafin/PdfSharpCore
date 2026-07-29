@@ -31,8 +31,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -70,8 +68,8 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Title
   {
-    get => this.title.Value;
-    set => this.title.Value = value;
+    get => title.Value;
+    set => title.Value = value;
   }
   [DV]
   internal NString title = NString.NullValue;
@@ -81,8 +79,8 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Author
   {
-    get => this.author.Value;
-    set => this.author.Value = value;
+    get => author.Value;
+    set => author.Value = value;
   }
   [DV]
   internal NString author = NString.NullValue;
@@ -92,8 +90,8 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Keywords
   {
-    get => this.keywords.Value;
-    set => this.keywords.Value = value;
+    get => keywords.Value;
+    set => keywords.Value = value;
   }
   [DV]
   internal NString keywords = NString.NullValue;
@@ -103,8 +101,8 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Subject
   {
-    get => this.subject.Value;
-    set => this.subject.Value = value;
+    get => subject.Value;
+    set => subject.Value = value;
   }
   [DV]
   internal NString subject = NString.NullValue;
@@ -114,8 +112,8 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => comment.Value;
+    set => comment.Value = value;
   }
   [DV]
   internal NString comment = NString.NullValue;
@@ -127,20 +125,20 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment(comment.Value);
     int pos = serializer.BeginContent("Info");
 
-    if (this.Title != String.Empty)
-      serializer.WriteSimpleAttribute("Title", this.Title);
+    if (Title != String.Empty)
+      serializer.WriteSimpleAttribute("Title", Title);
 
-    if (this.Subject != String.Empty)
-      serializer.WriteSimpleAttribute("Subject", this.Subject);
+    if (Subject != String.Empty)
+      serializer.WriteSimpleAttribute("Subject", Subject);
 
-    if (this.Author != String.Empty)
-      serializer.WriteSimpleAttribute("Author", this.Author);
+    if (Author != String.Empty)
+      serializer.WriteSimpleAttribute("Author", Author);
 
-    if (this.Keywords != String.Empty)
-      serializer.WriteSimpleAttribute("Keywords", this.Keywords);
+    if (Keywords != String.Empty)
+      serializer.WriteSimpleAttribute("Keywords", Keywords);
 
     serializer.EndContent(pos);
   }

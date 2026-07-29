@@ -1,7 +1,6 @@
 
 using System.Linq;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 
 using PdfSharpCore.Internal;

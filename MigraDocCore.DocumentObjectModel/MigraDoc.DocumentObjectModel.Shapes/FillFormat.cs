@@ -26,13 +26,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.DocumentObjectModel.Shapes;
 
@@ -69,8 +67,8 @@ public class FillFormat : DocumentObject
   /// </summary>
   public Color Color
   {
-    get => this.color;
-    set => this.color = value;
+    get => color;
+    set => color = value;
   }
   [DV]
   internal Color color = Color.Empty;
@@ -80,8 +78,8 @@ public class FillFormat : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => this.visible.Value;
-    set => this.visible.Value = value;
+    get => visible.Value;
+    set => visible.Value = value;
   }
   [DV]
   internal NBool visible = NBool.NullValue;
@@ -94,10 +92,10 @@ public class FillFormat : DocumentObject
   internal override void Serialize(Serializer serializer)
   {
     int pos = serializer.BeginContent("FillFormat");
-    if (!this.visible.IsNull)
-      serializer.WriteSimpleAttribute("Visible", this.Visible);
-    if (!this.color.IsNull)
-      serializer.WriteSimpleAttribute("Color", this.Color);
+    if (!visible.IsNull)
+      serializer.WriteSimpleAttribute("Visible", Visible);
+    if (!color.IsNull)
+      serializer.WriteSimpleAttribute("Color", Color);
     serializer.EndContent();
   }
 

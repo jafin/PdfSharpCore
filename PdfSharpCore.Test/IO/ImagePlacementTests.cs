@@ -2,7 +2,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AwesomeAssertions;
-using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;

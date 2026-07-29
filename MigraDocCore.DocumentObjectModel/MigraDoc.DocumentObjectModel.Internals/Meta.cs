@@ -26,16 +26,12 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
-using System.Collections;
-using System.Diagnostics;
-using System.Globalization;
 using System.Reflection;
-using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 using System.Linq;
 
@@ -55,7 +51,7 @@ public class Meta
     }
 
     /// <summary>
-    /// Gets the meta object of the specified document object.
+    /// Gets the metaobject of the specified document object.
     /// </summary>
     /// <param name="documentObject">The document object the meta is returned for.</param>
     public static Meta GetMeta(DocumentObject documentObject)
@@ -119,8 +115,6 @@ public class Meta
 
         if (trail != null)
         {
-            //REVIEW DaSt: dom.GetValue(name) und rekursiv SetValue aufrufen,
-            //             oder dom.GetValue(name.BisVorletzteElement) und erst SetValue aufrufen.
             DocumentObject doc = dom.GetValue(name) as DocumentObject;
             doc.SetValue(trail, val);
         }
@@ -156,7 +150,6 @@ public class Meta
     /// </summary>
     public virtual bool IsNull(DocumentObject dom, string name)
     {
-        //bool isNull = false;
         int dot = name.IndexOf('.');
         if (dot == 0)
             throw new ArgumentException(DomSR.InvalidValueName(name));
@@ -181,14 +174,7 @@ public class Meta
             return true;
         if (trail != null)
             return docObj.IsNull(trail);
-        else
-            return docObj.IsNull();
-
-        //      DomValueDescriptor vd = vds[name];
-        //      if (vd == null)
-        //        throw new ArgumentException(DomSR.InvalidValueName(name));
-        //      
-        //      return vd.IsNull(dom);
+        return docObj.IsNull();
     }
 
     /// <summary>
@@ -240,7 +226,7 @@ public class Meta
     static void AddValueDescriptors(Meta meta, Type type)
     {
         var fieldInfos = type.GetRuntimeFields(); //(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        foreach (FieldInfo fieldInfo in fieldInfos)
+        foreach (var fieldInfo in fieldInfos)
         {
             var dvs = fieldInfo.GetCustomAttributes<DVAttribute>(false);
             if (dvs.Count() == 1)

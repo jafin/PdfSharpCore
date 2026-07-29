@@ -23,17 +23,14 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
 using System.Diagnostics;
 using System.Collections;
-using System.Text;
-using System.IO;
 using PdfSharpCore.Pdf.Advanced;
-using PdfSharpCore.Pdf.IO;
 using System.Collections.Generic;
 
 namespace PdfSharpCore.Pdf.Annotations;
@@ -128,7 +125,7 @@ public sealed class PdfAnnotations : PdfArray
 
     //public PdfAnnotation this[int index]
     //{
-    //  get 
+    //  get
     //  {
     //      //DMH 6/7/06
     //      //Broke this out to simplfy debugging
@@ -184,7 +181,7 @@ public sealed class PdfAnnotations : PdfArray
     //    annotation.GetType();
     //}
 
-    //!!!new 2015-10-15: use PdfItem instead of PdfAnnotation. 
+    //!!!new 2015-10-15: use PdfItem instead of PdfAnnotation.
     // TODO Should we change this to "public new IEnumerator<PdfAnnotation> GetEnumerator()"?
 
     class AnnotationsIterator : IEnumerator<PdfItem/*PdfAnnotation*/>

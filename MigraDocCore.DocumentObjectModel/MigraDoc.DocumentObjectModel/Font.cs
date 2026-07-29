@@ -31,11 +31,7 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Globalization;
 using MigraDocCore.DocumentObjectModel.Internals;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.DocumentObjectModel;
 
@@ -91,30 +87,30 @@ public sealed class Font : DocumentObject
             throw new ArgumentNullException("font");
 
         if ((!font.name.IsNull && font.name.Value != "") && (refFont == null || font.Name != refFont.Name))
-            this.Name = font.Name;
+            Name = font.Name;
 
         if (!font.size.IsNull && (refFont == null || font.Size != refFont.Size))
-            this.Size = font.Size;
+            Size = font.Size;
 
         if (!font.bold.IsNull && (refFont == null || font.Bold != refFont.Bold))
-            this.Bold = font.Bold;
+            Bold = font.Bold;
 
         if (!font.italic.IsNull && (refFont == null || font.Italic != refFont.Italic))
-            this.Italic = font.Italic;
+            Italic = font.Italic;
 
         if (!font.subscript.IsNull && (refFont == null || font.Subscript != refFont.Subscript))
-            this.Subscript = font.Subscript;
+            Subscript = font.Subscript;
         else if (!font.superscript.IsNull && (refFont == null || font.Superscript != refFont.Superscript))
-            this.Superscript = font.Superscript;
+            Superscript = font.Superscript;
 
         if (!font.underline.IsNull && (refFont == null || font.Underline != refFont.Underline))
-            this.Underline = font.Underline;
+            Underline = font.Underline;
 
         if (!font.strikethrough.IsNull && (refFont == null || font.Strikethrough != refFont.Strikethrough))
-            this.Strikethrough = font.Strikethrough;
+            Strikethrough = font.Strikethrough;
 
         if (!font.color.IsNull && (refFont == null || font.Color.Argb != refFont.Color.Argb))
-            this.Color = font.Color;
+            Color = font.Color;
     }
 
     /// <summary>
@@ -126,30 +122,30 @@ public sealed class Font : DocumentObject
             throw new ArgumentNullException("font");
 
         if (!font.name.IsNull && font.name.Value != "")
-            this.Name = font.Name;
+            Name = font.Name;
 
         if (!font.size.IsNull)
-            this.Size = font.Size;
+            Size = font.Size;
 
         if (!font.bold.IsNull)
-            this.Bold = font.Bold;
+            Bold = font.Bold;
 
         if (!font.italic.IsNull)
-            this.Italic = font.Italic;
+            Italic = font.Italic;
 
         if (!font.subscript.IsNull)
-            this.Subscript = font.Subscript;
+            Subscript = font.Subscript;
         else if (!font.superscript.IsNull)
-            this.Superscript = font.Superscript;
+            Superscript = font.Superscript;
 
         if (!font.underline.IsNull)
-            this.Underline = font.Underline;
+            Underline = font.Underline;
 
         if (!font.strikethrough.IsNull)
-            this.Strikethrough = font.Strikethrough;
+            Strikethrough = font.Strikethrough;
 
         if (!font.color.IsNull)
-            this.Color = font.Color;
+            Color = font.Color;
     }
     #endregion
 
@@ -159,8 +155,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public string Name
     {
-        get => this.name.Value;
-        set => this.name.Value = value;
+        get => name.Value;
+        set => name.Value = value;
     }
     [DV]
     internal NString name = NString.NullValue;
@@ -170,8 +166,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Unit Size
     {
-        get => this.size;
-        set => this.size = value;
+        get => size;
+        set => size = value;
     }
     [DV]
     internal Unit size = Unit.NullValue;
@@ -181,8 +177,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Bold
     {
-        get => this.bold.Value;
-        set => this.bold.Value = value;
+        get => bold.Value;
+        set => bold.Value = value;
     }
     [DV]
     internal NBool bold = NBool.NullValue;
@@ -192,8 +188,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Italic
     {
-        get => this.italic.Value;
-        set => this.italic.Value = value;
+        get => italic.Value;
+        set => italic.Value = value;
     }
     [DV]
     internal NBool italic = NBool.NullValue;
@@ -203,8 +199,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Underline Underline
     {
-        get => (Underline)this.underline.Value;
-        set => this.underline.Value = (int)value;
+        get => (Underline)underline.Value;
+        set => underline.Value = (int)value;
     }
     [DV(Type = typeof(Underline))]
     internal NEnum underline = NEnum.NullValue(typeof(Underline));
@@ -214,8 +210,8 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Color Color
     {
-        get => this.color;
-        set => this.color = value;
+        get => color;
+        set => color = value;
     }
     [DV]
     internal Color color = Color.Empty;
@@ -225,11 +221,11 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Superscript
     {
-        get => this.superscript.Value;
+        get => superscript.Value;
         set
         {
-            this.superscript.Value = value;
-            this.subscript.SetNull();
+            superscript.Value = value;
+            subscript.SetNull();
         }
     }
     [DV]
@@ -240,11 +236,11 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Subscript
     {
-        get => this.subscript.Value;
+        get => subscript.Value;
         set
         {
-            this.subscript.Value = value;
-            this.superscript.SetNull();
+            subscript.Value = value;
+            superscript.SetNull();
         }
     }
     [DV]
@@ -253,8 +249,8 @@ public sealed class Font : DocumentObject
 
     public Strikethrough Strikethrough
     {
-        get => (Strikethrough)this.strikethrough.Value;
-        set => this.strikethrough.Value = (int)value;
+        get => (Strikethrough)strikethrough.Value;
+        set => strikethrough.Value = (int)value;
     }
     [DV(Type = typeof(Strikethrough))]
     internal NEnum strikethrough = NEnum.NullValue(typeof(Strikethrough));
@@ -291,21 +287,21 @@ public sealed class Font : DocumentObject
     private FontProperties CheckWhatIsNotNull()
     {
         FontProperties fp = FontProperties.None;
-        if (!this.name.IsNull)
+        if (!name.IsNull)
             fp |= FontProperties.Name;
-        if (!this.size.IsNull)
+        if (!size.IsNull)
             fp |= FontProperties.Size;
-        if (!this.bold.IsNull)
+        if (!bold.IsNull)
             fp |= FontProperties.Bold;
-        if (!this.italic.IsNull)
+        if (!italic.IsNull)
             fp |= FontProperties.Italic;
-        if (!this.underline.IsNull)
+        if (!underline.IsNull)
             fp |= FontProperties.Underline;
-        if (!this.color.IsNull)
+        if (!color.IsNull)
             fp |= FontProperties.Color;
-        if (!this.superscript.IsNull)
+        if (!superscript.IsNull)
             fp |= FontProperties.Superscript;
-        if (!this.subscript.IsNull)
+        if (!subscript.IsNull)
             fp |= FontProperties.Subscript;
         return fp;
     }
@@ -324,10 +320,10 @@ public sealed class Font : DocumentObject
     /// </summary>
     internal void Serialize(Serializer serializer, Font font)
     {
-        if (this.Parent is FormattedText)
+        if (Parent is FormattedText)
         {
             string fontStyle = "";
-            if (((FormattedText)this.Parent).style.IsNull)
+            if (((FormattedText)Parent).style.IsNull)
             {
                 // Check if we can use a DDL keyword.
                 FontProperties notNull = CheckWhatIsNotNull();
@@ -353,41 +349,41 @@ public sealed class Font : DocumentObject
                 }
             }
             else
-                fontStyle = "(\"" + ((FormattedText)this.Parent).Style + "\")";
+                fontStyle = "(\"" + ((FormattedText)Parent).Style + "\")";
 
             //bool needBlank = false;  // nice, but later...
             serializer.Write("\\font" + fontStyle + "[");
 
-            if (!this.name.IsNull && this.name.Value != "")
-                serializer.WriteSimpleAttribute("Name", this.Name);
+            if (!name.IsNull && name.Value != "")
+                serializer.WriteSimpleAttribute("Name", Name);
 
 #if DEBUG // Test
-            if (!this.size.IsNull && this.Size != 0 && this.Size.Point == 0)
-                this.GetType();
+            if (!size.IsNull && Size != 0 && Size.Point == 0)
+                GetType();
 #endif
-            if ((!this.size.IsNull))
-                serializer.WriteSimpleAttribute("Size", this.Size);
+            if ((!size.IsNull))
+                serializer.WriteSimpleAttribute("Size", Size);
 
-            if (!this.bold.IsNull)
-                serializer.WriteSimpleAttribute("Bold", this.Bold);
+            if (!bold.IsNull)
+                serializer.WriteSimpleAttribute("Bold", Bold);
 
-            if (!this.italic.IsNull)
-                serializer.WriteSimpleAttribute("Italic", this.Italic);
+            if (!italic.IsNull)
+                serializer.WriteSimpleAttribute("Italic", Italic);
 
-            if (!this.underline.IsNull)
-                serializer.WriteSimpleAttribute("Underline", this.Underline);
+            if (!underline.IsNull)
+                serializer.WriteSimpleAttribute("Underline", Underline);
 
-            if (!this.strikethrough.IsNull)
-                serializer.WriteSimpleAttribute("Strikethrough", this.Strikethrough);
+            if (!strikethrough.IsNull)
+                serializer.WriteSimpleAttribute("Strikethrough", Strikethrough);
 
-            if (!this.superscript.IsNull)
-                serializer.WriteSimpleAttribute("Superscript", this.Superscript);
+            if (!superscript.IsNull)
+                serializer.WriteSimpleAttribute("Superscript", Superscript);
 
-            if (!this.subscript.IsNull)
-                serializer.WriteSimpleAttribute("Subscript", this.Subscript);
+            if (!subscript.IsNull)
+                serializer.WriteSimpleAttribute("Subscript", Subscript);
 
-            if (!this.color.IsNull)
-                serializer.WriteSimpleAttribute("Color", this.Color);
+            if (!color.IsNull)
+                serializer.WriteSimpleAttribute("Color", Color);
 
             serializer.Write("]");
         }
@@ -426,8 +422,8 @@ public sealed class Font : DocumentObject
             if (!subscript.IsNull && (font == null || Subscript != font.Subscript || font.subscript.IsNull))
                 serializer.WriteSimpleAttribute("Subscript", Subscript);
 
-            if (!color.IsNull && (font == null || this.Color.Argb != font.Color.Argb))// && this.Color.RGB != Color.Transparent.RGB)
-                serializer.WriteSimpleAttribute("Color", this.Color);
+            if (!color.IsNull && (font == null || Color.Argb != font.Color.Argb))// && this.Color.RGB != Color.Transparent.RGB)
+                serializer.WriteSimpleAttribute("Color", Color);
 
             serializer.EndContent(pos);
         }

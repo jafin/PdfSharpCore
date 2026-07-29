@@ -31,16 +31,11 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using System.Collections;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using System.IO;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -95,7 +90,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Text AddText(String text)
     {
-        return this.Elements.AddText(text);
+        return Elements.AddText(text);
     }
 
     /// <summary>
@@ -103,7 +98,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Text AddChar(char ch, int count)
     {
-        return this.Elements.AddChar(ch, count);
+        return Elements.AddChar(ch, count);
     }
 
     /// <summary>
@@ -111,7 +106,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Text AddChar(char ch)
     {
-        return this.Elements.AddChar(ch);
+        return Elements.AddChar(ch);
     }
 
     /// <summary>
@@ -119,7 +114,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Character AddCharacter(SymbolName symbolType, int count)
     {
-        return this.Elements.AddCharacter(symbolType, count);
+        return Elements.AddCharacter(symbolType, count);
     }
 
     /// <summary>
@@ -127,7 +122,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Character AddCharacter(SymbolName symbolType)
     {
-        return this.Elements.AddCharacter(symbolType);
+        return Elements.AddCharacter(symbolType);
     }
 
     /// <summary>
@@ -135,7 +130,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Character AddCharacter(char ch, int count)
     {
-        return this.Elements.AddCharacter(ch, count);
+        return Elements.AddCharacter(ch, count);
     }
 
     /// <summary>
@@ -143,7 +138,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Character AddCharacter(char ch)
     {
-        return this.Elements.AddCharacter(ch);
+        return Elements.AddCharacter(ch);
     }
 
     /// <summary>
@@ -151,7 +146,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Character AddSpace(int count)
     {
-        return this.Elements.AddSpace(count);
+        return Elements.AddSpace(count);
     }
 
     /// <summary>
@@ -159,7 +154,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void AddTab()
     {
-        this.Elements.AddTab();
+        Elements.AddTab();
     }
 
     /// <summary>
@@ -167,7 +162,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void AddLineBreak()
     {
-        this.Elements.AddLineBreak();
+        Elements.AddLineBreak();
     }
 
     /// <summary>
@@ -175,7 +170,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText()
     {
-        return this.Elements.AddFormattedText();
+        return Elements.AddFormattedText();
     }
 
     /// <summary>
@@ -183,7 +178,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(TextFormat textFormat)
     {
-        return this.Elements.AddFormattedText(textFormat);
+        return Elements.AddFormattedText(textFormat);
     }
 
     /// <summary>
@@ -191,7 +186,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(Font font)
     {
-        return this.Elements.AddFormattedText(font);
+        return Elements.AddFormattedText(font);
     }
 
     /// <summary>
@@ -199,7 +194,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(string text)
     {
-        return this.Elements.AddFormattedText(text);
+        return Elements.AddFormattedText(text);
     }
 
     /// <summary>
@@ -207,7 +202,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(string text, TextFormat textFormat)
     {
-        return this.Elements.AddFormattedText(text, textFormat);
+        return Elements.AddFormattedText(text, textFormat);
     }
 
     /// <summary>
@@ -215,7 +210,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(string text, Font font)
     {
-        return this.Elements.AddFormattedText(text, font);
+        return Elements.AddFormattedText(text, font);
     }
 
     /// <summary>
@@ -223,7 +218,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public FormattedText AddFormattedText(string text, string style)
     {
-        return this.Elements.AddFormattedText(text, style);
+        return Elements.AddFormattedText(text, style);
     }
 
     /// <summary>
@@ -232,7 +227,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Hyperlink AddHyperlink(string name)
     {
-        return this.Elements.AddHyperlink(name);
+        return Elements.AddHyperlink(name);
     }
 
     /// <summary>
@@ -240,7 +235,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Hyperlink AddHyperlink(string name, HyperlinkType type)
     {
-        return this.Elements.AddHyperlink(name, type);
+        return Elements.AddHyperlink(name, type);
     }
 
     /// <summary>
@@ -248,7 +243,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public BookmarkField AddBookmark(string name)
     {
-        return this.Elements.AddBookmark(name);
+        return Elements.AddBookmark(name);
     }
 
     /// <summary>
@@ -256,7 +251,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public PageField AddPageField()
     {
-        return this.Elements.AddPageField();
+        return Elements.AddPageField();
     }
 
     /// <summary>
@@ -264,7 +259,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public PageRefField AddPageRefField(string name)
     {
-        return this.Elements.AddPageRefField(name);
+        return Elements.AddPageRefField(name);
     }
 
     /// <summary>
@@ -272,7 +267,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public NumPagesField AddNumPagesField()
     {
-        return this.Elements.AddNumPagesField();
+        return Elements.AddNumPagesField();
     }
 
     /// <summary>
@@ -280,7 +275,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public SectionField AddSectionField()
     {
-        return this.Elements.AddSectionField();
+        return Elements.AddSectionField();
     }
 
     /// <summary>
@@ -288,7 +283,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public SectionPagesField AddSectionPagesField()
     {
-        return this.Elements.AddSectionPagesField();
+        return Elements.AddSectionPagesField();
     }
 
     /// <summary>
@@ -296,7 +291,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public DateField AddDateField()
     {
-        return this.Elements.AddDateField();
+        return Elements.AddDateField();
     }
 
     /// <summary>
@@ -304,7 +299,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public DateField AddDateField(string format)
     {
-        return this.Elements.AddDateField(format);
+        return Elements.AddDateField(format);
     }
 
     /// <summary>
@@ -312,7 +307,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public InfoField AddInfoField(InfoFieldType iType)
     {
-        return this.Elements.AddInfoField(iType);
+        return Elements.AddInfoField(iType);
     }
 
     /// <summary>
@@ -320,7 +315,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Footnote AddFootnote(string text)
     {
-        return this.Elements.AddFootnote(text);
+        return Elements.AddFootnote(text);
     }
 
     /// <summary>
@@ -328,7 +323,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Footnote AddFootnote()
     {
-        return this.Elements.AddFootnote();
+        return Elements.AddFootnote();
     }
 
     /// <summary>
@@ -336,7 +331,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public Image AddImage(IImageSource imageSource)
     {
-        return this.Elements.AddImage(imageSource);
+        return Elements.AddImage(imageSource);
     }      
 
     /// <summary>
@@ -344,7 +339,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(BookmarkField bookmark)
     {
-        this.Elements.Add(bookmark);
+        Elements.Add(bookmark);
     }
 
     /// <summary>
@@ -352,7 +347,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(PageField pageField)
     {
-        this.Elements.Add(pageField);
+        Elements.Add(pageField);
     }
 
     /// <summary>
@@ -360,7 +355,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(PageRefField pageRefField)
     {
-        this.Elements.Add(pageRefField);
+        Elements.Add(pageRefField);
     }
 
     /// <summary>
@@ -368,7 +363,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(NumPagesField numPagesField)
     {
-        this.Elements.Add(numPagesField);
+        Elements.Add(numPagesField);
     }
 
     /// <summary>
@@ -376,7 +371,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(SectionField sectionField)
     {
-        this.Elements.Add(sectionField);
+        Elements.Add(sectionField);
     }
 
     /// <summary>
@@ -384,7 +379,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(SectionPagesField sectionPagesField)
     {
-        this.Elements.Add(sectionPagesField);
+        Elements.Add(sectionPagesField);
     }
 
     /// <summary>
@@ -392,7 +387,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(DateField dateField)
     {
-        this.Elements.Add(dateField);
+        Elements.Add(dateField);
     }
 
     /// <summary>
@@ -400,7 +395,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(InfoField infoField)
     {
-        this.Elements.Add(infoField);
+        Elements.Add(infoField);
     }
 
     /// <summary>
@@ -408,7 +403,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(Footnote footnote)
     {
-        this.Elements.Add(footnote);
+        Elements.Add(footnote);
     }
 
     /// <summary>
@@ -416,7 +411,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(Text text)
     {
-        this.Elements.Add(text);
+        Elements.Add(text);
     }
 
     /// <summary>
@@ -424,7 +419,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(FormattedText formattedText)
     {
-        this.Elements.Add(formattedText);
+        Elements.Add(formattedText);
     }
 
     /// <summary>
@@ -432,7 +427,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(Hyperlink hyperlink)
     {
-        this.Elements.Add(hyperlink);
+        Elements.Add(hyperlink);
     }
 
     /// <summary>
@@ -440,7 +435,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(Image image)
     {
-        this.Elements.Add(image);
+        Elements.Add(image);
     }
 
     /// <summary>
@@ -448,7 +443,7 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public void Add(Character character)
     {
-        this.Elements.Add(character);
+        Elements.Add(character);
     }
     #endregion
 
@@ -458,8 +453,8 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => this.style.Value;
-        set => this.style.Value = value;
+        get => style.Value;
+        set => style.Value = value;
     }
     [DV]
     internal NString style = NString.NullValue;
@@ -471,15 +466,15 @@ public class Paragraph : DocumentObject, IVisitable
     {
         get
         {
-            if (this.format == null)
-                this.format = new ParagraphFormat(this);
+            if (format == null)
+                format = new ParagraphFormat(this);
 
-            return this.format;
+            return format;
         }
         set
         {
             SetParent(value);
-            this.format = value;
+            format = value;
         }
     }
     [DV]
@@ -492,15 +487,15 @@ public class Paragraph : DocumentObject, IVisitable
     {
         get
         {
-            if (this.elements == null)
-                this.elements = new ParagraphElements(this);
+            if (elements == null)
+                elements = new ParagraphElements(this);
 
-            return this.elements;
+            return elements;
         }
         set
         {
             SetParent(value);
-            this.elements = value;
+            elements = value;
         }
     }
     [DV]
@@ -511,8 +506,8 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => this.comment.Value;
-        set => this.comment.Value = value;
+        get => comment.Value;
+        set => comment.Value = value;
     }
     [DV]
     internal NString comment = NString.NullValue;
@@ -526,8 +521,8 @@ public class Paragraph : DocumentObject, IVisitable
     {
         visitor.VisitParagraph(this);
 
-        if (visitChildren && this.elements != null)
-            ((IVisitable)this.elements).AcceptVisitor(visitor, visitChildren);
+        if (visitChildren && elements != null)
+            ((IVisitable)elements).AcceptVisitor(visitor, visitChildren);
     }
 
     /// <summary>
@@ -547,28 +542,28 @@ public class Paragraph : DocumentObject, IVisitable
     {
         if (!serializeContentOnly)
         {
-            serializer.WriteComment(this.comment.Value);
+            serializer.WriteComment(comment.Value);
             serializer.WriteLine("\\paragraph");
 
             int pos = serializer.BeginAttributes();
 
-            if (this.style.Value != "")
-                serializer.WriteLine("Style = \"" + this.style.Value + "\"");
+            if (style.Value != "")
+                serializer.WriteLine("Style = \"" + style.Value + "\"");
 
-            if (!this.IsNull("Format"))
-                this.format.Serialize(serializer, "Format", null);
+            if (!IsNull("Format"))
+                format.Serialize(serializer, "Format", null);
 
             serializer.EndAttributes(pos);
 
             serializer.BeginContent();
-            if (!this.IsNull("Elements"))
-                this.Elements.Serialize(serializer);
+            if (!IsNull("Elements"))
+                Elements.Serialize(serializer);
             serializer.CloseUpLine();
             serializer.EndContent();
         }
         else
         {
-            this.Elements.Serialize(serializer);
+            Elements.Serialize(serializer);
             serializer.CloseUpLine();
         }
     }
@@ -591,22 +586,22 @@ public class Paragraph : DocumentObject, IVisitable
     /// </summary>
     internal Paragraph[] SplitOnParaBreak()
     {
-        if (this.elements == null)
+        if (elements == null)
             return null;
 
         int startIdx = 0;
         ArrayList paragraphs = new ArrayList();
-        for (int idx = 0; idx < this.Elements.Count; ++idx)
+        for (int idx = 0; idx < Elements.Count; ++idx)
         {
-            DocumentObject element = this.Elements[idx];
+            DocumentObject element = Elements[idx];
             if (element is Character)
             {
                 Character character = (Character)element;
                 if (character.SymbolName == SymbolName.ParaBreak)
                 {
                     Paragraph paragraph = new Paragraph();
-                    paragraph.Format = this.Format.Clone();
-                    paragraph.Style = this.Style;
+                    paragraph.Format = Format.Clone();
+                    paragraph.Style = Style;
                     paragraph.Elements = SubsetElements(startIdx, idx - 1);
                     startIdx = idx + 1;
                     paragraphs.Add(paragraph);
@@ -618,9 +613,9 @@ public class Paragraph : DocumentObject, IVisitable
         else
         {
             Paragraph paragraph = new Paragraph();
-            paragraph.Format = this.Format.Clone();
-            paragraph.Style = this.Style;
-            paragraph.Elements = SubsetElements(startIdx, this.elements.Count - 1);
+            paragraph.Format = Format.Clone();
+            paragraph.Style = Style;
+            paragraph.Elements = SubsetElements(startIdx, elements.Count - 1);
             paragraphs.Add(paragraph);
 
             return (Paragraph[])paragraphs.ToArray(typeof(Paragraph));
@@ -638,7 +633,7 @@ public class Paragraph : DocumentObject, IVisitable
         ParagraphElements paragraphElements = new ParagraphElements();
         for (int idx = startIdx; idx <= endIdx; ++idx)
         {
-            paragraphElements.Add((DocumentObject)this.elements[idx].Clone());
+            paragraphElements.Add((DocumentObject)elements[idx].Clone());
         }
         return paragraphElements;
     }

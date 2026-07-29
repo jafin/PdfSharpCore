@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Text;
 using AwesomeAssertions;
-using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Test.Helpers;
 using Xunit;

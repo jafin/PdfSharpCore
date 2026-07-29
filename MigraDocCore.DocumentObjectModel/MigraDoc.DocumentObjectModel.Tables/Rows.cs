@@ -26,13 +26,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Visitors;
 
@@ -82,7 +80,7 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// <summary>
   /// Gets the table the rows collection belongs to.
   /// </summary>
-  public Table Table => this.parent as Table;
+  public Table Table => parent as Table;
 
   /// <summary>
   /// Gets a row by its index.
@@ -94,20 +92,20 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public RowAlignment Alignment
   {
-    get => (RowAlignment)this.alignment.Value;
-    set => this.alignment.Value = (int)value;
+    get => (RowAlignment)alignment.Value;
+    set => alignment.Value = (int)value;
   }
   [DV(Type = typeof(RowAlignment))]
   internal NEnum alignment = NEnum.NullValue(typeof(RowAlignment));
 
   /// <summary>
-  /// Gets or sets the left indent of the table. If row alignment is not Left, 
+  /// Gets or sets the left indent of the table. If row alignment is not Left,
   /// the value is ignored.
   /// </summary>
   public Unit LeftIndent
   {
-    get => this.leftIndent;
-    set => this.leftIndent = value;
+    get => leftIndent;
+    set => leftIndent = value;
   }
   [DV]
   internal Unit leftIndent = Unit.NullValue;
@@ -117,8 +115,8 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public VerticalAlignment VerticalAlignment
   {
-    get => (VerticalAlignment)this.verticalAlignment.Value;
-    set => this.verticalAlignment.Value = (int)value;
+    get => (VerticalAlignment)verticalAlignment.Value;
+    set => verticalAlignment.Value = (int)value;
   }
   [DV(Type = typeof(VerticalAlignment))]
   internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
@@ -128,8 +126,8 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public Unit Height
   {
-    get => this.height;
-    set => this.height = value;
+    get => height;
+    set => height = value;
   }
   [DV]
   internal Unit height = Unit.NullValue;
@@ -139,8 +137,8 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public RowHeightRule HeightRule
   {
-    get => (RowHeightRule)this.heightRule.Value;
-    set => this.heightRule.Value = (int)value;
+    get => (RowHeightRule)heightRule.Value;
+    set => heightRule.Value = (int)value;
   }
   [DV(Type = typeof(RowHeightRule))]
   internal NEnum heightRule = NEnum.NullValue(typeof(RowHeightRule));
@@ -150,8 +148,8 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => comment.Value;
+    set => comment.Value = value;
   }
   [DV]
   internal NString comment = NString.NullValue;
@@ -163,25 +161,25 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment(comment.Value);
     serializer.WriteLine("\\rows");
 
     int pos = serializer.BeginAttributes();
 
-    if (!this.alignment.IsNull)
-      serializer.WriteSimpleAttribute("Alignment", this.Alignment);
+    if (!alignment.IsNull)
+      serializer.WriteSimpleAttribute("Alignment", Alignment);
 
-    if (!this.height.IsNull)
-      serializer.WriteSimpleAttribute("Height", this.Height);
+    if (!height.IsNull)
+      serializer.WriteSimpleAttribute("Height", Height);
 
-    if (!this.heightRule.IsNull)
-      serializer.WriteSimpleAttribute("HeightRule", this.HeightRule);
+    if (!heightRule.IsNull)
+      serializer.WriteSimpleAttribute("HeightRule", HeightRule);
 
-    if (!this.leftIndent.IsNull)
-      serializer.WriteSimpleAttribute("LeftIndent", this.LeftIndent);
+    if (!leftIndent.IsNull)
+      serializer.WriteSimpleAttribute("LeftIndent", LeftIndent);
 
-    if (!this.verticalAlignment.IsNull)
-      serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
+    if (!verticalAlignment.IsNull)
+      serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
     serializer.EndAttributes(pos);
 
