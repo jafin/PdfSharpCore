@@ -387,16 +387,32 @@ a decision rather than a patch.
 
 Honest list of what the value model work left thin.
 
-**The generator has no unit tests.** `Emitter` was deliberately written free of Roslyn types so it
-could be exercised with hand-built `DomTypeModel`s and no compilation, and that was never done. The
-339 parity assertions test the *output* against a live compilation, which is the more valuable end,
-but a snapshot test over `Emitter.Emit` would catch formatting and escaping regressions far faster
-than a full build. `Verify` is already used elsewhere in the repo.
+**`Emitter` still has no isolated unit tests.** It was deliberately written free of Roslyn types so
+it could be exercised with hand-built `DomTypeModel`s and no compilation, and that was never done.
+The generator tests above cover its output through a real compilation, and the 339 parity assertions
+cover it against the live model, so this is now a speed and precision gap rather than a coverage one:
+a snapshot test over `Emitter.Emit` would catch a formatting or escaping regression faster and point
+at it more directly. `Verify` is already used elsewhere in the repo.
 
-**The diagnostics are untested.** MDG001–MDG006 are implemented and none has a test proving it
-fires. `Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing` is the usual way; each is a handful
-of lines. MDG002 in particular is the one that replaced a `Debug.Assert(false)`, and nobody has
-confirmed it actually errors on an unhandled member type.
+**~~The diagnostics are untested.~~ Done.** `MigraDocCore.DocumentObjectModel.Generators.Tests`
+now drives the generator through `CSharpGeneratorDriver` and asserts that each of MDG001–MDG006
+fires, that a valid type produces none, and that the emitted source actually binds rather than
+merely being produced. 12 tests.
+
+Two things it settled that were previously only reasoned about:
+
+* Every `ValueKind` is classified as the model expects — including `PlainValue` for a plain `bool`
+  and `NullableValue` for a struct implementing `INullableValue`.
+* A type declaring no `[DV]` member of its own still gets a table, and an abstract type gets none
+  while its members are still inherited by concrete types below it. Those are the two rules the
+  first build of the generator got wrong.
+
+Worth knowing about the harness: the test snippets compile against **stand-ins** for the DOM types
+declared in the test source, not against the real assembly. That is not a shortcut —
+`DocumentObject.Meta` is `internal abstract`, so a test compilation referencing the real assembly
+could not declare a `DocumentObject` at all, because the generated `internal override` cannot
+override an internal member from another assembly. The same property that makes the whole
+compile-time model possible makes referencing it from a test compilation impossible.
 
 **The AOT smoke test's Linux leg is unverified.** It was written and confirmed on `win-x64` — a
 5.1 MB native binary passing all 25 checks. The CI step publishes `linux-x64` with `clang` and
@@ -417,7 +433,7 @@ is a deliberate cost and its size is unknown.
    to warning-free.
 3. ~~**`dom-thread-safety.md` item 6** — `CS8073` as an error.~~ **Done.**
 4. ~~**F2** — one line plus a test update.~~ **Done.**
-5. **Generator diagnostic tests** — the cheapest way to stop MDG001–006 being decorative.
+5. ~~**Generator diagnostic tests**~~ **Done.**
 6. **F7's evaluation**, then **F3** and **F4** depending on what it concludes.
 7. **`dom-thread-safety.md` item 4**, and the wider `ArrayList`/`Hashtable` migration, as their own
    pieces of work — both change emitted output or touch untested code.
