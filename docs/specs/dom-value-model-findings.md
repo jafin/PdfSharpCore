@@ -5,9 +5,9 @@ reflection-built value model with a Roslyn source generator, and migrated `NEnum
 way. That work is done: 875 tests pass on `net8.0` and `net10.0`, `EnableTrimAnalyzer` is on with
 zero `IL2xxx`, and a natively compiled binary exercises the whole model end to end.
 
-Doing it turned up seven things that were not the point of the exercise. Two were live defects, one
-of which crashes through public API. The rest are latent, or are shapes in the code that only became
-visible once the reflection stopped hiding them.
+Doing it, and then fixing the first item it unblocked, turned up eight things that were not the
+point of the exercise. Two were live defects, one of which crashes through public API. The rest are
+latent, or are shapes in the code that only became visible once the reflection stopped hiding them.
 
 This document records those, and what is worth doing next. Nothing here is required by the value
 model work — it is all standalone, and can be picked up in any order.
@@ -21,6 +21,7 @@ model work — it is all standalone, and can be picked up in any order.
 | F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | open |
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | low | open |
+| F8 | Aliased colours serialize under the name that was not declared first | low | open |
 
 ---
 
@@ -236,21 +237,58 @@ someone to read `DdlParser`'s block handling carefully. Worth an hour before any
 
 ---
 
+## F8. Aliased colours serialize under the name that was not declared first
+
+Found while fixing `dom-thread-safety.md` item 1, by writing a test that asserted the obvious thing
+and watching it fail.
+
+```csharp
+Colors.Aqua.ToString();       // "Cyan"
+Colors.Fuchsia.ToString();    // "Magenta"
+```
+
+`ColorName` declares `Aqua = 0xFF00FFFF` at line 42 and `Cyan = 0xFF00FFFF` at line 60, so the
+table can only hold one of them and the guard that builds it keeps the first one it meets. The
+natural assumption is that this means the first declared. It does not: `Enum.GetNames` orders by
+**value**, not by declaration, and for two names sharing a value the tie-break is unspecified. In
+practice `Cyan` and `Magenta` win.
+
+**This is not a regression.** The old `ContainsKey`/`Add` guard and the new `TryAdd` both keep the
+first entry in the same iteration order, so the fix is faithful. It is recorded because a document
+that assigns `Colors.Aqua` serializes as `Cyan`, round-trips back as `Cyan`, and nothing in the
+library says so.
+
+### Suggested work
+
+Decide whether it matters. Two positions, both defensible:
+
+* **It does not** — the colours are genuinely equal, the DDL is correct, and a round trip is
+  lossless in value if not in spelling. Document it and move on.
+* **It does** — a caller who writes `Colors.Aqua` and reads back `Cyan` has been surprised, and the
+  choice is currently made by an unspecified sort. If so, drive the table from an explicit ordered
+  list rather than from `Enum.GetNames`, so the winner is chosen rather than inherited.
+
+`ColorToStringTests.AliasedColoursAgreeOnOneName` asserts only that both alias to the *same* name
+and that it is one of the pair, deliberately, so that this does not become a test of the runtime's
+enum ordering.
+
+---
+
 ## Still open in `dom-thread-safety.md`
 
 Three items from that document were not touched by this work and remain scheduled there:
 
-| item | what | severity |
-|---|---|---|
-| 1 | `Color.ToString` publishes its colour-name table before filling it | **high** |
-| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low |
-| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium |
+| item | what | severity | status |
+|---|---|---|---|
+| 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
+| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | open |
+| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | open |
 
-**Item 1 is the one to do next.** It is still present — `Color.cs:387-401` is unchanged — it is a
-live data race behind public API that silently produces `RGB(0,0,0)` where a document should say
-`Black`, and it is what blocks `DomSerializationCollection` from being deleted and the DOM tests
-from running in parallel again. The fix is a static initializer; that document has it written out,
-with a reproduction.
+**Item 1 is done.** The table is now a `static readonly Dictionary` built by a static initializer,
+`DomSerializationCollection` is deleted, and the seven DOM test classes it serialized run in
+parallel again — 880 tests, three consecutive clean runs on both target frameworks. That was the
+real confirmation the item asked for: the `Color` race was the only thing those tests were being
+serialized to avoid. It also produced F8 above.
 
 Item 6 is one line in `Directory.Build.props` and guards every future mechanical edit of the kind
 this work did a lot of.
@@ -286,8 +324,7 @@ is a deliberate cost and its size is unknown.
 
 ## Suggested order
 
-1. **`dom-thread-safety.md` item 1** — `Color.ToString`. Live bug, high severity, fix already
-   written, unblocks parallel DOM tests.
+1. ~~**`dom-thread-safety.md` item 1** — `Color.ToString`.~~ **Done.**
 2. **F5, the seven `ToArray(Type)` sites** — mechanical, no behaviour change, takes the AOT publish
    to warning-free.
 3. **`dom-thread-safety.md` item 6** — `CS8073` as an error. One line, guards everything after it.

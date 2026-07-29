@@ -129,6 +129,29 @@ written after construction, and `TryAdd` says what the existing `ContainsKey` gu
 * `DomSerializationCollection` can then be deleted and the DOM tests allowed to run in parallel
   again, which is the real confirmation.
 
+### Done
+
+Fixed exactly as written above. `ColorToStringTests` carries the reproduction as a regression test,
+plus deterministic checks on the table's contents.
+
+`DomSerializationCollection` is **deleted**, and the seven DOM test classes that belonged to it run
+in parallel again. The suite was run three times end to end on both `net8.0` and `net10.0` after the
+change: 880 tests, no failures, no flakes. That is the confirmation this item was really about — the
+`Color` race was the only thing those tests were being serialized to avoid.
+
+Two things worth knowing about the fix:
+
+* **The regression test cannot reproduce the original race.** A static initializer runs once per
+  process, so by the time the test executes the table is already built by some earlier test and the
+  window no longer exists. It would have caught the defect had it run first, and it still proves
+  `ToString` is safe to call concurrently, but the deterministic assertions are what actually pin
+  the table. This is recorded in the test's own remarks so nobody mistakes it for stronger evidence
+  than it is.
+* **`TryAdd` keeps the same name the old `ContainsKey` guard kept** — the first out of
+  `Enum.GetNames`, which is not the first declared. See F8 in
+  [`dom-value-model-findings.md`](dom-value-model-findings.md): `Colors.Aqua.ToString()` returns
+  `"Cyan"`, and did before this change too.
+
 ---
 
 ## 2. Every `DocumentObject` builds its metadata twice or more under load
