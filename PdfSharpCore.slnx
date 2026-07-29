@@ -3,6 +3,7 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="MigraDocCore.DocumentObjectModel/MigraDocCore.DocumentObjectModel.csproj" />
+  <Project Path="MigraDocCore.DocumentObjectModel.Generators/MigraDocCore.DocumentObjectModel.Generators.csproj" />
   <Project Path="MigraDocCore.Rendering/MigraDocCore.Rendering.csproj" />
   <Project Path="PdfSharpCore.Charting/PdfSharpCore.Charting.csproj" />
   <Project Path="PdfSharpCore.ImageSharp/PdfSharpCore.ImageSharp.csproj" />

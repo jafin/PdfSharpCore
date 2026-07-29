@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a column of a table.
 /// </summary>
-public class Column : DocumentObject
+public partial class Column : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Column class.
@@ -319,16 +319,5 @@ public class Column : DocumentObject
     // columns has no content
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Column));
   #endregion
 }

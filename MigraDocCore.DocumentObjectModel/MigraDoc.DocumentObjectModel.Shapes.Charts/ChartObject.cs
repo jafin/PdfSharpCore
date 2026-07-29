@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Base class for all chart classes.
 /// </summary>
-public class ChartObject : DocumentObject
+public partial class ChartObject : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the ChartObject class.
@@ -60,16 +60,5 @@ public class ChartObject : DocumentObject
     // Nothing to do
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(ChartObject));
   #endregion
 }

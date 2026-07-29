@@ -26,57 +26,50 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
-
-using System;
-using System.Collections;
 
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
 /// <summary>
-/// A collection that manages ValueDescriptors.
+/// What kind of member a <see cref="ValueDescriptor"/> describes, and so how it answers.
 /// </summary>
-public class ValueDescriptorCollection : IEnumerable
+/// <remarks>
+/// This replaces the abstract-class-per-kind hierarchy the value model used to carry. The kinds
+/// differ only in behaviour, never in state, and one of the two callers had to ask which subclass it
+/// was holding by listing the types by name - which meant a new kind was wrong by default.
+/// </remarks>
+public enum ValueKind
 {
   /// <summary>
-  /// Gets the count of ValueDescriptors.
+  /// A member that carries its own null: Nullable&lt;T&gt; or a string. Being null is what "not
+  /// set" means, so there is no wrapper struct to mutate through INullableValue and write back.
   /// </summary>
-  public int Count => this.arrayList.Count;
+  Leaf,
 
   /// <summary>
-  /// Adds the specified ValueDescriptor.
+  /// A struct that implements INullableValue and so tracks its own null: Unit, Color, LeftPosition
+  /// and TopPosition. Reading, nulling and testing all go through the interface.
   /// </summary>
-  public int Add(ValueDescriptor vd)
-  {
-    this.hashTable.Add(vd.ValueName, vd);
-    return this.arrayList.Add(vd);
-  }
+  NullableValue,
 
   /// <summary>
-  /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> at the specified index.
+  /// A value type with no null of its own - a plain bool or enum. FormattedText's delegating
+  /// properties are the only members of this kind. They can be read and written but not unset, so
+  /// SetNull does nothing and IsNull is always false.
   /// </summary>
-  /// <value></value>
-  public ValueDescriptor this[int index] => this.arrayList[index] as ValueDescriptor;
+  PlainValue,
 
   /// <summary>
-  /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> with the specified name.
+  /// A nested DocumentObject. Created on demand when read under <see cref="GV.ReadWrite"/>, if the
+  /// member is a field.
   /// </summary>
-  /// <value></value>
-  public ValueDescriptor this[string name] => this.hashTable[name] as ValueDescriptor;
+  DocumentObject,
 
   /// <summary>
-  /// Returns an enumerator that iterates through a collection.
+  /// A DocumentObjectCollection. Behaves as <see cref="DocumentObject"/> does; kept distinct
+  /// because the DDL parser and the serializer care about the difference.
   /// </summary>
-  /// <returns>
-  /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
-  /// </returns>
-  public IEnumerator GetEnumerator()
-  {
-    return this.arrayList.GetEnumerator();
-  }
-
-  ArrayList arrayList = new ArrayList();
-  Hashtable hashTable = new Hashtable(StringComparer.InvariantCultureIgnoreCase);
+  Collection,
 }

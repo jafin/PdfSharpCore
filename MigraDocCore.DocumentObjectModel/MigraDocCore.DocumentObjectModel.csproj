@@ -25,6 +25,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
+
+    <!--
+      Build-time only. The generator emits this assembly's value model from its [DV] attributes and
+      is not needed by anyone consuming the package - a DocumentObject cannot be declared outside
+      this assembly anyway, since DocumentObject.Meta is internal abstract. PrivateAssets keeps it
+      out of the nuspec, ReferenceOutputAssembly keeps it off the compile references.
+    -->
+    <ProjectReference Include="..\MigraDocCore.DocumentObjectModel.Generators\MigraDocCore.DocumentObjectModel.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

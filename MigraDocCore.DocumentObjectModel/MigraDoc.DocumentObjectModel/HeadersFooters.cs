@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents the collection of HeaderFooter objects.
 /// </summary>
-public class HeadersFooters : DocumentObject, IVisitable
+public partial class HeadersFooters : DocumentObject, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the HeadersFooters class.
@@ -217,16 +217,5 @@ public class HeadersFooters : DocumentObject, IVisitable
     }
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(HeadersFooters));
   #endregion
 }

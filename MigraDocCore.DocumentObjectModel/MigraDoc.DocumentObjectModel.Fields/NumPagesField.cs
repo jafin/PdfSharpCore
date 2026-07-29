@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Fields;
 /// <summary>
 /// NumPagesField is used to reference the number of all pages in the document.
 /// </summary>
-public class NumPagesField : NumericFieldBase
+public partial class NumPagesField : NumericFieldBase
 {
   /// <summary>
   /// Initializes a new instance of the NumPagesField class.
@@ -77,16 +77,5 @@ public class NumPagesField : NumericFieldBase
     serializer.Write(str);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(NumPagesField));
   #endregion
 }

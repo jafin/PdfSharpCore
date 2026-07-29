@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents a DataLabel of a Series
 /// </summary>
-public class DataLabel : DocumentObject
+public partial class DataLabel : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the DataLabel class.
@@ -165,16 +165,5 @@ public class DataLabel : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(DataLabel));
   #endregion
 }

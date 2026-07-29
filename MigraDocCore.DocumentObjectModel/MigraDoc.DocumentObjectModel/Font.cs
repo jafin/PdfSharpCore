@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Font represents the formatting of characters in a paragraph.
 /// </summary>
-public sealed class Font : DocumentObject
+public sealed partial class Font : DocumentObject
 {
     /// <summary>
     /// Initializes a new instance of the Font class that can be used as a template.
@@ -427,16 +427,5 @@ public sealed class Font : DocumentObject
         }
     }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Font));
     #endregion
 }

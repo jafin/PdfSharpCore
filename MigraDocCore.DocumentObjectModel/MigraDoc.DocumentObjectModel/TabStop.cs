@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents a tab inside a paragraph.
 /// </summary>
-public class TabStop : DocumentObject
+public partial class TabStop : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the TabStop class.
@@ -129,16 +129,5 @@ public class TabStop : DocumentObject
       serializer.WriteLine("TabStops -= \"" + Position.ToString() + "\"");
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(TabStop));
   #endregion
 }

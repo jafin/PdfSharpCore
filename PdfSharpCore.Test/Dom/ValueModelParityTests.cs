@@ -28,8 +28,7 @@ public class ValueModelParityTests
     static Meta MetaFor(Type type) =>
         Meta.GetMeta((DocumentObject)RuntimeHelpers.GetUninitializedObject(type));
 
-    static List<ValueDescriptor> Descriptors(Meta meta) =>
-        meta.ValueDescriptors.Cast<ValueDescriptor>().ToList();
+    static List<ValueDescriptor> Descriptors(Meta meta) => meta.ValueDescriptors.ToList();
 
     public static TheoryData<Type> DomTypes()
     {
@@ -71,7 +70,7 @@ public class ValueModelParityTests
             actual.ValueType.Should().Be(expected.ValueType, $"{type.Name}.{expected.Name} value type");
             actual.MemberType.Should().Be(expected.MemberType, $"{type.Name}.{expected.Name} member type");
             actual.IsRefOnly.Should().Be(expected.IsRefOnly, $"{type.Name}.{expected.Name} RefOnly");
-            actual.GetType().Name.Should().Be(expected.ExpectedKind, $"{type.Name}.{expected.Name} descriptor kind");
+            actual.Kind.ToString().Should().Be(expected.ExpectedKind, $"{type.Name}.{expected.Name} descriptor kind");
         }
     }
 

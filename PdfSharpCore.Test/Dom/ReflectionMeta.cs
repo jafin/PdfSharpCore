@@ -85,21 +85,28 @@ public static class ReflectionMeta
     {
         bool refOnly = (bool)dv.GetType().GetField("RefOnly").GetValue(dv);
 
+        // Nullable<T> first: it is a struct, so the value-type test below would swallow it.
         Type underlying = Nullable.GetUnderlyingType(memberType);
         if (underlying != null)
-            return new Member(name, memberType, underlying, refOnly, "NullableMemberDescriptor");
+            return new Member(name, memberType, underlying, refOnly, "Leaf");
 
         if (memberType == typeof(string))
-            return new Member(name, memberType, typeof(string), refOnly, "NullableMemberDescriptor");
+            return new Member(name, memberType, typeof(string), refOnly, "Leaf");
 
         if (memberType.IsSubclassOf(typeof(ValueType)))
-            return new Member(name, memberType, memberType, refOnly, "ValueTypeDescriptor");
+        {
+            // INullableValue is internal, so it is matched by name like DVAttribute is. A struct
+            // that implements it tracks its own null; a plain bool or enum has none to track.
+            bool tracksItsOwnNull = memberType.GetInterfaces().Any(i => i.Name == "INullableValue");
+            return new Member(name, memberType, memberType, refOnly,
+                tracksItsOwnNull ? "NullableValue" : "PlainValue");
+        }
 
         if (IsAssignableToNamed(memberType, "DocumentObjectCollection"))
-            return new Member(name, memberType, memberType, refOnly, "DocumentObjectCollectionDescriptor");
+            return new Member(name, memberType, memberType, refOnly, "Collection");
 
         if (typeof(DocumentObject).IsAssignableFrom(memberType))
-            return new Member(name, memberType, memberType, refOnly, "DocumentObjectDescriptor");
+            return new Member(name, memberType, memberType, refOnly, "DocumentObject");
 
         return new Member(name, memberType, memberType, refOnly, "UNSUPPORTED");
     }

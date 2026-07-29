@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel.Fields;
 /// <summary>
 /// InfoField is used to reference one of the DocumentInfo fields in the document.
 /// </summary>
-public class InfoField : DocumentObject
+public partial class InfoField : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the InfoField class.
@@ -117,16 +117,5 @@ public class InfoField : DocumentObject
     serializer.Write(str);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(InfoField));
   #endregion
 }

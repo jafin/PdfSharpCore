@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// Represents a special character in paragraph text.
 /// </summary>
 // TODO: So ändern, dass symbolName und char in unterschiedlichen Feldern gespeichert wird
-public class Character : DocumentObject
+public partial class Character : DocumentObject
 {
   // \space
   public static readonly Character Blank = new Character(SymbolName.Blank);
@@ -188,16 +188,5 @@ public class Character : DocumentObject
     serializer.Write(text);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Character));
   #endregion
 }

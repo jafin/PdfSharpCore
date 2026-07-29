@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// Represents one border in a borders collection. The type determines its position in a cell,
 /// paragraph etc.
 /// </summary>
-public class Border : DocumentObject
+public partial class Border : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Border class.
@@ -191,16 +191,5 @@ public class Border : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Border));
   #endregion
 }

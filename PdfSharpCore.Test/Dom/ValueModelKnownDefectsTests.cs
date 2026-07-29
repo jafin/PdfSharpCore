@@ -27,15 +27,20 @@ public class ValueModelKnownDefectsTests
     ///   reachable now.
     /// </summary>
     [Fact]
-    public void FormattedTextSetNullThrows()
+    public void FormattedTextSetNullNoLongerThrows()
     {
-        var formattedText = new FormattedText();
+        var formattedText = new FormattedText { Bold = true };
 
         var setNull = () => formattedText.SetNull();
 
-        setNull.Should().Throw<InvalidCastException>()
-            .WithMessage("*Boolean*INullableValue*",
-                "ValueTypeDescriptor.SetNull assumes every value type implements INullableValue");
+        setNull.Should().NotThrow(
+            "ValueKind.PlainValue does nothing for a member with no null, instead of casting it to "
+            + "INullableValue and throwing");
+
+        // Bold is not reset by its own descriptor - a plain bool has no null to write - but the
+        // font descriptor next to it resets the Font the property reads through, so it clears
+        // anyway. That is why the no-op costs nothing here.
+        formattedText.Bold.Should().BeFalse("the Font this property delegates to was reset");
     }
 
     /// <summary>

@@ -40,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents a MigraDoc document.
 /// </summary>
-public sealed class Document : DocumentObject, IVisitable
+public sealed partial class Document : DocumentObject, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Document class.
@@ -367,16 +367,5 @@ public sealed class Document : DocumentObject, IVisitable
     }
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Document));
   #endregion
 }

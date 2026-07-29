@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Base Class for all positionable Classes.
 /// </summary>
-public class Shape : DocumentObject
+public partial class Shape : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Shape class.
@@ -243,16 +243,5 @@ public class Shape : DocumentObject
       this.fillFormat.Serialize(serializer);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Shape));
   #endregion
 }
