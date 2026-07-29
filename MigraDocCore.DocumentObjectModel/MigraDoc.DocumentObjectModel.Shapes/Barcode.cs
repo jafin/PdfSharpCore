@@ -124,33 +124,33 @@ public class Barcode : Shape
   /// </summary>
   public double LineRatio
   {
-    get => this.lineRatio.Value;
-    set => this.lineRatio.Value = value;
+    get => this.lineRatio ?? 0;
+    set => this.lineRatio = value;
   }
   [DV]
-  internal NDouble lineRatio = NDouble.NullValue;
+  internal double? lineRatio;
 
   /// <summary>
   /// ???
   /// </summary>
   public double LineHeight
   {
-    get => this.lineHeight.Value;
-    set => this.lineHeight.Value = value;
+    get => this.lineHeight ?? 0;
+    set => this.lineHeight = value;
   }
   [DV]
-  internal NDouble lineHeight = NDouble.NullValue;
+  internal double? lineHeight;
 
   /// <summary>
   /// ???
   /// </summary>
   public double NarrowLineWidth
   {
-    get => this.narrowLineWidth.Value;
-    set => this.narrowLineWidth.Value = value;
+    get => this.narrowLineWidth ?? 0;
+    set => this.narrowLineWidth = value;
   }
   [DV]
-  internal NDouble narrowLineWidth = NDouble.NullValue;
+  internal double? narrowLineWidth;
   #endregion
 
   #region Internal
@@ -176,11 +176,11 @@ public class Barcode : Shape
       serializer.WriteSimpleAttribute("Text", this.Text);
     if (!this.type.IsNull)
       serializer.WriteSimpleAttribute("Type", this.Type);
-    if (!this.lineRatio.IsNull)
+    if (this.lineRatio != null)
       serializer.WriteSimpleAttribute("LineRatio", this.LineRatio);
-    if (!this.lineHeight.IsNull)
+    if (this.lineHeight != null)
       serializer.WriteSimpleAttribute("LineHeight", this.LineHeight);
-    if (!this.narrowLineWidth.IsNull)
+    if (this.narrowLineWidth != null)
       serializer.WriteSimpleAttribute("NarrowLineWidth", this.NarrowLineWidth);
 
     serializer.EndAttributes(pos);

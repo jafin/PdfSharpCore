@@ -122,44 +122,44 @@ public class Axis : ChartObject
   /// </summary>
   public double MinimumScale
   {
-    get => this.minimumScale.Value;
-    set => this.minimumScale.Value = value;
+    get => this.minimumScale ?? 0;
+    set => this.minimumScale = value;
   }
   [DV]
-  internal NDouble minimumScale = NDouble.NullValue;
+  internal double? minimumScale;
 
   /// <summary>
   /// Gets or sets the maximum value of the axis.
   /// </summary>
   public double MaximumScale
   {
-    get => this.maximumScale.Value;
-    set => this.maximumScale.Value = value;
+    get => this.maximumScale ?? 0;
+    set => this.maximumScale = value;
   }
   [DV]
-  internal NDouble maximumScale = NDouble.NullValue;
+  internal double? maximumScale;
 
   /// <summary>
   /// Gets or sets the interval of the primary tick.
   /// </summary>
   public double MajorTick
   {
-    get => this.majorTick.Value;
-    set => this.majorTick.Value = value;
+    get => this.majorTick ?? 0;
+    set => this.majorTick = value;
   }
   [DV]
-  internal NDouble majorTick = NDouble.NullValue;
+  internal double? majorTick;
 
   /// <summary>
   /// Gets or sets the interval of the secondary tick.
   /// </summary>
   public double MinorTick
   {
-    get => this.minorTick.Value;
-    set => this.minorTick.Value = value;
+    get => this.minorTick ?? 0;
+    set => this.minorTick = value;
   }
   [DV]
-  internal NDouble minorTick = NDouble.NullValue;
+  internal double? minorTick;
 
   /// <summary>
   /// Gets or sets the type of the primary tick mark.
@@ -314,13 +314,13 @@ public class Axis : ChartObject
     serializer.WriteLine("\\" + chartObject.CheckAxis(this));
     int pos = serializer.BeginAttributes();
 
-    if (!this.minimumScale.IsNull)
+    if (this.minimumScale != null)
       serializer.WriteSimpleAttribute("MinimumScale", this.MinimumScale);
-    if (!this.maximumScale.IsNull)
+    if (this.maximumScale != null)
       serializer.WriteSimpleAttribute("MaximumScale", this.MaximumScale);
-    if (!this.majorTick.IsNull)
+    if (this.majorTick != null)
       serializer.WriteSimpleAttribute("MajorTick", this.MajorTick);
-    if (!this.minorTick.IsNull)
+    if (this.minorTick != null)
       serializer.WriteSimpleAttribute("MinorTick", this.MinorTick);
     if (this.hasMajorGridlines != null)
       serializer.WriteSimpleAttribute("HasMajorGridLines", this.HasMajorGridlines);

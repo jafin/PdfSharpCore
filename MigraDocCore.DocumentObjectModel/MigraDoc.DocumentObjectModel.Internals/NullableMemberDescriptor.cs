@@ -59,8 +59,8 @@ internal class NullableMemberDescriptor : ValueDescriptor
         VDFlags flags)
         : base(valueName, valueType, memberType, memberInfo, flags)
     {
-        // string has no parameterless constructor to activate, and its default is "" rather than
-        // null, matching what NString.Value used to return.
+        // string has no parameterless constructor to activate, and the DOM has always handed back
+        // "" rather than null for an unset one.
         valueWhenNull = valueType == typeof(string) ? "" : Activator.CreateInstance(valueType);
     }
 

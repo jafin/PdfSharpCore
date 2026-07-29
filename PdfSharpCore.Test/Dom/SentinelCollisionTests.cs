@@ -9,13 +9,13 @@ using Xunit;
 namespace PdfSharpCore.Test.Dom;
 
 /// <summary>
-///   NInt marked "not set" by storing int.MinValue and NDouble marks it by storing double.NaN, so
-///   those values could not be stored as data - assigning one silently meant "unset" instead, and
-///   the value read back was zero.
+///   NInt marked "not set" by storing int.MinValue and NDouble by storing double.NaN, so those two
+///   values could not be stored as data - assigning one silently meant "unset" instead, and the
+///   value read back was zero.
 ///
-///   int? has a separate bit for "has a value" and so hands the whole range of the type back to the
-///   caller. The integer tests below are the inverted form, pinning the fix. The double test still
-///   pins the defect, and inverts when NDouble moves.
+///   int? and double? keep a separate bit for "has a value" and so hand the whole range of each
+///   type back to the caller. These tests are the inverted form of the ones that pinned the defect,
+///   and are what stops it coming back.
 /// </summary>
 [Collection(DomSerializationCollection.Name)]
 public class SentinelCollisionTests
@@ -48,15 +48,15 @@ public class SentinelCollisionTests
     }
 
     [Fact]
-    public void ADoubleSetToTheSentinelIsMistakenForUnset()
+    public void ADoubleSetToTheFormerSentinelIsKept()
     {
         var image = AnImage();
 
         image.ScaleWidth = double.NaN;
 
-        image.IsNull("ScaleWidth").Should().BeTrue("double.NaN is NDouble's marker for unset");
-        image.ScaleWidth.Should().Be(0, "the assigned value is lost");
-        image.GetValue("ScaleWidth", GV.GetNull).Should().BeNull();
+        image.IsNull("ScaleWidth").Should().BeFalse("double? tracks null separately from the value");
+        image.ScaleWidth.Should().Be(double.NaN, "the assigned value is no longer lost");
+        image.GetValue("ScaleWidth", GV.GetNull).Should().Be(double.NaN);
     }
 
     [Fact]
