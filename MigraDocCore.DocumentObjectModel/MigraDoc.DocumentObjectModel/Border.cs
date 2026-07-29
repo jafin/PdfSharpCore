@@ -126,9 +126,9 @@ public class Border : DocumentObject
   /// Gets the information if the border is marked as cleared. Additionally 'xxx = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool BorderCleared => fClear ?? false;
+  public bool BorderCleared => fClear;
 
-  internal bool? fClear = false;
+  internal bool fClear = false;
   #endregion
 
   #region Internal
@@ -145,7 +145,7 @@ public class Border : DocumentObject
   /// </summary>
   internal void Serialize(Serializer serializer, string name, Border refBorder)
   {
-    if ((fClear ?? false))
+    if (fClear)
       serializer.WriteLine(name + " = null");
 
     int pos = serializer.BeginContent(name);

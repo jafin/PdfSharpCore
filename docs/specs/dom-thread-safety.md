@@ -18,6 +18,7 @@ public API.
 | 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | open |
 | 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | open |
 | 7 | `NEnum` is the last wrapper struct standing | low | open |
+| 8 | `Border.Clear()` does nothing unless the border also carries a value | medium | open |
 
 ---
 
@@ -269,11 +270,74 @@ that earn it. If it is not, `NEnum` stays and the interface stays with it.
 
 ---
 
+## 8. `Border.Clear()` does nothing unless the border also carries a value
+
+`Border.Clear()` says what it is for (`Border.cs:65-72`):
+
+```csharp
+/// Clears the Border object. Additionally 'Border = null'
+/// is written to the DDL stream when serialized.
+public void Clear()
+{
+    fClear = true;
+}
+```
+
+On its own, it does not. `Borders.Serialize` decides whether to serialize each border by asking the
+reflection layer (`Borders.cs:426`):
+
+```csharp
+if (!IsNull("Top"))
+    top.Serialize(serializer, "Top", null);
+```
+
+`IsNull("Top")` resolves to `Border.IsNull()`, which answers from the border's value descriptors -
+`Visible`, `Style`, `Width` and `Color`. `fClear` carries no `[DV]` attribute, so it is not among
+them and cannot make the border look non-null. A border that has only been cleared is reported
+null, skipped, and `Top = null` is never written. The `fClear` check inside `Border.Serialize`
+(`Border.cs:148`) is only reached for a border that has some other value set.
+
+### Reproduction
+
+Pinned as it stands by `BorderClearedTests`:
+
+| what the caller did | `BorderCleared` | DDL contains `Top = null` |
+|---|---|---|
+| `Top.Clear()` | `true` | **no** |
+| `Top.Width = 1; Top.Clear();` | `true` | yes |
+
+### Fix
+
+Ask the question the serializer actually means:
+
+```csharp
+if (!IsNull("Top") || top.BorderCleared)
+    top.Serialize(serializer, "Top", null);
+```
+
+and the same for the other five. Adding `[DV]` to `fClear` instead would make it part of the value
+model, which is wrong - it is a serialization instruction, not a border property, and `SetNull`
+would then reset it.
+
+Note that `Borders.clearAll` (`Borders.cs:380`) does not have this problem: it is checked at the top
+of `Borders.Serialize`, which the parent format reaches by a different route.
+
+### Acceptance
+
+* `Top.Clear()` alone writes `Top = null`.
+* `BorderClearedTests.AClearedBorderCarryingNothingElseIsNotWrittenAtAll` inverts to assert the
+  border *is* written, matching the pattern used for the sentinel tests in
+  [#46](https://github.com/jafin/PdfSharpCore/pull/46).
+* This changes emitted DDL for documents that clear a border and set nothing else on it, so it
+  belongs in release notes.
+
+---
+
 ## Suggested order
 
 1. **Item 1** on its own, with the concurrency test. It is a live bug behind public API and it is
    the one blocking `DomSerializationCollection` from being deleted.
 2. **Item 6**, one line, guards everything after it.
 3. **Items 2, 3 and 5** together — all in the value descriptor and metadata layer, all mechanical.
-4. **Item 4** on its own, because it changes emitted DDL.
+4. **Items 4 and 8** on their own, because they change emitted DDL.
 5. **Item 7** last, as an assessment that may conclude "leave it".
