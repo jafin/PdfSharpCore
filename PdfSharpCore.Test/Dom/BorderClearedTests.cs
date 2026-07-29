@@ -13,7 +13,10 @@ namespace PdfSharpCore.Test.Dom;
 ///
 ///   The flag behind it, Border.fClear, is a plain bool rather than one of the DOM's nullable
 ///   values - it carries no [DV] attribute, so the reflection layer never sees it, and the only
-///   assignment anywhere sets it true. These tests pin that two-state behaviour.
+///   assignment anywhere sets it true.
+///
+///   Borders.ClearAll and Shading.Clear work the same way and had the same defect, so they are
+///   covered here too.
 /// </summary>
 [Collection(DomSerializationCollection.Name)]
 public class BorderClearedTests
@@ -62,28 +65,50 @@ public class BorderClearedTests
     }
 
     /// <summary>
-    ///   A border that has only been cleared is not written at all, so Clear() does nothing unless
-    ///   the border also carries a value.
+    ///   Being cleared is the whole of what a cleared border has to say, so it has to be written
+    ///   even when it carries nothing else.
     ///
-    ///   Borders.Serialize asks !IsNull("Top") before serializing each border (Borders.cs:426), and
-    ///   that question goes through the reflection layer, which answers from the border's value
-    ///   descriptors - Visible, Style, Width and Color. fClear carries no [DV] attribute, so it is
-    ///   not among them and cannot make the border look non-null.
-    ///
-    ///   This is a defect rather than a decision: the documented purpose of Clear() is to write
-    ///   'Border = null' into the DDL, and on its own it does not. Pinned here as it stands;
-    ///   docs/specs/dom-thread-safety.md item 8 covers the fix.
+    ///   Everything that decides whether to serialize a border asks IsNull first, and that question
+    ///   was answered from the border's value descriptors - Visible, Style, Width and Color. fClear
+    ///   carries no [DV] attribute, so it is not among them and could not make the border look
+    ///   non-null; a border that had only been cleared reported itself null, was skipped, and
+    ///   Clear() did nothing. Border.IsNull now accounts for it, the way TabStops.IsNull always has.
     /// </summary>
     [Fact]
-    public void AClearedBorderCarryingNothingElseIsNotWrittenAtAll()
+    public void AClearedBorderCarryingNothingElseIsStillWritten()
     {
         var document = new Document();
         var paragraph = document.AddSection().AddParagraph("Hello");
 
         paragraph.Format.Borders.Top.Clear();
 
-        paragraph.Format.Borders.Top.BorderCleared.Should().BeTrue("the flag itself is set");
-        DdlWriter.WriteToString(document).Should().NotContain("Top = null", "but nothing writes it");
+        DdlWriter.WriteToString(document).Should().Contain("Top = null");
+    }
+
+    [Fact]
+    public void AClearedBorderCarryingNothingElseWritesNoEmptyBlock()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph("Hello");
+
+        paragraph.Format.Borders.Top.Clear();
+
+        // EndContent rolls the block back when nothing inside it was committed.
+        DdlWriter.WriteToString(document).Should().NotContain("Top\r\n").And.NotContain("Top\n{");
+    }
+
+    [Fact]
+    public void ClearingEachBorderInTurnIsWritten()
+    {
+        foreach (var name in new[] { "Top", "Left", "Bottom", "Right" })
+        {
+            var document = new Document();
+            var borders = document.AddSection().AddParagraph("Hello").Format.Borders;
+
+            ((Border)borders.GetValue(name)).Clear();
+
+            DdlWriter.WriteToString(document).Should().Contain($"{name} = null", $"{name} was cleared");
+        }
     }
 
     [Fact]
@@ -96,6 +121,45 @@ public class BorderClearedTests
     }
 
     [Fact]
+    public void AClearedBorderSurvivesADdlRoundTrip()
+    {
+        var document = new Document();
+        document.AddSection().AddParagraph("Hello").Format.Borders.Top.Clear();
+
+        var written = DdlWriter.WriteToString(document);
+        var reread = DdlReader.DocumentFromString(written);
+
+        // The parser answers "Top = null" by calling Clear() on the border, so the flag comes back.
+        var paragraph = (Paragraph)reread.LastSection.Elements[0];
+        paragraph.Format.Borders.Top.BorderCleared.Should().BeTrue();
+        DdlWriter.WriteToString(reread).Should().Be(written);
+    }
+
+    [Fact]
+    public void AClearedBorderIsNotNull()
+    {
+        var borders = ABordersObject();
+
+        borders.Top.Clear();
+
+        borders.Top.IsNull().Should().BeFalse("being cleared is a value in itself");
+        borders.IsNull().Should().BeFalse("so the borders around it are not null either");
+    }
+
+    [Fact]
+    public void SetNullClearsTheClearedFlagToo()
+    {
+        var borders = ABordersObject();
+        borders.Top.Clear();
+
+        borders.Top.SetNull();
+
+        // DocumentObject.SetNull is documented as making IsNull() true afterwards.
+        borders.Top.BorderCleared.Should().BeFalse();
+        borders.Top.IsNull().Should().BeTrue();
+    }
+
+    [Fact]
     public void ClearingSurvivesACloneOfTheBorder()
     {
         var borders = ABordersObject();
@@ -104,5 +168,46 @@ public class BorderClearedTests
         var clone = borders.Top.Clone();
 
         clone.BorderCleared.Should().BeTrue("Clone is a MemberwiseClone, which copies the flag");
+    }
+
+    // ------------------------------------------------- the same defect in Borders and Shading
+
+    [Fact]
+    public void ClearingAllBordersIsWritten()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph("Hello");
+
+        paragraph.Format.Borders.ClearAll();
+
+        paragraph.Format.Borders.BordersCleared.Should().BeTrue();
+        paragraph.Format.Borders.IsNull().Should().BeFalse();
+        DdlWriter.WriteToString(document).Should().Contain("Borders = null");
+    }
+
+    [Fact]
+    public void ClearingShadingIsWritten()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph("Hello");
+
+        paragraph.Format.Shading.Clear();
+
+        paragraph.Format.Shading.IsCleared.Should().BeTrue();
+        paragraph.Format.Shading.IsNull().Should().BeFalse();
+        DdlWriter.WriteToString(document).Should().Contain("Shading = null");
+    }
+
+    [Fact]
+    public void ClearedBordersAndShadingSurviveADdlRoundTrip()
+    {
+        var document = new Document();
+        var format = document.AddSection().AddParagraph("Hello").Format;
+        format.Borders.ClearAll();
+        format.Shading.Clear();
+
+        var written = DdlWriter.WriteToString(document);
+
+        DdlWriter.WriteToString(DdlReader.DocumentFromString(written)).Should().Be(written);
     }
 }

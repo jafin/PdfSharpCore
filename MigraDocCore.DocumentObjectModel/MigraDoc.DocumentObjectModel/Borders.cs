@@ -380,6 +380,30 @@ public class Borders : DocumentObject, IEnumerable
     protected bool clearAll = false;
     #endregion
 
+    #region Null handling
+    /// <summary>
+    /// Determines whether this instance is null (not set).
+    /// </summary>
+    /// <remarks>
+    /// Cleared borders are not null, for the same reason a cleared Border is not - see
+    /// Border.IsNull. clearAll carries no [DV] attribute, so the value descriptors Meta.IsNull
+    /// consults cannot see it.
+    /// </remarks>
+    public override bool IsNull()
+    {
+        return !clearAll && base.IsNull();
+    }
+
+    /// <summary>
+    /// Resets this instance, i.e. IsNull() will return true afterwards.
+    /// </summary>
+    public override void SetNull()
+    {
+        base.SetNull();
+        clearAll = false;
+    }
+    #endregion
+
     #region Internal
     /// <summary>
     /// Converts Borders into DDL.

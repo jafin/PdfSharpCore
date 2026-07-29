@@ -18,7 +18,7 @@ public API.
 | 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | open |
 | 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | open |
 | 7 | `NEnum` is the last wrapper struct standing | low | open |
-| 8 | `Border.Clear()` does nothing unless the border also carries a value | medium | open |
+| 8 | `Clear()` does nothing unless the object also carries a value | medium | **done** |
 
 ---
 
@@ -299,37 +299,50 @@ null, skipped, and `Top = null` is never written. The `fClear` check inside `Bor
 
 ### Reproduction
 
-Pinned as it stands by `BorderClearedTests`:
+Before the fix, pinned by `BorderClearedTests`:
 
 | what the caller did | `BorderCleared` | DDL contains `Top = null` |
 |---|---|---|
 | `Top.Clear()` | `true` | **no** |
 | `Top.Width = 1; Top.Clear();` | `true` | yes |
 
-### Fix
+### Fix — done
 
-Ask the question the serializer actually means:
+`TabStops` already had the answer, and had had it all along (`TabStops.cs:225-231`):
 
 ```csharp
-if (!IsNull("Top") || top.BorderCleared)
-    top.Serialize(serializer, "Top", null);
+public override bool IsNull()
+{
+    // Only non empty and not cleared tabstops (TabStops = null) are null.
+    if (base.IsNull())
+        return !fClearAll;
+    return false;
+}
 ```
 
-and the same for the other five. Adding `[DV]` to `fClear` instead would make it part of the value
-model, which is wrong - it is a serialization instruction, not a border property, and `SetNull`
-would then reset it.
+`Border`, `Borders` and `Shading` now do the same. Putting it in `IsNull` rather than in
+`Borders.Serialize` fixes it at one point instead of at every caller — five call sites gate on
+`IsNull("Borders")` alone, and `Borders.Serialize` gates on `IsNull("Top")` six times more.
 
-Note that `Borders.clearAll` (`Borders.cs:380`) does not have this problem: it is checked at the top
-of `Borders.Serialize`, which the parent format reaches by a different route.
+`SetNull` is overridden alongside it in each, because `DocumentObject.SetNull` is documented as
+making `IsNull()` true afterwards, and clearing the flag is what keeps that true.
 
-### Acceptance
+Adding `[DV]` to the flags instead would have been wrong: they are serialization instructions
+rather than properties of the object, and `SetNull` would then reset them as a side effect of the
+value model rather than deliberately.
 
-* `Top.Clear()` alone writes `Top = null`.
-* `BorderClearedTests.AClearedBorderCarryingNothingElseIsNotWrittenAtAll` inverts to assert the
-  border *is* written, matching the pattern used for the sentinel tests in
-  [#46](https://github.com/jafin/PdfSharpCore/pull/46).
-* This changes emitted DDL for documents that clear a border and set nothing else on it, so it
-  belongs in release notes.
+**Scope note.** The item as written covered `Border` only. `Borders.ClearAll` and `Shading.Clear`
+had the identical defect, take the identical fix, and are handled by the same parser branch
+(`DdlParser.cs:2163-2174`), so all three were done together rather than leaving two known-broken
+siblings behind.
+
+### Verified
+
+* `Top.Clear()` alone now writes `Top = null`, and so do `Left`, `Bottom` and `Right`.
+* No empty `Top { }` block is left behind — `EndContent` rolls back a block nothing committed to.
+* A cleared border, cleared borders and cleared shading each survive a DDL write, read and second
+  write unchanged. The parser answers `= null` by calling `Clear()`, so the flag comes back.
+* `SetNull()` clears the flag and `IsNull()` is true afterwards.
 
 ---
 

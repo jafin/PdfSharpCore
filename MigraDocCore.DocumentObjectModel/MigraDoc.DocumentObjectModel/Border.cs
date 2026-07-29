@@ -131,6 +131,32 @@ public class Border : DocumentObject
   internal bool fClear = false;
   #endregion
 
+  #region Null handling
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  /// <remarks>
+  /// A cleared border is not null. Being cleared is what the border has to say - it writes
+  /// 'Border = null' into the DDL so as to override what it would otherwise inherit - and every
+  /// caller that decides whether to serialize a border asks this question first. fClear carries no
+  /// [DV] attribute, so the value descriptors Meta.IsNull consults cannot see it, and a border that
+  /// had only been cleared used to report itself null and be skipped.
+  /// </remarks>
+  public override bool IsNull()
+  {
+    return !fClear && base.IsNull();
+  }
+
+  /// <summary>
+  /// Resets this instance, i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public override void SetNull()
+  {
+    base.SetNull();
+    fClear = false;
+  }
+  #endregion
+
   #region Internal
   /// <summary>
   /// Converts Border into DDL.

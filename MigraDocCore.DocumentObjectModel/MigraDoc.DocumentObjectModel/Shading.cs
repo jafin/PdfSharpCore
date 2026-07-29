@@ -102,6 +102,30 @@ public sealed class Shading : DocumentObject
   internal bool isCleared = false;
   #endregion
 
+  #region Null handling
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  /// <remarks>
+  /// A cleared shading is not null, for the same reason a cleared Border is not - see
+  /// Border.IsNull. isCleared carries no [DV] attribute, so the value descriptors Meta.IsNull
+  /// consults cannot see it.
+  /// </remarks>
+  public override bool IsNull()
+  {
+    return !isCleared && base.IsNull();
+  }
+
+  /// <summary>
+  /// Resets this instance, i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public override void SetNull()
+  {
+    base.SetNull();
+    isCleared = false;
+  }
+  #endregion
+
   #region Internal
   /// <summary>
   /// Converts Shading into DDL.
