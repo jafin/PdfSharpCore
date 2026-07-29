@@ -77,9 +77,12 @@ public partial class Styles : DocumentObjectCollection, IVisitable
     {
         get
         {
+            // From 0, so this agrees with GetIndex. It used to start at 1 to hide
+            // DefaultParagraphFont, on the grounds that it "cannot be modified" - protection by
+            // being unreachable, which GetIndex and the integer indexer both saw through anyway.
+            // It is genuinely unmodifiable now: every setter on its ParagraphFormat and Font throws.
             int count = Count;
-            // index starts from 1; DefaultParagraphFont cannot be modified.
-            for (int index = 1; index < count; ++index)
+            for (int index = 0; index < count; ++index)
             {
                 Style style = (Style)this[index];
                 if (String.Compare(style.Name, styleName, true) == 0)

@@ -28,6 +28,7 @@ model work — it is all standalone, and can be picked up in any order.
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | ~~low~~ **medium** | **done** |
 | F8 | Aliased colours serialize under the name that was not declared first | low | **won't fix** |
 | F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | **done** |
+| F10 | Serializing a style based on `DefaultParagraphFont` throws `NullReferenceException` | **high** | **done** |
 
 ---
 
@@ -446,6 +447,64 @@ existing test changed behaviour, which confirms nothing in the tree was converti
 **Still not an error at compile time**, and cannot be while the implicit `string` conversion exists.
 This downgrades a silent trap to a loud one; it does not remove it. Dropping the conversion in
 favour of an explicit `Unit.Parse` would, and remains a public API decision for someone else.
+
+---
+
+## F10. Serializing a style based on `DefaultParagraphFont` throws
+
+Found by chasing a one-line aside from F4's tests: `Styles[Style.DefaultParagraphFontName]` returned
+`null` while `Styles[0]` returned that very style.
+
+It was deliberate. `Styles[string]` started its search at index **1**:
+
+```csharp
+int count = Count;
+// index starts from 1; DefaultParagraphFont cannot be modified.
+for (int index = 1; index < count; ++index)
+```
+
+Protection by being unreachable — and both `GetIndex` and the integer indexer see straight through
+it, because they start at 0. So the collection disagreed with itself about whether a style existed.
+
+`Style.Serialize` then looked the base style up **both ways**:
+
+```csharp
+Style refStyle0 = Document.Styles[Document.Styles.GetIndex(baseStyle ?? "")];  // found, never read
+refStyle        = Document.Styles[baseStyle ?? ""];                            // null
+refFormat = refStyle != null ? refStyle.ParagraphFormat : null;                // guarded
+refFont   = refStyle.Font;                                                     // not guarded
+```
+
+`refStyle0` is assigned and never read — someone half-fixing this and stopping. `refFont` is
+assigned in all five branches and read in none. So the line that crashed was populating a variable
+nothing used:
+
+```csharp
+var document = new Document();
+document.Styles.AddStyle("Derived", Style.DefaultParagraphFontName);
+DdlWriter.WriteToString(document);   // NullReferenceException
+```
+
+`AddStyle` validates the base style with `GetIndex`, which finds it — so the library lets you build
+exactly the document it then cannot serialize. **High severity: a crash through public API on a
+supported operation.**
+
+### Done
+
+Three things, and the ordering matters:
+
+* `Styles[string]` starts at 0, so it agrees with `GetIndex`.
+* `refStyle0` and `refFont` deleted — both unread, in every branch.
+* The skip's stated purpose is now met properly rather than abandoned: F4 made every setter on a
+  read-only style's `ParagraphFormat` and `Font` throw. Being findable and being writable were
+  conflated, which is how the skip came to exist; they are separate now, and
+  `StyleLookupTests.FindingItByNameDoesNotMakeItWritable` pins that.
+
+This is why F4 had to land first. Removing the skip on its own would have made a genuinely
+modifiable style reachable by name.
+
+`StyleLookupTests` also asserts that the two lookups agree for **every** style in the collection,
+not just this one.
 
 ---
 

@@ -342,7 +342,6 @@ public sealed partial class Style : DocumentObject, IVisitable
     //!!!newTHHO 26.07.2007 Modified method for user-defined styles.
     Styles buildInStyles = Styles.BuildInStyles;
     Style refStyle = null;
-    Font refFont = null;
     ParagraphFormat refFormat = null;
 
     serializer.WriteComment((comment ?? ""));
@@ -357,7 +356,6 @@ public sealed partial class Style : DocumentObject, IVisitable
 
         refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
         refFormat = refStyle.ParagraphFormat;
-        refFont = refFormat.Font;
         string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
         serializer.WriteLineNoCommit(name);
       }
@@ -366,7 +364,6 @@ public sealed partial class Style : DocumentObject, IVisitable
         // case: any build-in style except "Normal"
         refStyle = buildInStyles[buildInStyles.GetIndex(Name)];
         refFormat = refStyle.ParagraphFormat;
-        refFont = refFormat.Font;
         if (String.Compare(BaseStyle, refStyle.BaseStyle, true) == 0)
         {
           // case: build-in style with unmodified base style name
@@ -378,7 +375,6 @@ public sealed partial class Style : DocumentObject, IVisitable
           // real base style:
           refStyle = Document.Styles[Document.Styles.GetIndex((baseStyle ?? ""))];
           refFormat = refStyle.ParagraphFormat;
-          refFont = refFormat.Font;
           // Note: we must write "Underline = none" if the base style has "Underline = single" - we cannot
           // detect this if we compare with the built-in style that has no underline.
           // Known problem: Default values like "OutlineLevel = Level1" will now be serialized
@@ -392,7 +388,6 @@ public sealed partial class Style : DocumentObject, IVisitable
           serializer.WriteLine(name + " : " + baseName);
           refStyle = Document.Styles[Document.Styles.GetIndex((baseStyle ?? ""))];
           refFormat = refStyle.ParagraphFormat;
-          refFont = refFormat.Font;
         }
       }
     }
@@ -403,10 +398,8 @@ public sealed partial class Style : DocumentObject, IVisitable
       string name = DdlEncoder.QuoteIfNameContainsBlanks(Name);
       string baseName = DdlEncoder.QuoteIfNameContainsBlanks(BaseStyle);
       serializer.WriteLine(name + " : " + baseName);
-      Style refStyle0 = Document.Styles[Document.Styles.GetIndex((baseStyle ?? ""))];
       refStyle = Document.Styles[(baseStyle ?? "")];
       refFormat = refStyle != null ? refStyle.ParagraphFormat : null;
-      refFont = refStyle.Font;
     }
 
     serializer.BeginContent();
