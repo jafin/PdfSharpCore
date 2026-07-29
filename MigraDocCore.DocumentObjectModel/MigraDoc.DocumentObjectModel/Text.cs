@@ -77,11 +77,11 @@ public class Text : DocumentObject
   /// </summary>
   public string Content
   {
-    get => content.Value;
-    set => content.Value = value;
+    get => content ?? "";
+    set => content = value;
   }
   [DV]
-  internal NString content = NString.NullValue;
+  internal string content;
   #endregion
 
   #region Internal
@@ -90,7 +90,7 @@ public class Text : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    string text = DdlEncoder.StringToText(content.Value);
+    string text = DdlEncoder.StringToText((content ?? ""));
     // To make DDL more readable write soft hypens as keywords.
     text = text.Replace(new string((char)173, 1), "\\-");
     serializer.Write(text);

@@ -213,19 +213,19 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => style.Value;
+        get => style ?? "";
         set
         {
             // Just save style name. 
             Style style = Document.Styles[value];
             if (style != null)
-                this.style.Value = value;
+                this.style = value;
             else
                 throw new ArgumentException("Invalid style name '" + value + "'.");
         }
     }
     [DV]
-    internal NString style = NString.NullValue;
+    internal string style;
 
     /// <summary>
     /// Gets or sets the paragraph format.
@@ -272,11 +272,11 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => comment.Value;
-        set => comment.Value = value;
+        get => comment ?? "";
+        set => comment = value;
     }
     [DV]
-    internal NString comment = NString.NullValue;
+    internal string comment;
     #endregion
 
     #region Internal
@@ -299,7 +299,7 @@ public class HeaderFooter : DocumentObject, IVisitable
     /// </summary>
     internal void Serialize(Serializer serializer, string prefix)
     {
-        serializer.WriteComment(comment.Value);
+        serializer.WriteComment((comment ?? ""));
         serializer.WriteLine("\\" + prefix + (IsHeader ? "header" : "footer"));
 
         int pos = serializer.BeginAttributes();

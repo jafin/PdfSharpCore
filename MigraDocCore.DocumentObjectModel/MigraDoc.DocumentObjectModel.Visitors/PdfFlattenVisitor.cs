@@ -155,10 +155,10 @@ public class PdfFlattenVisitor : VisitorBase
     Document document = formattedText.Document;
     ParagraphFormat format = null;
 
-    Style style = document.styles[formattedText.style.Value];
+    Style style = document.styles[(formattedText.style ?? "")];
     if (style != null)
       format = style.paragraphFormat;
-    else if (formattedText.style.Value != "")
+    else if ((formattedText.style ?? "") != "")
       format = document.styles["InvalidStyleName"].paragraphFormat;
 
     if (format != null)

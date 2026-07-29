@@ -193,11 +193,11 @@ public class TextArea : ChartObject, IVisitable
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets or sets the default paragraph format of the area.
@@ -350,7 +350,7 @@ public class TextArea : ChartObject, IVisitable
     serializer.WriteLine("\\" + chartObject.CheckTextArea(this));
     int pos = serializer.BeginAttributes();
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (!this.IsNull("Format"))
       this.format.Serialize(serializer, "Format", null);

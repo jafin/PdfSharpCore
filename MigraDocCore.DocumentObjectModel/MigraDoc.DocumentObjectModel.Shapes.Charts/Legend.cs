@@ -87,11 +87,11 @@ public class Legend : ChartObject, IVisitable
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets the paragraph format of the legend's text.
@@ -145,7 +145,7 @@ public class Legend : ChartObject, IVisitable
     serializer.WriteLine("\\legend");
     int pos = serializer.BeginAttributes();
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
 
     if (!this.IsNull("Format"))

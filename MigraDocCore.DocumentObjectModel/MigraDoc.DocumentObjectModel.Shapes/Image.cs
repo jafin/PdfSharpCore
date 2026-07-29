@@ -79,7 +79,8 @@ public class Image : Shape
     }
     //#endregion
     [DV]
-    internal NString name = NString.NullValue;
+    // Written only through the reflection layer, so it needs an initializer to count as assigned.
+    internal string name = null;
 
     public IImageSource Source { get; set; }
 
@@ -89,11 +90,11 @@ public class Image : Shape
     /// </summary>
     public double ScaleWidth
     {
-        get => this.scaleWidth.Value;
-        set => this.scaleWidth.Value = value;
+        get => this.scaleWidth ?? 0;
+        set => this.scaleWidth = value;
     }
     [DV]
-    internal NDouble scaleWidth = NDouble.NullValue;
+    internal double? scaleWidth;
 
     /// <summary>
     /// Gets or sets the ScaleHeight of the image.
@@ -101,11 +102,11 @@ public class Image : Shape
     /// </summary>
     public double ScaleHeight
     {
-        get => this.scaleHeight.Value;
-        set => this.scaleHeight.Value = value;
+        get => this.scaleHeight ?? 0;
+        set => this.scaleHeight = value;
     }
     [DV]
-    internal NDouble scaleHeight = NDouble.NullValue;
+    internal double? scaleHeight;
 
     /// <summary>
     /// Gets or sets whether the AspectRatio of the image is kept unchanged.
@@ -113,11 +114,11 @@ public class Image : Shape
     /// </summary>
     public bool LockAspectRatio
     {
-        get => this.lockAspectRatio.Value;
-        set => this.lockAspectRatio.Value = value;
+        get => this.lockAspectRatio ?? false;
+        set => this.lockAspectRatio = value;
     }
     [DV]
-    internal NBool lockAspectRatio = NBool.NullValue;
+    internal bool? lockAspectRatio;
 
     /// <summary>
     /// Gets or sets the PictureFormat for the image
@@ -144,11 +145,11 @@ public class Image : Shape
     /// </summary>
     public double Resolution
     {
-        get => this.resolution.Value;
-        set => this.resolution.Value = value;
+        get => this.resolution ?? 0;
+        set => this.resolution = value;
     }
     [DV]
-    internal NDouble resolution = NDouble.NullValue;
+    internal double? resolution;
     //#endregion
 
     #region Internal
@@ -157,18 +158,18 @@ public class Image : Shape
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteLine("\\image(\"" + this.name.Value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
+        serializer.WriteLine("\\image(\"" + (this.name ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
 
         int pos = serializer.BeginAttributes();
 
         base.Serialize(serializer);
-        if (!this.scaleWidth.IsNull)
+        if (this.scaleWidth != null)
             serializer.WriteSimpleAttribute("ScaleWidth", this.ScaleWidth);
-        if (!this.scaleHeight.IsNull)
+        if (this.scaleHeight != null)
             serializer.WriteSimpleAttribute("ScaleHeight", this.ScaleHeight);
-        if (!this.lockAspectRatio.IsNull)
+        if (this.lockAspectRatio != null)
             serializer.WriteSimpleAttribute("LockAspectRatio", this.LockAspectRatio);
-        if (!this.resolution.IsNull)
+        if (this.resolution != null)
             serializer.WriteSimpleAttribute("Resolution", this.Resolution);
         if (!this.IsNull("PictureFormat"))
             this.pictureFormat.Serialize(serializer);

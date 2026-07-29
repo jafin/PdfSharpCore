@@ -68,7 +68,7 @@ public class Border : DocumentObject
   /// </summary>
   public void Clear()
   {
-    fClear.Value = true;
+    fClear = true;
   }
   #endregion
 
@@ -78,11 +78,11 @@ public class Border : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => visible.Value;
-    set => visible.Value = value;
+    get => visible ?? false;
+    set => visible = value;
   }
   [DV]
-  internal NBool visible = NBool.NullValue;
+  internal bool? visible;
 
   /// <summary>
   /// Gets or sets the line style of the border.
@@ -126,9 +126,35 @@ public class Border : DocumentObject
   /// Gets the information if the border is marked as cleared. Additionally 'xxx = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool BorderCleared => fClear.Value;
+  public bool BorderCleared => fClear;
 
-  internal NBool fClear = new NBool(false);
+  internal bool fClear = false;
+  #endregion
+
+  #region Null handling
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  /// <remarks>
+  /// A cleared border is not null. Being cleared is what the border has to say - it writes
+  /// 'Border = null' into the DDL so as to override what it would otherwise inherit - and every
+  /// caller that decides whether to serialize a border asks this question first. fClear carries no
+  /// [DV] attribute, so the value descriptors Meta.IsNull consults cannot see it, and a border that
+  /// had only been cleared used to report itself null and be skipped.
+  /// </remarks>
+  public override bool IsNull()
+  {
+    return !fClear && base.IsNull();
+  }
+
+  /// <summary>
+  /// Resets this instance, i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public override void SetNull()
+  {
+    base.SetNull();
+    fClear = false;
+  }
   #endregion
 
   #region Internal
@@ -145,12 +171,12 @@ public class Border : DocumentObject
   /// </summary>
   internal void Serialize(Serializer serializer, string name, Border refBorder)
   {
-    if (fClear.Value)
+    if (fClear)
       serializer.WriteLine(name + " = null");
 
     int pos = serializer.BeginContent(name);
 
-    if (!visible.IsNull && (refBorder == null || (Visible != refBorder.Visible)))
+    if (visible != null && (refBorder == null || (Visible != refBorder.Visible)))
       serializer.WriteSimpleAttribute("Visible", Visible);
 
     if (!style.IsNull && (refBorder == null || (Style != refBorder.Style)))

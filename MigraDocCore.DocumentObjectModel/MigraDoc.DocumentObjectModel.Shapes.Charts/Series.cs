@@ -136,11 +136,11 @@ public class Series : ChartObject
   /// </summary>
   public string Name
   {
-    get => this.name.Value;
-    set => this.name.Value = value;
+    get => this.name ?? "";
+    set => this.name = value;
   }
   [DV]
-  internal NString name = NString.NullValue;
+  internal string name;
 
   /// <summary>
   /// Gets the line format of the border of each data.
@@ -265,11 +265,11 @@ public class Series : ChartObject
   /// </summary>
   public bool HasDataLabel
   {
-    get => this.hasDataLabel.Value;
-    set => this.hasDataLabel.Value = value;
+    get => this.hasDataLabel ?? false;
+    set => this.hasDataLabel = value;
   }
   [DV]
-  internal NBool hasDataLabel = NBool.NullValue;
+  internal bool? hasDataLabel;
 
   /// <summary>
   /// Gets the elementcount of the series.
@@ -296,7 +296,7 @@ public class Series : ChartObject
 
     int pos = serializer.BeginAttributes();
 
-    if (!this.name.IsNull)
+    if (this.name != null)
       serializer.WriteSimpleAttribute("Name", this.Name);
 
     if (!this.markerSize.IsNull)
@@ -312,7 +312,7 @@ public class Series : ChartObject
     if (!this.chartType.IsNull)
       serializer.WriteSimpleAttribute("ChartType", this.ChartType);
 
-    if (!this.hasDataLabel.IsNull)
+    if (this.hasDataLabel != null)
       serializer.WriteSimpleAttribute("HasDataLabel", this.HasDataLabel);
 
     if (!this.IsNull("LineFormat"))

@@ -83,20 +83,14 @@ public abstract class ValueDescriptor
         else
             type = ((PropertyInfo)memberInfo).PropertyType;
 
-        if (type == typeof(NBool))
-            return new NullableDescriptor(name, typeof(Boolean), type, memberInfo, flags);
-
-        if (type == typeof(NInt))
-            return new NullableDescriptor(name, typeof(Int32), type, memberInfo, flags);
-
-        if (type == typeof(NDouble))
-            return new NullableDescriptor(name, typeof(Double), type, memberInfo, flags);
-
-        if (type == typeof(NString))
-            return new NullableDescriptor(name, typeof(String), type, memberInfo, flags);
+        // A member that carries its own null - bool?, int?, double? or a string - needs no wrapper
+        // struct. Checked before the ValueType test below, which Nullable<T> would otherwise match.
+        Type nullableUnderlyingType = Nullable.GetUnderlyingType(type);
+        if (nullableUnderlyingType != null)
+            return new NullableMemberDescriptor(name, nullableUnderlyingType, type, memberInfo, flags);
 
         if (type == typeof(String))
-            return new ValueTypeDescriptor(name, typeof(String), type, memberInfo, flags);
+            return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
 
         if (type == typeof(NEnum))
         {
@@ -130,14 +124,14 @@ public abstract class ValueDescriptor
     public string ValueName;
 
     /// <summary>
-    /// Type of the described value, e.g. typeof(Int32) for an NInt.
+    /// Type of the described value, e.g. typeof(Int32) for an int?.
     /// </summary>
     ///
     [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type ValueType;
 
     /// <summary>
-    /// Type of the described field or property, e.g. typeof(NInt) for an NInt.
+    /// Type of the described field or property, e.g. typeof(int?) for an int?.
     /// </summary>
     public Type MemberType;
 

@@ -67,11 +67,11 @@ public class LineFormat : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => this.visible.Value;
-    set => this.visible.Value = value;
+    get => this.visible ?? false;
+    set => this.visible = value;
   }
   [DV]
-  internal NBool visible = NBool.NullValue;
+  internal bool? visible;
 
   /// <summary>
   /// Gets or sets the width of the line in Unit.
@@ -125,7 +125,7 @@ public class LineFormat : DocumentObject
   internal override void Serialize(Serializer serializer)
   {
     int pos = serializer.BeginContent("LineFormat");
-    if (!this.visible.IsNull)
+    if (this.visible != null)
       serializer.WriteSimpleAttribute("Visible", this.Visible);
     if (!this.style.IsNull)
       serializer.WriteSimpleAttribute("Style", this.Style);

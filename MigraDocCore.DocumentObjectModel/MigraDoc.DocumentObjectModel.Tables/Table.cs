@@ -314,11 +314,11 @@ public class Table : DocumentObject, IVisitable
     /// </summary>
     public string Style
     {
-        get => style.Value;
-        set => style.Value = value;
+        get => style ?? "";
+        set => style = value;
     }
 
-    [DV] internal NString style = NString.NullValue;
+    [DV] internal string style;
 
     /// <summary>
     /// Gets the default ParagraphFormat for all rows and columns of the table.
@@ -433,22 +433,22 @@ public class Table : DocumentObject, IVisitable
     /// </summary>
     public bool KeepTogether
     {
-        get => keepTogether.Value;
-        set => keepTogether.Value = value;
+        get => keepTogether ?? false;
+        set => keepTogether = value;
     }
 
-    [DV] internal NBool keepTogether = NBool.NullValue;
+    [DV] internal bool? keepTogether;
 
     /// <summary>
     /// Gets or sets a comment associated with this object.
     /// </summary>
     public string Comment
     {
-        get => comment.Value;
-        set => comment.Value = value;
+        get => comment ?? "";
+        set => comment = value;
     }
 
-    [DV] internal NString comment = NString.NullValue;
+    [DV] internal string comment;
 
     #endregion
 
@@ -459,13 +459,13 @@ public class Table : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(comment.Value);
+        serializer.WriteComment((comment ?? ""));
 
         serializer.WriteLine("\\table");
 
         var pos = serializer.BeginAttributes();
 
-        if (style.Value != String.Empty)
+        if ((style ?? "") != String.Empty)
             serializer.WriteSimpleAttribute("Style", Style);
 
         if (!IsNull("Format"))

@@ -90,11 +90,11 @@ public class ListInfo : DocumentObject
   /// </summary>
   public bool ContinuePreviousList
   {
-    get => continuePreviousList.Value;
-    set => continuePreviousList.Value = value;
+    get => continuePreviousList ?? false;
+    set => continuePreviousList = value;
   }
   [DV]
-  internal NBool continuePreviousList = NBool.NullValue;
+  internal bool? continuePreviousList;
   #endregion
 
   #region Internal
@@ -107,7 +107,7 @@ public class ListInfo : DocumentObject
       serializer.WriteSimpleAttribute("ListInfo.ListType", ListType);
     if (!numberPosition.IsNull)
       serializer.WriteSimpleAttribute("ListInfo.NumberPosition", NumberPosition);
-    if (!continuePreviousList.IsNull)
+    if (continuePreviousList != null)
       serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", ContinuePreviousList);
   }
 

@@ -271,11 +271,11 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public bool Visible
     {
-        get => visible.Value;
-        set => visible.Value = value;
+        get => visible ?? false;
+        set => visible = value;
     }
     [DV]
-    internal NBool visible = NBool.NullValue;
+    internal bool? visible;
 
     /// <summary>
     /// Gets or sets the line style of the borders.
@@ -380,6 +380,30 @@ public class Borders : DocumentObject, IEnumerable
     protected bool clearAll = false;
     #endregion
 
+    #region Null handling
+    /// <summary>
+    /// Determines whether this instance is null (not set).
+    /// </summary>
+    /// <remarks>
+    /// Cleared borders are not null, for the same reason a cleared Border is not - see
+    /// Border.IsNull. clearAll carries no [DV] attribute, so the value descriptors Meta.IsNull
+    /// consults cannot see it.
+    /// </remarks>
+    public override bool IsNull()
+    {
+        return !clearAll && base.IsNull();
+    }
+
+    /// <summary>
+    /// Resets this instance, i.e. IsNull() will return true afterwards.
+    /// </summary>
+    public override void SetNull()
+    {
+        base.SetNull();
+        clearAll = false;
+    }
+    #endregion
+
     #region Internal
     /// <summary>
     /// Converts Borders into DDL.
@@ -399,7 +423,7 @@ public class Borders : DocumentObject, IEnumerable
 
         int pos = serializer.BeginContent("Borders");
 
-        if (!visible.IsNull && (refBorders == null || refBorders.visible.IsNull || (Visible != refBorders.Visible)))
+        if (visible != null && (refBorders == null || refBorders.visible == null || (Visible != refBorders.Visible)))
             serializer.WriteSimpleAttribute("Visible", Visible);
 
         if (!style.IsNull && (refBorders == null || (Style != refBorders.Style)))

@@ -170,11 +170,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public int StartingNumber
   {
-    get => startingNumber.Value;
-    set => startingNumber.Value = value;
+    get => startingNumber ?? 0;
+    set => startingNumber = value;
   }
   [DV]
-  internal NInt startingNumber = NInt.NullValue;
+  internal int? startingNumber;
 
   /// <summary>
   /// Gets or sets the page height.
@@ -237,11 +237,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool OddAndEvenPagesHeaderFooter
   {
-    get => oddAndEvenPagesHeaderFooter.Value;
-    set => oddAndEvenPagesHeaderFooter.Value = value;
+    get => oddAndEvenPagesHeaderFooter ?? false;
+    set => oddAndEvenPagesHeaderFooter = value;
   }
   [DV]
-  internal NBool oddAndEvenPagesHeaderFooter = NBool.NullValue;
+  internal bool? oddAndEvenPagesHeaderFooter;
 
   /// <summary>
   /// Gets or sets a value which define whether the section has a different
@@ -249,11 +249,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool DifferentFirstPageHeaderFooter
   {
-    get => differentFirstPageHeaderFooter.Value;
-    set => differentFirstPageHeaderFooter.Value = value;
+    get => differentFirstPageHeaderFooter ?? false;
+    set => differentFirstPageHeaderFooter = value;
   }
   [DV]
-  internal NBool differentFirstPageHeaderFooter = NBool.NullValue;
+  internal bool? differentFirstPageHeaderFooter;
 
   /// <summary>
   /// Gets or sets the distance between the header and the page top
@@ -285,11 +285,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool MirrorMargins
   {
-    get => mirrorMargins.Value;
-    set => mirrorMargins.Value = value;
+    get => mirrorMargins ?? false;
+    set => mirrorMargins = value;
   }
   [DV]
-  internal NBool mirrorMargins = NBool.NullValue;
+  internal bool? mirrorMargins;
 
   /// <summary>
   /// Gets or sets a value which defines whether a page should break horizontally.
@@ -297,11 +297,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public bool HorizontalPageBreak
   {
-    get => horizontalPageBreak.Value;
-    set => horizontalPageBreak.Value = value;
+    get => horizontalPageBreak ?? false;
+    set => horizontalPageBreak = value;
   }
   [DV]
-  internal NBool horizontalPageBreak = NBool.NullValue;
+  internal bool? horizontalPageBreak;
 
   /// <summary>
   /// Gets or sets the page format of the section.
@@ -319,11 +319,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public string Comment
   {
-    get => comment.Value;
-    set => comment.Value = value;
+    get => comment ?? "";
+    set => comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
   #endregion
 
   /// <summary>
@@ -417,7 +417,7 @@ public class PageSetup : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(comment.Value);
+    serializer.WriteComment((comment ?? ""));
     int pos = serializer.BeginContent("PageSetup");
 
     if (!pageHeight.IsNull)
@@ -447,10 +447,10 @@ public class PageSetup : DocumentObject
     if (!headerDistance.IsNull)
       serializer.WriteSimpleAttribute("HeaderDistance", HeaderDistance);
 
-    if (!oddAndEvenPagesHeaderFooter.IsNull)
+    if (oddAndEvenPagesHeaderFooter != null)
       serializer.WriteSimpleAttribute("OddAndEvenPagesHeaderFooter", OddAndEvenPagesHeaderFooter);
 
-    if (!differentFirstPageHeaderFooter.IsNull)
+    if (differentFirstPageHeaderFooter != null)
       serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", DifferentFirstPageHeaderFooter);
 
     if (!sectionStart.IsNull)
@@ -459,13 +459,13 @@ public class PageSetup : DocumentObject
     if (!pageFormat.IsNull)
       serializer.WriteSimpleAttribute("PageFormat", PageFormat);
 
-    if (!mirrorMargins.IsNull)
+    if (mirrorMargins != null)
       serializer.WriteSimpleAttribute("MirrorMargins", MirrorMargins);
 
-    if (!horizontalPageBreak.IsNull)
+    if (horizontalPageBreak != null)
       serializer.WriteSimpleAttribute("HorizontalPageBreak", HorizontalPageBreak);
 
-    if (!startingNumber.IsNull)
+    if (startingNumber != null)
       serializer.WriteSimpleAttribute("StartingNumber", StartingNumber);
 
     serializer.EndContent(pos);

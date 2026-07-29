@@ -91,66 +91,66 @@ public class Barcode : Shape
   /// </summary>
   public bool BearerBars
   {
-    get => this.bearerBars.Value;
-    set => this.bearerBars.Value = value;
+    get => this.bearerBars ?? false;
+    set => this.bearerBars = value;
   }
   [DV]
-  internal NBool bearerBars = NBool.NullValue;
+  internal bool? bearerBars;
 
   /// <summary>
   /// Gets or sets the a value indicating whether the barcode's code is rendered.
   /// </summary>
   public bool Text
   {
-    get => this.text.Value;
-    set => this.text.Value = value;
+    get => this.text ?? false;
+    set => this.text = value;
   }
   [DV]
-  internal NBool text = NBool.NullValue;
+  internal bool? text;
 
   /// <summary>
   /// Gets or sets code the barcode represents.
   /// </summary>
   public string Code
   {
-    get => this.code.Value;
-    set => this.code.Value = value;
+    get => this.code ?? "";
+    set => this.code = value;
   }
   [DV]
-  internal NString code = NString.NullValue;
+  internal string code;
 
   /// <summary>
   /// ???
   /// </summary>
   public double LineRatio
   {
-    get => this.lineRatio.Value;
-    set => this.lineRatio.Value = value;
+    get => this.lineRatio ?? 0;
+    set => this.lineRatio = value;
   }
   [DV]
-  internal NDouble lineRatio = NDouble.NullValue;
+  internal double? lineRatio;
 
   /// <summary>
   /// ???
   /// </summary>
   public double LineHeight
   {
-    get => this.lineHeight.Value;
-    set => this.lineHeight.Value = value;
+    get => this.lineHeight ?? 0;
+    set => this.lineHeight = value;
   }
   [DV]
-  internal NDouble lineHeight = NDouble.NullValue;
+  internal double? lineHeight;
 
   /// <summary>
   /// ???
   /// </summary>
   public double NarrowLineWidth
   {
-    get => this.narrowLineWidth.Value;
-    set => this.narrowLineWidth.Value = value;
+    get => this.narrowLineWidth ?? 0;
+    set => this.narrowLineWidth = value;
   }
   [DV]
-  internal NDouble narrowLineWidth = NDouble.NullValue;
+  internal double? narrowLineWidth;
   #endregion
 
   #region Internal
@@ -159,7 +159,7 @@ public class Barcode : Shape
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (this.code.Value == "")
+    if ((this.code ?? "") == "")
       throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "BookmarkField"));
 
     serializer.WriteLine("\\barcode(\"" + this.Code + "\")");
@@ -170,17 +170,17 @@ public class Barcode : Shape
 
     if (!this.orientation.IsNull)
       serializer.WriteSimpleAttribute("Orientation", this.Orientation);
-    if (!this.bearerBars.IsNull)
+    if (this.bearerBars != null)
       serializer.WriteSimpleAttribute("BearerBars", this.BearerBars);
-    if (!this.text.IsNull)
+    if (this.text != null)
       serializer.WriteSimpleAttribute("Text", this.Text);
     if (!this.type.IsNull)
       serializer.WriteSimpleAttribute("Type", this.Type);
-    if (!this.lineRatio.IsNull)
+    if (this.lineRatio != null)
       serializer.WriteSimpleAttribute("LineRatio", this.LineRatio);
-    if (!this.lineHeight.IsNull)
+    if (this.lineHeight != null)
       serializer.WriteSimpleAttribute("LineHeight", this.LineHeight);
-    if (!this.narrowLineWidth.IsNull)
+    if (this.narrowLineWidth != null)
       serializer.WriteSimpleAttribute("NarrowLineWidth", this.NarrowLineWidth);
 
     serializer.EndAttributes(pos);

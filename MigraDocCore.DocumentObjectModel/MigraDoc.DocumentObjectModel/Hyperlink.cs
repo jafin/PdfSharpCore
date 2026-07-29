@@ -458,11 +458,11 @@ public class Hyperlink : DocumentObject, IVisitable
     /// </summary>
     public string Name
     {
-        get => name.Value;
-        set => name.Value = value;
+        get => name ?? "";
+        set => name = value;
     }
     [DV]
-    internal NString name = NString.NullValue;
+    internal string name;
 
     /// <summary>
     /// Gets or sets the target type of the Hyperlink.
@@ -503,7 +503,7 @@ public class Hyperlink : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        if (name.Value == string.Empty)
+        if ((name ?? "") == string.Empty)
             throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "Hyperlink"));
         serializer.Write("\\hyperlink");
         string str = "[Name = \"" + Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";

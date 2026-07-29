@@ -223,22 +223,22 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool KeepTogether
   {
-    get => keepTogether.Value;
-    set => keepTogether.Value = value;
+    get => keepTogether ?? false;
+    set => keepTogether = value;
   }
   [DV]
-  internal NBool keepTogether = NBool.NullValue;
+  internal bool? keepTogether;
 
   /// <summary>
   /// Gets or sets a value indicating whether this and the next paragraph stay on the same page.
   /// </summary>
   public bool KeepWithNext
   {
-    get => keepWithNext.Value;
-    set => keepWithNext.Value = value;
+    get => keepWithNext ?? false;
+    set => keepWithNext = value;
   }
   [DV]
-  internal NBool keepWithNext = NBool.NullValue;
+  internal bool? keepWithNext;
 
   /// <summary>
   /// Gets or sets the left indent of the paragraph.
@@ -310,11 +310,11 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool PageBreakBefore
   {
-    get => pageBreakBefore.Value;
-    set => pageBreakBefore.Value = value;
+    get => pageBreakBefore ?? false;
+    set => pageBreakBefore = value;
   }
   [DV]
-  internal NBool pageBreakBefore = NBool.NullValue;
+  internal bool? pageBreakBefore;
 
   /// <summary>
   /// Gets or sets the right indent of the paragraph.
@@ -401,11 +401,11 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public bool WidowControl
   {
-    get => widowControl.Value;
-    set => widowControl.Value = value;
+    get => widowControl ?? false;
+    set => widowControl = value;
   }
   [DV]
-  internal NBool widowControl = NBool.NullValue;
+  internal bool? widowControl;
   #endregion
 
   #region Internal
@@ -459,16 +459,16 @@ public class ParagraphFormat : DocumentObject
     if (!lineSpacing.IsNull && (refFormat == null || lineSpacing != refFormat.lineSpacing))
       serializer.WriteSimpleAttribute("LineSpacing", LineSpacing);
 
-    if (!keepTogether.IsNull && (refFormat == null || keepTogether != refFormat.keepTogether))
+    if (keepTogether != null && (refFormat == null || keepTogether != refFormat.keepTogether))
       serializer.WriteSimpleAttribute("KeepTogether", KeepTogether);
 
-    if (!keepWithNext.IsNull && (refFormat == null || keepWithNext != refFormat.keepWithNext))
+    if (keepWithNext != null && (refFormat == null || keepWithNext != refFormat.keepWithNext))
       serializer.WriteSimpleAttribute("KeepWithNext", KeepWithNext);
 
-    if (!widowControl.IsNull && (refFormat == null || widowControl != refFormat.widowControl))
+    if (widowControl != null && (refFormat == null || widowControl != refFormat.widowControl))
       serializer.WriteSimpleAttribute("WidowControl", WidowControl);
 
-    if (!pageBreakBefore.IsNull && (refFormat == null || pageBreakBefore != refFormat.pageBreakBefore))
+    if (pageBreakBefore != null && (refFormat == null || pageBreakBefore != refFormat.pageBreakBefore))
       serializer.WriteSimpleAttribute("PageBreakBefore", PageBreakBefore);
 
     if (!outlineLevel.IsNull && (refFormat == null || outlineLevel != refFormat.outlineLevel))

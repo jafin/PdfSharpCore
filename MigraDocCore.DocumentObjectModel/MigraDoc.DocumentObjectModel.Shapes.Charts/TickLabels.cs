@@ -81,22 +81,22 @@ public class TickLabels : ChartObject
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets or sets the label's number format.
   /// </summary>
   public string Format
   {
-    get => this.format.Value;
-    set => this.format.Value = value;
+    get => this.format ?? "";
+    set => this.format = value;
   }
   [DV]
-  internal NString format = NString.NullValue;
+  internal string format;
 
   /// <summary>
   /// Gets the font of the label.
@@ -128,13 +128,13 @@ public class TickLabels : ChartObject
   {
     int pos = serializer.BeginContent("TickLabels");
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
 
     if (this.font != null)
       this.font.Serialize(serializer);
 
-    if (!this.format.IsNull)
+    if (this.format != null)
       serializer.WriteSimpleAttribute("Format", this.Format);
 
     serializer.EndContent();

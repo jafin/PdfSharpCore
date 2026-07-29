@@ -69,17 +69,17 @@ public class InfoField : DocumentObject
   /// </summary>
   public string Name
   {
-    get => this.name.Value;
+    get => this.name ?? "";
     set
     {
       if (IsValidName(value))
-        this.name.Value = value;
+        this.name = value;
       else
         throw new ArgumentException(DomSR.InvalidInfoFieldName(value));
     }
   }
   [DV]
-  internal NString name = NString.NullValue;
+  internal string name;
   #endregion
 
   /// <summary>

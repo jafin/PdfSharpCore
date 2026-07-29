@@ -68,55 +68,55 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   public string Title
   {
-    get => title.Value;
-    set => title.Value = value;
+    get => title ?? "";
+    set => title = value;
   }
   [DV]
-  internal NString title = NString.NullValue;
+  internal string title;
 
   /// <summary>
   /// Gets or sets the document author.
   /// </summary>
   public string Author
   {
-    get => author.Value;
-    set => author.Value = value;
+    get => author ?? "";
+    set => author = value;
   }
   [DV]
-  internal NString author = NString.NullValue;
+  internal string author;
 
   /// <summary>
   /// Gets or sets keywords related to the document.
   /// </summary>
   public string Keywords
   {
-    get => keywords.Value;
-    set => keywords.Value = value;
+    get => keywords ?? "";
+    set => keywords = value;
   }
   [DV]
-  internal NString keywords = NString.NullValue;
+  internal string keywords;
 
   /// <summary>
   /// Gets or sets the subject of the document.
   /// </summary>
   public string Subject
   {
-    get => subject.Value;
-    set => subject.Value = value;
+    get => subject ?? "";
+    set => subject = value;
   }
   [DV]
-  internal NString subject = NString.NullValue;
+  internal string subject;
 
   /// <summary>
   /// Gets or sets a comment associated with this object.
   /// </summary>
   public string Comment
   {
-    get => comment.Value;
-    set => comment.Value = value;
+    get => comment ?? "";
+    set => comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
   #endregion
 
   #region Internal
@@ -125,7 +125,7 @@ public class DocumentInfo : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(comment.Value);
+    serializer.WriteComment((comment ?? ""));
     int pos = serializer.BeginContent("Info");
 
     if (Title != String.Empty)

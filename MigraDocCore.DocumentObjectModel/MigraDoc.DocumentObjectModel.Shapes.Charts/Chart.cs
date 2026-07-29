@@ -168,11 +168,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets the default paragraph format of the whole chart.
@@ -463,11 +463,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public bool PivotChart
   {
-    get => this.pivotChart.Value;
-    set => this.pivotChart.Value = value;
+    get => this.pivotChart ?? false;
+    set => this.pivotChart = value;
   }
   [DV]
-  internal NBool pivotChart = NBool.NullValue;
+  internal bool? pivotChart;
 
   /// <summary>
   /// Gets the DataLabel of the chart.
@@ -495,11 +495,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public bool HasDataLabel
   {
-    get => this.hasDataLabel.Value;
-    set => this.hasDataLabel.Value = value;
+    get => this.hasDataLabel ?? false;
+    set => this.hasDataLabel = value;
   }
   [DV]
-  internal NBool hasDataLabel = NBool.NullValue;
+  internal bool? hasDataLabel;
   #endregion
 
   /// <summary>
@@ -550,12 +550,12 @@ public class Chart : Shape, IVisitable
     base.Serialize(serializer);
     if (!this.displayBlanksAs.IsNull)
       serializer.WriteSimpleAttribute("DisplayBlanksAs", this.DisplayBlanksAs);
-    if (!this.pivotChart.IsNull)
+    if (this.pivotChart != null)
       serializer.WriteSimpleAttribute("PivotChart", this.PivotChart);
-    if (!this.hasDataLabel.IsNull)
+    if (this.hasDataLabel != null)
       serializer.WriteSimpleAttribute("HasDataLabel", this.HasDataLabel);
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (!this.IsNull("Format"))
       this.format.Serialize(serializer, "Format", null);

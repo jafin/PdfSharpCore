@@ -82,22 +82,22 @@ public class AxisTitle : ChartObject
   /// </summary>
   public string Style
   {
-    get => this.style.Value;
-    set => this.style.Value = value;
+    get => this.style ?? "";
+    set => this.style = value;
   }
   [DV]
-  internal NString style = NString.NullValue;
+  internal string style;
 
   /// <summary>
   /// Gets or sets the caption of the title.
   /// </summary>
   public string Caption
   {
-    get => this.caption.Value;
-    set => this.caption.Value = value;
+    get => this.caption ?? "";
+    set => this.caption = value;
   }
   [DV]
-  internal NString caption = NString.NullValue;
+  internal string caption;
 
   /// <summary>
   /// Gets the font object of the title.
@@ -162,7 +162,7 @@ public class AxisTitle : ChartObject
   {
     int pos = serializer.BeginContent("Title");
 
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
 
     if (!this.IsNull("Font"))
@@ -177,7 +177,7 @@ public class AxisTitle : ChartObject
     if (!this.verticalAlignment.IsNull)
       serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
 
-    if (!this.caption.IsNull)
+    if (this.caption != null)
       serializer.WriteSimpleAttribute("Caption", this.Caption);
 
     serializer.EndContent();

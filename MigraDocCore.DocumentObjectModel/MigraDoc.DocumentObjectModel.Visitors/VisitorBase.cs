@@ -77,16 +77,16 @@ public abstract class VisitorBase : DocumentObjectVisitor
     if (format.lineSpacing.IsNull)
       format.lineSpacing = refFormat.lineSpacing;
 
-    if (format.widowControl.IsNull)
+    if (format.widowControl == null)
       format.widowControl = refFormat.widowControl;
 
-    if (format.keepTogether.IsNull)
+    if (format.keepTogether == null)
       format.keepTogether = refFormat.keepTogether;
 
-    if (format.keepWithNext.IsNull)
+    if (format.keepWithNext == null)
       format.keepWithNext = refFormat.keepWithNext;
 
-    if (format.pageBreakBefore.IsNull)
+    if (format.pageBreakBefore == null)
       format.pageBreakBefore = refFormat.pageBreakBefore;
 
     if (format.outlineLevel.IsNull)
@@ -135,7 +135,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenListInfo(ListInfo listInfo, ListInfo refListInfo)
   {
-    if (listInfo.continuePreviousList.IsNull)
+    if (listInfo.continuePreviousList == null)
       listInfo.continuePreviousList = refListInfo.continuePreviousList;
     if (listInfo.listType.IsNull)
       listInfo.listType = refListInfo.listType;
@@ -145,7 +145,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenFont(Font font, Font refFont)
   {
-    if (font.name.IsNull)
+    if (font.name == null)
       font.name = refFont.name;
     if (font.size.IsNull)
       font.size = refFont.size;
@@ -153,20 +153,20 @@ public abstract class VisitorBase : DocumentObjectVisitor
       font.color = refFont.color;
     if (font.underline.IsNull)
       font.underline = refFont.underline;
-    if (font.bold.IsNull)
+    if (font.bold == null)
       font.bold = refFont.bold;
-    if (font.italic.IsNull)
+    if (font.italic == null)
       font.italic = refFont.italic;
-    if (font.superscript.IsNull)
+    if (font.superscript == null)
       font.superscript = refFont.superscript;
-    if (font.subscript.IsNull)
+    if (font.subscript == null)
       font.subscript = refFont.subscript;
   }
 
   protected void FlattenShading(Shading shading, Shading refShading)
   {
     //fClear?
-    if (shading.visible.IsNull)
+    if (shading.visible == null)
       shading.visible = refShading.visible;
     if (shading.color.IsNull)
       shading.color = refShading.color;
@@ -177,7 +177,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     if (border == null)
       border = new Border(parentBorders);
 
-    if (border.visible.IsNull)
+    if (border.visible == null)
       border.visible = parentBorders.visible;
 
     if (border.style.IsNull)
@@ -224,7 +224,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenBorders(Borders borders, Borders refBorders)
   {
-    if (borders.visible.IsNull)
+    if (borders.visible == null)
       borders.visible = refBorders.visible;
     if (borders.width.IsNull)
       borders.width = refBorders.width;
@@ -266,7 +266,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenBorder(Border border, Border refBorder)
   {
-    if (border.visible.IsNull)
+    if (border.visible == null)
       border.visible = refBorder.visible;
     if (border.width.IsNull)
       border.width = refBorder.width;
@@ -351,13 +351,13 @@ public abstract class VisitorBase : DocumentObjectVisitor
       pageSetup.headerDistance = refPageSetup.headerDistance;
     if (pageSetup.footerDistance.IsNull)
       pageSetup.footerDistance = refPageSetup.footerDistance;
-    if (pageSetup.oddAndEvenPagesHeaderFooter.IsNull)
+    if (pageSetup.oddAndEvenPagesHeaderFooter == null)
       pageSetup.oddAndEvenPagesHeaderFooter = refPageSetup.oddAndEvenPagesHeaderFooter;
-    if (pageSetup.differentFirstPageHeaderFooter.IsNull)
+    if (pageSetup.differentFirstPageHeaderFooter == null)
       pageSetup.differentFirstPageHeaderFooter = refPageSetup.differentFirstPageHeaderFooter;
-    if (pageSetup.mirrorMargins.IsNull)
+    if (pageSetup.mirrorMargins == null)
       pageSetup.mirrorMargins = refPageSetup.mirrorMargins;
-    if (pageSetup.horizontalPageBreak.IsNull)
+    if (pageSetup.horizontalPageBreak == null)
       pageSetup.horizontalPageBreak = refPageSetup.horizontalPageBreak;
   }
 
@@ -385,9 +385,9 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     LineFormat refLineFormat = new LineFormat();
     refLineFormat.width = 0.15;
-    if (axis.hasMajorGridlines.Value && axis.majorGridlines != null)
+    if ((axis.hasMajorGridlines ?? false) && axis.majorGridlines != null)
       FlattenLineFormat(axis.majorGridlines.lineFormat, refLineFormat);
-    if (axis.hasMinorGridlines.Value && axis.minorGridlines != null)
+    if ((axis.hasMinorGridlines ?? false) && axis.minorGridlines != null)
       FlattenLineFormat(axis.minorGridlines.lineFormat, refLineFormat);
 
     refLineFormat.width = 0.4;
@@ -419,9 +419,9 @@ public abstract class VisitorBase : DocumentObjectVisitor
   internal override void VisitChart(Chart chart)
   {
     Document document = chart.Document;
-    if (chart.style.IsNull)
-      chart.style.Value = Style.DefaultParagraphName;
-    Style style = document.Styles[chart.style.Value];
+    if (chart.style == null)
+      chart.style = Style.DefaultParagraphName;
+    Style style = document.Styles[(chart.style ?? "")];
     if (chart.format == null)
     {
       chart.format = style.paragraphFormat.Clone();
@@ -440,7 +440,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     FlattenPlotArea(chart.plotArea);
 
-    //      if (this.hasDataLabel.Value)
+    //      if ((this.hasDataLabel ?? false))
     FlattenDataLabel(chart.dataLabel);
 
   }
@@ -481,7 +481,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     ParagraphFormat format = null;
 
-    Style style = document.styles[footnote.style.Value];
+    Style style = document.styles[(footnote.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -507,7 +507,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     ParagraphFormat format = null;
 
     DocumentObject currentElementHolder = GetDocumentElementHolder(paragraph);
-    Style style = document.styles[paragraph.style.Value];
+    Style style = document.styles[(paragraph.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
 
@@ -545,7 +545,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     }
     else
     {
-      if (paragraph.style.Value != "")
+      if ((paragraph.style ?? "") != "")
         paragraph.Style = "InvalidStyleName";
       else
         paragraph.Style = "Normal";
@@ -573,7 +573,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       styleString = "Footer";
 
     ParagraphFormat format;
-    Style style = document.styles[headerFooter.style.Value];
+    Style style = document.styles[(headerFooter.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -705,7 +705,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       table.rightPadding = Unit.FromMillimeter(1.2);
 
     ParagraphFormat format;
-    Style style = document.styles[table.style.Value];
+    Style style = document.styles[(table.style ?? "")];
     if (style != null)
       format = ParagraphFormatFromStyle(style);
     else
@@ -729,7 +729,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     {
       Column column = table.Columns[idxclm];
       ParagraphFormat colFormat;
-      style = document.styles[column.style.Value];
+      style = document.styles[(column.style ?? "")];
       if (style != null)
         colFormat = ParagraphFormatFromStyle(style);
       else
@@ -770,7 +770,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       Row row = table.Rows[idxrow];
 
       ParagraphFormat rowFormat;
-      style = document.styles[row.style.Value];
+      style = document.styles[(row.style ?? "")];
       if (style != null)
       {
         rowFormat = ParagraphFormatFromStyle(style);
@@ -787,7 +787,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
         Cell cell = row[idxclm];
 
         ParagraphFormat cellFormat;
-        Style cellStyle = document.styles[cell.style.Value];
+        Style cellStyle = document.styles[(cell.style ?? "")];
         if (cellStyle != null)
         {
           cellFormat = ParagraphFormatFromStyle(cellStyle);
@@ -870,7 +870,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
   internal override void VisitLegend(Legend legend)
   {
     ParagraphFormat parentFormat;
-    if (!legend.style.IsNull)
+    if (legend.style != null)
     {
       Style style = legend.Document.Styles[legend.Style];
       if (style == null)
@@ -899,7 +899,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
     ParagraphFormat parentFormat;
 
-    if (!textArea.style.IsNull)
+    if (textArea.style != null)
     {
       Style style = textArea.Document.Styles[textArea.Style];
       if (style == null)

@@ -57,7 +57,7 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Font(string name, Unit size)
     {
-        this.name.Value = name;
+        this.name = name;
         this.size.Value = size;
     }
 
@@ -66,7 +66,7 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Font(string name)
     {
-        this.name.Value = name;
+        this.name = name;
     }
 
     #region Methods
@@ -86,21 +86,21 @@ public sealed class Font : DocumentObject
         if (font == null)
             throw new ArgumentNullException("font");
 
-        if ((!font.name.IsNull && font.name.Value != "") && (refFont == null || font.Name != refFont.Name))
+        if (!string.IsNullOrEmpty(font.name) && (refFont == null || font.Name != refFont.Name))
             Name = font.Name;
 
         if (!font.size.IsNull && (refFont == null || font.Size != refFont.Size))
             Size = font.Size;
 
-        if (!font.bold.IsNull && (refFont == null || font.Bold != refFont.Bold))
+        if (font.bold != null && (refFont == null || font.Bold != refFont.Bold))
             Bold = font.Bold;
 
-        if (!font.italic.IsNull && (refFont == null || font.Italic != refFont.Italic))
+        if (font.italic != null && (refFont == null || font.Italic != refFont.Italic))
             Italic = font.Italic;
 
-        if (!font.subscript.IsNull && (refFont == null || font.Subscript != refFont.Subscript))
+        if (font.subscript != null && (refFont == null || font.Subscript != refFont.Subscript))
             Subscript = font.Subscript;
-        else if (!font.superscript.IsNull && (refFont == null || font.Superscript != refFont.Superscript))
+        else if (font.superscript != null && (refFont == null || font.Superscript != refFont.Superscript))
             Superscript = font.Superscript;
 
         if (!font.underline.IsNull && (refFont == null || font.Underline != refFont.Underline))
@@ -121,21 +121,21 @@ public sealed class Font : DocumentObject
         if (font == null)
             throw new ArgumentNullException("font");
 
-        if (!font.name.IsNull && font.name.Value != "")
+        if (!string.IsNullOrEmpty(font.name))
             Name = font.Name;
 
         if (!font.size.IsNull)
             Size = font.Size;
 
-        if (!font.bold.IsNull)
+        if (font.bold != null)
             Bold = font.Bold;
 
-        if (!font.italic.IsNull)
+        if (font.italic != null)
             Italic = font.Italic;
 
-        if (!font.subscript.IsNull)
+        if (font.subscript != null)
             Subscript = font.Subscript;
-        else if (!font.superscript.IsNull)
+        else if (font.superscript != null)
             Superscript = font.Superscript;
 
         if (!font.underline.IsNull)
@@ -155,11 +155,11 @@ public sealed class Font : DocumentObject
     /// </summary>
     public string Name
     {
-        get => name.Value;
-        set => name.Value = value;
+        get => name ?? "";
+        set => name = value;
     }
     [DV]
-    internal NString name = NString.NullValue;
+    internal string name;
 
     /// <summary>
     /// Gets or sets the size of the font.
@@ -177,22 +177,22 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Bold
     {
-        get => bold.Value;
-        set => bold.Value = value;
+        get => bold ?? false;
+        set => bold = value;
     }
     [DV]
-    internal NBool bold = NBool.NullValue;
+    internal bool? bold;
 
     /// <summary>
     /// Gets or sets the italic property.
     /// </summary>
     public bool Italic
     {
-        get => italic.Value;
-        set => italic.Value = value;
+        get => italic ?? false;
+        set => italic = value;
     }
     [DV]
-    internal NBool italic = NBool.NullValue;
+    internal bool? italic;
 
     /// <summary>
     /// Gets or sets the underline property.
@@ -221,30 +221,30 @@ public sealed class Font : DocumentObject
     /// </summary>
     public bool Superscript
     {
-        get => superscript.Value;
+        get => superscript ?? false;
         set
         {
-            superscript.Value = value;
-            subscript.SetNull();
+            superscript = value;
+            subscript = null;
         }
     }
     [DV]
-    internal NBool superscript = NBool.NullValue;
+    internal bool? superscript;
 
     /// <summary>
     /// Gets or sets the subscript property.
     /// </summary>
     public bool Subscript
     {
-        get => subscript.Value;
+        get => subscript ?? false;
         set
         {
-            subscript.Value = value;
-            superscript.SetNull();
+            subscript = value;
+            superscript = null;
         }
     }
     [DV]
-    internal NBool subscript = NBool.NullValue;
+    internal bool? subscript;
 
 
     public Strikethrough Strikethrough
@@ -287,21 +287,21 @@ public sealed class Font : DocumentObject
     private FontProperties CheckWhatIsNotNull()
     {
         FontProperties fp = FontProperties.None;
-        if (!name.IsNull)
+        if (name != null)
             fp |= FontProperties.Name;
         if (!size.IsNull)
             fp |= FontProperties.Size;
-        if (!bold.IsNull)
+        if (bold != null)
             fp |= FontProperties.Bold;
-        if (!italic.IsNull)
+        if (italic != null)
             fp |= FontProperties.Italic;
         if (!underline.IsNull)
             fp |= FontProperties.Underline;
         if (!color.IsNull)
             fp |= FontProperties.Color;
-        if (!superscript.IsNull)
+        if (superscript != null)
             fp |= FontProperties.Superscript;
-        if (!subscript.IsNull)
+        if (subscript != null)
             fp |= FontProperties.Subscript;
         return fp;
     }
@@ -323,7 +323,7 @@ public sealed class Font : DocumentObject
         if (Parent is FormattedText)
         {
             string fontStyle = "";
-            if (((FormattedText)Parent).style.IsNull)
+            if (((FormattedText)Parent).style == null)
             {
                 // Check if we can use a DDL keyword.
                 FontProperties notNull = CheckWhatIsNotNull();
@@ -332,12 +332,12 @@ public sealed class Font : DocumentObject
                     serializer.Write("\\fontsize(" + size.ToString() + ")");
                     return;
                 }
-                else if (notNull == FontProperties.Bold && bold.Value)
+                else if (notNull == FontProperties.Bold && (bold ?? false))
                 {
                     serializer.Write("\\bold");
                     return;
                 }
-                else if (notNull == FontProperties.Italic && italic.Value)
+                else if (notNull == FontProperties.Italic && (italic ?? false))
                 {
                     serializer.Write("\\italic");
                     return;
@@ -354,7 +354,7 @@ public sealed class Font : DocumentObject
             //bool needBlank = false;  // nice, but later...
             serializer.Write("\\font" + fontStyle + "[");
 
-            if (!name.IsNull && name.Value != "")
+            if (name != null && (name ?? "") != "")
                 serializer.WriteSimpleAttribute("Name", Name);
 
 #if DEBUG // Test
@@ -364,10 +364,10 @@ public sealed class Font : DocumentObject
             if ((!size.IsNull))
                 serializer.WriteSimpleAttribute("Size", Size);
 
-            if (!bold.IsNull)
+            if (bold != null)
                 serializer.WriteSimpleAttribute("Bold", Bold);
 
-            if (!italic.IsNull)
+            if (italic != null)
                 serializer.WriteSimpleAttribute("Italic", Italic);
 
             if (!underline.IsNull)
@@ -376,10 +376,10 @@ public sealed class Font : DocumentObject
             if (!strikethrough.IsNull)
                 serializer.WriteSimpleAttribute("Strikethrough", Strikethrough);
 
-            if (!superscript.IsNull)
+            if (superscript != null)
                 serializer.WriteSimpleAttribute("Superscript", Superscript);
 
-            if (!subscript.IsNull)
+            if (subscript != null)
                 serializer.WriteSimpleAttribute("Subscript", Subscript);
 
             if (!color.IsNull)
@@ -393,8 +393,8 @@ public sealed class Font : DocumentObject
 
             // Don't write null values if font is null.
             // Do write null values if font is not null!
-            if ((!name.IsNull && Name != String.Empty && font == null) ||
-                (font != null && !name.IsNull && Name != String.Empty && Name != font.Name))
+            if ((name != null && Name != String.Empty && font == null) ||
+                (font != null && name != null && Name != String.Empty && Name != font.Name))
                 serializer.WriteSimpleAttribute("Name", Name);
 
             // Test
@@ -404,10 +404,10 @@ public sealed class Font : DocumentObject
                 (font == null || Size != font.Size))
                 serializer.WriteSimpleAttribute("Size", Size);
             //NBool and NEnum have to be compared directly to check whether the value Null is
-            if (!bold.IsNull && (font == null || Bold != font.Bold || font.bold.IsNull))
+            if (bold != null && (font == null || Bold != font.Bold || font.bold == null))
                 serializer.WriteSimpleAttribute("Bold", Bold);
 
-            if (!italic.IsNull && (font == null || Italic != font.Italic || font.italic.IsNull))
+            if (italic != null && (font == null || Italic != font.Italic || font.italic == null))
                 serializer.WriteSimpleAttribute("Italic", Italic);
 
             if (!underline.IsNull && (font == null || Underline != font.Underline || font.underline.IsNull))
@@ -416,10 +416,10 @@ public sealed class Font : DocumentObject
             if (!strikethrough.IsNull && (font == null || Strikethrough != font.Strikethrough || font.strikethrough.IsNull))
                 serializer.WriteSimpleAttribute("Strikethrough", Strikethrough);
 
-            if (!superscript.IsNull && (font == null || Superscript != font.Superscript || font.superscript.IsNull))
+            if (superscript != null && (font == null || Superscript != font.Superscript || font.superscript == null))
                 serializer.WriteSimpleAttribute("Superscript", Superscript);
 
-            if (!subscript.IsNull && (font == null || Subscript != font.Subscript || font.subscript.IsNull))
+            if (subscript != null && (font == null || Subscript != font.Subscript || font.subscript == null))
                 serializer.WriteSimpleAttribute("Subscript", Subscript);
 
             if (!color.IsNull && (font == null || Color.Argb != font.Color.Argb))// && this.Color.RGB != Color.Transparent.RGB)

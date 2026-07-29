@@ -116,11 +116,11 @@ public class Columns : DocumentObjectCollection, IVisitable
   /// </summary>
   public string Comment
   {
-    get => this.comment.Value;
-    set => this.comment.Value = value;
+    get => this.comment ?? "";
+    set => this.comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
   #endregion
 
   #region Internal
@@ -129,7 +129,7 @@ public class Columns : DocumentObjectCollection, IVisitable
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(this.comment.Value);
+    serializer.WriteComment((this.comment ?? ""));
     serializer.WriteLine("\\columns");
 
     int pos = serializer.BeginAttributes();

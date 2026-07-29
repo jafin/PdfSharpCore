@@ -310,11 +310,11 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     public string Comment
     {
-        get => comment.Value;
-        set => comment.Value = value;
+        get => comment ?? "";
+        set => comment = value;
     }
     [DV]
-    internal NString comment = NString.NullValue;
+    internal string comment;
 
     /// <summary>
     /// Gets the last paragraph of this section, or null, if no paragraph exists is this section.
@@ -357,7 +357,7 @@ public class Section : DocumentObject, IVisitable
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteComment(comment.Value);
+        serializer.WriteComment((comment ?? ""));
         serializer.WriteLine("\\section");
 
         int pos = serializer.BeginAttributes();

@@ -159,11 +159,11 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public string Comment
   {
-    get => comment.Value;
-    set => comment.Value = value;
+    get => comment ?? "";
+    set => comment = value;
   }
   [DV]
-  internal NString comment = NString.NullValue;
+  internal string comment;
 
   /// <summary>
   /// Gets the document info.
@@ -261,33 +261,33 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public int FootnoteStartingNumber
   {
-    get => footnoteStartingNumber.Value;
-    set => footnoteStartingNumber.Value = value;
+    get => footnoteStartingNumber ?? 0;
+    set => footnoteStartingNumber = value;
   }
   [DV]
-  internal NInt footnoteStartingNumber = NInt.NullValue;
+  internal int? footnoteStartingNumber;
 
   /// <summary>
   /// Gets or sets the path for images used by the document.
   /// </summary>
   public string ImagePath
   {
-    get => imagePath.Value;
-    set => imagePath.Value = value;
+    get => imagePath ?? "";
+    set => imagePath = value;
   }
   [DV]
-  internal NString imagePath = NString.NullValue;
+  internal string imagePath;
 
   /// <summary>
   /// Gets or sets a value indicating whether to use the CMYK color model when rendered as PDF.
   /// </summary>
   public bool UseCmykColor
   {
-    get => useCmykColor.Value;
-    set => useCmykColor.Value = value;
+    get => useCmykColor ?? false;
+    set => useCmykColor = value;
   }
   [DV]
-  internal NBool useCmykColor = NBool.NullValue;
+  internal bool? useCmykColor;
 
   /// <summary>
   /// Gets the sections of the document.
@@ -323,7 +323,7 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    serializer.WriteComment(comment.Value);
+    serializer.WriteComment((comment ?? ""));
     serializer.WriteLine("\\document");
 
     int pos = serializer.BeginAttributes();
@@ -337,11 +337,11 @@ public sealed class Document : DocumentObject, IVisitable
       serializer.WriteSimpleAttribute("FootnoteNumberingRule", FootnoteNumberingRule);
     if (!footnoteNumberStyle.IsNull)
       serializer.WriteSimpleAttribute("FootnoteNumberStyle", FootnoteNumberStyle);
-    if (!footnoteStartingNumber.IsNull)
+    if (footnoteStartingNumber != null)
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
-    if (!imagePath.IsNull)
+    if (imagePath != null)
       serializer.WriteSimpleAttribute("ImagePath", ImagePath);
-    if (!useCmykColor.IsNull)
+    if (useCmykColor != null)
       serializer.WriteSimpleAttribute("UseCmykColor", UseCmykColor);
     serializer.EndAttributes(pos);
 

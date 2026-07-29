@@ -132,11 +132,11 @@ public class Point : ChartObject
   /// </summary>
   public double Value
   {
-    get => this.value.Value;
-    set => this.value.Value = value;
+    get => this.value ?? 0;
+    set => this.value = value;
   }
   [DV]
-  internal NDouble value = NDouble.NullValue;
+  internal double? value;
   #endregion
 
   #region Internal
