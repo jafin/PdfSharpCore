@@ -9,29 +9,31 @@ That was not a test problem. It was a race in `Color.ToString` that had been in 
 the port, was reachable from any two threads that serialize a document at once, and sat behind
 public API.
 
-**All items are now closed.** Items 1-6 are fixed, item 7 was assessed and the recommendation is to
-migrate — scheduled as phase 2 of
-[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md) — and item 8 was fixed earlier
-in [#46](https://github.com/jafin/PdfSharpCore/pull/46). Each section keeps the evidence it was
+**All items are now closed.** Items 1, 4 and 6 were fixed here, items 2, 3, 5 and 7 by the value
+model work below, and item 8 earlier in
+[#46](https://github.com/jafin/PdfSharpCore/pull/46). Each section keeps the evidence it was
 written from.
 
 | item | what | severity | status |
 |---|---|---|---|
 | 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
 | 2 | Every `DocumentObject` builds its metadata twice or more under load | low | **done** |
-| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | low | **done** |
+| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | ~~low~~ **medium** | **done** |
 | 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | **done** |
 | 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | **done** |
 | 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | **done** |
-| 7 | `NEnum` is the last wrapper struct standing | low | **assessed** |
+| 7 | `NEnum` is the last wrapper struct standing | low | **done** |
 | 8 | `Clear()` does nothing unless the object also carries a value | medium | **done** |
 
-**Folded in** means the item is still open, but is no longer scheduled here. Items 2, 3, 5 and 7 all
-live in the value descriptor and metadata layer, and
-[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md) replaces that layer's
-reflection with a Roslyn source generator. Three of the four then stop being fixes and become
-consequences of the new design; the fourth, item 7, is a phase of it. Fixing them here first would
-be work thrown away. Each section below records which phase of that spec resolves it and how.
+Items 2, 3, 5 and 7 all lived in the value descriptor and metadata layer, and were resolved by
+[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md), which replaced that layer's
+reflection with a Roslyn source generator. Only item 7 was a phase of that work; the other three
+fell out of the new design rather than being fixed one at a time, which is why they were moved there
+instead of being done here first. Each section below records how.
+
+Items 1 (`Color.ToString`), 4 (`DocumentInfo`) and 6 (`CS8073`) were fixed here as written. Item 1
+was the one live bug behind public API, and fixing it is what allowed `DomSerializationCollection`
+to be deleted and the DOM tests to run in parallel again.
 
 ---
 
@@ -156,7 +158,7 @@ and properties two or more times and throws all but one result away. It is waste
 wrong, which is why it is low severity — but it is the same shape of mistake as item 1 and should
 be corrected while the area is open.
 
-### Fix — folded into the value model spec
+### Fix — done, in the value model spec
 
 `Lazy<Meta>` with the default thread-safety mode, or a static initializer as in item 1. There are
 67 of these to change, all mechanical.
@@ -241,7 +243,7 @@ Latent rather than live, therefore, but it is a discarded result in a one-line m
 the descriptor by `ValueModelKnownDefectsTests.ADocumentObjectPropertyDescriptorAlwaysReportsNull`,
 which is the only place it is observable.
 
-### Fix — folded into the value model spec
+### Fix — done, in the value model spec
 
 Match `IsNull`: test the cast, and throw something that names the value if it fails.
 
@@ -294,7 +296,7 @@ that the rest of a dotted name is reached through". Asking it by listing types m
 descriptor is wrong by default: `NullableMemberDescriptor` fell through to the `DocumentObject`
 branch and threw `InvalidCastException` on every string until the third name was added by hand.
 
-### Fix — folded into the value model spec
+### Fix — done, in the value model spec
 
 A virtual on `ValueDescriptor` — `IsSimpleValue`, defaulting to `false` and overridden to `true` by
 the three — puts the answer next to the type it describes. One call site, so this is about the next
@@ -345,7 +347,7 @@ their own state and should stay. `NEnum` was the open question.
 `Nullable.GetUnderlyingType` gives the descriptor the same `ValueType` that `[DV(Type = ...)]`
 supplies today — making that attribute argument redundant as well.
 
-### Assessment — done, and it concludes "migrate"
+### Assessment — concluded "migrate", and done
 
 The `Type` is redundant, and the answer is better than the one guessed at above: the field does not
 become `int?` carrying the attribute, it becomes `TEnum?` carrying nothing. `NullableMemberDescriptor`
@@ -461,18 +463,14 @@ siblings behind.
 
 ---
 
-## Suggested order
+## Remaining order
 
 1. **Item 1** on its own, with the concurrency test. It is a live bug behind public API and it is
    the one blocking `DomSerializationCollection` from being deleted.
 2. **Item 6**, one line, guards everything after it — including the `NEnum` migration, which is the
    exact kind of mechanical rewrite that produced the `CS8073` near-misses in the first place.
 3. **Item 4** on its own, because it changes emitted DDL.
-4. **Items 2, 3, 5 and 7** are no longer scheduled here. They move to
-   [`compile-time-dom-value-model.md`](compile-time-dom-value-model.md), which sequences them as
-   phases 2 and 3 of replacing the reflection they all sit in.
-
-Item 8 is done.
+Items 2, 3, 5, 7 and 8 are done.
 
 The original plan had items 2, 3 and 5 batched together as "all mechanical", and item 7 last as an
 assessment that might conclude "leave it". The assessment concluded "migrate", and that inverts the

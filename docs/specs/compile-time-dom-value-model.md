@@ -28,8 +28,13 @@ the generator has to handle.
 |---|---|---|---|
 | 1 | Delete `DVAttribute.ItemType` — declared, set at 9 sites, read nowhere | none | **done** |
 | 2 | Migrate `NEnum` to `TEnum?`, deleting `DVAttribute.Type` and `NullableDescriptor` | medium | **done** |
-| 3 | Generate the value model; delete `Meta`'s reflection and the 67 hand-written `Meta` properties | medium | open |
-| 4 | Re-enable `EnableTrimAnalyzer`; delete the `DynamicallyAccessedMembers` annotations | low | open |
+| 3 | Generate the value model; delete `Meta`'s reflection and the 67 hand-written `Meta` properties | medium | **done** |
+| 4 | Re-enable `EnableTrimAnalyzer`; delete the `DynamicallyAccessedMembers` annotations | low | **done** |
+
+All four are implemented on `refactor/compile-time-dom-value-model`. 875 tests pass on `net8.0` and
+`net10.0`, the solution builds clean for `netstandard2.1` as well, and `EnableTrimAnalyzer` is on
+with zero `IL2xxx`. Sections below carry a **Done** note where implementation differed from the
+design, and a correction where the design was wrong.
 
 The order matters. Each phase removes work from the next: phase 1 removes a property the generator
 would otherwise have to model, phase 2 removes an entire descriptor kind, and only then is phase 3 a
@@ -316,6 +321,9 @@ public enum ValueKind
     Leaf,
     /// <summary>A struct implementing INullableValue: Unit, Color, LeftPosition, TopPosition.</summary>
     NullableValue,
+    /// <summary>A value type with no null of its own - a plain bool or enum. Added while
+    /// implementing; see 4.3.1.</summary>
+    PlainValue,
     /// <summary>A nested DocumentObject, created on demand under GV.ReadWrite.</summary>
     DocumentObject,
     /// <summary>A DocumentObjectCollection, created on demand under GV.ReadWrite.</summary>
@@ -361,6 +369,43 @@ What this buys, beyond deleting the reflection:
 * `CreateValue` stops calling `ValueType.GetConstructor(Type.EmptyTypes).Invoke(null)`
   (`ValueDescriptor.cs:60-65`) — the last `DynamicallyAccessedMembers` annotation goes with it.
 * `FieldInfo`/`PropertyInfo` leave the public surface. Nothing outside used them.
+
+### 4.3.1 `PlainValue`, the kind the design missed
+
+`FormattedText` carries `[DV]` on nine properties that delegate to its `Font`, and five of them —
+`Bold`, `Italic`, `Superscript`, `Subscript` (all `bool`) and `Underline` (an enum) — are value
+types with no null of their own. The reflection model routed every value type to
+`ValueTypeDescriptor`, whose `SetNull` casts to `INullableValue`, so:
+
+```csharp
+new FormattedText().SetNull();   // InvalidCastException: Boolean -> INullableValue
+```
+
+That is live today, through public API. It went unnoticed because reading is fine — `IsNull` tests
+the cast before using it — and serialization never calls `SetNull` on a whole object.
+
+So MDG002 cannot be an error over these members, and the design needed a fourth answer.
+`ValueKind.PlainValue` is it: `GetValue`, `SetValue` and `IsNull` behave exactly as before, and
+`SetNull` does nothing rather than throwing. **This is the one deliberate behaviour change in the
+whole migration.** Everything else preserves what the reflection did, including the answer
+`DocumentObjectDescriptor.IsNull` threw away for a property — see §4.3.2.
+
+The no-op costs nothing in practice: `FormattedText.SetNull()` also resets the `font` field these
+five properties read through, so they clear anyway. Pinned by
+`ValueModelKnownDefectsTests.FormattedTextSetNullNoLongerThrows`.
+
+### 4.3.2 The one bug deliberately carried forward
+
+`DocumentObjectDescriptor.IsNull` computed `val.IsNull()` on its property branch, discarded the
+result and returned `true`. The generated descriptor does the same, with a comment saying so.
+
+It is unobservable: `Meta.IsNull(dom, name)` does not use the descriptor for a `DocumentObject`
+member — it calls `GetValue` and asks the object — and the only `[DV]` property in the DOM whose
+type is a `DocumentObject` is `Style.Font`, whose wrong answer is masked by `Style`'s separately
+tracked `paragraphFormat`. Fixing it is a one-line change and a separate decision; making it a side
+effect of deleting the reflection would have undermined the parity harness that gates all of this.
+
+### `Meta`
 
 `Meta` becomes a sealed holder rather than a reflector:
 
@@ -518,6 +563,37 @@ output and the *emit* stage's cache still hits. Take the barrier; it is in the r
 **lowest** version that works (4.8.0 is a reasonable floor), not the newest — the referenced version
 sets the minimum SDK that can build the repo, and there is no benefit to raising it.
 
+### Done — and it needs two providers, not one
+
+The pipeline above is incomplete as designed. `ForAttributeWithMetadataName` surfaces types that
+carry `[DV]`, but **15 DOM types declare no `[DV]` member of their own** — the collections
+(`Sections`, `Cells`, `TabStops`, `DocumentElements`, `ParagraphElements`, `SeriesCollection`,
+`XValues`, …) and the parameterless field classes (`PageField`, `NumPagesField`, `SectionField`,
+`SectionPagesField`, `PageBreak`, `ChartObject`). They inherit only `DocumentObject.parent`, so the
+attribute-driven provider never sees them, and they came out of the first build as 15
+`CS0534: does not implement inherited abstract member 'DocumentObject.Meta.get'`.
+
+A second provider collects the `DocumentObject` class declarations themselves:
+
+```csharp
+IncrementalValuesProvider<ParsedType?> types = context.SyntaxProvider
+    .CreateSyntaxProvider(
+        predicate: static (node, _) => node is ClassDeclarationSyntax { BaseList: not null },
+        transform: static (ctx, _) => Parser.ParseType(ctx))
+    .Where(static t => t is not null);
+
+var combined = types.Collect().Combine(members.Collect());
+```
+
+`ParsedType` also carries the base chain, which is what lets grouping close inheritance without
+going back to the compilation — so the second provider pays for itself twice.
+
+One other thing the first build caught, worth recording because it is the kind of mistake that
+compiles in the generator and fails in the generated code: `DocumentObject.parent` is typed as the
+**abstract** base, and the factory check only asked whether a parameterless constructor existed, not
+whether the type could be instantiated. Every one of the 67 tables emitted
+`factory: static () => new DocumentObject()`. The fix is one pattern: `INamedTypeSymbol { IsAbstract: false }`.
+
 ### 4.6 Diagnostics
 
 Every one of these is a condition that today either fails at runtime or fails silently.
@@ -611,6 +687,11 @@ the reflection is gone.
 
 Worth adding at the same time: a tiny `PublishAot` console app that builds a document and writes a
 PDF, run in CI. It is the only way to catch a reflection regression that the analyzer misses.
+
+**Done, except the AOT smoke app.** Both `DynamicallyAccessedMembers` polyfills in
+`MigraDocCore.DocumentObjectModel/CompileFixes/` are deleted along with every use,
+`EnableTrimAnalyzer` is `true`, and the build is clean of `IL2xxx` on all three target frameworks.
+The `PublishAot` smoke app is **not** done and is the one piece of this spec still outstanding.
 
 ---
 
