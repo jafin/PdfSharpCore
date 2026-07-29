@@ -16,6 +16,21 @@
       README for why netstandard2.1 is a target at all.
     -->
     <LangVersion>latest</LangVersion>
+
+    <!--
+      CS8073 - "the result of the expression is always false since a value of type T is never equal
+      to null of type T?" - is the only thing between a mis-edited struct comparison and a silently
+      always-false condition. Comparing a struct that defines operator == against null compiles
+      fine, lifts to Nullable<T>, and is never true.
+
+      This is not hypothetical here. Migrating the DOM's nullable wrapper structs turned
+      style.IsNull into style == null on four NEnum fields. Two stopped compiling. The other two
+      compiled, were always false, and only CS8073 said so. Two more sites in LeftPosition and
+      TopPosition would have gone the other way, to an always-true check, for the same reason.
+
+      The tree is clean of it, so this costs nothing today and makes the next such edit fail loudly.
+    -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8073</WarningsAsErrors>
   </PropertyGroup>
 
 </Project>
