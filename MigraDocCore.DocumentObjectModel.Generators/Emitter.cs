@@ -32,8 +32,11 @@ internal static class Emitter
         source.AppendLine("    /// A static readonly field, so the CLR's type initializer guarantees it is built once and");
         source.AppendLine("    /// complete before any thread reads it. The hand-written accessor this replaced tested a");
         source.AppendLine("    /// static for null and assigned it without synchronisation, in all 67 DOM classes.");
+        source.AppendLine("    ///");
+        source.AppendLine("    /// Private, so that a derived DOM class declaring its own does not hide this one (CS0108).");
+        source.AppendLine("    /// Reached through the Meta property below, which is what every caller uses anyway.");
         source.AppendLine("    /// </remarks>");
-        source.Append("    internal static readonly ").Append(Internals).AppendLine(".Meta GeneratedMeta = new(");
+        source.Append("    private static readonly ").Append(Internals).AppendLine(".Meta GeneratedMeta = new(");
 
         for (int i = 0; i < type.Members.Count; i++)
         {
