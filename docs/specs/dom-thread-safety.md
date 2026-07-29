@@ -357,6 +357,39 @@ which would have become `value != null` — always **true**, and this time in th
 in `Directory.Build.props`. The codebase is clean of it today, so this costs nothing now and makes
 the next mechanical edit fail loudly instead of quietly.
 
+### Done — and the guard has a hole worth knowing about
+
+Added, and **verified by making it fire**: a deliberate `Color c => c == null` now fails the build
+with `error CS8073`. A guard nobody has watched fire is not a guard.
+
+The same probe against `Unit` does **not** fail, and that is not a defect in the setting — it is a
+property of `Unit`:
+
+```csharp
+public static implicit operator Unit(string value)   // Unit.cs:488
+```
+
+`null` converts to `string`, and `string` converts to `Unit`, so `unit == null` binds to the real
+`operator ==(Unit, Unit)` against `(Unit)(string)null` rather than lifting to `Unit?`. There is
+nothing constant about it, so `CS8073` correctly says nothing.
+
+What happens instead is worse. That conversion opens with `value.Trim()`, so:
+
+```csharp
+Unit u = Unit.FromPoint(3);
+bool b = u == null;      // compiles clean, throws NullReferenceException
+```
+
+So the guard does not reach the most-used struct in the DOM — 52 of the 323 `[DV]` members are
+`Unit` — and the failure mode there is a bare `NullReferenceException` rather than a silent `false`.
+
+Checked: **no such comparison exists in the codebase today.** Every `x == null` on a struct-typed
+member is either an enum member (now legitimately `TEnum?`), a `Border` (a class), or an `object`
+local returned by `GetValue(..., GV.GetNull)`. This is a latent trap, not a live bug.
+
+Recorded as F9 in [`dom-value-model-findings.md`](dom-value-model-findings.md), with the suggested
+fix, which is to null-guard the conversion so the failure at least names its cause.
+
 ---
 
 ## 7. `NEnum` is the last wrapper struct standing — assessed, recommend leaving it

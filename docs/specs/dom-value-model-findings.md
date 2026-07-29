@@ -5,9 +5,14 @@ reflection-built value model with a Roslyn source generator, and migrated `NEnum
 way. That work is done: 875 tests pass on `net8.0` and `net10.0`, `EnableTrimAnalyzer` is on with
 zero `IL2xxx`, and a natively compiled binary exercises the whole model end to end.
 
-Doing it, and then fixing the first item it unblocked, turned up eight things that were not the
+Doing it, and then working through the items it unblocked, turned up nine things that were not the
 point of the exercise. Two were live defects, one of which crashes through public API. The rest are
 latent, or are shapes in the code that only became visible once the reflection stopped hiding them.
+
+Several were found by *verifying* rather than by reading — F8 by asserting the obvious thing about
+colour aliasing and watching it fail, F9 by checking that a newly added compiler guard actually
+fires. That is the pattern worth carrying forward: the findings came from probing claims, not from
+inspecting code.
 
 This document records those, and what is worth doing next. Nothing here is required by the value
 model work — it is all standalone, and can be picked up in any order.
@@ -22,6 +27,7 @@ model work — it is all standalone, and can be picked up in any order.
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | low | open |
 | F8 | Aliased colours serialize under the name that was not declared first | low | open |
+| F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | open |
 
 ---
 
@@ -293,6 +299,53 @@ enum ordering.
 
 ---
 
+## F9. `unit == null` compiles clean and throws at run time
+
+Found while verifying that item 6 of [`dom-thread-safety.md`](dom-thread-safety.md) — turning
+`CS8073` into an error — actually guards anything.
+
+It does, for most structs: a deliberate `Color c => c == null` now fails the build. It does **not**
+for `Unit`, and `Unit` is the most-used struct in the DOM — 52 of the 323 `[DV]` members.
+
+`Unit` declares `implicit operator Unit(string)` (`Unit.cs:488`). `null` converts to `string`, and
+`string` converts to `Unit`, so `unit == null` binds to the real `operator ==(Unit, Unit)` against
+`(Unit)(string)null` rather than lifting to `Unit?`. Nothing about it is constant, so `CS8073`
+correctly stays silent. And that conversion opens with `value.Trim()`:
+
+```csharp
+Unit u = Unit.FromPoint(3);
+bool b = u == null;      // compiles with no warning, throws NullReferenceException
+```
+
+So the guard item 6 adds does not reach the type it would most need to, and the failure mode there
+is a bare `NullReferenceException` with no indication of why.
+
+**Not a live bug.** Every `x == null` on a struct-typed member in the tree today is an enum member
+(legitimately `TEnum?` since the migration), a `Border` (a class), or an `object` local returned by
+`GetValue(..., GV.GetNull)`. Checked across the DOM and the renderer. This is a trap waiting for the
+next mechanical `IsNull` → `== null` rewrite, which is exactly the edit item 6 exists to guard and
+exactly the edit this stack of work has done a lot of.
+
+### Suggested fix
+
+Null-guard the conversion, so the failure names its cause:
+
+```csharp
+public static implicit operator Unit(string value)
+{
+    if (value == null)
+        throw new ArgumentNullException(nameof(value));
+    ...
+}
+```
+
+That does not make `unit == null` an error — nothing can, short of removing the string conversion —
+but it turns an unexplained `NullReferenceException` into something that says what happened. Whether
+to go further and drop the implicit `string` conversion for an explicit `Unit.Parse` is a public API
+decision worth its own discussion; the conversion is convenient and widely used.
+
+---
+
 ## Still open in `dom-thread-safety.md`
 
 Three items from that document were not touched by this work and remain scheduled there:
@@ -301,7 +354,7 @@ Three items from that document were not touched by this work and remain schedule
 |---|---|---|---|
 | 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
 | 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | open |
-| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | open |
+| 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | **done** |
 
 **Item 1 is done.** The table is now a `static readonly Dictionary` built by a static initializer,
 `DomSerializationCollection` is deleted, and the seven DOM test classes it serialized run in
@@ -309,8 +362,11 @@ parallel again — 880 tests, three consecutive clean runs on both target framew
 real confirmation the item asked for: the `Color` race was the only thing those tests were being
 serialized to avoid. It also produced F8 above.
 
-Item 6 is one line in `Directory.Build.props` and guards every future mechanical edit of the kind
-this work did a lot of.
+**Item 6 is done**, and verified by making it fire rather than by assuming it would. It also
+produced F9 above: the guard cannot reach `Unit`, which is the struct it would most need to.
+
+**Item 4 is the only one still open there**, and it is the one that changes emitted DDL, so it wants
+a decision rather than a patch.
 
 ---
 
@@ -344,9 +400,9 @@ is a deliberate cost and its size is unknown.
 ## Suggested order
 
 1. ~~**`dom-thread-safety.md` item 1** — `Color.ToString`.~~ **Done.**
-2. **F5, the seven `ToArray(Type)` sites** — mechanical, no behaviour change, takes the AOT publish
+2. ~~**F5, the seven `ToArray(Type)` sites**~~ **Done.** — mechanical, no behaviour change, takes the AOT publish
    to warning-free.
-3. **`dom-thread-safety.md` item 6** — `CS8073` as an error. One line, guards everything after it.
+3. ~~**`dom-thread-safety.md` item 6** — `CS8073` as an error.~~ **Done.**
 4. **F2** — one line plus a test update, removes a discarded result.
 5. **Generator diagnostic tests** — the cheapest way to stop MDG001–006 being decorative.
 6. **F7's evaluation**, then **F3** and **F4** depending on what it concludes.
