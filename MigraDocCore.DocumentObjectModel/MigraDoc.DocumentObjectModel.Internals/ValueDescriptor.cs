@@ -83,6 +83,15 @@ public abstract class ValueDescriptor
         else
             type = ((PropertyInfo)memberInfo).PropertyType;
 
+        // A member that carries its own null - bool?, int?, double? or a string - needs no wrapper
+        // struct. Checked before the ValueType test below, which Nullable<T> would otherwise match.
+        Type nullableUnderlyingType = Nullable.GetUnderlyingType(type);
+        if (nullableUnderlyingType != null)
+            return new NullableMemberDescriptor(name, nullableUnderlyingType, type, memberInfo, flags);
+
+        if (type == typeof(String))
+            return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
+
         if (type == typeof(NBool))
             return new NullableDescriptor(name, typeof(Boolean), type, memberInfo, flags);
 
@@ -94,9 +103,6 @@ public abstract class ValueDescriptor
 
         if (type == typeof(NString))
             return new NullableDescriptor(name, typeof(String), type, memberInfo, flags);
-
-        if (type == typeof(String))
-            return new ValueTypeDescriptor(name, typeof(String), type, memberInfo, flags);
 
         if (type == typeof(NEnum))
         {
