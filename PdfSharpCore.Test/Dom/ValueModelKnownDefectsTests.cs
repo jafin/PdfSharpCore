@@ -57,21 +57,16 @@ public class ValueModelKnownDefectsTests
     }
 
     /// <summary>
-    ///   DocumentObjectDescriptor.IsNull calls val.IsNull() on its property branch, discards the
-    ///   result, and returns true unconditionally. Style.Font is the only [DV] property in the DOM
-    ///   whose type is a DocumentObject, so it is the only member the branch applies to.
+    ///   DocumentObjectDescriptor.IsNull used to compute val.IsNull() on its property branch,
+    ///   discard the result and return true unconditionally, so Style.Font - the only [DV] property
+    ///   in the DOM whose type is a DocumentObject - reported itself null whatever it held.
     ///
-    ///   The blast radius is smaller than it looks, which is why nothing has noticed: Meta.IsNull
-    ///   (dom, name) does not use it - for a DocumentObject member it calls GetValue and asks the
-    ///   object itself - so style.IsNull("Font") answers correctly. Only the whole-object
-    ///   Meta.IsNull(dom) sweep calls the descriptor, where Style's separately tracked
-    ///   paragraphFormat field masks the wrong answer.
-    ///
-    ///   So this is a latent defect rather than a live one. Pinned at the descriptor, which is the
-    ///   only place it is observable.
+    ///   It was carried forward unchanged through the move to a generated value model, so that the
+    ///   parity harness gated a replacement rather than a behaviour change, and fixed afterwards.
+    ///   These assert the fix, and that the fix changed nothing a caller can see.
     /// </summary>
     [Fact]
-    public void ADocumentObjectPropertyDescriptorAlwaysReportsNull()
+    public void ADocumentObjectPropertyDescriptorAnswersForTheObjectItHolds()
     {
         // A user-defined style, not Styles[0] - the built-in styles are read-only, and their
         // ParagraphFormat getter hands back a clone, so assignments to them go nowhere.
@@ -82,11 +77,36 @@ public class ValueModelKnownDefectsTests
 
         ValueDescriptor font = Meta.GetMeta(style)["Font"];
 
-        font.IsNull(style).Should().BeTrue(
-            "the property branch discards the answer it computes and returns true");
-        style.Font.IsNull().Should().BeFalse("though the font plainly has values");
+        font.IsNull(style).Should().BeFalse("the font plainly has values");
+        font.IsNull(style).Should().Be(style.Font.IsNull(), "the descriptor must agree with the object");
+    }
 
-        // The route callers actually take is unaffected, which is what keeps this latent.
+    [Fact]
+    public void AnEmptyDocumentObjectPropertyStillReportsNull()
+    {
+        var document = new Document();
+        Style style = document.Styles.AddStyle("Empty", "Normal");
+
+        ValueDescriptor font = Meta.GetMeta(style)["Font"];
+
+        font.IsNull(style).Should().BeTrue("nothing has been assigned to it");
+    }
+
+    /// <summary>
+    ///   The blast radius was always small, which is why nothing noticed: Meta.IsNull(dom, name)
+    ///   does not use the descriptor for a DocumentObject member - it calls GetValue and asks the
+    ///   object itself - and the whole-object sweep had Style's separately tracked paragraphFormat
+    ///   field masking the wrong answer. Both routes answered correctly before the fix and must
+    ///   still answer the same afterwards.
+    /// </summary>
+    [Fact]
+    public void TheRoutesCallersTakeAreUnchanged()
+    {
+        var document = new Document();
+        Style style = document.Styles.AddStyle("Probe", "Normal");
+        style.Font.Bold = true;
+
         style.IsNull("Font").Should().BeFalse("Meta.IsNull(dom, name) asks the object, not the descriptor");
+        style.IsNull().Should().BeFalse("paragraphFormat already answered for the whole object");
     }
 }

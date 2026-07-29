@@ -20,7 +20,7 @@ model work — it is all standalone, and can be picked up in any order.
 | # | finding | severity | status |
 |---|---|---|---|
 | F1 | `FormattedText.SetNull()` threw `InvalidCastException` | medium | **fixed** |
-| F2 | `DocumentObjectDescriptor.IsNull` discards the answer it computes | low | carried forward, pinned |
+| F2 | `DocumentObjectDescriptor.IsNull` discards the answer it computes | low | **done** |
 | F3 | `FormattedText.IsNull()` can never return true | low | open |
 | F4 | Writing through a read-only style silently does nothing | medium | open |
 | F5 | `ArrayList.ToArray(Type)` is AOT-unsafe, at seven sites | medium | **done** |
@@ -66,9 +66,9 @@ if (val != null)
 return true;
 ```
 
-The generated descriptor does the same thing, deliberately, with a comment saying so. Changing it
+The generated descriptor carried it forward deliberately, with a comment saying so. Changing it
 during the migration would have meant the parity harness was gating a behaviour change rather than
-a behaviour-preserving replacement.
+a behaviour-preserving replacement. Fixed afterwards — see **Done** below.
 
 **Blast radius is small.** `Style.Font` is the only `[DV]` property in the DOM whose type is a
 `DocumentObject`, and `Meta.IsNull(dom, name)` does not use the descriptor for a `DocumentObject`
@@ -85,6 +85,19 @@ which currently pins the wrong answer.
 
 Verify by checking that `Style.IsNull()` is unchanged for a style with a font — it should be,
 because `paragraphFormat` already answers correctly, which is the whole reason this is latent.
+
+### Done
+
+Fixed exactly as described: the `isField` guard is gone and properties answer for the object they
+hold, like fields always did.
+
+Nothing a caller can see changed, which was the expectation and is now asserted rather than assumed.
+`ValueModelKnownDefectsTests` grew from one test pinning the wrong answer to three: the descriptor
+now agrees with the object it describes, an unassigned property still reports null, and both routes
+callers actually take — `Meta.IsNull(dom, name)` and the whole-object `Meta.IsNull(dom)` — answer
+exactly as before.
+
+882 tests pass, and the whole existing suite is untouched by the change.
 
 ---
 
@@ -403,7 +416,7 @@ is a deliberate cost and its size is unknown.
 2. ~~**F5, the seven `ToArray(Type)` sites**~~ **Done.** — mechanical, no behaviour change, takes the AOT publish
    to warning-free.
 3. ~~**`dom-thread-safety.md` item 6** — `CS8073` as an error.~~ **Done.**
-4. **F2** — one line plus a test update, removes a discarded result.
+4. ~~**F2** — one line plus a test update.~~ **Done.**
 5. **Generator diagnostic tests** — the cheapest way to stop MDG001–006 being decorative.
 6. **F7's evaluation**, then **F3** and **F4** depending on what it concludes.
 7. **`dom-thread-safety.md` item 4**, and the wider `ArrayList`/`Hashtable` migration, as their own
