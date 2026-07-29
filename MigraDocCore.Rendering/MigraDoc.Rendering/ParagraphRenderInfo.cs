@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
 namespace MigraDocCore.Rendering
 {
@@ -37,28 +36,20 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class ParagraphRenderInfo : RenderInfo
   {
-    internal ParagraphRenderInfo()
-    {
-    }
+    internal override FormatInfo FormatInfo => formatInfo;
 
-    internal override FormatInfo FormatInfo
-    {
-      get { return this.formatInfo; }
-    }
     ParagraphFormatInfo formatInfo = new ParagraphFormatInfo();
 
-    public override DocumentObject DocumentObject
-    {
-      get { return this.paragraph; }
-    }
+    public override DocumentObject DocumentObject => paragraph;
+
     internal Paragraph paragraph;
 
     internal override void RemoveEnding()
     {
-      ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)this.FormatInfo;
+      ParagraphFormatInfo pfInfo = (ParagraphFormatInfo)FormatInfo;
       pfInfo.RemoveEnding();
-      Area contentArea = this.LayoutInfo.ContentArea;
-      contentArea.Height -= this.LayoutInfo.TrailingHeight;
+      Area contentArea = LayoutInfo.ContentArea;
+      contentArea.Height -= LayoutInfo.TrailingHeight;
     }
   }
 }

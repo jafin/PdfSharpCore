@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
 

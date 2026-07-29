@@ -52,13 +52,6 @@ namespace PdfSharpCore.Drawing.BarCodes
             // HACK in ThickThinBarCode
             if (TextLocation != TextLocation.None)
                 info.BarHeight *= 4.0 / 5;
-
-#if DEBUG_
-            XColor back = XColors.LightSalmon;
-            back.A = 0.3;
-            XSolidBrush brush = new XSolidBrush(back);
-            info.Gfx.DrawRectangle(brush, new XRect(info.Center - size / 2, size));
-#endif
             switch (Direction)
             {
                 case CodeDirection.RightToLeft:

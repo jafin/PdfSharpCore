@@ -519,10 +519,6 @@ namespace PdfSharpCore.Pdf.IO
                     PdfReference iref = irefs[idx];
                     if (iref.Value == null)
                     {
-#if DEBUG_
-                        if (iref.ObjectNumber == 1074)
-                            iref.GetType();
-#endif
                         try
                         {
                             Debug.Assert(document._irefTable.Contains(iref.ObjectID));
@@ -563,14 +559,6 @@ namespace PdfSharpCore.Pdf.IO
 
                 // Fix references of trailer values and then objects and irefs are consistent.
                 document._trailer.Finish();
-
-#if DEBUG_
-    // Some tests...
-                PdfReference[] reachables = document.xrefTable.TransitiveClosure(document.trailer);
-                reachables.GetType();
-                reachables = document.xrefTable.AllXRefs;
-                document.xrefTable.CheckConsistence();
-#endif
 
                 if (openmode == PdfDocumentOpenMode.Modify)
                 {

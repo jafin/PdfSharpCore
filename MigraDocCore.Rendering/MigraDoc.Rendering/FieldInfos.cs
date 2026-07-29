@@ -29,9 +29,7 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
@@ -51,7 +49,7 @@ namespace MigraDocCore.Rendering
       internal BookmarkInfo(int physicalPageNumber, int displayPageNumber, double top)
       {
         this.displayPageNumber = physicalPageNumber;
-        this.shownPageNumber = displayPageNumber;
+        shownPageNumber = displayPageNumber;
         this.top = top;
       }
 
@@ -67,16 +65,16 @@ namespace MigraDocCore.Rendering
 
     internal void AddBookmark(string name, XUnit verticalPosition)
     {
-      if (this.pyhsicalPageNr <= 0)
+      if (pyhsicalPageNr <= 0)
         return;
 
-      if (this.bookmarks.ContainsKey(name))
-        this.bookmarks.Remove(name);
+      if (bookmarks.ContainsKey(name))
+        bookmarks.Remove(name);
 
       // A document is laid out from the top of the page down and a PDF page is measured from the
       // bottom up, so the one has to be turned into the other before it can be a destination.
-      double top = this.pageHeight.Point > 0 ? this.pageHeight.Point - verticalPosition.Point : double.NaN;
-      this.bookmarks.Add(name, new BookmarkInfo(this.pyhsicalPageNr, this.displayPageNr, top));
+      double top = pageHeight.Point > 0 ? pageHeight.Point - verticalPosition.Point : double.NaN;
+      bookmarks.Add(name, new BookmarkInfo(pyhsicalPageNr, displayPageNr, top));
     }
 
     /// <summary>
@@ -85,16 +83,16 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal double GetBookmarkTop(string bookmarkName)
     {
-      if (this.bookmarks.ContainsKey(bookmarkName))
-        return this.bookmarks[bookmarkName].top;
+      if (bookmarks.ContainsKey(bookmarkName))
+        return bookmarks[bookmarkName].top;
       return double.NaN;
     }
 
     internal int GetShownPageNumber(string bookmarkName)
     {
-      if (this.bookmarks.ContainsKey(bookmarkName))
+      if (bookmarks.ContainsKey(bookmarkName))
       {
-        BookmarkInfo bi = this.bookmarks[bookmarkName];
+        BookmarkInfo bi = bookmarks[bookmarkName];
         return bi.shownPageNumber;
       }
       return -1;
@@ -102,9 +100,9 @@ namespace MigraDocCore.Rendering
 
     internal int GetPhysicalPageNumber(string bookmarkName)
     {
-      if (this.bookmarks.ContainsKey(bookmarkName))
+      if (bookmarks.ContainsKey(bookmarkName))
       {
-        BookmarkInfo bi = this.bookmarks[bookmarkName];
+        BookmarkInfo bi = bookmarks[bookmarkName];
         return bi.displayPageNumber;
       }
       return -1;

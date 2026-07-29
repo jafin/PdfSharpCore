@@ -701,7 +701,6 @@ namespace PdfSharpCore.Pdf
             if (MediaBoxIsTurnedWhenWritten)
                 MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
 
-#if true
             // Add transparency group to prevent rendering problems of Adobe viewer.
             // Update (PDFsharp 1.50 beta 3): Add transparency group only of ColorMode is defined.
             // Rgb is the default for the ColorMode, but if user sets it to Undefined then
@@ -720,13 +719,6 @@ namespace PdfSharpCore.Pdf
                 //False is default: group.Elements["/I"] = new PdfBoolean(false);
                 //False is default: group.Elements["/K"] = new PdfBoolean(false);
             }
-#endif
-
-#if DEBUG_
-            PdfItem item = Elements["/MediaBox"];
-            if (item != null)
-                item.GetType();
-#endif
             base.WriteObject(writer);
 
             if (MediaBoxIsTurnedWhenWritten)

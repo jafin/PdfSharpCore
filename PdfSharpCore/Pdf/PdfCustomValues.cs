@@ -36,32 +36,16 @@ namespace PdfSharpCore.Pdf
     /// </summary>
     public class PdfCustomValues : PdfDictionary
     {
-        internal PdfCustomValues()
+        private PdfCustomValues()
         { }
 
         internal PdfCustomValues(PdfDocument document)
             : base(document)
         { }
 
-        internal PdfCustomValues(PdfDictionary dict)
+        private PdfCustomValues(PdfDictionary dict)
             : base(dict)
         { }
-
-        /// <summary>
-        /// This function is intended for empira internal use only.
-        /// </summary>
-        public PdfCustomValueCompressionMode CompressionMode
-        {
-            set { throw new NotImplementedException(); }
-        }
-
-        /// <summary>
-        /// This function is intended for empira internal use only.
-        /// </summary>
-        public bool Contains(string key)
-        {
-            return Elements.ContainsKey(key);
-        }
 
         /// <summary>
         /// This function is intended for empira internal use only.
@@ -70,11 +54,10 @@ namespace PdfSharpCore.Pdf
         {
             get
             {
-                PdfDictionary dict = Elements.GetDictionary(key);
+                var dict = Elements.GetDictionary(key);
                 if (dict == null)
                     return null;
-                PdfCustomValue cust = dict as PdfCustomValue;
-                if (cust == null)
+                if (dict is not PdfCustomValue cust)
                     cust = new PdfCustomValue(dict);
                 return cust;
             }
@@ -90,54 +73,13 @@ namespace PdfSharpCore.Pdf
                     Elements.SetReference(key, value);
                 }
             }
-#if old
-            get
-            {
-                PdfDictionary dict = Elements.GetDictionary(key);
-                if (dict == null)
-                    return null;
-                if (!(dict is PdfCustomValue))
-                    dict = new PdfCustomValue(dict);
-                return dict.Stream.Value;
-            }
-            set
-            {
-                PdfCustomValue cust;
-                PdfDictionary dict = Elements.GetDictionary(key);
-                if (dict == null)
-                {
-                    cust = new PdfCustomValue();
-                    Owner.Internals.AddObject(cust);
-                    Elements.Add(key, cust);
-                }
-                else
-                {
-                    cust = dict as PdfCustomValue;
-                    if (cust == null)
-                        cust = new PdfCustomValue(dict);
-                }
-                cust.Value = value;
-            }
-#endif
         }
-
-        /// <summary>
-        /// This function is intended for empira internal use only.
-        /// </summary>
-        public static void ClearAllCustomValues(PdfDocument document)
-        {
-            document.CustomValues = null;
-            foreach (PdfPage page in document.Pages)
-                page.CustomValues = null;
-        }
-
-        //public static string Key = "/PdfSharpCore.CustomValue";
 
         internal static PdfCustomValues Get(DictionaryElements elem)
         {
-            string key = elem.Owner.Owner.Internals.CustomValueKey;
+            var key = elem.Owner.Owner.Internals.CustomValueKey;
             PdfCustomValues customValues;
-            PdfDictionary dict = elem.GetDictionary(key);
+            var dict = elem.GetDictionary(key);
             if (dict == null)
             {
                 customValues = new PdfCustomValues();
@@ -146,9 +88,7 @@ namespace PdfSharpCore.Pdf
             }
             else
             {
-                customValues = dict as PdfCustomValues;
-                if (customValues == null)
-                    customValues = new PdfCustomValues(dict);
+                customValues = dict as PdfCustomValues ?? new PdfCustomValues(dict);
             }
             return customValues;
         }

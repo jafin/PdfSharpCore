@@ -1,7 +1,5 @@
-using System;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.Rendering.UnitTest
 {

@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Diagnostics;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
@@ -45,10 +44,8 @@ namespace MigraDocCore.Rendering
       get;
     }
 
-    public LayoutInfo LayoutInfo
-    {
-      get { return this.layoutInfo; }
-    }
+    public LayoutInfo LayoutInfo => layoutInfo;
+
     LayoutInfo layoutInfo = new LayoutInfo();
 
     public abstract DocumentObject DocumentObject

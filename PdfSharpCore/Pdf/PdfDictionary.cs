@@ -1210,23 +1210,7 @@ namespace PdfSharpCore.Pdf
                 {
                     if (value == null)
                         throw new ArgumentNullException("value");
-#if DEBUG_
-                    if (key == "/MediaBox")
-                        key.GetType();
 
-                    //if (value is PdfObject)
-                    //{
-                    //  PdfObject obj = (PdfObject)value;
-                    //  if (obj.Reference != null)
-                    //    throw new ArgumentException("An object with an indirect reference cannot be a direct value. Try to set an indirect refernece.");
-                    //}
-                    if (value is PdfDictionary)
-                    {
-                        PdfDictionary dict = (PdfDictionary)value;
-                        if (dict._stream != null)
-                            throw new ArgumentException("A dictionary with stream cannot be a direct value.");
-                    }
-#endif
                     PdfObject obj = value as PdfObject;
                     if (obj != null && obj.IsIndirect)
                         value = obj.Reference;
@@ -1651,18 +1635,10 @@ namespace PdfSharpCore.Pdf
                 PdfItem filter = _ownerDictionary.Elements[Keys.Filter];
                 if (filter != null)
                 {
-#if true
                     var decodeParms = _ownerDictionary.Elements[Keys.DecodeParms];
                     byte[] bytes = Filtering.Decode(_value, filter, decodeParms);
                     if (bytes != null)
                         stream = PdfEncoders.RawEncoding.GetString(bytes, 0, bytes.Length);
-#else
-
-                    if (_owner.Elements.GetString("/Filter") == "/FlateDecode")
-                    {
-                        stream = Filtering.FlateDecode.DecodeToString(_value);
-                    }
-#endif
                     else
                         throw new NotImplementedException("Unknown filter");
                 }
@@ -1766,20 +1742,9 @@ namespace PdfSharpCore.Pdf
         /// Gets the DebuggerDisplayAttribute text.
         /// </summary>
         // ReSharper disable UnusedMember.Local
-        string DebuggerDisplay
-        // ReSharper restore UnusedMember.Local
-        {
-            get
-            {
-#if true
-                return String.Format(CultureInfo.InvariantCulture, "dictionary({0},[{1}])={2}", 
-                    ObjectID.DebuggerDisplay, 
-                    Elements.Count,
-                    _elements.DebuggerDisplay);
-#else
-                return String.Format(CultureInfo.InvariantCulture, "dictionary({0},[{1}])=", ObjectID.DebuggerDisplay, _elements.DebuggerDisplay);
-#endif
-            }
-        }
+        string DebuggerDisplay => String.Format(CultureInfo.InvariantCulture, "dictionary({0},[{1}])={2}", 
+            ObjectID.DebuggerDisplay, 
+            Elements.Count,
+            _elements.DebuggerDisplay); // ReSharper restore UnusedMember.Local
     }
 }

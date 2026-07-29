@@ -28,11 +28,9 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.Rendering
 {
@@ -51,27 +49,23 @@ namespace MigraDocCore.Rendering
     {
       Color clr = Colors.Black;
 
-      if (this.lineFormat != null && !this.lineFormat.Color.IsEmpty)
-        clr = this.lineFormat.Color;
+      if (lineFormat != null && !lineFormat.Color.IsEmpty)
+        clr = lineFormat.Color;
 
-#if noCMYK
-      return XColor.FromArgb((int)clr.Argb);
-#else
-      return ColorHelper.ToXColor(clr, this.lineFormat.Document.UseCmykColor);
-#endif
+      return ColorHelper.ToXColor(clr, lineFormat.Document.UseCmykColor);
     }
 
     internal XUnit GetWidth()
     {
-      if (this.lineFormat == null)
+      if (lineFormat == null)
         return 0;
-      if (!this.lineFormat.IsNull("Visible") && !this.lineFormat.Visible)
+      if (!lineFormat.IsNull("Visible") && !lineFormat.Visible)
         return 0;
 
-      if (!this.lineFormat.IsNull("Width"))
-        return this.lineFormat.Width.Point;
+      if (!lineFormat.IsNull("Width"))
+        return lineFormat.Width.Point;
 
-      if (!this.lineFormat.IsNull("Color") || !this.lineFormat.IsNull("Style") || this.lineFormat.Visible)
+      if (!lineFormat.IsNull("Color") || !lineFormat.IsNull("Style") || lineFormat.Visible)
         return 1;
 
       return 0;
@@ -83,7 +77,7 @@ namespace MigraDocCore.Rendering
       if (lineWidth > 0)
       {
         XPen pen = GetPen(lineWidth);
-        this.gfx.DrawRectangle(pen, xPosition, yPosition, width, height);
+        gfx.DrawRectangle(pen, xPosition, yPosition, width, height);
       }
     }
 
@@ -93,7 +87,7 @@ namespace MigraDocCore.Rendering
         return null;
 
       XPen pen = new XPen(GetColor(), width);
-      switch (this.lineFormat.DashStyle)
+      switch (lineFormat.DashStyle)
       {
         case DashStyle.Dash:
           pen.DashStyle = XDashStyle.Dash;

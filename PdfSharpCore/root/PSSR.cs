@@ -397,17 +397,8 @@ namespace PdfSharpCore
                         Lock.EnterFontFactory();
                         if (_resmngr == null)
                         {
-#if true_
-                            // Force the English language.
-                            System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.CultureInfo.InvariantCulture;
-#endif
-#if !NETFX_CORE && !UWP && !PORTABLE
                             _resmngr = new ResourceManager("PdfSharpCore.Resources.Messages",
                                 Assembly.GetExecutingAssembly());
-#else
-                            _resmngr = new ResourceManager("PdfSharpCore.Resources.Messages",
-                                typeof(PSSR).GetTypeInfo().Assembly);
-#endif
                         }
                     }
                     finally { Lock.ExitFontFactory(); }

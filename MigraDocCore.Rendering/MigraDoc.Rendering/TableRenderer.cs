@@ -29,13 +29,11 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.Rendering
@@ -49,14 +47,14 @@ namespace MigraDocCore.Rendering
       :
       base(gfx, documentObject, fieldInfos)
     {
-      this.table = (Table)documentObject;
+      table = (Table)documentObject;
     }
 
     internal TableRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
       :
       base(gfx, renderInfo, fieldInfos)
     {
-      this.table = (Table)this.renderInfo.DocumentObject;
+      table = (Table)this.renderInfo.DocumentObject;
     }
 
     internal override LayoutInfo InitialLayoutInfo
@@ -64,7 +62,7 @@ namespace MigraDocCore.Rendering
       get
       {
         LayoutInfo layoutInfo = new LayoutInfo();
-        layoutInfo.KeepTogether = this.table.KeepTogether;
+        layoutInfo.KeepTogether = table.KeepTogether;
         layoutInfo.KeepWithNext = false;
         layoutInfo.MarginBottom = 0;
         layoutInfo.MarginLeft = 0;
@@ -77,19 +75,19 @@ namespace MigraDocCore.Rendering
 
     void InitRendering()
     {
-      TableFormatInfo formatInfo = (TableFormatInfo)this.renderInfo.FormatInfo;
-      this.bottomBorderMap = formatInfo.bottomBorderMap;
-      this.connectedRowsMap = formatInfo.connectedRowsMap;
-      this.formattedCells = formatInfo.formattedCells;
+      TableFormatInfo formatInfo = (TableFormatInfo)renderInfo.FormatInfo;
+      bottomBorderMap = formatInfo.bottomBorderMap;
+      connectedRowsMap = formatInfo.connectedRowsMap;
+      formattedCells = formatInfo.formattedCells;
 
-      this.currRow = formatInfo.startRow;
-      this.startRow = formatInfo.startRow;
-      this.endRow = formatInfo.endRow;
+      currRow = formatInfo.startRow;
+      startRow = formatInfo.startRow;
+      endRow = formatInfo.endRow;
 
-      this.mergedCells = formatInfo.mergedCells;
-      this.lastHeaderRow = formatInfo.lastHeaderRow;
-      this.startX = this.renderInfo.LayoutInfo.ContentArea.X;
-      this.startY = this.renderInfo.LayoutInfo.ContentArea.Y;
+      mergedCells = formatInfo.mergedCells;
+      lastHeaderRow = formatInfo.lastHeaderRow;
+      startX = renderInfo.LayoutInfo.ContentArea.X;
+      startY = renderInfo.LayoutInfo.ContentArea.Y;
     }
 
     /// <summary>
@@ -97,12 +95,12 @@ namespace MigraDocCore.Rendering
     /// </summary>
     void RenderHeaderRows()
     {
-      if (this.lastHeaderRow < 0)
+      if (lastHeaderRow < 0)
         return;
 
-      foreach (Cell cell in this.mergedCells)
+      foreach (Cell cell in mergedCells)
       {
-        if (cell.Row.Index <= this.lastHeaderRow)
+        if (cell.Row.Index <= lastHeaderRow)
           RenderCell(cell);
       }
     }
@@ -158,7 +156,7 @@ namespace MigraDocCore.Rendering
 
     void RenderShading(Cell cell, Rectangle innerRect)
     {
-      ShadingRenderer shadeRenderer = new ShadingRenderer(this.gfx, cell.Shading);            
+      ShadingRenderer shadeRenderer = new ShadingRenderer(gfx, cell.Shading);            
       shadeRenderer.Render(innerRect.X, innerRect.Y, innerRect.Width, innerRect.Height, cell.RoundedCorner);
     }
 
@@ -168,9 +166,9 @@ namespace MigraDocCore.Rendering
       XUnit rightPos = leftPos + innerRect.Width;
       XUnit topPos = innerRect.Y;
       XUnit bottomPos = innerRect.Y + innerRect.Height;
-      Borders mergedBorders = this.mergedCells.GetEffectiveBorders(cell);
+      Borders mergedBorders = mergedCells.GetEffectiveBorders(cell);
 
-      BordersRenderer bordersRenderer = new BordersRenderer(mergedBorders, this.gfx);
+      BordersRenderer bordersRenderer = new BordersRenderer(mergedBorders, gfx);
       XUnit bottomWidth = bordersRenderer.GetWidth(BorderType.Bottom);
       XUnit leftWidth = bordersRenderer.GetWidth(BorderType.Left);
       XUnit topWidth = bordersRenderer.GetWidth(BorderType.Top);
@@ -203,14 +201,14 @@ namespace MigraDocCore.Rendering
 
     void RenderDiagonalBorders(Borders mergedBorders, Rectangle innerRect)
     {
-      BordersRenderer bordersRenderer = new BordersRenderer(mergedBorders, this.gfx);
+      BordersRenderer bordersRenderer = new BordersRenderer(mergedBorders, gfx);
       bordersRenderer.RenderDiagonally(BorderType.DiagonalDown, innerRect.X, innerRect.Y, innerRect.Width, innerRect.Height);
       bordersRenderer.RenderDiagonally(BorderType.DiagonalUp, innerRect.X, innerRect.Y, innerRect.Width, innerRect.Height);
     }
 
     void RenderContent(Cell cell, Rectangle innerRect)
     {
-      FormattedCell formattedCell = (FormattedCell)this.formattedCells[cell];
+      FormattedCell formattedCell = (FormattedCell)formattedCells[cell];
       RenderInfo[] renderInfos = formattedCell.GetRenderInfos();
 
       if (renderInfos == null)
@@ -245,32 +243,32 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetInnerRect(XUnit startingHeight, Cell cell)
     {
-      BordersRenderer bordersRenderer = new BordersRenderer(this.mergedCells.GetEffectiveBorders(cell), this.gfx);
-      FormattedCell formattedCell = (FormattedCell)this.formattedCells[cell];
+      BordersRenderer bordersRenderer = new BordersRenderer(mergedCells.GetEffectiveBorders(cell), gfx);
+      FormattedCell formattedCell = (FormattedCell)formattedCells[cell];
       XUnit width = formattedCell.InnerWidth;
 
-      XUnit y = this.startY;
-      if (cell.Row.Index > this.lastHeaderRow)
+      XUnit y = startY;
+      if (cell.Row.Index > lastHeaderRow)
         y += startingHeight;
       else
         y += CalcMaxTopBorderWidth(0);
 
-      XUnit upperBorderPos = (XUnit)this.bottomBorderMap[cell.Row.Index];
+      XUnit upperBorderPos = (XUnit)bottomBorderMap[cell.Row.Index];
 
       y += upperBorderPos;
-      if (cell.Row.Index > this.lastHeaderRow)
-        y -= (XUnit)this.bottomBorderMap[this.startRow];
+      if (cell.Row.Index > lastHeaderRow)
+        y -= (XUnit)bottomBorderMap[startRow];
 
-      XUnit lowerBorderPos = (XUnit)this.bottomBorderMap[cell.Row.Index + cell.MergeDown + 1];
+      XUnit lowerBorderPos = (XUnit)bottomBorderMap[cell.Row.Index + cell.MergeDown + 1];
 
 
       XUnit height = lowerBorderPos - upperBorderPos;
       height -= bordersRenderer.GetWidth(BorderType.Bottom);
 
-      XUnit x = this.startX;
+      XUnit x = startX;
       for (int clmIdx = 0; clmIdx < cell.Column.Index; ++clmIdx)
       {
-        x += this.table.Columns[clmIdx].Width;
+        x += table.Columns[clmIdx].Width;
       }
       x += LeftBorderOffset;
 
@@ -281,15 +279,15 @@ namespace MigraDocCore.Rendering
     {
       InitRendering();
       RenderHeaderRows();
-      if (startRow < this.table.Rows.Count)
+      if (startRow < table.Rows.Count)
       {
-        Cell cell = this.table[startRow, 0];
+        Cell cell = table[startRow, 0];
 
-        int cellIdx = this.mergedCells.BinarySearch(this.table[startRow, 0], new CellComparer());
-        while (cellIdx < this.mergedCells.Count)
+        int cellIdx = mergedCells.BinarySearch(table[startRow, 0], new CellComparer());
+        while (cellIdx < mergedCells.Count)
         {
-          cell = (Cell)this.mergedCells[cellIdx];
-          if (cell.Row.Index > this.endRow)
+          cell = (Cell)mergedCells[cellIdx];
+          if (cell.Row.Index > endRow)
             break;
 
           RenderCell(cell);
@@ -302,54 +300,54 @@ namespace MigraDocCore.Rendering
     {
       TableFormatInfo prevTableFormatInfo = (TableFormatInfo)previousFormatInfo;
       TableRenderInfo tblRenderInfo = new TableRenderInfo();
-      tblRenderInfo.table = this.table;
+      tblRenderInfo.table = table;
 
       // Equalize the two borders, that are used to determine a rounded corner's border.
       // This way the innerWidth of the cell, which is got by the saved _formattedCells, is the same regardless of which corner relevant border is set.
-      foreach (Row row in this.table.Rows)
+      foreach (Row row in table.Rows)
         foreach (Cell cell in row.Cells)
           EqualizeRoundedCornerBorders(cell);
 
-      this.renderInfo = tblRenderInfo;
+      renderInfo = tblRenderInfo;
 
       if (prevTableFormatInfo != null)
       {
-        this.mergedCells = prevTableFormatInfo.mergedCells;
-        this.formattedCells = prevTableFormatInfo.formattedCells;
-        this.bottomBorderMap = prevTableFormatInfo.bottomBorderMap;
-        this.lastHeaderRow = prevTableFormatInfo.lastHeaderRow;
-        this.connectedRowsMap = prevTableFormatInfo.connectedRowsMap;
-        this.startRow = prevTableFormatInfo.endRow + 1;
+        mergedCells = prevTableFormatInfo.mergedCells;
+        formattedCells = prevTableFormatInfo.formattedCells;
+        bottomBorderMap = prevTableFormatInfo.bottomBorderMap;
+        lastHeaderRow = prevTableFormatInfo.lastHeaderRow;
+        connectedRowsMap = prevTableFormatInfo.connectedRowsMap;
+        startRow = prevTableFormatInfo.endRow + 1;
       }
       else
       {
-        this.mergedCells = new MergedCellList(this.table);
+        mergedCells = new MergedCellList(table);
         FormatCells();
         CalcLastHeaderRow();
         CreateConnectedRows();
         CreateBottomBorderMap();
-        if (this.doHorizontalBreak)
+        if (doHorizontalBreak)
         {
           CalcLastHeaderColumn();
           CreateConnectedColumns();
         }
-        this.startRow = this.lastHeaderRow + 1;
+        startRow = lastHeaderRow + 1;
       }
-      ((TableFormatInfo)tblRenderInfo.FormatInfo).mergedCells = this.mergedCells;
-      ((TableFormatInfo)tblRenderInfo.FormatInfo).formattedCells = this.formattedCells;
-      ((TableFormatInfo)tblRenderInfo.FormatInfo).bottomBorderMap = this.bottomBorderMap;
-      ((TableFormatInfo)tblRenderInfo.FormatInfo).connectedRowsMap = this.connectedRowsMap;
-      ((TableFormatInfo)tblRenderInfo.FormatInfo).lastHeaderRow = this.lastHeaderRow;
+      ((TableFormatInfo)tblRenderInfo.FormatInfo).mergedCells = mergedCells;
+      ((TableFormatInfo)tblRenderInfo.FormatInfo).formattedCells = formattedCells;
+      ((TableFormatInfo)tblRenderInfo.FormatInfo).bottomBorderMap = bottomBorderMap;
+      ((TableFormatInfo)tblRenderInfo.FormatInfo).connectedRowsMap = connectedRowsMap;
+      ((TableFormatInfo)tblRenderInfo.FormatInfo).lastHeaderRow = lastHeaderRow;
     }
 
     void FormatCells()
     {
-      this.formattedCells = new SortedList<Cell, FormattedCell>(new CellComparer());
-      foreach (Cell cell in this.mergedCells)
+      formattedCells = new SortedList<Cell, FormattedCell>(new CellComparer());
+      foreach (Cell cell in mergedCells)
       {
-        FormattedCell formattedCell = new FormattedCell(cell, this.documentRenderer, this.mergedCells.GetEffectiveBorders(cell), this.fieldInfos, 0, 0);
-        formattedCell.Format(this.gfx);
-        this.formattedCells.Add(cell, formattedCell);
+        FormattedCell formattedCell = new FormattedCell(cell, documentRenderer, mergedCells.GetEffectiveBorders(cell), fieldInfos, 0, 0);
+        formattedCell.Format(gfx);
+        formattedCells.Add(cell, formattedCell);
       }
     }
 
@@ -360,38 +358,38 @@ namespace MigraDocCore.Rendering
     /// <param name="previousFormatInfo"></param>
     internal override void Format(Area area, FormatInfo previousFormatInfo)
     {
-      DocumentElements elements = DocumentRelations.GetParent(this.table) as DocumentElements;
+      DocumentElements elements = DocumentRelations.GetParent(table) as DocumentElements;
       if (elements != null)
       {
         Section section = DocumentRelations.GetParent(elements) as Section;
         if (section != null)
-          this.doHorizontalBreak = section.PageSetup.HorizontalPageBreak;
+          doHorizontalBreak = section.PageSetup.HorizontalPageBreak;
       }
 
-      this.renderInfo = new TableRenderInfo();
+      renderInfo = new TableRenderInfo();
       InitFormat(area, previousFormatInfo);
 
       // Don't take any Rows higher then MaxElementHeight
-      XUnit topHeight = this.CalcStartingHeight();
+      XUnit topHeight = CalcStartingHeight();
       XUnit probeHeight = topHeight;
       XUnit offset = 0;
-      if (this.startRow > this.lastHeaderRow + 1 &&
-        this.startRow < this.table.Rows.Count)
-        offset = (XUnit)this.bottomBorderMap[this.startRow] - topHeight;
+      if (startRow > lastHeaderRow + 1 &&
+        startRow < table.Rows.Count)
+        offset = (XUnit)bottomBorderMap[startRow] - topHeight;
       else
         offset = -CalcMaxTopBorderWidth(0);
 
-      int probeRow = this.startRow;
+      int probeRow = startRow;
       XUnit currentHeight = 0;
       XUnit startingHeight = 0;
       bool isEmpty = false;
 
-      while (probeRow < this.table.Rows.Count)
+      while (probeRow < table.Rows.Count)
       {
-        bool firstProbe = probeRow == this.startRow;
-        probeRow = (int)this.connectedRowsMap[probeRow];
+        bool firstProbe = probeRow == startRow;
+        probeRow = (int)connectedRowsMap[probeRow];
         // Don't take any Rows higher then MaxElementHeight
-        probeHeight = (XUnit)this.bottomBorderMap[probeRow + 1] - offset;
+        probeHeight = (XUnit)bottomBorderMap[probeRow + 1] - offset;
         if (firstProbe && probeHeight > MaxElementHeight - Tolerance)
             probeHeight = MaxElementHeight - Tolerance;
 
@@ -411,32 +409,32 @@ namespace MigraDocCore.Rendering
 
         else
         {
-          this.currRow = probeRow;
+          currRow = probeRow;
           currentHeight = probeHeight;
           ++probeRow;
         }
       }
       if (!isEmpty)
       {
-        TableFormatInfo formatInfo = (TableFormatInfo)this.renderInfo.FormatInfo;
-        formatInfo.startRow = this.startRow;
-        formatInfo.isEnding = currRow >= this.table.Rows.Count - 1;
-        formatInfo.endRow = this.currRow;
+        TableFormatInfo formatInfo = (TableFormatInfo)renderInfo.FormatInfo;
+        formatInfo.startRow = startRow;
+        formatInfo.isEnding = currRow >= table.Rows.Count - 1;
+        formatInfo.endRow = currRow;
       }
       FinishLayoutInfo(area, currentHeight, startingHeight);
     }
 
     void FinishLayoutInfo(Area area, XUnit currentHeight, XUnit startingHeight)
     {
-      LayoutInfo layoutInfo = this.renderInfo.LayoutInfo;
+      LayoutInfo layoutInfo = renderInfo.LayoutInfo;
       layoutInfo.StartingHeight = startingHeight;
       //REM: Trailing height would have to be calculated in case tables had a keep with next property.
       layoutInfo.TrailingHeight = 0;
-      if (this.currRow >= 0)
+      if (currRow >= 0)
       {
         layoutInfo.ContentArea = new Rectangle(area.X, area.Y, 0, currentHeight);
         XUnit width = LeftBorderOffset;
-        foreach (Column clm in this.table.Columns)
+        foreach (Column clm in table.Columns)
         {
           width += clm.Width;
         }
@@ -444,10 +442,10 @@ namespace MigraDocCore.Rendering
       }
       layoutInfo.MinWidth = layoutInfo.ContentArea.Width;
 
-      if (!this.table.Rows.IsNull("LeftIndent"))
-        layoutInfo.Left = this.table.Rows.LeftIndent.Point;
+      if (!table.Rows.IsNull("LeftIndent"))
+        layoutInfo.Left = table.Rows.LeftIndent.Point;
 
-      else if (this.table.Rows.Alignment == RowAlignment.Left)
+      else if (table.Rows.Alignment == RowAlignment.Left)
       {
         if (table.Columns.Count > 0) // Errors in Wiki syntax can lead to tables w/o columns ...
         {
@@ -461,7 +459,7 @@ namespace MigraDocCore.Rendering
 #endif
       }
 
-      switch (this.table.Rows.Alignment)
+      switch (table.Rows.Alignment)
       {
         case RowAlignment.Left:
           layoutInfo.HorizontalAlignment = ElementAlignment.Near;
@@ -481,18 +479,18 @@ namespace MigraDocCore.Rendering
     {
       get
       {
-        if (this.leftBorderOffset < 0)
+        if (leftBorderOffset < 0)
         {
           if (table.Rows.Count > 0 && table.Columns.Count > 0)
           {
-            Borders borders = this.mergedCells.GetEffectiveBorders(table[0, 0]);
-            BordersRenderer bordersRenderer = new BordersRenderer(borders, this.gfx);
-            this.leftBorderOffset = bordersRenderer.GetWidth(BorderType.Left);
+            Borders borders = mergedCells.GetEffectiveBorders(table[0, 0]);
+            BordersRenderer bordersRenderer = new BordersRenderer(borders, gfx);
+            leftBorderOffset = bordersRenderer.GetWidth(BorderType.Left);
           }
           else
-            this.leftBorderOffset = 0;
+            leftBorderOffset = 0;
         }
-        return this.leftBorderOffset;
+        return leftBorderOffset;
       }
     }
     private XUnit leftBorderOffset = -1;
@@ -504,15 +502,15 @@ namespace MigraDocCore.Rendering
     XUnit CalcStartingHeight()
     {
       XUnit height = 0;
-      if (this.lastHeaderRow >= 0)
+      if (lastHeaderRow >= 0)
       {
-        height = (XUnit)this.bottomBorderMap[this.lastHeaderRow + 1];
+        height = (XUnit)bottomBorderMap[lastHeaderRow + 1];
         height += CalcMaxTopBorderWidth(0);
       }
       else
       {
-        if (this.table.Rows.Count > this.startRow)
-          height = CalcMaxTopBorderWidth(this.startRow);
+        if (table.Rows.Count > startRow)
+          height = CalcMaxTopBorderWidth(startRow);
       }
 
       return height;
@@ -521,71 +519,71 @@ namespace MigraDocCore.Rendering
 
     void CalcLastHeaderColumn()
     {
-      this.lastHeaderColumn = -1;
-      foreach (Column clm in this.table.Columns)
+      lastHeaderColumn = -1;
+      foreach (Column clm in table.Columns)
       {
         if (clm.HeadingFormat)
-          this.lastHeaderColumn = clm.Index;
+          lastHeaderColumn = clm.Index;
         else break;
       }
-      if (this.lastHeaderColumn >= 0)
-        this.lastHeaderRow = CalcLastConnectedColumn(this.lastHeaderColumn);
+      if (lastHeaderColumn >= 0)
+        lastHeaderRow = CalcLastConnectedColumn(lastHeaderColumn);
 
       //Ignore heading format if all the table is heading:
-      if (this.lastHeaderRow == this.table.Rows.Count - 1)
-        this.lastHeaderRow = -1;
+      if (lastHeaderRow == table.Rows.Count - 1)
+        lastHeaderRow = -1;
 
     }
 
     void CalcLastHeaderRow()
     {
-      this.lastHeaderRow = -1;
-      foreach (Row row in this.table.Rows)
+      lastHeaderRow = -1;
+      foreach (Row row in table.Rows)
       {
         if (row.HeadingFormat)
-          this.lastHeaderRow = row.Index;
+          lastHeaderRow = row.Index;
         else break;
       }
-      if (this.lastHeaderRow >= 0)
-        this.lastHeaderRow = CalcLastConnectedRow(this.lastHeaderRow);
+      if (lastHeaderRow >= 0)
+        lastHeaderRow = CalcLastConnectedRow(lastHeaderRow);
 
       //Ignore heading format if all the table is heading:
-      if (this.lastHeaderRow == this.table.Rows.Count - 1)
-        this.lastHeaderRow = -1;
+      if (lastHeaderRow == table.Rows.Count - 1)
+        lastHeaderRow = -1;
 
     }
 
     void CreateConnectedRows()
     {
-      this.connectedRowsMap = new SortedList<int, int>();
-      foreach (Cell cell in this.mergedCells)
+      connectedRowsMap = new SortedList<int, int>();
+      foreach (Cell cell in mergedCells)
       {
-        if (!this.connectedRowsMap.ContainsKey(cell.Row.Index))
+        if (!connectedRowsMap.ContainsKey(cell.Row.Index))
         {
           int lastConnectedRow = CalcLastConnectedRow(cell.Row.Index);
-          this.connectedRowsMap[cell.Row.Index] = lastConnectedRow;
+          connectedRowsMap[cell.Row.Index] = lastConnectedRow;
         }
       }
     }
 
     void CreateConnectedColumns()
     {
-      this.connectedColumnsMap = new SortedList<int, int>();
-      foreach (Cell cell in this.mergedCells)
+      connectedColumnsMap = new SortedList<int, int>();
+      foreach (Cell cell in mergedCells)
       {
-        if (!this.connectedColumnsMap.ContainsKey(cell.Column.Index))
+        if (!connectedColumnsMap.ContainsKey(cell.Column.Index))
         {
           int lastConnectedColumn = CalcLastConnectedColumn(cell.Column.Index);
-          this.connectedColumnsMap[cell.Column.Index] = lastConnectedColumn;
+          connectedColumnsMap[cell.Column.Index] = lastConnectedColumn;
         }
       }
     }
 
     void CreateBottomBorderMap()
     {
-      this.bottomBorderMap = new SortedList<int, XUnit>();
-      this.bottomBorderMap.Add(0, XUnit.FromPoint(0));
-      while (!this.bottomBorderMap.ContainsKey(this.table.Rows.Count))
+      bottomBorderMap = new SortedList<int, XUnit>();
+      bottomBorderMap.Add(0, XUnit.FromPoint(0));
+      while (!bottomBorderMap.ContainsKey(table.Rows.Count))
       {
         CreateNextBottomBorderPosition();
       }
@@ -598,19 +596,19 @@ namespace MigraDocCore.Rendering
     XUnit CalcMaxTopBorderWidth(int row)
     {
       XUnit maxWidth = 0;
-      if (this.table.Rows.Count > row)
+      if (table.Rows.Count > row)
       {
-        int cellIdx = this.mergedCells.BinarySearch(this.table[row, 0], new CellComparer());
-        Cell rowCell = this.mergedCells[cellIdx];
-        while (cellIdx < this.mergedCells.Count)
+        int cellIdx = mergedCells.BinarySearch(table[row, 0], new CellComparer());
+        Cell rowCell = mergedCells[cellIdx];
+        while (cellIdx < mergedCells.Count)
         {
-          rowCell = this.mergedCells[cellIdx];
+          rowCell = mergedCells[cellIdx];
           if (rowCell.Row.Index > row)
             break;
 
           if (!rowCell.IsNull("Borders"))
           {
-            BordersRenderer bordersRenderer = new BordersRenderer(rowCell.Borders, this.gfx);
+            BordersRenderer bordersRenderer = new BordersRenderer(rowCell.Borders, gfx);
             XUnit width = 0;
             width = bordersRenderer.GetWidth(BorderType.Top);
             if (width > maxWidth)
@@ -631,7 +629,7 @@ namespace MigraDocCore.Rendering
       int lastBorderRow = (int)bottomBorderMap.Keys[lastIdx];
       XUnit lastPos = (XUnit)bottomBorderMap.Values[lastIdx];
       Cell minMergedCell = GetMinMergedCell(lastBorderRow);
-      FormattedCell minMergedFormattedCell = (FormattedCell)this.formattedCells[minMergedCell];
+      FormattedCell minMergedFormattedCell = (FormattedCell)formattedCells[minMergedCell];
       XUnit maxBottomBorderPosition = lastPos + minMergedFormattedCell.InnerHeight;
       maxBottomBorderPosition += CalcBottomBorderWidth(minMergedCell);
 
@@ -639,7 +637,7 @@ namespace MigraDocCore.Rendering
       var minMergedCellRowIndex = minMergedCell.Row.Index;
       var minMergedCellMergeDown = minMergedCell.MergeDown;
       var mergedIndexPlusDown = minMergedCellRowIndex + minMergedCellMergeDown;
-      foreach (Cell cell in this.mergedCells)
+      foreach (Cell cell in mergedCells)
       {
         var rowIndex = cell.Row.Index;
         if (rowIndex > mergedIndexPlusDown)
@@ -647,15 +645,15 @@ namespace MigraDocCore.Rendering
 
         if (rowIndex + cell.MergeDown == mergedIndexPlusDown)
         {
-          FormattedCell formattedCell = (FormattedCell)this.formattedCells[cell];
-          XUnit topBorderPos = (XUnit)this.bottomBorderMap[rowIndex];
+          FormattedCell formattedCell = (FormattedCell)formattedCells[cell];
+          XUnit topBorderPos = (XUnit)bottomBorderMap[rowIndex];
           XUnit bottomBorderPos = topBorderPos + formattedCell.InnerHeight;
           bottomBorderPos += CalcBottomBorderWidth(cell);
           if (bottomBorderPos > maxBottomBorderPosition)
             maxBottomBorderPosition = bottomBorderPos;
         }
       }
-      this.bottomBorderMap.Add(mergedIndexPlusDown + 1, maxBottomBorderPosition);
+      bottomBorderMap.Add(mergedIndexPlusDown + 1, maxBottomBorderPosition);
     }
 
     /// <summary>
@@ -665,10 +663,10 @@ namespace MigraDocCore.Rendering
     /// <returns>The calculated border width.</returns>
     XUnit CalcBottomBorderWidth(Cell cell)
     {
-      Borders borders = this.mergedCells.GetEffectiveBorders(cell);
+      Borders borders = mergedCells.GetEffectiveBorders(cell);
       if (borders != null)
       {
-        BordersRenderer bordersRenderer = new BordersRenderer(borders, this.gfx);
+        BordersRenderer bordersRenderer = new BordersRenderer(borders, gfx);
         return bordersRenderer.GetWidth(BorderType.Bottom);
       }
       return 0;
@@ -681,9 +679,9 @@ namespace MigraDocCore.Rendering
     /// <returns>The first cell with minimal vertical merge.</returns>
     Cell GetMinMergedCell(int row)
     {
-      int minMerge = this.table.Rows.Count;
+      int minMerge = table.Rows.Count;
       Cell minCell = null;
-      foreach (Cell cell in this.mergedCells)
+      foreach (Cell cell in mergedCells)
       {
         var rowIndex = cell.Row.Index; // Note: Taking index only once speeds up large tables.
         if (rowIndex <= row && rowIndex + cell.MergeDown >= row)
@@ -715,7 +713,7 @@ namespace MigraDocCore.Rendering
     int CalcLastConnectedRow(int row)
     {
       int lastConnectedRow = row;
-      foreach (Cell cell in this.mergedCells)
+      foreach (Cell cell in mergedCells)
       {
         var index = cell.Row.Index; // Note: Caching index here for speedup for large tables.
         if (index <= lastConnectedRow)
@@ -736,7 +734,7 @@ namespace MigraDocCore.Rendering
     int CalcLastConnectedColumn(int column)
     {
       int lastConnectedColumn = column;
-      foreach (Cell cell in this.mergedCells)
+      foreach (Cell cell in mergedCells)
       {
         if (cell.Column.Index <= lastConnectedColumn)
         {

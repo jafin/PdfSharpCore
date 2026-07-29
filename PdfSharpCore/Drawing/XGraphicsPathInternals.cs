@@ -1,4 +1,5 @@
 #region PDFsharp - A .NET library for processing PDF
+
 //
 // Authors:
 //   Stefan Lange
@@ -25,19 +26,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
-#endregion
 
-#if GDI
-using System.Drawing;
-using System.Drawing.Drawing2D;
-#endif
-#if WPF
-using System.Windows;
-using System.Windows.Media;
-#endif
-#if NETFX_CORE
-using Windows.UI.Xaml.Media;
-#endif
+#endregion
 
 namespace PdfSharpCore.Drawing
 {
@@ -51,6 +41,7 @@ namespace PdfSharpCore.Drawing
         {
             _path = path;
         }
+
         XGraphicsPath _path;
     }
 }

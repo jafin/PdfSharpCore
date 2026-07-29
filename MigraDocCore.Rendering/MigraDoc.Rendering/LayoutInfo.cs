@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
@@ -46,8 +45,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit StartingHeight
     {
-      get { return this.startingHeight; }
-      set { this.startingHeight = value; }
+      get => startingHeight;
+      set => startingHeight = value;
     }
     protected XUnit startingHeight;
 
@@ -56,8 +55,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit TrailingHeight
     {
-      get { return this.trailingHeight; }
-      set { this.trailingHeight = value; }
+      get => trailingHeight;
+      set => trailingHeight = value;
     }
     private XUnit trailingHeight;
 
@@ -67,8 +66,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal bool KeepWithNext
     {
-      get { return this.keepWithNext; }
-      set { this.keepWithNext = value; }
+      get => keepWithNext;
+      set => keepWithNext = value;
     }
     private bool keepWithNext;
 
@@ -77,8 +76,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal bool KeepTogether
     {
-      get { return this.keepTogether; }
-      set { this.keepTogether = value; }
+      get => keepTogether;
+      set => keepTogether = value;
     }
     private bool keepTogether;
 
@@ -87,8 +86,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal virtual XUnit MarginTop
     {
-      get { return this.marginTop; }
-      set { this.marginTop = value; }
+      get => marginTop;
+      set => marginTop = value;
     }
     private XUnit marginTop;
 
@@ -97,8 +96,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MarginRight
     {
-      get { return this.marginRight; }
-      set { this.marginRight = value; }
+      get => marginRight;
+      set => marginRight = value;
     }
     private XUnit marginRight;
 
@@ -107,8 +106,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MarginBottom
     {
-      get { return this.marginBottom; }
-      set { this.marginBottom = value; }
+      get => marginBottom;
+      set => marginBottom = value;
     }
     private XUnit marginBottom;
 
@@ -117,8 +116,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MarginLeft
     {
-      get { return this.marginLeft; }
-      set { this.marginLeft = value; }
+      get => marginLeft;
+      set => marginLeft = value;
     }
     private XUnit marginLeft;
 
@@ -127,8 +126,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     public Area ContentArea
     {
-      get { return this.contentArea; }
-      set { this.contentArea = value; }
+      get => contentArea;
+      set => contentArea = value;
     }
     private Area contentArea;
 
@@ -138,8 +137,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal bool PageBreakBefore
     {
-      get { return this.pageBreakBefore; }
-      set { this.pageBreakBefore = value; }
+      get => pageBreakBefore;
+      set => pageBreakBefore = value;
     }
     private bool pageBreakBefore;
 
@@ -150,8 +149,8 @@ namespace MigraDocCore.Rendering
     /// <remarks>Default value is AreaBoundary.</remarks>
     internal HorizontalReference HorizontalReference
     {
-      get { return this.horizontalReference; }
-      set { this.horizontalReference = value; }
+      get => horizontalReference;
+      set => horizontalReference = value;
     }
     HorizontalReference horizontalReference;
 
@@ -161,8 +160,8 @@ namespace MigraDocCore.Rendering
     /// <remarks>Default value is PreviousElement.</remarks>
     internal VerticalReference VerticalReference
     {
-      get { return this.verticalReference; }
-      set { this.verticalReference = value; }
+      get => verticalReference;
+      set => verticalReference = value;
     }
     VerticalReference verticalReference;
 
@@ -172,8 +171,8 @@ namespace MigraDocCore.Rendering
     /// <remarks>Default value is Near.</remarks>
     internal ElementAlignment HorizontalAlignment
     {
-      get { return this.horizontalAlignment; }
-      set { this.horizontalAlignment = value; }
+      get => horizontalAlignment;
+      set => horizontalAlignment = value;
     }
     ElementAlignment horizontalAlignment;
 
@@ -183,8 +182,8 @@ namespace MigraDocCore.Rendering
     /// <remarks>Default value is Near.</remarks>
     internal ElementAlignment VerticalAlignment
     {
-      get { return this.verticalAlignment; }
-      set { this.verticalAlignment = value; }
+      get => verticalAlignment;
+      set => verticalAlignment = value;
     }
     ElementAlignment verticalAlignment;
 
@@ -194,8 +193,8 @@ namespace MigraDocCore.Rendering
     /// <remarks>Default value is TopBottom.</remarks>
     internal Floating Floating
     {
-      get { return this.floating; }
-      set { this.floating = value; }
+      get => floating;
+      set => floating = value;
     }
     Floating floating;
 
@@ -204,8 +203,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit Top
     {
-      get { return this.top; }
-      set { this.top = value; }
+      get => top;
+      set => top = value;
     }
     XUnit top;
 
@@ -214,8 +213,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit Left
     {
-      get { return this.left; }
-      set { this.left = value; }
+      get => left;
+      set => left = value;
     }
     XUnit left;
 
@@ -224,8 +223,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MinWidth
     {
-      get { return this.minWidth; }
-      set { this.minWidth = value; }
+      get => minWidth;
+      set => minWidth = value;
     }
     XUnit minWidth;
   }

@@ -28,11 +28,9 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Diagnostics;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Tables;
 
@@ -52,7 +50,7 @@ namespace MigraDocCore.Rendering
 
     private Border GetBorder(BorderType type)
     {
-      return (Border)this.borders.GetValue(type.ToString(), GV.ReadOnly);
+      return (Border)borders.GetValue(type.ToString(), GV.ReadOnly);
     }
 
     private XColor GetColor(BorderType type)
@@ -62,21 +60,10 @@ namespace MigraDocCore.Rendering
       Border border = GetBorder(type);
       if (border != null && !border.Color.IsEmpty)
         clr = border.Color;
-      else if (!this.borders.Color.IsEmpty)
-        clr = this.borders.Color;
+      else if (!borders.Color.IsEmpty || !borders.Color.IsEmpty)
+        clr = borders.Color;
 
-#if noCMYK
-      return XColor.FromArgb((int)clr.Argb);
-#else
-      //      bool cmyk = false; // BUG CMYK
-      //      if (this.borders.Document != null)
-      //        cmyk = this.borders.Document.UseCmykColor;
-      //#if DEBUG
-      //      else
-      //        GetT ype();
-      //#endif
-      return ColorHelper.ToXColor(clr, this.borders.Document.UseCmykColor);
-#endif
+      return ColorHelper.ToXColor(clr, borders.Document.UseCmykColor);
     }
 
     private BorderStyle GetStyle(BorderType type)
@@ -86,15 +73,15 @@ namespace MigraDocCore.Rendering
       Border border = GetBorder(type);
       if (border != null && !border.IsNull("Style"))
         style = border.Style;
-      else if (!this.borders.IsNull("Style"))
-        style = this.borders.Style;
+      else if (!borders.IsNull("Style"))
+        style = borders.Style;
 
       return style;
     }
 
     internal XUnit GetWidth(BorderType type)
     {
-      if (this.borders == null)
+      if (borders == null)
         return 0;
 
       Border border = GetBorder(type);
@@ -109,21 +96,21 @@ namespace MigraDocCore.Rendering
 
         if (!border.IsNull("Color") || !border.IsNull("Style") || border.Visible)
         {
-          if (!this.borders.IsNull("Width"))
-            return this.borders.Width.Point;
+          if (!borders.IsNull("Width"))
+            return borders.Width.Point;
 
           return 0.5;
         }
       }
       else if (!(type == BorderType.DiagonalDown || type == BorderType.DiagonalUp))
       {
-        if (!this.borders.IsNull("Visible") && !this.borders.Visible)
+        if (!borders.IsNull("Visible") && !borders.Visible)
           return 0;
 
-        if (!this.borders.IsNull("Width"))
-          return this.borders.Width.Point;
+        if (!borders.IsNull("Width"))
+          return borders.Width.Point;
 
-        if (!this.borders.IsNull("Color") || !this.borders.IsNull("Style") || this.borders.Visible)
+        if (!borders.IsNull("Color") || !borders.IsNull("Style") || borders.Visible)
           return 0.5;
       }
       return 0;
@@ -143,7 +130,7 @@ namespace MigraDocCore.Rendering
         return;
 
       left += borderWidth / 2;
-      this.gfx.DrawLine(GetPen(type), left, top + height, left, top);
+      gfx.DrawLine(GetPen(type), left, top + height, left, top);
     }
 
     /// <summary>
@@ -160,7 +147,7 @@ namespace MigraDocCore.Rendering
         return;
 
       top += borderWidth / 2;
-      this.gfx.DrawLine(GetPen(type), left + width, top, left, top);
+      gfx.DrawLine(GetPen(type), left + width, top, left, top);
     }
 
 
@@ -170,15 +157,15 @@ namespace MigraDocCore.Rendering
       if (borderWidth == 0)
         return;
 
-      XGraphicsState state = this.gfx.Save();
-      this.gfx.IntersectClip(new XRect(left, top, width, height));
+      XGraphicsState state = gfx.Save();
+      gfx.IntersectClip(new XRect(left, top, width, height));
 
       if (type == BorderType.DiagonalDown)
-        this.gfx.DrawLine(GetPen(type), left, top, left + width, top + height);
+        gfx.DrawLine(GetPen(type), left, top, left + width, top + height);
       else if (type == BorderType.DiagonalUp)
-        this.gfx.DrawLine(GetPen(type), left, top + height, left + width, top);
+        gfx.DrawLine(GetPen(type), left, top + height, left + width, top);
 
-      this.gfx.Restore(state);
+      gfx.Restore(state);
     }
 
     internal void RenderRounded(RoundedCorner roundedCorner, XUnit x, XUnit y, XUnit width, XUnit height) 
@@ -207,16 +194,16 @@ namespace MigraDocCore.Rendering
       
       switch (roundedCorner) {
         case RoundedCorner.TopLeft:
-          this.gfx.DrawArc(borderPen, new XRect(x, y, ellipseWidth, ellipseHeight), 180, 90);
+          gfx.DrawArc(borderPen, new XRect(x, y, ellipseWidth, ellipseHeight), 180, 90);
           break;
         case RoundedCorner.TopRight:
-          this.gfx.DrawArc(borderPen, new XRect(x - width, y, ellipseWidth, ellipseHeight), 270, 90);
+          gfx.DrawArc(borderPen, new XRect(x - width, y, ellipseWidth, ellipseHeight), 270, 90);
           break;
         case RoundedCorner.BottomRight:
-          this.gfx.DrawArc(borderPen, new XRect(x - width, y - height, ellipseWidth, ellipseHeight), 0, 90);
+          gfx.DrawArc(borderPen, new XRect(x - width, y - height, ellipseWidth, ellipseHeight), 0, 90);
           break;
         case RoundedCorner.BottomLeft:
-          this.gfx.DrawArc(borderPen, new XRect(x, y - height, ellipseWidth, ellipseHeight), 90, 90);
+          gfx.DrawArc(borderPen, new XRect(x, y - height, ellipseWidth, ellipseHeight), 90, 90);
           break;
       }
     }
@@ -240,11 +227,11 @@ namespace MigraDocCore.Rendering
           break;
 
         case BorderStyle.DashLargeGap:
-          pen.DashPattern = new double[] { 3, 3 };
+          pen.DashPattern = [3, 3];
           break;
 
         case BorderStyle.DashSmallGap:
-          pen.DashPattern = new double[] { 5, 1 };
+          pen.DashPattern = [5, 1];
           break;
 
         case BorderStyle.Dot:
@@ -261,34 +248,34 @@ namespace MigraDocCore.Rendering
 
     internal bool IsRendered(BorderType borderType)
     {
-      if (this.borders == null)
+      if (borders == null)
         return false;
 
       switch (borderType)
       {
         case BorderType.Left:
-          if (this.borders.IsNull("Left"))
+          if (borders.IsNull("Left"))
             return false;
           return GetWidth(borderType) > 0;
 
         case BorderType.Right:
-          if (this.borders.IsNull("Right"))
+          if (borders.IsNull("Right"))
             return false;
           return GetWidth(borderType) > 0;
 
         case BorderType.Top:
-          if (this.borders.IsNull("Top"))
+          if (borders.IsNull("Top"))
             return false;
           return GetWidth(borderType) > 0;
 
         case BorderType.Bottom:
-          if (this.borders.IsNull("Bottom"))
+          if (borders.IsNull("Bottom"))
             return false;
 
           return GetWidth(borderType) > 0;
 
         case BorderType.DiagonalDown:
-          if (this.borders.IsNull("DiagonalDown"))
+          if (borders.IsNull("DiagonalDown"))
             return false;
           return GetWidth(borderType) > 0;
 

@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Charting;
 
 namespace MigraDocCore.Rendering.ChartMapper
@@ -48,7 +47,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Bottom;
+          chart.Legend.Docking = DockingType.Bottom;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.BottomArea;
         }
@@ -58,7 +57,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Right;
+          chart.Legend.Docking = DockingType.Right;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.RightArea;
         }
@@ -68,7 +67,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Left;
+          chart.Legend.Docking = DockingType.Left;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.LeftArea;
         }
@@ -78,7 +77,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Top;
+          chart.Legend.Docking = DockingType.Top;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.TopArea;
         }
@@ -88,7 +87,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Top;
+          chart.Legend.Docking = DockingType.Top;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.HeaderArea;
         }
@@ -98,7 +97,7 @@ namespace MigraDocCore.Rendering.ChartMapper
       {
         if (domObj is DocumentObjectModel.Shapes.Charts.Legend)
         {
-          chart.Legend.Docking = PdfSharpCore.Charting.DockingType.Bottom;
+          chart.Legend.Docking = DockingType.Bottom;
           domLegend = domObj as DocumentObjectModel.Shapes.Charts.Legend;
           textArea = domChart.FooterArea;
         }

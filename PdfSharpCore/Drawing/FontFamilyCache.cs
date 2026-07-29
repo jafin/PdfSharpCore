@@ -74,10 +74,6 @@ namespace PdfSharpCore.Drawing
                 FontFamilyInternal existingFontFamily;
                 if (Singleton._familiesByName.TryGetValue(fontFamily.Name, out existingFontFamily))
                 {
-#if DEBUG_
-                    if (fontFamily.Name == "xxx")
-                        fontFamily.GetType();
-#endif
                     return existingFontFamily;
                 }
                 Singleton._familiesByName.Add(fontFamily.Name, fontFamily);

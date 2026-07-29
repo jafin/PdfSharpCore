@@ -28,9 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Drawing;
-using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
 namespace MigraDocCore.Rendering
@@ -53,27 +51,22 @@ namespace MigraDocCore.Rendering
       if (brush == null)
         return;
 
-      this.gfx.DrawRectangle(brush, x.Point, y.Point, width.Point, height.Point);
+      gfx.DrawRectangle(brush, x.Point, y.Point, width.Point, height.Point);
     }
 
     private bool IsVisible()
     {
-      if (!this.fillFormat.IsNull("Visible"))
-        return this.fillFormat.Visible;
-      else
-        return !this.fillFormat.IsNull("Color");
+      if (!fillFormat.IsNull("Visible"))
+        return fillFormat.Visible;
+      return !fillFormat.IsNull("Color");
     }
 
     private XBrush GetBrush()
     {
-      if (this.fillFormat == null || !IsVisible())
+      if (fillFormat == null || !IsVisible())
         return null;
 
-#if noCMYK
-      return new XSolidBrush(XColor.FromArgb(this.fillFormat.Color.Argb));
-#else
-      return new XSolidBrush(ColorHelper.ToXColor(this.fillFormat.Color, this.fillFormat.Document.UseCmykColor));
-#endif
+      return new XSolidBrush(ColorHelper.ToXColor(fillFormat.Color, fillFormat.Document.UseCmykColor));
     }
     private XGraphics gfx;
     private FillFormat fillFormat;

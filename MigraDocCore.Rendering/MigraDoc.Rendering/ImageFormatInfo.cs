@@ -28,9 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Drawing;
-using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.Rendering
@@ -40,10 +38,6 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal class ImageFormatInfo : ShapeFormatInfo
     {
-        internal ImageFormatInfo()
-        {
-        }
-
         internal int CropX;
         internal int CropY;
         internal int CropWidth;

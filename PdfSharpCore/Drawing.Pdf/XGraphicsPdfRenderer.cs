@@ -1668,36 +1668,9 @@ namespace PdfSharpCore.Drawing.Pdf
         {
             // If EffectiveCtm is not yet realized InverseEffectiveCtm is invalid.
             Debug.Assert(_gfxState.UnrealizedCtm.IsIdentity, "Somewhere a RealizeTransform is missing.");
-#if true
             // See in #else case why this is correct.
             XPoint pt = _gfxState.WorldTransform.Transform(point);
             return _gfxState.InverseEffectiveCtm.Transform(new XPoint(pt.X, PageHeightPt / DefaultViewMatrix.M22 - pt.Y));
-#else
-            // Get inverted PDF world transform matrix.
-            XMatrix invers = _gfxState.EffectiveCtm;
-            invers.Invert();
-
-            // Apply transform in Windows world space.
-            XPoint pt1 = _gfxState.WorldTransform.Transform(point);
-#if true
-            // Do the transformation (see #else case) in one step.
-            XPoint pt2 = new XPoint(pt1.X, PageHeightPt / DefaultViewMatrix.M22 - pt1.Y);
-#else
-            // Replicable version
-
-            // Apply default transformation.
-            pt1.X = pt1.X * DefaultViewMatrix.M11;
-            pt1.Y = pt1.Y * DefaultViewMatrix.M22;
-
-            // Convert from Windows space to PDF space.
-            XPoint pt2 = new XPoint(pt1.X, PageHeightPt - pt1.Y);
-
-            pt2.X = pt2.X / DefaultViewMatrix.M11;
-            pt2.Y = pt2.Y / DefaultViewMatrix.M22;
-#endif
-            XPoint pt3 = invers.Transform(pt2);
-            return pt3;
-#endif
         }
         #endregion
 

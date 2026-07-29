@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 namespace MigraDocCore.Rendering.UnitTest
 {
@@ -7,10 +6,6 @@ namespace MigraDocCore.Rendering.UnitTest
   /// </summary>
   internal class ValueDumper
   {
-    internal ValueDumper()
-    {
-    }
-
     // The trimmer cannot know which fields survive for the runtime type of obj, and the
     // requirement cannot be declared on the parameter because DynamicallyAccessedMembers only
     // applies to Type and String. This is a debug-only dump helper with no live callers, so it

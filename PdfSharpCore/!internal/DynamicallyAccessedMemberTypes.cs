@@ -12,11 +12,7 @@ namespace System.Diagnostics.CodeAnalysis
     /// bitwise combination of its member values.
     /// </summary>
     [Flags]
-#if SYSTEM_PRIVATE_CORELIB
-    public
-#else
     internal
-#endif
     enum DynamicallyAccessedMemberTypes
     {
         /// <summary>

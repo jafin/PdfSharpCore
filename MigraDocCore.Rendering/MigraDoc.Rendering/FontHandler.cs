@@ -30,9 +30,6 @@
 
 #define CACHE_FONTS_
 
-using System;
-using System.Collections;
-using System.Text;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
@@ -116,35 +113,7 @@ namespace MigraDocCore.Rendering
 
     internal static XBrush FontColorToXBrush(Font font)
     {
-#if noCMYK
-      return new XSolidBrush(XColor.FromArgb((int)font.Color.A, (int)font.Color.R, (int)font.Color.G, (int)font.Color.B));
-#else
       return new XSolidBrush(ColorHelper.ToXColor(font.Color, font.Document.UseCmykColor));
-#endif
     }
-
-#if CACHE_FONTS
-    static XFont XFontFromCache(Font font, bool unicode, PdfFontEmbedding fontEmbedding)
-    {
-      XFont xFont = null;
-
-      XPdfFontOptions options = null;
-      options = new XPdfFontOptions(fontEmbedding, unicode);
-      XFontStyle style = GetXStyle(font);
-      xFont = new XFont(font.Name, font.Size, style, options);
-
-      return xFont;
-    }
-
-    static string BuildSignature(Font font, bool unicode, PdfFontEmbedding fontEmbedding)
-    {
-      StringBuilder signature = new StringBuilder(128);
-      signature.Append(font.Name.ToLower());
-      signature.Append(font.Size.Point.ToString("##0.0"));
-      return signature.ToString();
-    }
-
-    static Hashtable fontCache = new Hashtable();
-#endif
   }
 }

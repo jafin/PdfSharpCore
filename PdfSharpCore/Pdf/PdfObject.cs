@@ -66,13 +66,6 @@ namespace PdfSharpCore.Pdf
             // set the value of the reference to this.
             if (obj._iref != null)
                 obj._iref.Value = this;
-#if DEBUG_  // BUG
-            else
-            {
-                // If this occurs it is an internal error
-                Debug.Assert(false, "Object type transformation must not be done with direct objects");
-            }
-#endif
         }
 
         /// <summary>
@@ -93,37 +86,6 @@ namespace PdfSharpCore.Pdf
             obj._iref = null;
             return obj;
         }
-
-#if true_  // works, but may lead to other problems that I cannot assess
-        /// <summary>
-        /// Determines whether the specified object is equal to the current PdfObject.
-        /// </summary>
-        public override bool Equals(object obj)
-        {
-            if (obj is PdfObject)
-            {
-                PdfObject other = (PdfObject)obj;
-                // Take object type transformation into account
-                if (_iref != null && other._iref != null)
-                {
-                    Debug.Assert(_iref.Value != null, "iref without value.");
-                    Debug.Assert(other.iref.Value != null, "iref without value.");
-                    return Object.ReferenceEquals(_iref.Value, other.iref.Value);
-                }
-            }
-            return base.Equals(obj);
-        }
-
-        public override int GetHashCode()
-        {
-            if (_iref != null)
-            {
-                Debug.Assert(_iref.Value != null, "iref without value.");
-                return _iref.GetHashCode();
-            }
-            return base.GetHashCode();
-        }
-#endif
 
         /// <summary>
         /// Sets the object and generation number.
@@ -257,16 +219,6 @@ namespace PdfSharpCore.Pdf
             // Get transitive closure.
             PdfObject[] elements = externalObject.Owner.Internals.GetClosure(externalObject);
             int count = elements.Length;
-#if DEBUG_
-            for (int idx = 0; idx < count; idx++)
-            {
-                Debug.Assert(elements[idx].XRef != null);
-                Debug.Assert(elements[idx].XRef.Document != null);
-                Debug.Assert(elements[idx].Document != null);
-                if (elements[idx].ObjectID.ObjectNumber == 12)
-                    GetType();
-            }
-#endif
             // 1st loop. Replace all objects by their clones.
             PdfImportedObjectTable iot = new PdfImportedObjectTable(owner, externalObject.Owner);
             for (int idx = 0; idx < count; idx++)
@@ -294,17 +246,6 @@ namespace PdfSharpCore.Pdf
                 // Replace external object by its clone.
                 elements[idx] = clone;
             }
-#if DEBUG_
-            for (int idx = 0; idx < count; idx++)
-            {
-                Debug.Assert(elements[idx]._iref != null);
-                Debug.Assert(elements[idx]._iref.Document != null);
-                Debug.Assert(resources[idx].Document != null);
-                if (elements[idx].ObjectID.ObjectNumber == 12)
-                    GetType();
-            }
-#endif
-
             // 2nd loop. Fix up all indirect references that still refers to the import document.
             for (int idx = 0; idx < count; idx++)
             {
@@ -333,16 +274,6 @@ namespace PdfSharpCore.Pdf
             // Get transitive closure of external object.
             PdfObject[] elements = externalObject.Owner.Internals.GetClosure(externalObject);
             int count = elements.Length;
-#if DEBUG_
-            for (int idx = 0; idx < count; idx++)
-            {
-                Debug.Assert(elements[idx].XRef != null);
-                Debug.Assert(elements[idx].XRef.Document != null);
-                Debug.Assert(elements[idx].Document != null);
-                if (elements[idx].ObjectID.ObjectNumber == 12)
-                    GetType();
-            }
-#endif
             // 1st loop. Already imported objects are reused and new ones are cloned.
             for (int idx = 0; idx < count; idx++)
             {
@@ -351,10 +282,6 @@ namespace PdfSharpCore.Pdf
 
                 if (importedObjectTable.Contains(obj.ObjectID))
                 {
-#if DEBUG_
-                    if (obj.ObjectID.ObjectNumber == 5894)
-                        obj.GetType();
-#endif
                     // Case: External object was already imported.
                     PdfReference iref = importedObjectTable[obj.ObjectID];
                     Debug.Assert(iref != null);
@@ -388,17 +315,6 @@ namespace PdfSharpCore.Pdf
                     elements[idx] = clone;
                 }
             }
-#if DEBUG_
-            for (int idx = 0; idx < count; idx++)
-            {
-                //Debug.Assert(elements[idx].Reference != null);
-                //Debug.Assert(elements[idx].Reference.Document != null);
-                Debug.Assert(elements[idx].IsIndirect == false);
-                Debug.Assert(elements[idx].Owner != null);
-                //if (elements[idx].ObjectID.ObjectNumber == 12)
-                //    GetType();
-            }
-#endif
             // 2nd loop. Fix up indirect references that still refers to the external document.
             for (int idx = 0; idx < count; idx++)
             {

@@ -44,19 +44,15 @@ namespace PdfSharpCore.Pdf.Internal
         /// <summary>
         /// Gets the raw encoding.
         /// </summary>
-        public static Encoding RawEncoding
-        {
-            get { return _rawEncoding ?? (_rawEncoding = new RawEncoding()); }
-        }
+        public static Encoding RawEncoding => _rawEncoding ?? (_rawEncoding = new RawEncoding());
+
         static Encoding _rawEncoding;
 
         /// <summary>
         /// Gets the raw Unicode encoding.
         /// </summary>
-        public static Encoding RawUnicodeEncoding
-        {
-            get { return _rawUnicodeEncoding ?? (_rawUnicodeEncoding = new RawUnicodeEncoding()); }
-        }
+        public static Encoding RawUnicodeEncoding => _rawUnicodeEncoding ?? (_rawUnicodeEncoding = new RawUnicodeEncoding());
+
         static Encoding _rawUnicodeEncoding;
 
         /// <summary>
@@ -79,122 +75,16 @@ namespace PdfSharpCore.Pdf.Internal
         /// <summary>
         /// Gets the PDF DocEncoding encoding.
         /// </summary>
-        public static Encoding DocEncoding
-        {
-            get { return _docEncoding ?? (_docEncoding = new DocEncoding()); }
-        }
+        public static Encoding DocEncoding => _docEncoding ??= new DocEncoding();
+
         static Encoding _docEncoding;
 
         /// <summary>
         /// Gets the UNICODE little-endian encoding.
         /// </summary>
-        public static Encoding UnicodeEncoding
-        {
-            get { return _unicodeEncoding ?? (_unicodeEncoding = Encoding.Unicode); }
-        }
+        public static Encoding UnicodeEncoding => _unicodeEncoding ?? (_unicodeEncoding = Encoding.Unicode);
+
         static Encoding _unicodeEncoding;
-
-        ///// <summary>
-        ///// Encodes a string from a byte array. Each character gets the code of the corresponding byte.
-        ///// </summary>
-        //public static string RawString(byte[] bytes, int offset, int length)
-        //{
-        //  char[] chars = new char[length];
-        //  for (int idx = offset, ch = 0; idx < offset +  length; idx++, ch++)
-        //    chars[ch] = (char)bytes[idx];
-        //  return new string(chars, 0, length);
-        //}
-        //
-        //public static string RawString(byte[] bytes)
-        //{
-        //  return RawString(bytes, 0, bytes.Length);
-        //}
-
-#if true_
-        public static string EncodeAsLiteral(string text, bool unicode)
-        {
-            if (text == null || text == "")
-                return "<>";
-
-            StringBuilder pdf = new StringBuilder("");
-            if (!unicode)
-            {
-                byte[] bytes = WinAnsiEncoding.GetBytes(text);
-                int count = bytes.Length;
-                pdf.Append("(");
-                for (int idx = 0; idx < count; idx++)
-                {
-                    char ch = (char)bytes[idx];
-                    if (ch < 32)
-                    {
-                        switch (ch)
-                        {
-                            case '\n':
-                                pdf.Append("\\n");
-                                break;
-
-                            case '\r':
-                                pdf.Append("\\r");
-                                break;
-
-                            case '\t':
-                                pdf.Append("\\t");
-                                break;
-
-                            case '\f':
-                                pdf.Append("\\f");
-                                break;
-
-                            default:
-                                pdf.Append(InvalidChar); // TODO
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        switch (ch)
-                        {
-                            case '(':
-                                pdf.Append("\\(");
-                                break;
-
-                            case ')':
-                                pdf.Append("\\)");
-                                break;
-
-                            case '\\':
-                                pdf.Append("\\\\");
-                                break;
-
-                            default:
-                                pdf.Append(ch);
-                                break;
-                        }
-                    }
-                }
-                pdf.Append(')');
-            }
-            else
-            {
-                pdf.Append("<");
-                byte[] bytes = UnicodeEncoding.GetBytes(text);
-                int count = bytes.Length;
-                for (int idx = 0; idx < count; idx += 2)
-                {
-                    pdf.AppendFormat("{0:X2}{1:X2}", bytes[idx + 1], bytes[idx]);
-                    if (idx != 0 && (idx % 48) == 0)
-                        pdf.Append("\n");
-                }
-                pdf.Append(">");
-            }
-            return pdf.ToString();
-        }
-#endif
-
-        //public static string EncodeAsLiteral(string text)
-        //{
-        //  return EncodeAsLiteral(text, false);
-        //}
 
         /// <summary>
         /// Converts a raw string into a raw string literal, possibly encrypted.
@@ -302,7 +192,7 @@ namespace PdfSharpCore.Pdf.Internal
         public static byte[] FormatStringLiteral(byte[] bytes, bool unicode, bool prefix, bool hex, PdfStandardSecurityHandler securityHandler)
         {
             if (bytes == null || bytes.Length == 0)
-                return hex ? new byte[] { (byte)'<', (byte)'>' } : new byte[] { (byte)'(', (byte)')' };
+                return hex ? "<>"u8.ToArray() : "()"u8.ToArray();
 
             Debug.Assert(!unicode || bytes.Length % 2 == 0, "Odd number of bytes in Unicode string.");
 
@@ -323,12 +213,11 @@ namespace PdfSharpCore.Pdf.Internal
                 prefix = false;
             }
 
-            bool encrypted = false;
+            bool encrypted;
             if (securityHandler != null)
             {
                 bytes = (byte[])bytes.Clone();
                 bytes = securityHandler.EncryptBytes(bytes);
-                encrypted = true;
             }
 
             int count = bytes.Length;
@@ -443,8 +332,8 @@ namespace PdfSharpCore.Pdf.Internal
         /// <summary>
         /// Converts WinAnsi to DocEncode characters. Incomplete, just maps ? and some other characters.
         /// </summary>
-        static byte[] docencode_______ = new byte[256]
-        {
+        static byte[] docencode_______ =
+        [
             // TODO: 
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
             0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -461,8 +350,8 @@ namespace PdfSharpCore.Pdf.Internal
             0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
             0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
             0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
-            0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF,
-        };
+            0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF
+        ];
 
         //public static string DocEncode(string text, bool unicode)//, PdfStandardSecurityHandler securityHandler)
         //{

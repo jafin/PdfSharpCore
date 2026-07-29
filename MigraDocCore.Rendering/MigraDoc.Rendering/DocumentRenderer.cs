@@ -30,11 +30,8 @@
 
 using System;
 using System.Collections;
-using System.IO;
 using MigraDocCore.DocumentObjectModel;
-using PdfSharpCore;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Shapes;
@@ -66,20 +63,20 @@ namespace MigraDocCore.Rendering
         public void PrepareDocument()
         {
             PdfFlattenVisitor visitor = new PdfFlattenVisitor();
-            visitor.Visit(this.document);
-            this.previousListNumbers = new Hashtable(3);
-            this.previousListNumbers[ListType.NumberList1] = 0;
-            this.previousListNumbers[ListType.NumberList2] = 0;
-            this.previousListNumbers[ListType.NumberList3] = 0;
-            this.formattedDocument = new FormattedDocument(this.document, this);
+            visitor.Visit(document);
+            previousListNumbers = new Hashtable(3);
+            previousListNumbers[ListType.NumberList1] = 0;
+            previousListNumbers[ListType.NumberList2] = 0;
+            previousListNumbers[ListType.NumberList3] = 0;
+            formattedDocument = new FormattedDocument(document, this);
             //REM: Size should not be necessary in this case.
             XGraphics gfx = XGraphics.CreateMeasureContext(new XSize(2000, 2000), XGraphicsUnit.Point, XPageDirection.Downwards);
             //      this.previousListNumber = int.MinValue;
             //gfx.MUH = this.unicode;
             //gfx.MFEH = this.fontEmbedding;
 
-            this.previousListInfo = null;
-            this.formattedDocument.Format(gfx);
+            previousListInfo = null;
+            formattedDocument.Format(gfx);
         }
 
         /// <summary>
@@ -105,18 +102,13 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// Gets a value indicating whether this instance supports PrepareDocumentProgress.
         /// </summary>
-        public bool HasPrepareDocumentProgress
-        {
-            get { return PrepareDocumentProgress != null; }
-        }
+        public bool HasPrepareDocumentProgress => PrepareDocumentProgress != null;
 
         /// <summary>
         /// Gets the formatted document of this instance.
         /// </summary>
-        public FormattedDocument FormattedDocument
-        {
-            get { return this.formattedDocument; }
-        }
+        public FormattedDocument FormattedDocument => formattedDocument;
+
         internal FormattedDocument formattedDocument;
 
         /// <summary>
@@ -132,13 +124,13 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public void RenderPage(XGraphics gfx, int page, PageRenderOptions options)
         {
-            if (this.formattedDocument.IsEmptyPage(page))
+            if (formattedDocument.IsEmptyPage(page))
                 return;
 
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = formattedDocument.GetFieldInfos(page);
 
-            if (this.printDate != DateTime.MinValue)
-                fieldInfos.date = this.printDate;
+            if (printDate != DateTime.MinValue)
+                fieldInfos.date = printDate;
             else
                 fieldInfos.date = DateTime.Now;
 
@@ -149,7 +141,7 @@ namespace MigraDocCore.Rendering
 
             if ((options & PageRenderOptions.RenderContent) == PageRenderOptions.RenderContent)
             {
-                RenderInfo[] renderInfos = this.formattedDocument.GetRenderInfos(page);
+                RenderInfo[] renderInfos = formattedDocument.GetRenderInfos(page);
                 //foreach (RenderInfo renderInfo in renderInfos)
                 int count = renderInfos.Length;
                 for (int idx = 0; idx < count; idx++)
@@ -166,7 +158,7 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public DocumentObject[] GetDocumentObjectsFromPage(int page)
         {
-            RenderInfo[] renderInfos = this.formattedDocument.GetRenderInfos(page);
+            RenderInfo[] renderInfos = formattedDocument.GetRenderInfos(page);
             int count = renderInfos != null ? renderInfos.Length : 0;
             DocumentObject[] documentObjects = new DocumentObject[count];
             for (int idx = 0; idx < count; idx++)
@@ -179,7 +171,7 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public RenderInfo[] GetRenderInfoFromPage(int page)
         {
-            return this.formattedDocument.GetRenderInfos(page);
+            return formattedDocument.GetRenderInfos(page);
         }
 
         /// <summary>
@@ -219,20 +211,20 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public string WorkingDirectory
         {
-            get { return this.workingDirectory; }
-            set { this.workingDirectory = value; }
+            get => workingDirectory;
+            set => workingDirectory = value;
         }
         string workingDirectory;
 
         private void RenderHeader(XGraphics graphics, int page)
         {
-            FormattedHeaderFooter formattedHeader = this.formattedDocument.GetFormattedHeader(page);
+            FormattedHeaderFooter formattedHeader = formattedDocument.GetFormattedHeader(page);
             if (formattedHeader == null)
                 return;
 
-            Rectangle headerArea = this.formattedDocument.GetHeaderArea(page);
+            Rectangle headerArea = formattedDocument.GetHeaderArea(page);
             RenderInfo[] renderInfos = formattedHeader.GetRenderInfos();
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = formattedDocument.GetFieldInfos(page);
             foreach (RenderInfo renderInfo in renderInfos)
             {
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
@@ -242,11 +234,11 @@ namespace MigraDocCore.Rendering
 
         private void RenderFooter(XGraphics graphics, int page)
         {
-            FormattedHeaderFooter formattedFooter = this.formattedDocument.GetFormattedFooter(page);
+            FormattedHeaderFooter formattedFooter = formattedDocument.GetFormattedFooter(page);
             if (formattedFooter == null)
                 return;
 
-            Rectangle footerArea = this.formattedDocument.GetFooterArea(page);
+            Rectangle footerArea = formattedDocument.GetFooterArea(page);
             RenderInfo[] renderInfos = formattedFooter.GetRenderInfos();
             if (renderInfos.Length == 0)
                 return;
@@ -260,7 +252,7 @@ namespace MigraDocCore.Rendering
             XUnit renderedTop = footerArea.Y + footerArea.Height - RenderInfo.GetTotalHeight(renderInfos);
             XUnit distance = renderedTop - formattedTop;
 
-            FieldInfos fieldInfos = this.formattedDocument.GetFieldInfos(page);
+            FieldInfos fieldInfos = formattedDocument.GetFieldInfos(page);
             foreach (RenderInfo renderInfo in renderInfos)
             {
                 Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
@@ -328,10 +320,10 @@ namespace MigraDocCore.Rendering
               listType == ListType.NumberList3;
 
             int listNumber = int.MinValue;
-            if (listInfo == this.previousListInfo)
+            if (listInfo == previousListInfo)
             {
                 if (isNumberList)
-                    return (int)this.previousListNumbers[listType];
+                    return (int)previousListNumbers[listType];
                 return listNumber;
             }
 
@@ -341,14 +333,14 @@ namespace MigraDocCore.Rendering
             {
                 listNumber = 1;
                 if (/*!listTypeChanged &&*/ (listInfo.IsNull("ContinuePreviousList") || listInfo.ContinuePreviousList))
-                    listNumber = (int)this.previousListNumbers[listType] + 1;
+                    listNumber = (int)previousListNumbers[listType] + 1;
 
-                this.previousListNumbers[listType] = listNumber;
+                previousListNumbers[listType] = listNumber;
             }
             //      else
             //        listNumber = int.MinValue;
 
-            this.previousListInfo = listInfo;
+            previousListInfo = listInfo;
             return listNumber;
         }
         ListInfo previousListInfo;
@@ -377,8 +369,8 @@ namespace MigraDocCore.Rendering
             /// <param name="maximum">The latest step in document preparation.</param>
             public PrepareDocumentProgressEventArgs(int value, int maximum)
             {
-                this.Value = value;
-                this.Maximum = maximum;
+                Value = value;
+                Maximum = maximum;
             }
         }
 
@@ -395,8 +387,8 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public XPrivateFontCollection PrivateFonts
         {
-            get { return this.privateFonts; }
-            set { this.privateFonts = value; }
+            get => privateFonts;
+            set => privateFonts = value;
         }
         //[DV]
         internal XPrivateFontCollection privateFonts;

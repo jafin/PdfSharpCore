@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>
@@ -41,34 +39,16 @@ namespace MigraDocCore.Rendering
     //{
     //}
 
-    internal override bool EndingIsComplete
-    {
-      get { return true; }
-    }
+    internal override bool EndingIsComplete => true;
 
-    internal override bool IsComplete
-    {
-      get { return true; }
-    }
+    internal override bool IsComplete => true;
 
-    internal override bool IsEmpty
-    {
-      get { return false; }
-    }
+    internal override bool IsEmpty => false;
 
-    internal override bool IsEnding
-    {
-      get { return true; }
-    }
+    internal override bool IsEnding => true;
 
-    internal override bool IsStarting
-    {
-      get { return true; }
-    }
+    internal override bool IsStarting => true;
 
-    internal override bool StartingIsComplete
-    {
-      get { return true; }
-    }
+    internal override bool StartingIsComplete => true;
   }
 }

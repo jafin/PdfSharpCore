@@ -1,4 +1,5 @@
 ﻿#region PDFsharp - A .NET library for processing PDF
+
 //
 // Authors:
 //   Stefan Lange
@@ -25,6 +26,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
+
 #endregion
 
 using System;
@@ -39,12 +41,13 @@ namespace PdfSharpCore.Pdf.Advanced
     /// Represents the cross-reference table of a PDF document. 
     /// It contains all indirect objects of a document.
     /// </summary>
-    internal sealed class PdfCrossReferenceTable  // Must not be derive from PdfObject.
+    internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObject.
     {
         public PdfCrossReferenceTable(PdfDocument document)
         {
             _document = document;
         }
+
         readonly PdfDocument _document;
 
         /// <summary>
@@ -57,6 +60,7 @@ namespace PdfSharpCore.Pdf.Advanced
             get { return _isUnderConstruction; }
             set { _isUnderConstruction = value; }
         }
+
         bool _isUnderConstruction;
 
         /// <summary>
@@ -93,7 +97,7 @@ namespace PdfSharpCore.Pdf.Advanced
 
             if (ObjectTable.ContainsKey(value.ObjectID))
                 return;
-                // throw new InvalidOperationException("Object already in table.");
+            // throw new InvalidOperationException("Object already in table.");
 
             ObjectTable.Add(value.ObjectID, value.Reference);
         }
@@ -148,6 +152,7 @@ namespace PdfSharpCore.Pdf.Advanced
             // set to the highest object number used in the document.
             return ++_maxObjectNumber;
         }
+
         internal int _maxObjectNumber;
 
         /// <summary>
@@ -169,7 +174,8 @@ namespace PdfSharpCore.Pdf.Advanced
                 PdfReference iref = irefs[idx];
 
                 // Acrobat is very pedantic; it must be exactly 20 bytes per line.
-                writer.WriteRaw(String.Format("{0:0000000000} {1:00000} {2} \n", iref.Position, iref.GenerationNumber, "n"));
+                writer.WriteRaw(String.Format("{0:0000000000} {1:00000} {2} \n", iref.Position, iref.GenerationNumber,
+                    "n"));
             }
         }
 
@@ -204,7 +210,8 @@ namespace PdfSharpCore.Pdf.Advanced
         }
 
         internal void HandleOrphanedReferences()
-        { }
+        {
+        }
 
         /// <summary>
         /// Removes all objects that cannot be reached from the trailer.
@@ -240,6 +247,7 @@ namespace PdfSharpCore.Pdf.Advanced
             {
                 refs.Add(iref, 0);
             }
+
             foreach (PdfReference value in ObjectTable.Values)
             {
                 if (!refs.ContainsKey(value))
@@ -272,6 +280,7 @@ namespace PdfSharpCore.Pdf.Advanced
                 ObjectTable.Add(iref.ObjectID, iref);
                 _maxObjectNumber = Math.Max(_maxObjectNumber, iref.ObjectNumber);
             }
+
             //CheckConsistence();
             removed -= ObjectTable.Count;
             return removed;
@@ -290,14 +299,11 @@ namespace PdfSharpCore.Pdf.Advanced
             for (int idx = 0; idx < count; idx++)
             {
                 PdfReference iref = irefs[idx];
-#if DEBUG_
-                if (iref.ObjectNumber == 1108)
-                    GetType();
-#endif
                 iref.ObjectID = new PdfObjectID(idx + 1);
                 // Rehash with new number.
                 ObjectTable.Add(iref.ObjectID, iref);
             }
+
             _maxObjectNumber = count;
             //CheckConsistence();
         }
@@ -327,21 +333,19 @@ namespace PdfSharpCore.Pdf.Advanced
             int count = collection.Count;
             PdfReference[] irefs = new PdfReference[count];
             collection.CopyTo(irefs, 0);
-#if true
             for (int i = 0; i < count; i++)
-                for (int j = 0; j < count; j++)
-                    if (i != j)
-                    {
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, _document));
-                        Debug.Assert(irefs[i] != irefs[j]);
-                        Debug.Assert(!ReferenceEquals(irefs[i], irefs[j]));
-                        Debug.Assert(!ReferenceEquals(irefs[i].Value, irefs[j].Value));
-                        Debug.Assert(!Equals(irefs[i].ObjectID, irefs[j].Value.ObjectID));
-                        Debug.Assert(irefs[i].ObjectNumber != irefs[j].Value.ObjectNumber);
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
-                        GetType();
-                    }
-#endif
+            for (int j = 0; j < count; j++)
+                if (i != j)
+                {
+                    Debug.Assert(ReferenceEquals(irefs[i].Document, _document));
+                    Debug.Assert(irefs[i] != irefs[j]);
+                    Debug.Assert(!ReferenceEquals(irefs[i], irefs[j]));
+                    Debug.Assert(!ReferenceEquals(irefs[i].Value, irefs[j].Value));
+                    Debug.Assert(!Equals(irefs[i].ObjectID, irefs[j].Value.ObjectID));
+                    Debug.Assert(irefs[i].ObjectNumber != irefs[j].Value.ObjectNumber);
+                    Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
+                    GetType();
+                }
         }
 
         ///// <summary>
@@ -384,7 +388,7 @@ namespace PdfSharpCore.Pdf.Advanced
             Dictionary<PdfItem, object> objects = new Dictionary<PdfItem, object>();
             _overflow = new Dictionary<PdfItem, object>();
             TransitiveClosureImplementation(objects, pdfObject);
-        TryAgain:
+            TryAgain:
             if (_overflow.Count > 0)
             {
                 PdfObject[] array = new PdfObject[_overflow.Count];
@@ -395,6 +399,7 @@ namespace PdfSharpCore.Pdf.Advanced
                     PdfObject obj = array[idx];
                     TransitiveClosureImplementation(objects, obj);
                 }
+
                 goto TryAgain;
             }
 
@@ -404,29 +409,14 @@ namespace PdfSharpCore.Pdf.Advanced
             int count = collection.Count;
             PdfReference[] irefs = new PdfReference[count];
             collection.CopyTo(irefs, 0);
-
-#if true_
-            for (int i = 0; i < count; i++)
-                for (int j = 0; j < count; j++)
-                    if (i != j)
-                    {
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, _document));
-                        Debug.Assert(irefs[i] != irefs[j]);
-                        Debug.Assert(!ReferenceEquals(irefs[i], irefs[j]));
-                        Debug.Assert(!ReferenceEquals(irefs[i].Value, irefs[j].Value));
-                        Debug.Assert(!Equals(irefs[i].ObjectID, irefs[j].Value.ObjectID));
-                        Debug.Assert(irefs[i].ObjectNumber != irefs[j].Value.ObjectNumber);
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
-                        GetType();
-                    }
-#endif
             return irefs;
         }
 
         static int _nestingLevel;
         Dictionary<PdfItem, object> _overflow = new Dictionary<PdfItem, object>();
 
-        void TransitiveClosureImplementation(Dictionary<PdfItem, object> objects, PdfObject pdfObject/*, ref int depth*/)
+        void TransitiveClosureImplementation(Dictionary<PdfItem, object> objects,
+            PdfObject pdfObject /*, ref int depth*/)
         {
             try
             {
@@ -437,18 +427,6 @@ namespace PdfSharpCore.Pdf.Advanced
                         _overflow.Add(pdfObject, null);
                     return;
                 }
-#if DEBUG_
-                //enterCount++;
-                if (enterCount == 5400)
-                    GetType();
-                //if (!Object.ReferenceEquals(pdfObject.Owner, _document))
-                //  GetType();
-                //////Debug.Assert(Object.ReferenceEquals(pdfObject27.Document, _document));
-                //      if (item is PdfObject && ((PdfObject)item).ObjectID.ObjectNumber == 5)
-                //        Debug.WriteLine("items: " + ((PdfObject)item).ObjectID.ToString());
-                //if (pdfObject.ObjectNumber == 5)
-                //  GetType();
-#endif
 
                 IEnumerable enumerable = null; //(IEnumerator)pdfObject;
                 PdfDictionary dict;
@@ -488,11 +466,9 @@ namespace PdfSharpCore.Pdf.Advanced
                                 GetType();
                                 Debug.WriteLine(String.Format("Bad iref: {0}", iref.ObjectID.ToString()));
                             }
-                            Debug.Assert(ReferenceEquals(iref.Document, _document) || iref.Document == null, "External object detected!");
-#if DEBUG_
-                            if (iref.ObjectID.ObjectNumber == 23)
-                                GetType();
-#endif
+
+                            Debug.Assert(ReferenceEquals(iref.Document, _document) || iref.Document == null,
+                                "External object detected!");
                             if (!objects.ContainsKey(iref))
                             {
                                 PdfObject value = iref.Value;
@@ -507,6 +483,7 @@ namespace PdfSharpCore.Pdf.Advanced
                                         Debug.Assert(iref.Value != null);
                                         value = iref.Value;
                                     }
+
                                     Debug.Assert(ReferenceEquals(iref.Document, _document));
                                     objects.Add(iref, null);
                                     //Debug.WriteLine(String.Format("objects.Add('{0}', null);", iref.ObjectID.ToString()));
@@ -549,9 +526,11 @@ namespace PdfSharpCore.Pdf.Advanced
                     Add(_deadObject);
                     _deadObject.Elements.Add("/DeadObjectCount", new PdfInteger());
                 }
+
                 return _deadObject.Reference;
             }
         }
+
         PdfDictionary _deadObject;
     }
 

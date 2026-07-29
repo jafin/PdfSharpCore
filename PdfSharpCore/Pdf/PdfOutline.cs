@@ -469,16 +469,6 @@ namespace PdfSharpCore.Pdf
                 Outlines.Add(item);
 
                 current = item.Elements.GetReference(Keys.Next);
-#if DEBUG_
-                if (current == null)
-                {
-                    if (item.Reference != lastRef)
-                    {
-                        // Word produces PDFs that come to this case.
-                        GetType();
-                    }
-                }
-#endif
             }
         }
 

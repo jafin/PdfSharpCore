@@ -1,6 +1,3 @@
-using System;
-using System.Collections;
-using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
 
 namespace MigraDocCore.Rendering.UnitTest

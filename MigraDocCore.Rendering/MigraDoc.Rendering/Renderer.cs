@@ -28,10 +28,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
@@ -51,8 +49,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     internal XUnit MaxElementHeight
     {
-      get { return this.maxElementHeight; }
-      set {this.maxElementHeight = value;}
+      get => maxElementHeight;
+      set => maxElementHeight = value;
     }
 
     internal Renderer(XGraphics gfx, DocumentObject documentObject, FieldInfos fieldInfos)
@@ -64,7 +62,7 @@ namespace MigraDocCore.Rendering
 
     internal Renderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
     {
-      this.documentObject = renderInfo.DocumentObject;
+      documentObject = renderInfo.DocumentObject;
       this.gfx = gfx;
       this.renderInfo = renderInfo;
       this.fieldInfos = fieldInfos;
@@ -101,7 +99,7 @@ namespace MigraDocCore.Rendering
         XUnit savedY = renderInfo.LayoutInfo.ContentArea.Y;
         renderInfo.LayoutInfo.ContentArea.X += xShift;
         renderInfo.LayoutInfo.ContentArea.Y += yShift;
-        Renderer renderer = Renderer.Create(this.gfx, this.documentRenderer, renderInfo, this.fieldInfos);
+        Renderer renderer = Create(gfx, documentRenderer, renderInfo, fieldInfos);
         renderer.Render();
         renderInfo.LayoutInfo.ContentArea.X = savedX;
         renderInfo.LayoutInfo.ContentArea.Y = savedY;
@@ -117,10 +115,8 @@ namespace MigraDocCore.Rendering
     /// <summary>
     /// Gets the render information necessary to render and position the object.
     /// </summary>
-    internal RenderInfo RenderInfo
-    {
-      get { return this.renderInfo; }
-    }
+    internal RenderInfo RenderInfo => renderInfo;
+
     protected RenderInfo renderInfo;
 
     /// <summary>
@@ -129,7 +125,7 @@ namespace MigraDocCore.Rendering
     /// <remarks>This property is set by the AreaProvider.</remarks>
     internal FieldInfos FieldInfos
     {
-      set { this.fieldInfos = value; }
+      set => fieldInfos = value;
     }
     protected FieldInfos fieldInfos;
 

@@ -31,7 +31,6 @@
 using System;
 using System.Collections;
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using PdfSharpCore.Drawing;
 
@@ -52,24 +51,24 @@ namespace MigraDocCore.Rendering
     internal void Format(XGraphics gfx)
     {
       this.gfx = gfx;
-      this.isFirstArea = true;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.textArea.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
+      isFirstArea = true;
+      formatter = new TopDownFormatter(this, documentRenderer, textArea.Elements);
+      formatter.FormatOnAreas(gfx, false);
     }
 
     internal XUnit InnerWidth
     {
-      set { this.innerWidth = value; }
+      set => innerWidth = value;
       get
       {
-        if (double.IsNaN(this.innerWidth))
+        if (double.IsNaN(innerWidth))
         {
-          if (!this.textArea.IsNull("Width"))
-            this.innerWidth = textArea.Width.Point;
+          if (!textArea.IsNull("Width"))
+            innerWidth = textArea.Width.Point;
           else
-            this.innerWidth = CalcInherentWidth();
+            innerWidth = CalcInherentWidth();
         }
-        return this.innerWidth;
+        return innerWidth;
       }
     }
     XUnit innerWidth = double.NaN;
@@ -78,9 +77,9 @@ namespace MigraDocCore.Rendering
     {
       get
       {
-        if (this.textArea.IsNull("Height"))
-          return this.ContentHeight + this.textArea.TopPadding + this.textArea.BottomPadding;
-        return this.textArea.Height.Point;
+        if (textArea.IsNull("Height"))
+          return ContentHeight + textArea.TopPadding + textArea.BottomPadding;
+        return textArea.Height.Point;
       }
     }
 
@@ -88,24 +87,24 @@ namespace MigraDocCore.Rendering
     XUnit CalcInherentWidth()
     {
       XUnit inherentWidth = 0;
-      foreach (DocumentObject obj in this.textArea.Elements)
+      foreach (DocumentObject obj in textArea.Elements)
       {
-        Renderer renderer = Renderer.Create(this.gfx, this.documentRenderer, obj, this.fieldInfos);
+        Renderer renderer = Renderer.Create(gfx, documentRenderer, obj, fieldInfos);
         if (renderer != null)
         {
           renderer.Format(new Rectangle(0, 0, double.MaxValue, double.MaxValue), null);
           inherentWidth = Math.Max(renderer.RenderInfo.LayoutInfo.MinWidth, inherentWidth);
         }
       }
-      inherentWidth += this.textArea.LeftPadding;
-      inherentWidth += this.textArea.RightPadding;
+      inherentWidth += textArea.LeftPadding;
+      inherentWidth += textArea.RightPadding;
       return inherentWidth;
     }
 
 
     Area IAreaProvider.GetNextArea()
     {
-      if (this.isFirstArea)
+      if (isFirstArea)
         return CalcContentRect();
 
       return null;
@@ -116,13 +115,7 @@ namespace MigraDocCore.Rendering
       return null;
     }
 
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get
-      {
-        return this.fieldInfos;
-      }
-    }
+    FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
 
     void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
     {
@@ -137,23 +130,17 @@ namespace MigraDocCore.Rendering
 
     internal RenderInfo[] GetRenderInfos()
     {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
+      if (renderInfos != null)
+        return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
 
       return null;
     }
 
-    internal XUnit ContentHeight
-    {
-      get
-      {
-        return RenderInfo.GetTotalHeight(this.GetRenderInfos());
-      }
-    }
+    internal XUnit ContentHeight => RenderInfo.GetTotalHeight(GetRenderInfos());
 
     Rectangle CalcContentRect()
     {
-      XUnit width = this.InnerWidth - this.textArea.LeftPadding - this.textArea.RightPadding;
+      XUnit width = InnerWidth - textArea.LeftPadding - textArea.RightPadding;
       XUnit height = double.MaxValue;
       return new Rectangle(0, 0, width, height);
     }

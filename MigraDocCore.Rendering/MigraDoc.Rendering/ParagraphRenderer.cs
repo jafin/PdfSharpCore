@@ -32,11 +32,8 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Internals;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.Annotations;
 using PdfSharpCore.Drawing;
-using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
@@ -112,7 +109,7 @@ namespace MigraDocCore.Rendering
             parRenderInfo.paragraph = this.paragraph;
             ((ParagraphFormatInfo)parRenderInfo.FormatInfo).widowControl = this.paragraph.Format.WidowControl;
 
-            this.renderInfo = parRenderInfo;
+            renderInfo = parRenderInfo;
         }
 
         /// <summary>
@@ -124,7 +121,7 @@ namespace MigraDocCore.Rendering
         internal ParagraphRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
           : base(gfx, renderInfo, fieldInfos)
         {
-            this.paragraph = (Paragraph)renderInfo.DocumentObject;
+            paragraph = (Paragraph)renderInfo.DocumentObject;
         }
 
         /// <summary>
@@ -133,20 +130,20 @@ namespace MigraDocCore.Rendering
         internal override void Render()
         {
             InitRendering();
-            if ((int)this.paragraph.Format.OutlineLevel >= 1 && this.gfx.PdfPage != null) // Don't call GetOutlineTitle() in vain
-                this.documentRenderer.AddOutline((int)this.paragraph.Format.OutlineLevel, GetOutlineTitle(),
-                    this.gfx.PdfPage, OutlineDestinationTop());
+            if ((int)paragraph.Format.OutlineLevel >= 1 && gfx.PdfPage != null) // Don't call GetOutlineTitle() in vain
+                documentRenderer.AddOutline((int)paragraph.Format.OutlineLevel, GetOutlineTitle(),
+                    gfx.PdfPage, OutlineDestinationTop());
 
             RenderShading();
             RenderBorders();
 
-            ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)this.renderInfo.FormatInfo;
+            ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
             for (int idx = 0; idx < parFormatInfo.LineCount; ++idx)
             {
                 LineInfo lineInfo = parFormatInfo.GetLineInfo(idx);
-                this.isLastLine = (idx == parFormatInfo.LineCount - 1);
+                isLastLine = (idx == parFormatInfo.LineCount - 1);
 
-                this.lastTabPosition = 0;
+                lastTabPosition = 0;
                 if (lineInfo.reMeasureLine)
                     ReMeasureLine(ref lineInfo);
 
@@ -176,10 +173,10 @@ namespace MigraDocCore.Rendering
                 if (field is PageRefField)
                 {
                     PageRefField pageRefField = (PageRefField)field;
-                    number = this.fieldInfos.GetShownPageNumber(pageRefField.Name);
+                    number = fieldInfos.GetShownPageNumber(pageRefField.Name);
                     if (number <= 0)
                     {
-                        if (this.phase == Phase.Formatting)
+                        if (phase == Phase.Formatting)
                             return "XX";
                         else
                             return string.Format(AppResources.BookmarkNotDefined, pageRefField.Name);
@@ -187,25 +184,25 @@ namespace MigraDocCore.Rendering
                 }
                 else if (field is SectionField)
                 {
-                    number = this.fieldInfos.section;
+                    number = fieldInfos.section;
                     if (number <= 0)
                         return "XX";
                 }
                 else if (field is PageField)
                 {
-                    number = this.fieldInfos.displayPageNr;
+                    number = fieldInfos.displayPageNr;
                     if (number <= 0)
                         return "XX";
                 }
                 else if (field is NumPagesField)
                 {
-                    number = this.fieldInfos.numPages;
+                    number = fieldInfos.numPages;
                     if (number <= 0)
                         return "XXX";
                 }
                 else if (field is SectionPagesField)
                 {
-                    number = this.fieldInfos.sectionPages;
+                    number = fieldInfos.sectionPages;
                     if (number <= 0)
                         return "XX";
                 }
@@ -213,11 +210,11 @@ namespace MigraDocCore.Rendering
             }
             else if (field is DateField)
             {
-                DateTime dt = (this.fieldInfos.date);
+                DateTime dt = (fieldInfos.date);
                 if (dt == DateTime.MinValue)
                     dt = DateTime.Now;
 
-                return this.fieldInfos.date.ToString(((DateField)field).Format);
+                return fieldInfos.date.ToString(((DateField)field).Format);
             }
             else if (field is InfoField)
             {
@@ -231,7 +228,7 @@ namespace MigraDocCore.Rendering
 
         string GetOutlineTitle()
         {
-            ParagraphIterator iter = new ParagraphIterator(this.paragraph.Elements);
+            ParagraphIterator iter = new ParagraphIterator(paragraph.Elements);
             iter = iter.GetFirstLeaf();
 
             bool ignoreBlank = true;
@@ -280,15 +277,15 @@ namespace MigraDocCore.Rendering
             get
             {
                 LayoutInfo layoutInfo = new LayoutInfo();
-                layoutInfo.PageBreakBefore = this.paragraph.Format.PageBreakBefore;
-                layoutInfo.MarginTop = this.paragraph.Format.SpaceBefore.Point;
-                layoutInfo.MarginBottom = this.paragraph.Format.SpaceAfter.Point;
+                layoutInfo.PageBreakBefore = paragraph.Format.PageBreakBefore;
+                layoutInfo.MarginTop = paragraph.Format.SpaceBefore.Point;
+                layoutInfo.MarginBottom = paragraph.Format.SpaceAfter.Point;
                 //Don't confuse margins with left or right indent.
                 //Indents are invisible for the layouter.
                 layoutInfo.MarginRight = 0;
                 layoutInfo.MarginLeft = 0;
-                layoutInfo.KeepTogether = this.paragraph.Format.KeepTogether;
-                layoutInfo.KeepWithNext = this.paragraph.Format.KeepWithNext;
+                layoutInfo.KeepTogether = paragraph.Format.KeepTogether;
+                layoutInfo.KeepWithNext = paragraph.Format.KeepWithNext;
                 return layoutInfo;
             }
         }
@@ -300,42 +297,42 @@ namespace MigraDocCore.Rendering
         FormatResult FormatTab()
         {
             // For Tabs in Justified context
-            if (this.paragraph.Format.Alignment == ParagraphAlignment.Justify)
-                this.reMeasureLine = true;
+            if (paragraph.Format.Alignment == ParagraphAlignment.Justify)
+                reMeasureLine = true;
             TabStop nextTabStop = GetNextTabStop();
-            this.savedWordWidth = 0;
+            savedWordWidth = 0;
             if (nextTabStop == null)
                 return FormatResult.NewLine;
 
             bool notFitting = false;
-            XUnit xPositionBeforeTab = this.currentXPosition;
+            XUnit xPositionBeforeTab = currentXPosition;
             switch (nextTabStop.Alignment)
             {
                 case TabAlignment.Left:
-                    this.currentXPosition = ProbeAfterLeftAlignedTab(nextTabStop.Position.Point, out notFitting);
+                    currentXPosition = ProbeAfterLeftAlignedTab(nextTabStop.Position.Point, out notFitting);
                     break;
 
                 case TabAlignment.Right:
-                    this.currentXPosition = ProbeAfterRightAlignedTab(nextTabStop.Position.Point, out notFitting);
+                    currentXPosition = ProbeAfterRightAlignedTab(nextTabStop.Position.Point, out notFitting);
                     break;
 
                 case TabAlignment.Center:
-                    this.currentXPosition = ProbeAfterCenterAlignedTab(nextTabStop.Position.Point, out notFitting);
+                    currentXPosition = ProbeAfterCenterAlignedTab(nextTabStop.Position.Point, out notFitting);
                     break;
 
                 case TabAlignment.Decimal:
-                    this.currentXPosition = ProbeAfterDecimalAlignedTab(nextTabStop.Position.Point, out notFitting);
+                    currentXPosition = ProbeAfterDecimalAlignedTab(nextTabStop.Position.Point, out notFitting);
                     break;
             }
             if (!notFitting)
             {
                 // For correct right paragraph alignment with tabs
-                if (!this.IgnoreHorizontalGrowth)
-                    this.currentLineWidth += this.currentXPosition - xPositionBeforeTab;
+                if (!IgnoreHorizontalGrowth)
+                    currentLineWidth += currentXPosition - xPositionBeforeTab;
 
-                this.tabOffsets.Add(new TabOffset(nextTabStop.Leader, this.currentXPosition - xPositionBeforeTab));
-                if (this.currentLeaf != null)
-                    this.lastTab = this.currentLeaf.Current;
+                tabOffsets.Add(new TabOffset(nextTabStop.Leader, currentXPosition - xPositionBeforeTab));
+                if (currentLeaf != null)
+                    lastTab = currentLeaf.Current;
             }
 
             return notFitting ? FormatResult.NewLine : FormatResult.Continue;
@@ -399,11 +396,11 @@ namespace MigraDocCore.Rendering
             //------------------------------------------
 
             XUnit xPositionAfterTab = xPosition;
-            this.currentXPosition = this.formattingArea.X + tabStopPosition.Point;
+            currentXPosition = formattingArea.X + tabStopPosition.Point;
 
             notFitting = ProbeAfterTab();
             if (!notFitting)
-                xPositionAfterTab = this.formattingArea.X + tabStopPosition;
+                xPositionAfterTab = formattingArea.X + tabStopPosition;
 
             //--- Restore ---------------------------------
             RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
@@ -432,8 +429,8 @@ namespace MigraDocCore.Rendering
             XUnit xPositionAfterTab = xPosition;
 
             notFitting = ProbeAfterTab();
-            if (!notFitting && xPosition + this.currentLineWidth <= this.formattingArea.X + tabStopPosition)
-                xPositionAfterTab = this.formattingArea.X + tabStopPosition - this.currentLineWidth;
+            if (!notFitting && xPosition + currentLineWidth <= formattingArea.X + tabStopPosition)
+                xPositionAfterTab = formattingArea.X + tabStopPosition - currentLineWidth;
 
             //--- Restore ------------------------------
             RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
@@ -443,7 +440,7 @@ namespace MigraDocCore.Rendering
 
         Hyperlink GetHyperlink()
         {
-            DocumentObject elements = DocumentRelations.GetParent(this.currentLeaf.Current);
+            DocumentObject elements = DocumentRelations.GetParent(currentLeaf.Current);
             DocumentObject parent = DocumentRelations.GetParent(elements);
             while (!(parent is Paragraph))
             {
@@ -478,19 +475,19 @@ namespace MigraDocCore.Rendering
 
             if (!notFitting)
             {
-                if (xPosition + this.currentLineWidth / 2.0 <= this.formattingArea.X + tabStopPosition)
+                if (xPosition + currentLineWidth / 2.0 <= formattingArea.X + tabStopPosition)
                 {
-                    Rectangle rect = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
-                    if (this.formattingArea.X + tabStopPosition + this.currentLineWidth / 2.0 > rect.X + rect.Width - this.RightIndent)
+                    Rectangle rect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+                    if (formattingArea.X + tabStopPosition + currentLineWidth / 2.0 > rect.X + rect.Width - RightIndent)
                     {
                         //the text is too long on the right hand side of the tabstop => align to right indent.
                         xPositionAfterTab = rect.X +
                           rect.Width -
-                          this.RightIndent -
-                          this.currentLineWidth;
+                          RightIndent -
+                          currentLineWidth;
                     }
                     else
-                        xPositionAfterTab = this.formattingArea.X + tabStopPosition - this.currentLineWidth / 2;
+                        xPositionAfterTab = formattingArea.X + tabStopPosition - currentLineWidth / 2;
                 }
             }
 
@@ -509,63 +506,63 @@ namespace MigraDocCore.Rendering
         XUnit ProbeAfterDecimalAlignedTab(XUnit tabStopPosition, out bool notFitting)
         {
             notFitting = false;
-            ParagraphIterator savedLeaf = this.currentLeaf;
+            ParagraphIterator savedLeaf = currentLeaf;
 
             //Extra for auto tab after list symbol
-            if (IsTab(this.currentLeaf.Current))
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
-            if (this.currentLeaf == null)
+            if (IsTab(currentLeaf.Current))
+                currentLeaf = currentLeaf.GetNextLeaf();
+            if (currentLeaf == null)
             {
-                this.currentLeaf = savedLeaf;
-                return this.currentXPosition + tabStopPosition;
+                currentLeaf = savedLeaf;
+                return currentXPosition + tabStopPosition;
             }
             VerticalLineInfo newVerticalInfo = CalcCurrentVerticalInfo();
-            Rectangle fittingRect = this.formattingArea.GetFittingRect(this.currentYPosition, newVerticalInfo.height);
+            Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, newVerticalInfo.height);
             if (fittingRect == null)
             {
                 notFitting = true;
-                this.currentLeaf = savedLeaf;
-                return this.currentXPosition;
+                currentLeaf = savedLeaf;
+                return currentXPosition;
             }
 
-            if (IsPlainText(this.currentLeaf.Current))
+            if (IsPlainText(currentLeaf.Current))
             {
-                Text text = (Text)this.currentLeaf.Current;
+                Text text = (Text)currentLeaf.Current;
                 string word = text.Content;
                 int lastIndex = text.Content.LastIndexOfAny(new char[] { ',', '.' });
                 if (lastIndex > 0)
                     word = word.Substring(0, lastIndex);
 
                 XUnit wordLength = MeasureString(word);
-                notFitting = this.currentXPosition + wordLength >= formattingArea.X + formattingArea.Width + Tolerance;
+                notFitting = currentXPosition + wordLength >= formattingArea.X + formattingArea.Width + Tolerance;
                 if (!notFitting)
-                    return this.formattingArea.X + tabStopPosition - wordLength;
+                    return formattingArea.X + tabStopPosition - wordLength;
 
                 else
-                    return this.currentXPosition;
+                    return currentXPosition;
             }
-            this.currentLeaf = savedLeaf;
+            currentLeaf = savedLeaf;
             return ProbeAfterRightAlignedTab(tabStopPosition, out notFitting);
         }
 
         void SaveBeforeProbing(out ParagraphIterator paragraphIter, out int blankCount, out XUnit wordsWidth, out XUnit xPosition, out XUnit lineWidth, out XUnit blankWidth)
         {
-            paragraphIter = this.currentLeaf;
-            blankCount = this.currentBlankCount;
-            xPosition = this.currentXPosition;
-            lineWidth = this.currentLineWidth;
-            wordsWidth = this.currentWordsWidth;
-            blankWidth = this.savedBlankWidth;
+            paragraphIter = currentLeaf;
+            blankCount = currentBlankCount;
+            xPosition = currentXPosition;
+            lineWidth = currentLineWidth;
+            wordsWidth = currentWordsWidth;
+            blankWidth = savedBlankWidth;
         }
 
         void RestoreAfterProbing(ParagraphIterator paragraphIter, int blankCount, XUnit wordsWidth, XUnit xPosition, XUnit lineWidth, XUnit blankWidth)
         {
-            this.currentLeaf = paragraphIter;
-            this.currentBlankCount = blankCount;
-            this.currentXPosition = xPosition;
-            this.currentLineWidth = lineWidth;
-            this.currentWordsWidth = wordsWidth;
-            this.savedBlankWidth = blankWidth;
+            currentLeaf = paragraphIter;
+            currentBlankCount = blankCount;
+            currentXPosition = xPosition;
+            currentLineWidth = lineWidth;
+            currentWordsWidth = wordsWidth;
+            savedBlankWidth = blankWidth;
         }
 
         /// <summary>
@@ -575,26 +572,26 @@ namespace MigraDocCore.Rendering
         /// <returns>True if the tab causes a linebreak.</returns>
         bool ProbeAfterTab()
         {
-            this.currentLineWidth = 0;
-            this.currentBlankCount = 0;
+            currentLineWidth = 0;
+            currentBlankCount = 0;
             //Extra for auto tab after list symbol
 
             //TODO: KLPO4KLPO: Check if this conditional statement is still required
-            if (this.currentLeaf != null && IsTab(this.currentLeaf.Current))
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
+            if (currentLeaf != null && IsTab(currentLeaf.Current))
+                currentLeaf = currentLeaf.GetNextLeaf();
 
             bool wordAppeared = false;
-            while (this.currentLeaf != null && !IsLineBreak(this.currentLeaf.Current) && !IsTab(this.currentLeaf.Current))
+            while (currentLeaf != null && !IsLineBreak(currentLeaf.Current) && !IsTab(currentLeaf.Current))
             {
-                FormatResult result = FormatElement(this.currentLeaf.Current);
+                FormatResult result = FormatElement(currentLeaf.Current);
                 if (result != FormatResult.Continue)
                     break;
 
-                wordAppeared = wordAppeared || IsWordLikeElement(this.currentLeaf.Current);
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
+                wordAppeared = wordAppeared || IsWordLikeElement(currentLeaf.Current);
+                currentLeaf = currentLeaf.GetNextLeaf();
             }
-            return this.currentLeaf != null && !IsLineBreak(this.currentLeaf.Current) &&
-              !IsTab(this.currentLeaf.Current) && !wordAppeared;
+            return currentLeaf != null && !IsLineBreak(currentLeaf.Current) &&
+              !IsTab(currentLeaf.Current) && !wordAppeared;
         }
 
         /// <summary>
@@ -603,16 +600,16 @@ namespace MigraDocCore.Rendering
         /// <returns>The searched tab stop.</returns>
         private TabStop GetNextTabStop()
         {
-            ParagraphFormat format = this.paragraph.Format;
+            ParagraphFormat format = paragraph.Format;
             TabStops tabStops = format.TabStops;
             XUnit lastPosition = 0;
 
             foreach (TabStop tabStop in tabStops)
             {
-                if (tabStop.Position.Point > this.formattingArea.Width - this.RightIndent + Tolerance)
+                if (tabStop.Position.Point > formattingArea.Width - RightIndent + Tolerance)
                     break;
 
-                if (tabStop.Position.Point + this.formattingArea.X > this.currentXPosition + Tolerance) // With Tolerance ...
+                if (tabStop.Position.Point + formattingArea.X > currentXPosition + Tolerance) // With Tolerance ...
                     return tabStop;
 
                 lastPosition = tabStop.Position.Point;
@@ -622,17 +619,17 @@ namespace MigraDocCore.Rendering
             if (format.FirstLineIndent < 0 || (!format.IsNull("ListInfo") && format.ListInfo.NumberPosition < format.LeftIndent))
             {
                 XUnit leftIndent = format.LeftIndent.Point;
-                if (this.isFirstLine && this.currentXPosition < leftIndent + this.formattingArea.X)
+                if (isFirstLine && currentXPosition < leftIndent + formattingArea.X)
                     return new TabStop(leftIndent.Point);
             }
             XUnit defaultTabStop = "1.25cm";
-            if (!this.paragraph.Document.IsNull("DefaultTabstop"))
-                defaultTabStop = this.paragraph.Document.DefaultTabStop.Point;
+            if (!paragraph.Document.IsNull("DefaultTabstop"))
+                defaultTabStop = paragraph.Document.DefaultTabStop.Point;
 
             XUnit currTabPos = defaultTabStop;
-            while (currTabPos + this.formattingArea.X <= this.formattingArea.Width - this.RightIndent)
+            while (currTabPos + formattingArea.X <= formattingArea.Width - RightIndent)
             {
-                if (currTabPos > lastPosition && currTabPos + this.formattingArea.X > this.currentXPosition + Tolerance)
+                if (currTabPos > lastPosition && currTabPos + formattingArea.X > currentXPosition + Tolerance)
                     return new TabStop(currTabPos.Point);
 
                 currTabPos += defaultTabStop;
@@ -650,39 +647,39 @@ namespace MigraDocCore.Rendering
             {
                 XUnit xPos = 0;
 
-                if (this.phase == Phase.Formatting)
+                if (phase == Phase.Formatting)
                 {
-                    xPos = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height).X;
-                    xPos += this.LeftIndent;
+                    xPos = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).X;
+                    xPos += LeftIndent;
                 }
                 else //if (phase == Phase.Rendering)
                 {
-                    Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+                    Area contentArea = renderInfo.LayoutInfo.ContentArea;
                     //next lines for non fitting lines that produce an empty fitting rect:
                     XUnit rectX = contentArea.X;
                     XUnit rectWidth = contentArea.Width;
 
-                    Rectangle fittingRect = contentArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
+                    Rectangle fittingRect = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
                     if (fittingRect != null)
                     {
                         rectX = fittingRect.X;
                         rectWidth = fittingRect.Width;
                     }
-                    switch (this.paragraph.Format.Alignment)
+                    switch (paragraph.Format.Alignment)
                     {
                         case ParagraphAlignment.Left:
                         case ParagraphAlignment.Justify:
                             xPos = rectX;
-                            xPos += this.LeftIndent;
+                            xPos += LeftIndent;
                             break;
 
                         case ParagraphAlignment.Right:
-                            xPos = rectX + rectWidth - this.RightIndent;
-                            xPos -= this.currentLineWidth;
+                            xPos = rectX + rectWidth - RightIndent;
+                            xPos -= currentLineWidth;
                             break;
 
                         case ParagraphAlignment.Center:
-                            xPos = rectX + (rectWidth + this.LeftIndent - this.RightIndent - this.currentLineWidth) / 2.0;
+                            xPos = rectX + (rectWidth + LeftIndent - RightIndent - currentLineWidth) / 2.0;
                             break;
                     }
                 }
@@ -696,36 +693,36 @@ namespace MigraDocCore.Rendering
         /// <param name="lineInfo"></param>
         void RenderLine(LineInfo lineInfo)
         {
-            this.currentVerticalInfo = lineInfo.vertical;
-            this.currentLeaf = lineInfo.startIter;
-            this.startLeaf = lineInfo.startIter;
-            this.endLeaf = lineInfo.endIter;
-            this.currentBlankCount = lineInfo.blankCount;
-            this.currentLineWidth = lineInfo.lineWidth;
-            this.currentWordsWidth = lineInfo.wordsWidth;
-            this.currentXPosition = this.StartXPosition;
-            this.tabOffsets = lineInfo.tabOffsets;
-            this.lastTabPassed = lineInfo.lastTab == null;
-            this.lastTab = lineInfo.lastTab;
+            currentVerticalInfo = lineInfo.vertical;
+            currentLeaf = lineInfo.startIter;
+            startLeaf = lineInfo.startIter;
+            endLeaf = lineInfo.endIter;
+            currentBlankCount = lineInfo.blankCount;
+            currentLineWidth = lineInfo.lineWidth;
+            currentWordsWidth = lineInfo.wordsWidth;
+            currentXPosition = StartXPosition;
+            tabOffsets = lineInfo.tabOffsets;
+            lastTabPassed = lineInfo.lastTab == null;
+            lastTab = lineInfo.lastTab;
 
-            this.tabIdx = 0;
+            tabIdx = 0;
 
-            bool ready = this.currentLeaf == null;
-            if (this.isFirstLine)
+            bool ready = currentLeaf == null;
+            if (isFirstLine)
                 RenderListSymbol();
 
             while (!ready)
             {
-                if (this.currentLeaf.Current == lineInfo.endIter.Current)
+                if (currentLeaf.Current == lineInfo.endIter.Current)
                     ready = true;
 
-                if (this.currentLeaf.Current == lineInfo.lastTab)
-                    this.lastTabPassed = true;
-                RenderElement(this.currentLeaf.Current);
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
+                if (currentLeaf.Current == lineInfo.lastTab)
+                    lastTabPassed = true;
+                RenderElement(currentLeaf.Current);
+                currentLeaf = currentLeaf.GetNextLeaf();
             }
-            this.currentYPosition += lineInfo.vertical.height;
-            this.isFirstLine = false;
+            currentYPosition += lineInfo.vertical.height;
+            isFirstLine = false;
         }
 
         void ReMeasureLine(ref LineInfo lineInfo)
@@ -738,40 +735,40 @@ namespace MigraDocCore.Rendering
             XUnit wordsWidth;
             XUnit blankWidth;
             SaveBeforeProbing(out iter, out blankCount, out wordsWidth, out xPosition, out lineWidth, out blankWidth);
-            bool origLastTabPassed = this.lastTabPassed;
+            bool origLastTabPassed = lastTabPassed;
             //------------------------------------------
-            this.currentLeaf = lineInfo.startIter;
-            this.endLeaf = lineInfo.endIter;
-            this.formattingArea = this.renderInfo.LayoutInfo.ContentArea;
-            this.tabOffsets = new ArrayList();
-            this.currentLineWidth = 0;
-            this.currentWordsWidth = 0;
+            currentLeaf = lineInfo.startIter;
+            endLeaf = lineInfo.endIter;
+            formattingArea = renderInfo.LayoutInfo.ContentArea;
+            tabOffsets = new ArrayList();
+            currentLineWidth = 0;
+            currentWordsWidth = 0;
 
-            Rectangle fittingRect = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
+            Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
             if (fittingRect == null)
                 GetType();
             if (fittingRect != null)
             {
-                this.currentXPosition = fittingRect.X + this.LeftIndent;
+                currentXPosition = fittingRect.X + LeftIndent;
                 FormatListSymbol();
                 bool goOn = true;
-                while (goOn && this.currentLeaf != null)
+                while (goOn && currentLeaf != null)
                 {
-                    if (this.currentLeaf.Current == lineInfo.lastTab)
-                        this.lastTabPassed = true;
+                    if (currentLeaf.Current == lineInfo.lastTab)
+                        lastTabPassed = true;
 
-                    FormatElement(this.currentLeaf.Current);
+                    FormatElement(currentLeaf.Current);
 
-                    goOn = this.currentLeaf != null && this.currentLeaf.Current != this.endLeaf.Current;
+                    goOn = currentLeaf != null && currentLeaf.Current != endLeaf.Current;
                     if (goOn)
-                        this.currentLeaf = this.currentLeaf.GetNextLeaf();
+                        currentLeaf = currentLeaf.GetNextLeaf();
                 }
-                lineInfo.lineWidth = this.currentLineWidth;
-                lineInfo.wordsWidth = this.currentWordsWidth;
-                lineInfo.blankCount = this.currentBlankCount;
-                lineInfo.tabOffsets = this.tabOffsets;
+                lineInfo.lineWidth = currentLineWidth;
+                lineInfo.wordsWidth = currentWordsWidth;
+                lineInfo.blankCount = currentBlankCount;
+                lineInfo.tabOffsets = tabOffsets;
                 lineInfo.reMeasureLine = false;
-                this.lastTabPassed = origLastTabPassed;
+                lastTabPassed = origLastTabPassed;
             }
             RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
         }
@@ -780,23 +777,23 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                if (this.phase == Phase.Rendering &&
-                  this.paragraph.Format.Alignment == ParagraphAlignment.Justify && this.lastTabPassed)
+                if (phase == Phase.Rendering &&
+                  paragraph.Format.Alignment == ParagraphAlignment.Justify && lastTabPassed)
                 {
-                    if (this.currentBlankCount >= 1 && !(this.isLastLine && this.renderInfo.FormatInfo.IsEnding))
+                    if (currentBlankCount >= 1 && !(isLastLine && renderInfo.FormatInfo.IsEnding))
                     {
-                        Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-                        XUnit width = contentArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height).Width;
-                        if (this.lastTabPosition > 0)
+                        Area contentArea = renderInfo.LayoutInfo.ContentArea;
+                        XUnit width = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).Width;
+                        if (lastTabPosition > 0)
                         {
-                            width -= (this.lastTabPosition -
+                            width -= (lastTabPosition -
                             contentArea.X);
                         }
                         else
-                            width -= this.LeftIndent;
+                            width -= LeftIndent;
 
-                        width -= this.RightIndent;
-                        return (width - this.currentWordsWidth) / (this.currentBlankCount);
+                        width -= RightIndent;
+                        return (width - currentWordsWidth) / (currentBlankCount);
                     }
                 }
                 return MeasureString(" ");
@@ -863,22 +860,22 @@ namespace MigraDocCore.Rendering
 
         void RenderImage(Image image)
         {
-            RenderInfo renderInfo = this.CurrentImageRenderInfo;
+            RenderInfo renderInfo = CurrentImageRenderInfo;
             XUnit top = CurrentBaselinePosition;
             Area contentArea = renderInfo.LayoutInfo.ContentArea;
             top -= contentArea.Height;
-            RenderByInfos(this.currentXPosition, top, new RenderInfo[] { renderInfo });
+            RenderByInfos(currentXPosition, top, new RenderInfo[] { renderInfo });
 
             RenderUnderline(contentArea.Width, true);
             RenderStrikethrough(contentArea.Width, true);
             RealizeHyperlink(contentArea.Width);
 
-            this.currentXPosition += contentArea.Width;
+            currentXPosition += contentArea.Width;
         }
 
         void RenderDateField(DateField dateField)
         {
-            RenderWord(this.fieldInfos.date.ToString(dateField.Format));
+            RenderWord(fieldInfos.date.ToString(dateField.Format));
         }
 
         void RenderInfoField(InfoField infoField)
@@ -943,14 +940,14 @@ namespace MigraDocCore.Rendering
 
         void RenderSpace(Character character)
         {
-            this.currentXPosition += GetSpaceWidth(character);
+            currentXPosition += GetSpaceWidth(character);
         }
 
         void RenderLinebreak()
         {
-            this.RenderUnderline(0, false);
-            this.RenderStrikethrough(0, false);
-            this.RealizeHyperlink(0);
+            RenderUnderline(0, false);
+            RenderStrikethrough(0, false);
+            RealizeHyperlink(0);
         }
 
         void RenderSymbol(Character character)
@@ -970,9 +967,9 @@ namespace MigraDocCore.Rendering
             RenderStrikethrough(tabOffset.offset, false);
             RenderTabLeader(tabOffset);
             RealizeHyperlink(tabOffset.offset);
-            this.currentXPosition += tabOffset.offset;
-            if (this.currentLeaf.Current == this.lastTab)
-                this.lastTabPosition = this.currentXPosition;
+            currentXPosition += tabOffset.offset;
+            if (currentLeaf.Current == lastTab)
+                lastTabPosition = currentXPosition;
         }
 
         void RenderTabLeader(TabOffset tabOffset)
@@ -1001,42 +998,42 @@ namespace MigraDocCore.Rendering
                     return;
             }
             XUnit leaderWidth = MeasureString(leaderString);
-            XUnit xPosition = this.currentXPosition;
+            XUnit xPosition = currentXPosition;
             string drawString = "";
 
-            while (xPosition + leaderWidth <= this.currentXPosition + tabOffset.offset)
+            while (xPosition + leaderWidth <= currentXPosition + tabOffset.offset)
             {
                 drawString += leaderString;
                 xPosition += leaderWidth;
             }
-            Font font = this.CurrentDomFont;
+            Font font = CurrentDomFont;
             XFont xFont = CurrentFont;
             if (font.Subscript || font.Superscript)
                 xFont = FontHandler.ToSubSuperFont(xFont);
 
-            this.gfx.DrawString(drawString, xFont, CurrentBrush, this.currentXPosition, CurrentBaselinePosition);
+            gfx.DrawString(drawString, xFont, CurrentBrush, currentXPosition, CurrentBaselinePosition);
         }
 
         TabOffset NextTabOffset()
         {
 
-            TabOffset offset = this.tabOffsets.Count > this.tabIdx ?
-              (TabOffset)this.tabOffsets[this.tabIdx] :
+            TabOffset offset = tabOffsets.Count > tabIdx ?
+              (TabOffset)tabOffsets[tabIdx] :
               new TabOffset(0, 0);
-            ++this.tabIdx;
+            ++tabIdx;
             return offset;
         }
         int tabIdx;
 
         bool IgnoreBlank()
         {
-            if (this.currentLeaf == this.startLeaf)
+            if (currentLeaf == startLeaf)
                 return true;
 
-            if (this.endLeaf != null && this.currentLeaf.Current == this.endLeaf.Current)
+            if (endLeaf != null && currentLeaf.Current == endLeaf.Current)
                 return true;
 
-            ParagraphIterator nextIter = this.currentLeaf.GetNextLeaf();
+            ParagraphIterator nextIter = currentLeaf.GetNextLeaf();
             while (nextIter != null && (IsBlank(nextIter.Current) || nextIter.Current is BookmarkField))
             {
                 nextIter = nextIter.GetNextLeaf();
@@ -1047,7 +1044,7 @@ namespace MigraDocCore.Rendering
             if (IsTab(nextIter.Current))
                 return true;
 
-            ParagraphIterator prevIter = this.currentLeaf.GetPreviousLeaf();
+            ParagraphIterator prevIter = currentLeaf.GetPreviousLeaf();
             // Can be null if currentLeaf is the first leaf
             DocumentObject obj = prevIter != null ? prevIter.Current : null;
             while (obj != null && obj is BookmarkField)
@@ -1068,11 +1065,11 @@ namespace MigraDocCore.Rendering
         {
             if (!IgnoreBlank())
             {
-                XUnit wordDistance = this.CurrentWordDistance;
+                XUnit wordDistance = CurrentWordDistance;
                 RenderUnderline(wordDistance, false);
                 RenderStrikethrough(wordDistance, false);
                 RealizeHyperlink(wordDistance);
-                this.currentXPosition += wordDistance;
+                currentXPosition += wordDistance;
             }
             else
             {
@@ -1084,7 +1081,7 @@ namespace MigraDocCore.Rendering
 
         void RenderSoftHyphen()
         {
-            if (this.currentLeaf.Current == this.endLeaf.Current)
+            if (currentLeaf.Current == endLeaf.Current)
                 RenderWord("-");
         }
 
@@ -1095,40 +1092,40 @@ namespace MigraDocCore.Rendering
 
         void RenderWord(string word)
         {
-            Font font = this.CurrentDomFont;
+            Font font = CurrentDomFont;
             XFont xFont = CurrentFont;
             if (font.Subscript || font.Superscript)
                 xFont = FontHandler.ToSubSuperFont(xFont);
 
-            this.gfx.DrawString(word, xFont, CurrentBrush, this.currentXPosition, CurrentBaselinePosition);
+            gfx.DrawString(word, xFont, CurrentBrush, currentXPosition, CurrentBaselinePosition);
             XUnit wordWidth = MeasureString(word);
             RenderUnderline(wordWidth, true);
             RenderStrikethrough(wordWidth, true);
             RealizeHyperlink(wordWidth);
-            this.currentXPosition += wordWidth;
+            currentXPosition += wordWidth;
         }
 
         void StartHyperlink(XUnit left, XUnit top)
         {
-            this.hyperlinkRect = new XRect(left, top, 0, 0);
+            hyperlinkRect = new XRect(left, top, 0, 0);
         }
 
         void EndHyperlink(Hyperlink hyperlink, XUnit right, XUnit bottom)
         {
-            this.hyperlinkRect.Width = right - this.hyperlinkRect.X;
-            this.hyperlinkRect.Height = bottom - this.hyperlinkRect.Y;
-            PdfPage page = this.gfx.PdfPage;
+            hyperlinkRect.Width = right - hyperlinkRect.X;
+            hyperlinkRect.Height = bottom - hyperlinkRect.Y;
+            PdfPage page = gfx.PdfPage;
             if (page != null)
             {
-                XRect rect = this.gfx.Transformer.WorldToDefaultPage(this.hyperlinkRect);
+                XRect rect = gfx.Transformer.WorldToDefaultPage(hyperlinkRect);
 
                 switch (hyperlink.Type)
                 {
                     case HyperlinkType.Local:
-                        int pageRef = this.fieldInfos.GetPhysicalPageNumber(hyperlink.Name);
+                        int pageRef = fieldInfos.GetPhysicalPageNumber(hyperlink.Name);
                         if (pageRef > 0)
                             page.AddDocumentLink(new PdfRectangle(rect), pageRef,
-                                this.fieldInfos.GetBookmarkTop(hyperlink.Name));
+                                fieldInfos.GetBookmarkTop(hyperlink.Name));
                         break;
 
                     case HyperlinkType.Web:
@@ -1139,37 +1136,37 @@ namespace MigraDocCore.Rendering
                         page.AddFileLink(new PdfRectangle(rect), hyperlink.Name);
                         break;
                 }
-                this.hyperlinkRect = new XRect();
+                hyperlinkRect = new XRect();
             }
         }
 
         void RealizeHyperlink(XUnit width)
         {
-            XUnit top = this.currentYPosition;
-            XUnit left = this.currentXPosition;
-            XUnit bottom = top + this.currentVerticalInfo.height;
+            XUnit top = currentYPosition;
+            XUnit left = currentXPosition;
+            XUnit bottom = top + currentVerticalInfo.height;
             XUnit right = left + width;
             Hyperlink hyperlink = GetHyperlink();
 
-            bool hyperlinkChanged = this.currentHyperlink != hyperlink;
+            bool hyperlinkChanged = currentHyperlink != hyperlink;
 
             if (hyperlinkChanged)
             {
-                if (this.currentHyperlink != null)
-                    EndHyperlink(this.currentHyperlink, left, bottom);
+                if (currentHyperlink != null)
+                    EndHyperlink(currentHyperlink, left, bottom);
 
                 if (hyperlink != null)
                     StartHyperlink(left, top);
 
-                this.currentHyperlink = hyperlink;
+                currentHyperlink = hyperlink;
             }
 
-            if (this.currentLeaf.Current == this.endLeaf.Current)
+            if (currentLeaf.Current == endLeaf.Current)
             {
-                if (this.currentHyperlink != null)
-                    EndHyperlink(this.currentHyperlink, right, bottom);
+                if (currentHyperlink != null)
+                    EndHyperlink(currentHyperlink, right, bottom);
 
-                this.currentHyperlink = null;
+                currentHyperlink = null;
             }
         }
         Hyperlink currentHyperlink;
@@ -1179,19 +1176,19 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                VerticalLineInfo verticalInfo = this.currentVerticalInfo;
-                XUnit position = this.currentYPosition;
+                VerticalLineInfo verticalInfo = currentVerticalInfo;
+                XUnit position = currentYPosition;
 
                 Font font = CurrentDomFont;
                 XFont xFont = CurrentFont;
                 if (font.Subscript)
                 {
                     position += verticalInfo.inherentlineSpace;
-                    position -= FontHandler.GetSubSuperScaling(this.CurrentFont) * FontHandler.GetDescent(xFont);
+                    position -= FontHandler.GetSubSuperScaling(CurrentFont) * FontHandler.GetDescent(xFont);
                 }
                 else if (font.Superscript)
                 {
-                    position += FontHandler.GetSubSuperScaling(this.CurrentFont) * (xFont.GetHeight() - FontHandler.GetDescent(xFont));
+                    position += FontHandler.GetSubSuperScaling(CurrentFont) * (xFont.GetHeight() - FontHandler.GetDescent(xFont));
                 }
                 else
                     position += verticalInfo.inherentlineSpace - verticalInfo.descent;
@@ -1204,7 +1201,7 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                if (this.currentLeaf != null)
+                if (currentLeaf != null)
                     return FontHandler.FontColorToXBrush(CurrentDomFont);
 
                 return null;
@@ -1223,32 +1220,32 @@ namespace MigraDocCore.Rendering
         /// </remarks>
         double OutlineDestinationTop()
         {
-            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
             if (contentArea == null)
                 return double.NaN;
 
-            XRect onPage = this.gfx.Transformer.WorldToDefaultPage(
+            XRect onPage = gfx.Transformer.WorldToDefaultPage(
                 new XRect(contentArea.X, contentArea.Y, 0, 0));
             return onPage.Y;
         }
 
         private void InitRendering()
         {
-            this.phase = Phase.Rendering;
+            phase = Phase.Rendering;
 
-            ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)this.renderInfo.FormatInfo;
+            ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
             if (parFormatInfo.LineCount == 0)
                 return;
-            this.isFirstLine = parFormatInfo.IsStarting;
+            isFirstLine = parFormatInfo.IsStarting;
 
             LineInfo lineInfo = parFormatInfo.GetFirstLineInfo();
-            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-            this.currentYPosition = contentArea.Y + TopBorderOffset;
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
+            currentYPosition = contentArea.Y + TopBorderOffset;
             // StL: GetFittingRect liefert manchmal null
-            Rectangle rect = contentArea.GetFittingRect(this.currentYPosition, lineInfo.vertical.height);
+            Rectangle rect = contentArea.GetFittingRect(currentYPosition, lineInfo.vertical.height);
             if (rect != null)
-                this.currentXPosition = rect.X;
-            this.currentLineWidth = 0;
+                currentXPosition = rect.X;
+            currentLineWidth = 0;
         }
 
         /// <summary>
@@ -1259,35 +1256,35 @@ namespace MigraDocCore.Rendering
         /// <returns>False, if nothing of the paragraph will fit the area any more.</returns>
         private bool InitFormat(Area area, FormatInfo previousFormatInfo)
         {
-            this.phase = Phase.Formatting;
+            phase = Phase.Formatting;
 
-            this.tabOffsets = new ArrayList();
+            tabOffsets = new ArrayList();
 
             ParagraphFormatInfo prevParaFormatInfo = (ParagraphFormatInfo)previousFormatInfo;
             if (previousFormatInfo == null || prevParaFormatInfo.LineCount == 0)
             {
-                ((ParagraphFormatInfo)this.renderInfo.FormatInfo).isStarting = true;
-                ParagraphIterator parIt = new ParagraphIterator(this.paragraph.Elements);
-                this.currentLeaf = parIt.GetFirstLeaf();
-                this.isFirstLine = true;
+                ((ParagraphFormatInfo)renderInfo.FormatInfo).isStarting = true;
+                ParagraphIterator parIt = new ParagraphIterator(paragraph.Elements);
+                currentLeaf = parIt.GetFirstLeaf();
+                isFirstLine = true;
             }
             else
             {
-                this.currentLeaf = prevParaFormatInfo.GetLastLineInfo().endIter.GetNextLeaf();
-                this.isFirstLine = false;
-                ((ParagraphFormatInfo)this.renderInfo.FormatInfo).isStarting = false;
+                currentLeaf = prevParaFormatInfo.GetLastLineInfo().endIter.GetNextLeaf();
+                isFirstLine = false;
+                ((ParagraphFormatInfo)renderInfo.FormatInfo).isStarting = false;
             }
 
-            this.startLeaf = this.currentLeaf;
-            this.currentVerticalInfo = CalcCurrentVerticalInfo();
-            this.currentYPosition = area.Y + TopBorderOffset;
-            this.formattingArea = area;
-            Rectangle rect = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
+            startLeaf = currentLeaf;
+            currentVerticalInfo = CalcCurrentVerticalInfo();
+            currentYPosition = area.Y + TopBorderOffset;
+            formattingArea = area;
+            Rectangle rect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
             if (rect == null)
                 return false;
 
-            this.currentXPosition = rect.X + LeftIndent;
-            if (this.isFirstLine)
+            currentXPosition = rect.X + LeftIndent;
+            if (isFirstLine)
                 FormatListSymbol();
 
             return true;
@@ -1303,10 +1300,10 @@ namespace MigraDocCore.Rendering
         {
             font = null;
             symbol = null;
-            ParagraphFormatInfo formatInfo = (ParagraphFormatInfo)this.renderInfo.FormatInfo;
-            if (this.phase == Phase.Formatting)
+            ParagraphFormatInfo formatInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
+            if (phase == Phase.Formatting)
             {
-                ParagraphFormat format = this.paragraph.Format;
+                ParagraphFormat format = paragraph.Format;
                 if (!format.IsNull("ListInfo"))
                 {
                     ListInfo listInfo = format.ListInfo;
@@ -1331,18 +1328,18 @@ namespace MigraDocCore.Rendering
                             break;
 
                         case ListType.NumberList1:
-                            symbol = this.documentRenderer.NextListNumber(listInfo) + ".";
-                            font = FontHandler.FontToXFont(format.Font, this.documentRenderer.PrivateFonts, this.gfx.MUH);
+                            symbol = documentRenderer.NextListNumber(listInfo) + ".";
+                            font = FontHandler.FontToXFont(format.Font, documentRenderer.PrivateFonts, gfx.MUH);
                             break;
 
                         case ListType.NumberList2:
-                            symbol = this.documentRenderer.NextListNumber(listInfo) + ")";
-                            font = FontHandler.FontToXFont(format.Font, this.documentRenderer.PrivateFonts, this.gfx.MUH);
+                            symbol = documentRenderer.NextListNumber(listInfo) + ")";
+                            font = FontHandler.FontToXFont(format.Font, documentRenderer.PrivateFonts, gfx.MUH);
                             break;
 
                         case ListType.NumberList3:
-                            symbol = NumberFormatter.Format(this.documentRenderer.NextListNumber(listInfo), "alphabetic") + ")";
-                            font = FontHandler.FontToXFont(format.Font, this.documentRenderer.PrivateFonts, this.gfx.MUH);
+                            symbol = NumberFormatter.Format(documentRenderer.NextListNumber(listInfo), "alphabetic") + ")";
+                            font = FontHandler.FontToXFont(format.Font, documentRenderer.PrivateFonts, gfx.MUH);
                             break;
                     }
                     formatInfo.listFont = font;
@@ -1366,9 +1363,9 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                ParagraphFormat format = this.paragraph.Format;
+                ParagraphFormat format = paragraph.Format;
                 XUnit leftIndent = format.LeftIndent.Point;
-                if (this.isFirstLine)
+                if (isFirstLine)
                 {
                     if (!format.IsNull("ListInfo"))
                     {
@@ -1377,20 +1374,14 @@ namespace MigraDocCore.Rendering
                         else if (format.IsNull("FirstLineIndent"))
                             return 0;
                     }
-                    return leftIndent + this.paragraph.Format.FirstLineIndent.Point;
+                    return leftIndent + paragraph.Format.FirstLineIndent.Point;
                 }
                 else
                     return leftIndent;
             }
         }
 
-        XUnit RightIndent
-        {
-            get
-            {
-                return this.paragraph.Format.RightIndent.Point;
-            }
-        }
+        XUnit RightIndent => paragraph.Format.RightIndent.Point;
 
         /// <summary>
         /// Formats the paragraph by performing line breaks etc.
@@ -1399,7 +1390,7 @@ namespace MigraDocCore.Rendering
         /// <param name="previousFormatInfo">The format info that was obtained on formatting the same paragraph on a previous area.</param>
         internal override void Format(Area area, FormatInfo previousFormatInfo)
         {
-            ParagraphFormatInfo formatInfo = ((ParagraphFormatInfo)this.renderInfo.FormatInfo);
+            ParagraphFormatInfo formatInfo = ((ParagraphFormatInfo)renderInfo.FormatInfo);
             if (!InitFormat(area, previousFormatInfo))
             {
                 formatInfo.isStarting = false;
@@ -1408,18 +1399,18 @@ namespace MigraDocCore.Rendering
             formatInfo.isEnding = true;
 
             FormatResult lastResult = FormatResult.Continue;
-            while (this.currentLeaf != null)
+            while (currentLeaf != null)
             {
-                FormatResult result = FormatElement(this.currentLeaf.Current);
+                FormatResult result = FormatElement(currentLeaf.Current);
                 switch (result)
                 {
                     case FormatResult.Ignore:
-                        this.currentLeaf = this.currentLeaf.GetNextLeaf();
+                        currentLeaf = currentLeaf.GetNextLeaf();
                         break;
 
                     case FormatResult.Continue:
                         lastResult = result;
-                        this.currentLeaf = this.currentLeaf.GetNextLeaf();
+                        currentLeaf = currentLeaf.GetNextLeaf();
                         break;
 
                     case FormatResult.NewLine:
@@ -1442,7 +1433,7 @@ namespace MigraDocCore.Rendering
             if (formatInfo.IsEnding && lastResult != FormatResult.NewLine)
                 StoreLineInformation();
 
-            formatInfo.imageRenderInfos = this.imageRenderInfos;
+            formatInfo.imageRenderInfos = imageRenderInfos;
             FinishLayoutInfo();
         }
 
@@ -1451,10 +1442,10 @@ namespace MigraDocCore.Rendering
         /// </summary>
         private void FinishLayoutInfo()
         {
-            LayoutInfo layoutInfo = this.renderInfo.LayoutInfo;
-            ParagraphFormat format = this.paragraph.Format;
-            ParagraphFormatInfo parInfo = (ParagraphFormatInfo)this.renderInfo.FormatInfo;
-            layoutInfo.MinWidth = this.minWidth;
+            LayoutInfo layoutInfo = renderInfo.LayoutInfo;
+            ParagraphFormat format = paragraph.Format;
+            ParagraphFormatInfo parInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
+            layoutInfo.MinWidth = minWidth;
             layoutInfo.KeepTogether = format.KeepTogether;
 
             if (parInfo.IsComplete)
@@ -1479,8 +1470,8 @@ namespace MigraDocCore.Rendering
 
             if (parInfo.IsEnding)
             {
-                layoutInfo.MarginBottom = this.paragraph.Format.SpaceAfter.Point;
-                layoutInfo.KeepWithNext = this.paragraph.Format.KeepWithNext;
+                layoutInfo.MarginBottom = paragraph.Format.SpaceAfter.Point;
+                layoutInfo.KeepWithNext = paragraph.Format.KeepWithNext;
             }
             else
             {
@@ -1490,14 +1481,14 @@ namespace MigraDocCore.Rendering
             if (parInfo.LineCount > 0)
             {
                 XUnit startingHeight = parInfo.GetFirstLineInfo().vertical.height;
-                if (parInfo.isStarting && this.paragraph.Format.WidowControl && parInfo.LineCount >= 2)
+                if (parInfo.isStarting && paragraph.Format.WidowControl && parInfo.LineCount >= 2)
                     startingHeight += parInfo.GetLineInfo(1).vertical.height;
 
                 layoutInfo.StartingHeight = startingHeight;
 
                 XUnit trailingHeight = parInfo.GetLastLineInfo().vertical.height;
 
-                if (parInfo.IsEnding && this.paragraph.Format.WidowControl && parInfo.LineCount >= 2)
+                if (parInfo.IsEnding && paragraph.Format.WidowControl && parInfo.LineCount >= 2)
                     trailingHeight += parInfo.GetLineInfo(parInfo.LineCount - 2).vertical.height;
 
                 layoutInfo.TrailingHeight = trailingHeight;
@@ -1507,14 +1498,14 @@ namespace MigraDocCore.Rendering
 
         private XUnit PopSavedBlankWidth()
         {
-            XUnit width = this.savedBlankWidth;
-            this.savedBlankWidth = 0;
+            XUnit width = savedBlankWidth;
+            savedBlankWidth = 0;
             return width;
         }
 
         private void SaveBlankWidth(XUnit blankWidth)
         {
-            this.savedBlankWidth = blankWidth;
+            savedBlankWidth = blankWidth;
         }
         private XUnit savedBlankWidth = 0;
 
@@ -1572,13 +1563,13 @@ namespace MigraDocCore.Rendering
 
         FormatResult FormatImage(Image image)
         {
-            XUnit width = this.CurrentImageRenderInfo.LayoutInfo.ContentArea.Width;
+            XUnit width = CurrentImageRenderInfo.LayoutInfo.ContentArea.Width;
             return FormatAsWord(width);
         }
 
         RenderInfo CalcImageRenderInfo(Image image)
         {
-            Renderer renderer = Create(this.gfx, this.documentRenderer, image, this.fieldInfos);
+            Renderer renderer = Create(gfx, documentRenderer, image, fieldInfos);
             renderer.Format(new Rectangle(0, 0, double.MaxValue, double.MaxValue), null);
 
             return renderer.RenderInfo;
@@ -1637,41 +1628,41 @@ namespace MigraDocCore.Rendering
             // The position is taken while formatting rather than while rendering because a link to
             // the bookmark may well be drawn before it -- a table of contents is the whole point --
             // and by then the answer has to be known already.
-            this.fieldInfos.AddBookmark(bookmarkField.Name, this.currentYPosition);
+            fieldInfos.AddBookmark(bookmarkField.Name, currentYPosition);
             return FormatResult.Ignore;
         }
 
         FormatResult FormatPageRefField(PageRefField pageRefField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string fieldValue = GetFieldValue(pageRefField);
             return FormatWord(fieldValue);
         }
 
         FormatResult FormatNumPagesField(NumPagesField numPagesField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string fieldValue = GetFieldValue(numPagesField);
             return FormatWord(fieldValue);
         }
 
         FormatResult FormatPageField(PageField pageField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string fieldValue = GetFieldValue(pageField);
             return FormatWord(fieldValue);
         }
 
         FormatResult FormatSectionField(SectionField sectionField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string fieldValue = GetFieldValue(sectionField);
             return FormatWord(fieldValue);
         }
 
         FormatResult FormatSectionPagesField(SectionPagesField sectionPagesField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string fieldValue = GetFieldValue(sectionPagesField);
             return FormatWord(fieldValue);
         }
@@ -1690,41 +1681,35 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// When rendering a justified paragraph, only the part after the last tab stop needs remeasuring.
         /// </summary>
-        private bool IgnoreHorizontalGrowth
-        {
-            get
-            {
-                return this.phase == Phase.Rendering && this.paragraph.Format.Alignment == ParagraphAlignment.Justify &&
-                    !this.lastTabPassed;
-            }
-        }
+        private bool IgnoreHorizontalGrowth => phase == Phase.Rendering && paragraph.Format.Alignment == ParagraphAlignment.Justify &&
+                                               !lastTabPassed;
 
         FormatResult FormatAsWord(XUnit width)
         {
             VerticalLineInfo newVertInfo = CalcCurrentVerticalInfo();
 
-            Rectangle rect = this.formattingArea.GetFittingRect(this.currentYPosition, newVertInfo.height + BottomBorderOffset);
+            Rectangle rect = formattingArea.GetFittingRect(currentYPosition, newVertInfo.height + BottomBorderOffset);
             if (rect == null)
                 return FormatResult.NewArea;
 
-            if (this.currentXPosition + width <= rect.X + rect.Width - this.RightIndent + Tolerance)
+            if (currentXPosition + width <= rect.X + rect.Width - RightIndent + Tolerance)
             {
-                this.savedWordWidth = width;
-                this.currentXPosition += width;
+                savedWordWidth = width;
+                currentXPosition += width;
                 // For Tabs in justified context
-                if (!this.IgnoreHorizontalGrowth)
-                    this.currentWordsWidth += width;
-                if (this.savedBlankWidth > 0)
+                if (!IgnoreHorizontalGrowth)
+                    currentWordsWidth += width;
+                if (savedBlankWidth > 0)
                 {
                     // For Tabs in justified context
-                    if (!this.IgnoreHorizontalGrowth)
-                        ++this.currentBlankCount;
+                    if (!IgnoreHorizontalGrowth)
+                        ++currentBlankCount;
                 }
                 // For Tabs in justified context
-                if (!this.IgnoreHorizontalGrowth)
-                    this.currentLineWidth += width + PopSavedBlankWidth();
-                this.currentVerticalInfo = newVertInfo;
-                this.minWidth = Math.Max(this.minWidth, width);
+                if (!IgnoreHorizontalGrowth)
+                    currentLineWidth += width + PopSavedBlankWidth();
+                currentVerticalInfo = newVertInfo;
+                minWidth = Math.Max(minWidth, width);
                 return FormatResult.Continue;
             }
             else
@@ -1736,7 +1721,7 @@ namespace MigraDocCore.Rendering
 
         FormatResult FormatDateField(DateField dateField)
         {
-            this.reMeasureLine = true;
+            reMeasureLine = true;
             string estimatedFieldValue = DateTime.Now.ToString(dateField.Format);
             return FormatWord(estimatedFieldValue);
         }
@@ -1767,8 +1752,8 @@ namespace MigraDocCore.Rendering
 
         Area GetShadingArea()
         {
-            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-            ParagraphFormat format = this.paragraph.Format;
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
+            ParagraphFormat format = paragraph.Format;
             XUnit left = contentArea.X;
             left += format.LeftIndent;
             if (format.FirstLineIndent < 0)
@@ -1779,14 +1764,14 @@ namespace MigraDocCore.Rendering
             XUnit right = contentArea.X + contentArea.Width;
             right -= format.RightIndent;
 
-            if (!this.paragraph.Format.IsNull("Borders"))
+            if (!paragraph.Format.IsNull("Borders"))
             {
                 Borders borders = format.Borders;
-                BordersRenderer bordersRenderer = new BordersRenderer(borders, this.gfx);
+                BordersRenderer bordersRenderer = new BordersRenderer(borders, gfx);
 
-                if (this.renderInfo.FormatInfo.IsStarting)
+                if (renderInfo.FormatInfo.IsStarting)
                     top += bordersRenderer.GetWidth(BorderType.Top);
-                if (this.renderInfo.FormatInfo.IsEnding)
+                if (renderInfo.FormatInfo.IsEnding)
                     bottom -= bordersRenderer.GetWidth(BorderType.Bottom);
 
                 left -= borders.DistanceFromLeft;
@@ -1797,10 +1782,10 @@ namespace MigraDocCore.Rendering
 
         void RenderShading()
         {
-            if (this.paragraph.Format.IsNull("Shading"))
+            if (paragraph.Format.IsNull("Shading"))
                 return;
 
-            ShadingRenderer shadingRenderer = new ShadingRenderer(this.gfx, this.paragraph.Format.Shading);
+            ShadingRenderer shadingRenderer = new ShadingRenderer(gfx, paragraph.Format.Shading);
             Area area = GetShadingArea();
 
             shadingRenderer.Render(area.X, area.Y, area.Width, area.Height);
@@ -1809,7 +1794,7 @@ namespace MigraDocCore.Rendering
 
         void RenderBorders()
         {
-            if (this.paragraph.Format.IsNull("Borders"))
+            if (paragraph.Format.IsNull("Borders"))
                 return;
 
             Area shadingArea = GetShadingArea();
@@ -1818,8 +1803,8 @@ namespace MigraDocCore.Rendering
             XUnit bottom = shadingArea.Y + shadingArea.Height;
             XUnit right = shadingArea.X + shadingArea.Width;
 
-            Borders borders = this.paragraph.Format.Borders;
-            BordersRenderer bordersRenderer = new BordersRenderer(borders, this.gfx);
+            Borders borders = paragraph.Format.Borders;
+            BordersRenderer bordersRenderer = new BordersRenderer(borders, gfx);
             XUnit borderWidth = bordersRenderer.GetWidth(BorderType.Left);
             if (borderWidth > 0)
             {
@@ -1835,14 +1820,14 @@ namespace MigraDocCore.Rendering
             }
 
             borderWidth = bordersRenderer.GetWidth(BorderType.Top);
-            if (this.renderInfo.FormatInfo.IsStarting && borderWidth > 0)
+            if (renderInfo.FormatInfo.IsStarting && borderWidth > 0)
             {
                 top -= borderWidth;
                 bordersRenderer.RenderHorizontally(BorderType.Top, left, top, right - left);
             }
 
             borderWidth = bordersRenderer.GetWidth(BorderType.Bottom);
-            if (this.renderInfo.FormatInfo.IsEnding && borderWidth > 0)
+            if (renderInfo.FormatInfo.IsEnding && borderWidth > 0)
             {
                 bordersRenderer.RenderHorizontally(BorderType.Bottom, left, bottom, right - left);
             }
@@ -1851,7 +1836,7 @@ namespace MigraDocCore.Rendering
         XUnit MeasureString(string word)
         {
             XFont xFont = CurrentFont;
-            XUnit width = this.gfx.MeasureString(word, xFont, StringFormat).Width;
+            XUnit width = gfx.MeasureString(word, xFont, StringFormat).Width;
             Font font = CurrentDomFont;
 
             if (font.Subscript || font.Superscript)
@@ -1887,12 +1872,12 @@ namespace MigraDocCore.Rendering
             XFont font;
             if (GetListSymbol(out symbol, out font))
             {
-                XBrush brush = FontHandler.FontColorToXBrush(this.paragraph.Format.Font);
-                this.gfx.DrawString(symbol, font, brush, this.currentXPosition, CurrentBaselinePosition);
-                this.currentXPosition += this.gfx.MeasureString(symbol, font, StringFormat).Width;
+                XBrush brush = FontHandler.FontColorToXBrush(paragraph.Format.Font);
+                gfx.DrawString(symbol, font, brush, currentXPosition, CurrentBaselinePosition);
+                currentXPosition += gfx.MeasureString(symbol, font, StringFormat).Width;
                 TabOffset tabOffset = NextTabOffset();
-                this.currentXPosition += tabOffset.offset;
-                this.lastTabPosition = this.currentXPosition;
+                currentXPosition += tabOffset.offset;
+                lastTabPosition = currentXPosition;
             }
         }
 
@@ -1902,8 +1887,8 @@ namespace MigraDocCore.Rendering
             XFont font;
             if (GetListSymbol(out symbol, out font))
             {
-                this.currentVerticalInfo = CalcVerticalInfo(font);
-                this.currentXPosition += this.gfx.MeasureString(symbol, font, StringFormat).Width;
+                currentVerticalInfo = CalcVerticalInfo(font);
+                currentXPosition += gfx.MeasureString(symbol, font, StringFormat).Width;
                 FormatTab();
             }
         }
@@ -2009,17 +1994,17 @@ namespace MigraDocCore.Rendering
             if (IgnoreBlank())
                 return FormatResult.Ignore;
 
-            this.savedWordWidth = 0;
+            savedWordWidth = 0;
             XUnit width = MeasureString(" ");
             VerticalLineInfo newVertInfo = CalcCurrentVerticalInfo();
-            Rectangle rect = this.formattingArea.GetFittingRect(this.currentYPosition, newVertInfo.height + BottomBorderOffset);
+            Rectangle rect = formattingArea.GetFittingRect(currentYPosition, newVertInfo.height + BottomBorderOffset);
             if (rect == null)
                 return FormatResult.NewArea;
 
             if (width + currentXPosition <= rect.X + rect.Width + Tolerance)
             {
-                this.currentXPosition += width;
-                this.currentVerticalInfo = newVertInfo;
+                currentXPosition += width;
+                currentVerticalInfo = newVertInfo;
                 SaveBlankWidth(width);
                 return FormatResult.Continue;
             }
@@ -2028,10 +2013,10 @@ namespace MigraDocCore.Rendering
 
         FormatResult FormatLineBreak()
         {
-            if (this.phase != Phase.Rendering)
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
+            if (phase != Phase.Rendering)
+                currentLeaf = currentLeaf.GetNextLeaf();
 
-            this.savedWordWidth = 0;
+            savedWordWidth = 0;
             return FormatResult.NewLine;
         }
 
@@ -2046,11 +2031,11 @@ namespace MigraDocCore.Rendering
 
         FormatResult FormatSoftHyphen()
         {
-            if (this.currentLeaf.Current == this.startLeaf.Current)
+            if (currentLeaf.Current == startLeaf.Current)
                 return FormatResult.Continue;
 
-            ParagraphIterator nextIter = this.currentLeaf.GetNextLeaf();
-            ParagraphIterator prevIter = this.currentLeaf.GetPreviousLeaf();
+            ParagraphIterator nextIter = currentLeaf.GetNextLeaf();
+            ParagraphIterator prevIter = currentLeaf.GetPreviousLeaf();
             if (!IsWordLikeElement(prevIter.Current) || !IsWordLikeElement(nextIter.Current))
                 return FormatResult.Continue;
 
@@ -2063,7 +2048,7 @@ namespace MigraDocCore.Rendering
             XUnit blankWidth;
             SaveBeforeProbing(out iter, out blankCount, out wordsWidth, out xPosition, out lineWidth, out blankWidth);
             //------------------------------------------
-            this.currentLeaf = nextIter;
+            currentLeaf = nextIter;
             FormatResult result = FormatElement(nextIter.Current);
 
             //--- Restore ------------------------------
@@ -2073,28 +2058,28 @@ namespace MigraDocCore.Rendering
                 return FormatResult.Continue;
 
             RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
-            Rectangle fittingRect = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
+            Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
 
             XUnit hyphenWidth = MeasureString("-");
             if (xPosition + hyphenWidth <= fittingRect.X + fittingRect.Width + Tolerance
                 // If one word fits, but not the hyphen, the formatting must continue with the next leaf
-                || prevIter.Current == this.startLeaf.Current)
+                || prevIter.Current == startLeaf.Current)
             {
                 // For Tabs in justified context
                 if (!IgnoreHorizontalGrowth)
                 {
-                    this.currentWordsWidth += hyphenWidth;
-                    this.currentLineWidth += hyphenWidth;
+                    currentWordsWidth += hyphenWidth;
+                    currentLineWidth += hyphenWidth;
                 }
-                this.currentLeaf = nextIter;
+                currentLeaf = nextIter;
                 return FormatResult.NewLine;
             }
             else
             {
-                this.currentWordsWidth -= this.savedWordWidth;
-                this.currentLineWidth -= this.savedWordWidth;
-                this.currentLineWidth -= GetPreviousBlankWidth(prevIter);
-                this.currentLeaf = prevIter;
+                currentWordsWidth -= savedWordWidth;
+                currentLineWidth -= savedWordWidth;
+                currentLineWidth -= GetPreviousBlankWidth(prevIter);
+                currentLeaf = prevIter;
                 return FormatResult.NewLine;
             }
         }
@@ -2102,13 +2087,13 @@ namespace MigraDocCore.Rendering
         XUnit GetPreviousBlankWidth(ParagraphIterator beforeIter)
         {
             XUnit width = 0;
-            ParagraphIterator savedIter = this.currentLeaf;
-            this.currentLeaf = beforeIter.GetPreviousLeaf();
-            while (this.currentLeaf != null)
+            ParagraphIterator savedIter = currentLeaf;
+            currentLeaf = beforeIter.GetPreviousLeaf();
+            while (currentLeaf != null)
             {
-                if (this.currentLeaf.Current is BookmarkField)
-                    this.currentLeaf = this.currentLeaf.GetPreviousLeaf();
-                else if (IsBlank(this.currentLeaf.Current))
+                if (currentLeaf.Current is BookmarkField)
+                    currentLeaf = currentLeaf.GetPreviousLeaf();
+                else if (IsBlank(currentLeaf.Current))
                 {
                     if (!IgnoreBlank())
                         width = CurrentWordDistance;
@@ -2118,22 +2103,22 @@ namespace MigraDocCore.Rendering
                 else
                     break;
             }
-            this.currentLeaf = savedIter;
+            currentLeaf = savedIter;
             return width;
         }
 
         void HandleNonFittingLine()
         {
-            if (this.currentLeaf != null)
+            if (currentLeaf != null)
             {
-                if (this.savedWordWidth > 0)
+                if (savedWordWidth > 0)
                 {
-                    this.currentWordsWidth = this.savedWordWidth;
-                    this.currentLineWidth = this.savedWordWidth;
+                    currentWordsWidth = savedWordWidth;
+                    currentLineWidth = savedWordWidth;
                 }
-                this.currentLeaf = this.currentLeaf.GetNextLeaf();
-                this.currentYPosition += this.currentVerticalInfo.height;
-                this.currentVerticalInfo = new VerticalLineInfo();
+                currentLeaf = currentLeaf.GetNextLeaf();
+                currentYPosition += currentVerticalInfo.height;
+                currentVerticalInfo = new VerticalLineInfo();
             }
         }
 
@@ -2144,22 +2129,22 @@ namespace MigraDocCore.Rendering
         /// <returns>True, if the new line may fit the formatting area.</returns>
         bool StartNewLine()
         {
-            this.tabOffsets = new ArrayList();
-            this.lastTab = null;
-            this.lastTabPosition = 0;
-            this.currentYPosition += this.currentVerticalInfo.height;
-            Rectangle rect = this.formattingArea.GetFittingRect(currentYPosition, this.currentVerticalInfo.height + BottomBorderOffset);
+            tabOffsets = new ArrayList();
+            lastTab = null;
+            lastTabPosition = 0;
+            currentYPosition += currentVerticalInfo.height;
+            Rectangle rect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height + BottomBorderOffset);
             if (rect == null)
                 return false;
 
-            this.isFirstLine = false;
-            this.currentXPosition = StartXPosition; // depends on "currentVerticalInfo"
-            this.currentVerticalInfo = new VerticalLineInfo();
-            this.currentVerticalInfo = CalcCurrentVerticalInfo();
-            this.startLeaf = this.currentLeaf;
-            this.currentBlankCount = 0;
-            this.currentWordsWidth = 0;
-            this.currentLineWidth = 0;
+            isFirstLine = false;
+            currentXPosition = StartXPosition; // depends on "currentVerticalInfo"
+            currentVerticalInfo = new VerticalLineInfo();
+            currentVerticalInfo = CalcCurrentVerticalInfo();
+            startLeaf = currentLeaf;
+            currentBlankCount = 0;
+            currentWordsWidth = 0;
+            currentLineWidth = 0;
             return true;
         }
         /// <summary>
@@ -2170,48 +2155,48 @@ namespace MigraDocCore.Rendering
             PopSavedBlankWidth();
 
             XUnit topBorderOffset = TopBorderOffset;
-            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
             if (topBorderOffset > 0)//May only occure for the first line.
-                contentArea = this.formattingArea.GetFittingRect(this.formattingArea.Y, topBorderOffset);
+                contentArea = formattingArea.GetFittingRect(formattingArea.Y, topBorderOffset);
 
             if (contentArea == null)
             {
-                contentArea = this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height);
+                contentArea = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
             }
             else
-                contentArea = contentArea.Unite(this.formattingArea.GetFittingRect(this.currentYPosition, this.currentVerticalInfo.height));
+                contentArea = contentArea.Unite(formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height));
 
-            XUnit bottomBorderOffset = this.BottomBorderOffset;
+            XUnit bottomBorderOffset = BottomBorderOffset;
             if (bottomBorderOffset > 0)
-                contentArea = contentArea.Unite(this.formattingArea.GetFittingRect(this.currentYPosition + this.currentVerticalInfo.height, bottomBorderOffset));
+                contentArea = contentArea.Unite(formattingArea.GetFittingRect(currentYPosition + currentVerticalInfo.height, bottomBorderOffset));
 
             LineInfo lineInfo = new LineInfo();
-            lineInfo.vertical = this.currentVerticalInfo;
+            lineInfo.vertical = currentVerticalInfo;
 
-            if (this.startLeaf != null && this.startLeaf == this.currentLeaf)
+            if (startLeaf != null && startLeaf == currentLeaf)
                 HandleNonFittingLine();
 
-            lineInfo.lastTab = this.lastTab;
-            this.renderInfo.LayoutInfo.ContentArea = contentArea;
+            lineInfo.lastTab = lastTab;
+            renderInfo.LayoutInfo.ContentArea = contentArea;
 
-            lineInfo.startIter = this.startLeaf;
+            lineInfo.startIter = startLeaf;
 
-            if (this.currentLeaf == null)
-                lineInfo.endIter = new ParagraphIterator(this.paragraph.Elements).GetLastLeaf();
+            if (currentLeaf == null)
+                lineInfo.endIter = new ParagraphIterator(paragraph.Elements).GetLastLeaf();
             else
-                lineInfo.endIter = this.currentLeaf.GetPreviousLeaf();
+                lineInfo.endIter = currentLeaf.GetPreviousLeaf();
 
-            lineInfo.blankCount = this.currentBlankCount;
+            lineInfo.blankCount = currentBlankCount;
 
-            lineInfo.wordsWidth = this.currentWordsWidth;
+            lineInfo.wordsWidth = currentWordsWidth;
 
-            lineInfo.lineWidth = this.currentLineWidth;
-            lineInfo.tabOffsets = this.tabOffsets;
-            lineInfo.reMeasureLine = this.reMeasureLine;
+            lineInfo.lineWidth = currentLineWidth;
+            lineInfo.tabOffsets = tabOffsets;
+            lineInfo.reMeasureLine = reMeasureLine;
 
-            this.savedWordWidth = 0;
-            this.reMeasureLine = false;
-            ((ParagraphFormatInfo)this.renderInfo.FormatInfo).AddLineInfo(lineInfo);
+            savedWordWidth = 0;
+            reMeasureLine = false;
+            ((ParagraphFormatInfo)renderInfo.FormatInfo).AddLineInfo(lineInfo);
         }
 
         /// <summary>
@@ -2222,12 +2207,12 @@ namespace MigraDocCore.Rendering
             get
             {
                 XUnit offset = 0;
-                if (this.isFirstLine && !this.paragraph.Format.IsNull("Borders"))
+                if (isFirstLine && !paragraph.Format.IsNull("Borders"))
                 {
                     offset += paragraph.Format.Borders.DistanceFromTop;
                     if (!paragraph.Format.IsNull("Borders"))
                     {
-                        BordersRenderer bordersRenderer = new BordersRenderer(paragraph.Format.Borders, this.gfx);
+                        BordersRenderer bordersRenderer = new BordersRenderer(paragraph.Format.Borders, gfx);
                         offset += bordersRenderer.GetWidth(BorderType.Top);
                     }
                 }
@@ -2240,7 +2225,7 @@ namespace MigraDocCore.Rendering
             get
             {
                 // REM: Code is missing here for blanks, bookmarks etc. which might be invisible.
-                if (this.currentLeaf.IsLastLeaf)
+                if (currentLeaf.IsLastLeaf)
                     return true;
 
                 return false;
@@ -2255,13 +2240,13 @@ namespace MigraDocCore.Rendering
             {
                 XUnit offset = 0;
                 //while formatting, it is impossible to determine whether we are in the last line until the last visible leaf is reached.
-                if ((this.phase == Phase.Formatting && (this.currentLeaf == null || this.IsLastVisibleLeaf))
-                  || (this.phase == Phase.Rendering && (this.isLastLine)))
+                if ((phase == Phase.Formatting && (currentLeaf == null || IsLastVisibleLeaf))
+                  || (phase == Phase.Rendering && (isLastLine)))
                 {
-                    if (!this.paragraph.Format.IsNull("Borders"))
+                    if (!paragraph.Format.IsNull("Borders"))
                     {
                         offset += paragraph.Format.Borders.DistanceFromBottom;
-                        BordersRenderer bordersRenderer = new BordersRenderer(paragraph.Format.Borders, this.gfx);
+                        BordersRenderer bordersRenderer = new BordersRenderer(paragraph.Format.Borders, gfx);
                         offset += bordersRenderer.GetWidth(BorderType.Bottom);
                     }
                 }
@@ -2271,24 +2256,24 @@ namespace MigraDocCore.Rendering
 
         VerticalLineInfo CalcCurrentVerticalInfo()
         {
-            return CalcVerticalInfo(this.CurrentFont);
+            return CalcVerticalInfo(CurrentFont);
         }
 
         VerticalLineInfo CalcVerticalInfo(XFont font)
         {
-            ParagraphFormat paragraphFormat = this.paragraph.Format;
+            ParagraphFormat paragraphFormat = paragraph.Format;
             LineSpacingRule spacingRule = paragraphFormat.LineSpacingRule;
             XUnit lineHeight = 0;
 
             XUnit descent = FontHandler.GetDescent(font);
-            descent = Math.Max(this.currentVerticalInfo.descent, descent);
+            descent = Math.Max(currentVerticalInfo.descent, descent);
 
             XUnit singleLineSpace = font.GetHeight();
-            RenderInfo imageRenderInfo = this.CurrentImageRenderInfo;
+            RenderInfo imageRenderInfo = CurrentImageRenderInfo;
             if (imageRenderInfo != null)
                 singleLineSpace = singleLineSpace - FontHandler.GetAscent(font) + imageRenderInfo.LayoutInfo.ContentArea.Height;
 
-            XUnit inherentLineSpace = Math.Max(this.currentVerticalInfo.inherentlineSpace, singleLineSpace);
+            XUnit inherentLineSpace = Math.Max(currentVerticalInfo.inherentlineSpace, singleLineSpace);
             switch (spacingRule)
             {
                 case LineSpacingRule.Single:
@@ -2304,7 +2289,7 @@ namespace MigraDocCore.Rendering
                     break;
 
                 case LineSpacingRule.Multiple:
-                    lineHeight = this.paragraph.Format.LineSpacing * singleLineSpace;
+                    lineHeight = paragraph.Format.LineSpacing * singleLineSpace;
                     break;
 
                 case LineSpacingRule.AtLeast:
@@ -2316,9 +2301,9 @@ namespace MigraDocCore.Rendering
                     inherentLineSpace = paragraph.Format.LineSpacing.Point;
                     break;
             }
-            lineHeight = Math.Max(this.currentVerticalInfo.height, lineHeight);
-            if (this.MaxElementHeight > 0)
-                lineHeight = Math.Min(this.MaxElementHeight - Renderer.Tolerance, lineHeight);
+            lineHeight = Math.Max(currentVerticalInfo.height, lineHeight);
+            if (MaxElementHeight > 0)
+                lineHeight = Math.Min(MaxElementHeight - Tolerance, lineHeight);
 
             return new VerticalLineInfo(lineHeight, descent, inherentLineSpace);
         }
@@ -2326,25 +2311,22 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// The font used for the current paragraph element.
         /// </summary>
-        private XFont CurrentFont
-        {
-            get { return FontHandler.FontToXFont(CurrentDomFont, this.documentRenderer.PrivateFonts, this.gfx.MUH); }
-        }
+        private XFont CurrentFont => FontHandler.FontToXFont(CurrentDomFont, documentRenderer.PrivateFonts, gfx.MUH);
 
         private Font CurrentDomFont
         {
             get
             {
-                if (this.currentLeaf != null)
+                if (currentLeaf != null)
                 {
-                    DocumentObject parent = DocumentRelations.GetParent(this.currentLeaf.Current);
+                    DocumentObject parent = DocumentRelations.GetParent(currentLeaf.Current);
                     parent = DocumentRelations.GetParent(parent);
                     if (parent is FormattedText)
                         return ((FormattedText)parent).Font;
                     else if (parent is Hyperlink)
                         return ((Hyperlink)parent).Font;
                 }
-                return this.paragraph.Format.Font;
+                return paragraph.Format.Font;
             }
         }
 
@@ -2388,27 +2370,27 @@ namespace MigraDocCore.Rendering
             bool penChanged = UnderlinePenChanged(pen);
             if (penChanged)
             {
-                if (this.currentUnderlinePen != null)
-                    EndUnderline(this.currentUnderlinePen, this.currentXPosition);
+                if (currentUnderlinePen != null)
+                    EndUnderline(currentUnderlinePen, currentXPosition);
 
                 if (pen != null)
-                    StartUnderline(this.currentXPosition);
+                    StartUnderline(currentXPosition);
 
-                this.currentUnderlinePen = pen;
+                currentUnderlinePen = pen;
             }
 
-            if (this.currentLeaf.Current == this.endLeaf.Current)
+            if (currentLeaf.Current == endLeaf.Current)
             {
-                if (this.currentUnderlinePen != null)
-                    EndUnderline(this.currentUnderlinePen, this.currentXPosition + width);
+                if (currentUnderlinePen != null)
+                    EndUnderline(currentUnderlinePen, currentXPosition + width);
 
-                this.currentUnderlinePen = null;
+                currentUnderlinePen = null;
             }
         }
 
         void StartUnderline(XUnit xPosition)
         {
-            this.underlineStartPos = xPosition;
+            underlineStartPos = xPosition;
         }
 
         void EndUnderline(XPen pen, XUnit xPosition)
@@ -2419,8 +2401,8 @@ namespace MigraDocCore.Rendering
 
             //New KlPo 
             XUnit yPosition = CurrentBaselinePosition;
-            yPosition += 0.33 * this.currentVerticalInfo.descent;
-            this.gfx.DrawLine(pen, this.underlineStartPos, yPosition, xPosition, yPosition);
+            yPosition += 0.33 * currentVerticalInfo.descent;
+            gfx.DrawLine(pen, underlineStartPos, yPosition, xPosition, yPosition);
         }
 
         XPen currentUnderlinePen = null;
@@ -2428,19 +2410,19 @@ namespace MigraDocCore.Rendering
 
         bool UnderlinePenChanged(XPen pen)
         {
-            if (pen == null && this.currentUnderlinePen == null)
+            if (pen == null && currentUnderlinePen == null)
                 return false;
 
-            if (pen == null && this.currentUnderlinePen != null)
+            if (pen == null && currentUnderlinePen != null)
                 return true;
 
-            if (pen != null && this.currentUnderlinePen == null)
+            if (pen != null && currentUnderlinePen == null)
                 return true;
 
-            if (pen.Color != this.currentUnderlinePen.Color)
+            if (pen.Color != currentUnderlinePen.Color)
                 return true;
 
-            return pen.Width != this.currentUnderlinePen.Width;
+            return pen.Width != currentUnderlinePen.Width;
         }
 
 
@@ -2451,36 +2433,36 @@ namespace MigraDocCore.Rendering
             bool penChanged = StrikethroughPenChanged(pen);
             if (penChanged)
             {
-                if (this.currentStrikethroughPen != null)
-                    EndStrikethrough(this.currentStrikethroughPen, this.currentXPosition);
+                if (currentStrikethroughPen != null)
+                    EndStrikethrough(currentStrikethroughPen, currentXPosition);
 
                 if (pen != null)
-                    StartStrikethrough(this.currentXPosition);
+                    StartStrikethrough(currentXPosition);
 
-                this.currentStrikethroughPen = pen;
+                currentStrikethroughPen = pen;
             }
 
-            if (this.currentLeaf.Current == this.endLeaf.Current)
+            if (currentLeaf.Current == endLeaf.Current)
             {
-                if (this.currentStrikethroughPen != null)
-                    EndStrikethrough(this.currentStrikethroughPen, this.currentXPosition + width);
+                if (currentStrikethroughPen != null)
+                    EndStrikethrough(currentStrikethroughPen, currentXPosition + width);
 
-                this.currentStrikethroughPen = null;
+                currentStrikethroughPen = null;
             }
         }
 
         void StartStrikethrough(XUnit xPosition)
         {
-            this.strikethroughStartPos = xPosition;
+            strikethroughStartPos = xPosition;
         }
 
         void EndStrikethrough(XPen pen, XUnit xPosition)
         {
             XUnit yPosition = CurrentBaselinePosition;
             yPosition -= pen.Width / 2;
-            yPosition -= this.currentVerticalInfo.descent;
+            yPosition -= currentVerticalInfo.descent;
 
-            this.gfx.DrawLine(pen, this.strikethroughStartPos, yPosition, xPosition, yPosition);
+            gfx.DrawLine(pen, strikethroughStartPos, yPosition, xPosition, yPosition);
         }
 
         XPen currentStrikethroughPen = null;
@@ -2488,38 +2470,38 @@ namespace MigraDocCore.Rendering
 
         bool StrikethroughPenChanged(XPen pen)
         {
-            if (pen == null && this.currentStrikethroughPen == null)
+            if (pen == null && currentStrikethroughPen == null)
                 return false;
 
-            if (pen == null && this.currentStrikethroughPen != null)
+            if (pen == null && currentStrikethroughPen != null)
                 return true;
 
-            if (pen != null && this.currentStrikethroughPen == null)
+            if (pen != null && currentStrikethroughPen == null)
                 return true;
 
-            if (pen.Color != this.currentStrikethroughPen.Color)
+            if (pen.Color != currentStrikethroughPen.Color)
                 return true;
 
-            return pen.Width != this.currentStrikethroughPen.Width;
+            return pen.Width != currentStrikethroughPen.Width;
         }
 
         RenderInfo CurrentImageRenderInfo
         {
             get
             {
-                if (this.currentLeaf != null && this.currentLeaf.Current is Image)
+                if (currentLeaf != null && currentLeaf.Current is Image)
                 {
-                    Image image = (Image)this.currentLeaf.Current;
-                    if (this.imageRenderInfos != null && this.imageRenderInfos.ContainsKey(image))
-                        return (RenderInfo)this.imageRenderInfos[image];
+                    Image image = (Image)currentLeaf.Current;
+                    if (imageRenderInfos != null && imageRenderInfos.ContainsKey(image))
+                        return (RenderInfo)imageRenderInfos[image];
 
                     else
                     {
-                        if (this.imageRenderInfos == null)
-                            this.imageRenderInfos = new Hashtable();
+                        if (imageRenderInfos == null)
+                            imageRenderInfos = new Hashtable();
 
                         RenderInfo renderInfo = CalcImageRenderInfo(image);
-                        this.imageRenderInfos.Add(image, renderInfo);
+                        imageRenderInfos.Add(image, renderInfo);
                         return renderInfo;
                     }
                 }
@@ -2536,11 +2518,7 @@ namespace MigraDocCore.Rendering
             if (underlineType == Underline.Words && !isWord)
                 return null;
 
-#if noCMYK
-      XPen pen = new XPen(XColor.FromArgb(font.Color.Argb), font.Size / 16);
-#else
-            XPen pen = new XPen(ColorHelper.ToXColor(font.Color, this.paragraph.Document.UseCmykColor), font.Size / 16);
-#endif
+            XPen pen = new XPen(ColorHelper.ToXColor(font.Color, paragraph.Document.UseCmykColor), font.Size / 16);
             switch (font.Underline)
             {
                 case Underline.DotDash:
@@ -2577,11 +2555,7 @@ namespace MigraDocCore.Rendering
             if (strikethroughType == Strikethrough.Words && !isWord)
                 return null;
 
-#if noCMYK
-      XPen pen = new XPen(XColor.FromArgb(font.Color.Argb), font.Size / 16);
-#else
-            XPen pen = new XPen(ColorHelper.ToXColor(font.Color, this.paragraph.Document.UseCmykColor), font.Size / 16);
-#endif
+            XPen pen = new XPen(ColorHelper.ToXColor(font.Color, paragraph.Document.UseCmykColor), font.Size / 16);
             switch (font.Strikethrough)
             {
                 case Strikethrough.DotDash:
@@ -2629,7 +2603,7 @@ namespace MigraDocCore.Rendering
         private XUnit currentLineWidth;
         private bool isFirstLine;
         private bool isLastLine;
-        private VerticalLineInfo currentVerticalInfo = new VerticalLineInfo();
+        private VerticalLineInfo currentVerticalInfo;
         private Area formattingArea;
         private XUnit currentYPosition;
         private XUnit currentXPosition;
@@ -2641,8 +2615,8 @@ namespace MigraDocCore.Rendering
         private XUnit minWidth = 0;
         private Hashtable imageRenderInfos;
         private ArrayList tabOffsets;
-        private DocumentObject lastTab = null;
-        private bool lastTabPassed = false;
+        private DocumentObject lastTab;
+        private bool lastTabPassed;
         private XUnit lastTabPosition;
     }
 }

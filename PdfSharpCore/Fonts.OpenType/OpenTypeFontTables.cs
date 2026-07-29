@@ -178,11 +178,6 @@ namespace PdfSharpCore.Fonts.OpenType
 
                 version = _fontData.ReadUShort();
                 numTables = _fontData.ReadUShort();
-#if DEBUG_
-                if (_fontData.Name == "Cambria")
-                    Debug-Break.Break();
-#endif
-
                 bool success = false;
                 for (int idx = 0; idx < numTables; idx++)
                 {

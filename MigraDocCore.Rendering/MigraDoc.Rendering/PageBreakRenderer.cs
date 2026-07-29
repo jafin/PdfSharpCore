@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 
@@ -67,11 +66,11 @@ namespace MigraDocCore.Rendering
     {
       PageBreakRenderInfo pbRenderInfo = new PageBreakRenderInfo();
       pbRenderInfo.pageBreakFormatInfo = new PageBreakFormatInfo();
-      this.renderInfo = pbRenderInfo;
+      renderInfo = pbRenderInfo;
 
       pbRenderInfo.LayoutInfo.PageBreakBefore = true;
       pbRenderInfo.LayoutInfo.ContentArea = new Rectangle(area.Y, area.Y, 0, 0);
-      pbRenderInfo.pageBreak = this.pageBreak;
+      pbRenderInfo.pageBreak = pageBreak;
     }
 
     internal override void Render()

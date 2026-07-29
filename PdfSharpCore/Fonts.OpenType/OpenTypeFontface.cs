@@ -295,11 +295,6 @@ namespace PdfSharpCore.Fonts.OpenType
             // ReSharper restore InconsistentNaming
             try
             {
-#if DEBUG_
-                if (Name == "Cambria")
-                    Debug-Break.Break();
-#endif
-
                 // Check if data is a TrueType collection font.
                 uint startTag = ReadULong();
                 if (startTag == TTCF)
@@ -328,9 +323,6 @@ namespace PdfSharpCore.Fonts.OpenType
                 {
                     TableDirectoryEntry entry = TableDirectoryEntry.ReadFrom(this);
                     TableDictionary.Add(entry.Tag, entry);
-#if VERBOSE
-          Debug.WriteLine(String.Format("Font table: {0}", entry.Tag));
-#endif
                 }
 
                 // PDFlib checks this, but it is not part of the OpenType spec anymore
@@ -498,9 +490,6 @@ namespace PdfSharpCore.Fonts.OpenType
             TableDictionary.Keys.CopyTo(tags, 0);
             Array.Sort(tags, StringComparer.Ordinal);
 
-#if VERBOSE
-      Debug.WriteLine("Start Compile");
-#endif
             // Write tables in alphabetical order
             int tablePosition = 12 + 16 * tableCount;
             for (int idx = 0; idx < tableCount; idx++)
@@ -518,13 +507,7 @@ namespace PdfSharpCore.Fonts.OpenType
                 tablePosition = endPosition;
                 writer.Position = 12 + 16 * idx;
                 entry.Write(writer);
-#if VERBOSE
-                Debug.WriteLine(String.Format("  Write Table '{0}', offset={1}, length={2}, checksum={3}, ", entry.Tag, entry.Offset, entry.Length, entry.CheckSum));
-#endif
             }
-#if VERBOSE
-            Debug.WriteLine("End Compile");
-#endif
             writer.Stream.Flush();
             int l = (int)writer.Stream.Length;
             FontSource = XFontSource.CreateCompiledFont(stream.ToArray());
