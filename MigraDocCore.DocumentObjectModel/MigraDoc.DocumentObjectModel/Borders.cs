@@ -271,11 +271,11 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public bool Visible
     {
-        get => visible.Value;
-        set => visible.Value = value;
+        get => visible ?? false;
+        set => visible = value;
     }
     [DV]
-    internal NBool visible = NBool.NullValue;
+    internal bool? visible;
 
     /// <summary>
     /// Gets or sets the line style of the borders.
@@ -399,7 +399,7 @@ public class Borders : DocumentObject, IEnumerable
 
         int pos = serializer.BeginContent("Borders");
 
-        if (!visible.IsNull && (refBorders == null || refBorders.visible.IsNull || (Visible != refBorders.Visible)))
+        if (visible != null && (refBorders == null || refBorders.visible == null || (Visible != refBorders.Visible)))
             serializer.WriteSimpleAttribute("Visible", Visible);
 
         if (!style.IsNull && (refBorders == null || (Style != refBorders.Style)))

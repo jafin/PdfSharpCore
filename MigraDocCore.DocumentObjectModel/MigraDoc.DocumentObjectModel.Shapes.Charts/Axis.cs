@@ -272,22 +272,22 @@ public class Axis : ChartObject
   /// </summary>
   public bool HasMajorGridlines
   {
-    get => this.hasMajorGridlines.Value;
-    set => this.hasMajorGridlines.Value = value;
+    get => this.hasMajorGridlines ?? false;
+    set => this.hasMajorGridlines = value;
   }
   [DV]
-  internal NBool hasMajorGridlines = NBool.NullValue;
+  internal bool? hasMajorGridlines;
 
   /// <summary>
   /// Gets or sets, whether the axis has a secondary gridline object.
   /// </summary>
   public bool HasMinorGridlines
   {
-    get => this.hasMinorGridlines.Value;
-    set => this.hasMinorGridlines.Value = value;
+    get => this.hasMinorGridlines ?? false;
+    set => this.hasMinorGridlines = value;
   }
   [DV]
-  internal NBool hasMinorGridlines = NBool.NullValue;
+  internal bool? hasMinorGridlines;
   #endregion
 
   /// <summary>
@@ -322,9 +322,9 @@ public class Axis : ChartObject
       serializer.WriteSimpleAttribute("MajorTick", this.MajorTick);
     if (!this.minorTick.IsNull)
       serializer.WriteSimpleAttribute("MinorTick", this.MinorTick);
-    if (!this.hasMajorGridlines.IsNull)
+    if (this.hasMajorGridlines != null)
       serializer.WriteSimpleAttribute("HasMajorGridLines", this.HasMajorGridlines);
-    if (!this.hasMinorGridlines.IsNull)
+    if (this.hasMinorGridlines != null)
       serializer.WriteSimpleAttribute("HasMinorGridLines", this.HasMinorGridlines);
     if (!this.majorTickMark.IsNull)
       serializer.WriteSimpleAttribute("MajorTickMark", this.MajorTickMark);

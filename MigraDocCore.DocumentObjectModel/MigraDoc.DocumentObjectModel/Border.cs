@@ -68,7 +68,7 @@ public class Border : DocumentObject
   /// </summary>
   public void Clear()
   {
-    fClear.Value = true;
+    fClear = true;
   }
   #endregion
 
@@ -78,11 +78,11 @@ public class Border : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => visible.Value;
-    set => visible.Value = value;
+    get => visible ?? false;
+    set => visible = value;
   }
   [DV]
-  internal NBool visible = NBool.NullValue;
+  internal bool? visible;
 
   /// <summary>
   /// Gets or sets the line style of the border.
@@ -126,9 +126,9 @@ public class Border : DocumentObject
   /// Gets the information if the border is marked as cleared. Additionally 'xxx = null'
   /// is written to the DDL stream when serialized.
   /// </summary>
-  public bool BorderCleared => fClear.Value;
+  public bool BorderCleared => fClear ?? false;
 
-  internal NBool fClear = new NBool(false);
+  internal bool? fClear = false;
   #endregion
 
   #region Internal
@@ -145,12 +145,12 @@ public class Border : DocumentObject
   /// </summary>
   internal void Serialize(Serializer serializer, string name, Border refBorder)
   {
-    if (fClear.Value)
+    if ((fClear ?? false))
       serializer.WriteLine(name + " = null");
 
     int pos = serializer.BeginContent(name);
 
-    if (!visible.IsNull && (refBorder == null || (Visible != refBorder.Visible)))
+    if (visible != null && (refBorder == null || (Visible != refBorder.Visible)))
       serializer.WriteSimpleAttribute("Visible", Visible);
 
     if (!style.IsNull && (refBorder == null || (Style != refBorder.Style)))

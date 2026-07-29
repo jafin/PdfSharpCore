@@ -230,11 +230,11 @@ public class Row : DocumentObject, IVisitable
   /// </summary>
   public bool HeadingFormat
   {
-    get => this.headingFormat.Value;
-    set => this.headingFormat.Value = value;
+    get => this.headingFormat ?? false;
+    set => this.headingFormat = value;
   }
   [DV]
-  internal NBool headingFormat = NBool.NullValue;
+  internal bool? headingFormat;
 
   /// <summary>
   /// Gets the default Borders object for all cells of the row.
@@ -352,7 +352,7 @@ public class Row : DocumentObject, IVisitable
     if (!this.bottomPadding.IsNull)
       serializer.WriteSimpleAttribute("BottomPadding", this.BottomPadding);
 
-    if (!this.headingFormat.IsNull)
+    if (this.headingFormat != null)
       serializer.WriteSimpleAttribute("HeadingFormat", this.HeadingFormat);
 
     if (!this.verticalAlignment.IsNull)

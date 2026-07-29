@@ -76,11 +76,11 @@ public sealed class Shading : DocumentObject
   /// </summary>
   public bool Visible
   {
-    get => visible.Value;
-    set => visible.Value = value;
+    get => visible ?? false;
+    set => visible = value;
   }
   [DV]
-  internal NBool visible = NBool.NullValue;
+  internal bool? visible;
 
   /// <summary>
   /// Gets or sets the shading color.
@@ -113,7 +113,7 @@ public sealed class Shading : DocumentObject
 
     int pos = serializer.BeginContent("Shading");
 
-    if (!visible.IsNull)
+    if (visible != null)
       serializer.WriteSimpleAttribute("Visible", Visible);
 
     if (!color.IsNull)

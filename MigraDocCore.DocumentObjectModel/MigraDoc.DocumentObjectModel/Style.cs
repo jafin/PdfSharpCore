@@ -291,10 +291,10 @@ public sealed class Style : DocumentObject, IVisitable
   /// <summary>
   /// Indicates whether the style is a predefined (build in) style.
   /// </summary>
-  public bool BuildIn => buildIn.Value;
+  public bool BuildIn => buildIn ?? false;
 
   [DV]
-  internal NBool buildIn = NBool.NullValue;
+  internal bool? buildIn;
   // THHO: muss dass nicht builtIn heißen?!?!?!?
 
   /// <summary>
@@ -338,7 +338,7 @@ public sealed class Style : DocumentObject, IVisitable
     ParagraphFormat refFormat = null;
 
     serializer.WriteComment((comment ?? ""));
-    if (buildIn.Value)
+    if ((buildIn ?? false))
     {
       // BaseStyle is never null, but empty only for "Normal" and "DefaultParagraphFont"
       if (BaseStyle == "")

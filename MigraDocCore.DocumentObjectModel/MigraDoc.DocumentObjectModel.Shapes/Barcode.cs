@@ -91,22 +91,22 @@ public class Barcode : Shape
   /// </summary>
   public bool BearerBars
   {
-    get => this.bearerBars.Value;
-    set => this.bearerBars.Value = value;
+    get => this.bearerBars ?? false;
+    set => this.bearerBars = value;
   }
   [DV]
-  internal NBool bearerBars = NBool.NullValue;
+  internal bool? bearerBars;
 
   /// <summary>
   /// Gets or sets the a value indicating whether the barcode's code is rendered.
   /// </summary>
   public bool Text
   {
-    get => this.text.Value;
-    set => this.text.Value = value;
+    get => this.text ?? false;
+    set => this.text = value;
   }
   [DV]
-  internal NBool text = NBool.NullValue;
+  internal bool? text;
 
   /// <summary>
   /// Gets or sets code the barcode represents.
@@ -170,9 +170,9 @@ public class Barcode : Shape
 
     if (!this.orientation.IsNull)
       serializer.WriteSimpleAttribute("Orientation", this.Orientation);
-    if (!this.bearerBars.IsNull)
+    if (this.bearerBars != null)
       serializer.WriteSimpleAttribute("BearerBars", this.BearerBars);
-    if (!this.text.IsNull)
+    if (this.text != null)
       serializer.WriteSimpleAttribute("Text", this.Text);
     if (!this.type.IsNull)
       serializer.WriteSimpleAttribute("Type", this.Type);

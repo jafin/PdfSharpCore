@@ -265,11 +265,11 @@ public class Series : ChartObject
   /// </summary>
   public bool HasDataLabel
   {
-    get => this.hasDataLabel.Value;
-    set => this.hasDataLabel.Value = value;
+    get => this.hasDataLabel ?? false;
+    set => this.hasDataLabel = value;
   }
   [DV]
-  internal NBool hasDataLabel = NBool.NullValue;
+  internal bool? hasDataLabel;
 
   /// <summary>
   /// Gets the elementcount of the series.
@@ -312,7 +312,7 @@ public class Series : ChartObject
     if (!this.chartType.IsNull)
       serializer.WriteSimpleAttribute("ChartType", this.ChartType);
 
-    if (!this.hasDataLabel.IsNull)
+    if (this.hasDataLabel != null)
       serializer.WriteSimpleAttribute("HasDataLabel", this.HasDataLabel);
 
     if (!this.IsNull("LineFormat"))

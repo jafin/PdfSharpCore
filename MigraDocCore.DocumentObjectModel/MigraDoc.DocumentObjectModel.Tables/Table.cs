@@ -433,11 +433,11 @@ public class Table : DocumentObject, IVisitable
     /// </summary>
     public bool KeepTogether
     {
-        get => keepTogether.Value;
-        set => keepTogether.Value = value;
+        get => keepTogether ?? false;
+        set => keepTogether = value;
     }
 
-    [DV] internal NBool keepTogether = NBool.NullValue;
+    [DV] internal bool? keepTogether;
 
     /// <summary>
     /// Gets or sets a comment associated with this object.

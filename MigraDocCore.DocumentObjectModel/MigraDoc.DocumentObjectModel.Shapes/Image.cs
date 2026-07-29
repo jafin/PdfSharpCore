@@ -114,11 +114,11 @@ public class Image : Shape
     /// </summary>
     public bool LockAspectRatio
     {
-        get => this.lockAspectRatio.Value;
-        set => this.lockAspectRatio.Value = value;
+        get => this.lockAspectRatio ?? false;
+        set => this.lockAspectRatio = value;
     }
     [DV]
-    internal NBool lockAspectRatio = NBool.NullValue;
+    internal bool? lockAspectRatio;
 
     /// <summary>
     /// Gets or sets the PictureFormat for the image
@@ -167,7 +167,7 @@ public class Image : Shape
             serializer.WriteSimpleAttribute("ScaleWidth", this.ScaleWidth);
         if (!this.scaleHeight.IsNull)
             serializer.WriteSimpleAttribute("ScaleHeight", this.ScaleHeight);
-        if (!this.lockAspectRatio.IsNull)
+        if (this.lockAspectRatio != null)
             serializer.WriteSimpleAttribute("LockAspectRatio", this.LockAspectRatio);
         if (!this.resolution.IsNull)
             serializer.WriteSimpleAttribute("Resolution", this.Resolution);

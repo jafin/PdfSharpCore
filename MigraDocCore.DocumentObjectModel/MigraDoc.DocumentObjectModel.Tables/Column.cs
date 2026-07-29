@@ -237,11 +237,11 @@ public class Column : DocumentObject
   /// </summary>
   public bool HeadingFormat
   {
-    get => this.headingFormat.Value;
-    set => this.headingFormat.Value = value;
+    get => this.headingFormat ?? false;
+    set => this.headingFormat = value;
   }
   [DV]
-  internal NBool headingFormat = NBool.NullValue;
+  internal bool? headingFormat;
 
   /// <summary>
   /// Gets the default Shading object for all cells of the column.
@@ -293,7 +293,7 @@ public class Column : DocumentObject
     if (!this.IsNull("Format"))
       this.format.Serialize(serializer, "Format", null);
 
-    if (!this.headingFormat.IsNull)
+    if (this.headingFormat != null)
       serializer.WriteSimpleAttribute("HeadingFormat", HeadingFormat);
 
     if (!this.leftPadding.IsNull)

@@ -92,9 +92,6 @@ public abstract class ValueDescriptor
         if (type == typeof(String))
             return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
 
-        if (type == typeof(NBool))
-            return new NullableDescriptor(name, typeof(Boolean), type, memberInfo, flags);
-
         if (type == typeof(NInt))
             return new NullableDescriptor(name, typeof(Int32), type, memberInfo, flags);
 

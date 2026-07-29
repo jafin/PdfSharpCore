@@ -283,11 +283,11 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public bool UseCmykColor
   {
-    get => useCmykColor.Value;
-    set => useCmykColor.Value = value;
+    get => useCmykColor ?? false;
+    set => useCmykColor = value;
   }
   [DV]
-  internal NBool useCmykColor = NBool.NullValue;
+  internal bool? useCmykColor;
 
   /// <summary>
   /// Gets the sections of the document.
@@ -341,7 +341,7 @@ public sealed class Document : DocumentObject, IVisitable
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
     if (imagePath != null)
       serializer.WriteSimpleAttribute("ImagePath", ImagePath);
-    if (!useCmykColor.IsNull)
+    if (useCmykColor != null)
       serializer.WriteSimpleAttribute("UseCmykColor", UseCmykColor);
     serializer.EndAttributes(pos);
 

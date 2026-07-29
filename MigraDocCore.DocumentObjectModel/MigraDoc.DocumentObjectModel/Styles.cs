@@ -205,13 +205,13 @@ public class Styles : DocumentObjectCollection, IVisitable
             readOnly = true
         };
         style.styleType.Value = (int)StyleType.Character;
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // Normal 'Standard' (Paragraph Style)
         style = new Style(Style.DefaultParagraphName, null);
         style.styleType.Value = (int)StyleType.Paragraph;
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.Font.Name = GlobalFontSettings.FontResolver.DefaultFontName;
         style.Font.Size = 10;
         style.Font.Bold = false;
@@ -238,86 +238,86 @@ public class Styles : DocumentObjectCollection, IVisitable
 
         // Heading1 'Überschrift 1' (Paragraph Style)
         style = new Style("Heading1", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level1;
         Add(style);
 
         // Heading2 'Überschrift 2' (Paragraph Style)
         style = new Style("Heading2", "Heading1");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level2;
         Add(style);
 
         // Heading3 'Überschrift 3' (Paragraph Style)
         style = new Style("Heading3", "Heading2");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level3;
         Add(style);
 
         // Heading4 'Überschrift 4' (Paragraph Style)
         style = new Style("Heading4", "Heading3");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level4;
         Add(style);
 
         // Heading5 'Überschrift 5' (Paragraph Style)
         style = new Style("Heading5", "Heading4");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level5;
         Add(style);
 
         // Heading6 'Überschrift 6' (Paragraph Style)
         style = new Style("Heading6", "Heading5");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level6;
         Add(style);
 
         // Heading7 'Überschrift 7' (Paragraph Style)
         style = new Style("Heading7", "Heading6");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level7;
         Add(style);
 
         // Heading8 'Überschrift 8' (Paragraph Style)
         style = new Style("Heading8", "Heading7");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level8;
         Add(style);
 
         // Heading9 'Überschrift 9' (Paragraph Style)
         style = new Style("Heading9", "Heading8");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.ParagraphFormat.OutlineLevel = OutlineLevel.Level9;
         Add(style);
 
         // List 'Liste' (Paragraph Style)
         style = new Style("List", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // Footnote 'Fußnote' (Paragraph Style)
         style = new Style("Footnote", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // Header 'Kopfzeile' (Paragraph Style)
         style = new Style("Header", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // -33: Footer 'Fußzeile' (Paragraph Style)
         style = new Style("Footer", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // Hyperlink 'Hyperlink' (Character Style)
         style = new Style("Hyperlink", "DefaultParagraphFont");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         Add(style);
 
         // InvalidStyleName 'Ungültiger Formatvorlagenname' (Paragraph Style)
         style = new Style("InvalidStyleName", "Normal");
-        style.buildIn.Value = true;
+        style.buildIn = true;
         style.Font.Bold = true;
         style.Font.Underline = Underline.Dash;
         style.Font.Color = new Color(0xFF00FF00);
