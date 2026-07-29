@@ -6,27 +6,27 @@ namespace PdfSharpCore.Test.Helpers;
 /// The collection every test that writes or reads DDL belongs to.
 /// </summary>
 /// <remarks>
-/// Each DocumentObject caches its reflection metadata in a static field, built the first time
-/// anything asks for it:
+/// Serializing a document reaches Color.ToString, which builds its table of standard colour names
+/// once into a static and assigns that static while the table is still empty:
 ///
-///     internal override Meta Meta
+///     if (stdColors == null)
 ///     {
-///       get
-///       {
-///         if (meta == null)
-///           meta = new Meta(typeof(Document));
-///         return meta;
-///       }
+///       ...
+///       stdColors = new Hashtable(count);   // published empty
+///       for (int index = 0; index &lt; count; index++)
+///         if (!stdColors.ContainsKey(d))
+///           stdColors.Add(d, c);            // then filled
 ///     }
 ///
-/// The assignment publishes the Meta before its value descriptors have finished being collected,
-/// so a second thread arriving mid-construction can read one that is still filling and find a
-/// value it should have found. Serializing a document then silently leaves that attribute out.
+/// A second thread arriving after the assignment and before the loop finishes reads a table that
+/// is still filling, and one arriving before the assignment races the ContainsKey/Add pair. Calling
+/// Colors.Black.ToString() from 64 threads at once returns four different answers: "Black",
+/// "RGB(0,0,0)", an empty string, and ArgumentException "Item has already been added".
 ///
-/// This is a defect in the DOM rather than in the tests - the same race is reachable from any two
-/// threads that serialize different documents at once, and it predates these tests. Until it is
-/// fixed, tests in one collection do not run alongside one another, which keeps the suite honest
-/// about everything else.
+/// This is a defect in the DOM rather than in the tests. It predates them, it is reachable from any
+/// two threads that serialize documents at once, and Color.ToString is public. Until it is fixed,
+/// tests in one collection do not run alongside one another, which keeps the suite honest about
+/// everything else. docs/specs/dom-thread-safety.md covers the fix.
 /// </remarks>
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class DomSerializationCollection
