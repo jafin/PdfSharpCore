@@ -27,7 +27,7 @@ model work — it is all standalone, and can be picked up in any order.
 | F6 | Reflection's member order was never specified | — | resolved as a side effect |
 | F7 | `FormattedText`'s nine delegating `[DV]` properties are the odd shape in the DOM | low | open |
 | F8 | Aliased colours serialize under the name that was not declared first | low | open |
-| F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | open |
+| F9 | `unit == null` compiles clean and throws at run time; `CS8073` cannot catch it | medium | **done** |
 
 ---
 
@@ -356,6 +356,20 @@ That does not make `unit == null` an error — nothing can, short of removing th
 but it turns an unexplained `NullReferenceException` into something that says what happened. Whether
 to go further and drop the implicit `string` conversion for an explicit `Unit.Parse` is a public API
 decision worth its own discussion; the conversion is convenient and widely used.
+
+### Done
+
+Guarded, and the exception message names the mistake rather than just the symptom: it says the
+comparison is meaningless, why it compiled, and to test `IsEmpty` instead. The `<exception>` doc on
+the conversion explains the `CS8073` interaction, so the next person to wonder why the guard did not
+catch it has the answer in place.
+
+`UnitNullConversionTests` pins both the guard and that real string conversions still work. No
+existing test changed behaviour, which confirms nothing in the tree was converting null to a `Unit`.
+
+**Still not an error at compile time**, and cannot be while the implicit `string` conversion exists.
+This downgrades a silent trap to a loud one; it does not remove it. Dropping the conversion in
+favour of an explicit `Unit.Parse` would, and remains a public API decision for someone else.
 
 ---
 
