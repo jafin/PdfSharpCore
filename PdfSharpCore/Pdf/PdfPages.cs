@@ -58,10 +58,7 @@ namespace PdfSharpCore.Pdf
         /// <summary>
         /// Gets the number of pages.
         /// </summary>
-        public int Count
-        {
-            get { return PagesArray.Elements.Count; }
-        }
+        public int Count => PagesArray.Elements.Count;
 
         /// <summary>
         /// Gets the page with the specified index.
@@ -208,14 +205,14 @@ namespace PdfSharpCore.Pdf
         /// </summary>
         static readonly string[] DuplicatedPageKeys =
         {
-            Pdf.PdfPage.Keys.Resources,
-            Pdf.PdfPage.Keys.Contents,
-            Pdf.PdfPage.Keys.MediaBox,
-            Pdf.PdfPage.Keys.CropBox,
-            Pdf.PdfPage.Keys.Rotate,
-            Pdf.PdfPage.Keys.BleedBox,
-            Pdf.PdfPage.Keys.TrimBox,
-            Pdf.PdfPage.Keys.ArtBox,
+            PdfPage.InheritablePageKeys.Resources,
+            PdfPage.Keys.Contents,
+            PdfPage.InheritablePageKeys.MediaBox,
+            PdfPage.InheritablePageKeys.CropBox,
+            PdfPage.InheritablePageKeys.Rotate,
+            PdfPage.Keys.BleedBox,
+            PdfPage.Keys.TrimBox,
+            PdfPage.Keys.ArtBox,
         };
 
         /// <summary>
@@ -324,7 +321,7 @@ namespace PdfSharpCore.Pdf
                 // The content stream is shared, which is the point: the duplicate costs a page
                 // object rather than a copy of the page. The resource dictionary cannot be shared,
                 // because drawing on either page writes into it.
-                duplicate.Elements[key] = key == Pdf.PdfPage.Keys.Resources
+                duplicate.Elements[key] = key == PdfPage.InheritablePageKeys.Resources
                     ? CloneResources(item)
                     : item;
             }
@@ -806,14 +803,9 @@ namespace PdfSharpCore.Pdf
             }
 
             Elements.SetName(Keys.Type, "/Pages");
-#if true
             // direct array
             Elements.SetValue(Keys.Kids, array);
-#else
-            // incdirect array
-            Document.xrefTable.Add(array);
-            Elements.SetValue(Keys.Kids, array.XRef);
-#endif
+
             Elements.SetInteger(Keys.Count, array.Elements.Count);
         }
 
@@ -825,12 +817,11 @@ namespace PdfSharpCore.Pdf
             // TODO: inherit inheritable keys...
             PdfDictionary kid = (PdfDictionary)iref.Value;
 
-#if true
             string type = kid.Elements.GetName(Keys.Type);
             if (type == "/Page")
             {
                 PdfPage.InheritValues(kid, values);
-                return new PdfDictionary[] { kid };
+                return [kid];
             }
 
             if (string.IsNullOrEmpty(type))
@@ -838,16 +829,8 @@ namespace PdfSharpCore.Pdf
                 // Type is required. If type is missing, assume it is "/Page" and hope it will work.
                 // TODO Implement a "Strict" mode in PDFsharp and don't do this in "Strict" mode.
                 PdfPage.InheritValues(kid, values);
-                return new PdfDictionary[] { kid };
+                return [kid];
             }
-
-#else
-            if (kid.Elements.GetName(Keys.Type) == "/Page")
-            {
-                PdfPage.InheritValues(kid, values);
-                return new PdfDictionary[] { kid };
-            }
-#endif
 
             Debug.Assert(kid.Elements.GetName(Keys.Type) == "/Pages");
             PdfPage.InheritValues(kid, ref values);
@@ -922,10 +905,7 @@ namespace PdfSharpCore.Pdf
                 _index = -1;
             }
 
-            object IEnumerator.Current
-            {
-                get { return Current; }
-            }
+            object IEnumerator.Current => Current;
 
             public PdfPage Current
             {
@@ -983,19 +963,14 @@ namespace PdfSharpCore.Pdf
             /// <summary>
             /// Gets the KeysMeta for these keys.
             /// </summary>
-            public static DictionaryMeta Meta
-            {
-                get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-            }
+            public static DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
+
             static DictionaryMeta _meta;
         }
 
         /// <summary>
         /// Gets the KeysMeta of this dictionary type.
         /// </summary>
-        internal override DictionaryMeta Meta
-        {
-            get { return Keys.Meta; }
-        }
+        internal override DictionaryMeta Meta => Keys.Meta;
     }
 }

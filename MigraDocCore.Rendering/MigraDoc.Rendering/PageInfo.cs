@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 
@@ -50,20 +49,16 @@ namespace MigraDocCore.Rendering
     /// Gets the with of the described page as specified in Document.PageSetup, i.e. the orientation
     /// is not taken into account.
     /// </summary>
-    public XUnit Width
-    {
-      get { return this.width; }
-    }
+    public XUnit Width => width;
+
     private XUnit width;
 
     /// <summary>
     /// Gets the height of the described page as specified in Document.PageSetup, i.e. the orientation
     /// is not taken into account.
     /// </summary>
-    public XUnit Height
-    {
-      get { return this.height; }
-    }
+    public XUnit Height => height;
+
     private XUnit height;
 
     /// <summary>
@@ -71,10 +66,8 @@ namespace MigraDocCore.Rendering
     /// The value has no influence on the properties Width or Height, i.e. if the result is PageOrientation.Landscape
     /// you must exchange the values of Width or Height to get the real page size.
     /// </summary>
-    public PageOrientation Orientation
-    {
-      get { return this.orientation; }
-    }
+    public PageOrientation Orientation => orientation;
+
     private PageOrientation orientation;
   }
 }

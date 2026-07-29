@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>

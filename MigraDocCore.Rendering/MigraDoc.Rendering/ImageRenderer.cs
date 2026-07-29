@@ -29,14 +29,11 @@
 #endregion
 
 using System;
-using System.IO;
 using System.Diagnostics;
-using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using PdfSharpCore.Fonts;
-using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
 namespace MigraDocCore.Rendering
 {
@@ -50,21 +47,21 @@ namespace MigraDocCore.Rendering
         {
             this.image = image;
             ImageRenderInfo renderInfo = new ImageRenderInfo();
-            renderInfo.shape = this.shape;
+            renderInfo.shape = shape;
             this.renderInfo = renderInfo;
         }
 
         internal ImageRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
           : base(gfx, renderInfo, fieldInfos)
         {
-            this.image = (Image)renderInfo.DocumentObject;
+            image = (Image)renderInfo.DocumentObject;
         }
 
         internal override void Format(Area area, FormatInfo previousFormatInfo)
         {
-            ImageFormatInfo formatInfo = (ImageFormatInfo)this.renderInfo.FormatInfo;
+            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
             formatInfo.ImageSource = image.Source;
-            formatInfo.Failure = this.failure;
+            formatInfo.Failure = failure;
             CalculateImageDimensions();
             base.Format(area, previousFormatInfo);
         }
@@ -73,8 +70,8 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                ImageFormatInfo formatInfo = (ImageFormatInfo)this.renderInfo.FormatInfo;
-                return formatInfo.Height + this.lineFormatRenderer.GetWidth();
+                ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+                return formatInfo.Height + lineFormatRenderer.GetWidth();
             }
         }
 
@@ -82,8 +79,8 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                ImageFormatInfo formatInfo = (ImageFormatInfo)this.renderInfo.FormatInfo;
-                return formatInfo.Width + this.lineFormatRenderer.GetWidth();
+                ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+                return formatInfo.Width + lineFormatRenderer.GetWidth();
             }
         }
 
@@ -91,8 +88,8 @@ namespace MigraDocCore.Rendering
         {
             RenderFilling();
 
-            ImageFormatInfo formatInfo = (ImageFormatInfo)this.renderInfo.FormatInfo;
-            Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
             XRect destRect = new XRect(contentArea.X, contentArea.Y, formatInfo.Width, formatInfo.Height);
 
             if (formatInfo.Failure == ImageFailure.None)
@@ -101,7 +98,7 @@ namespace MigraDocCore.Rendering
                 {
                     XRect srcRect = new XRect(formatInfo.CropX, formatInfo.CropY, formatInfo.CropWidth, formatInfo.CropHeight);
                     using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
-                        this.gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
+                        gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
                 }
                 catch (Exception)
                 {
@@ -116,9 +113,9 @@ namespace MigraDocCore.Rendering
 
         void RenderFailureImage(XRect destRect)
         {
-            this.gfx.DrawRectangle(XBrushes.LightGray, destRect);
+            gfx.DrawRectangle(XBrushes.LightGray, destRect);
             string failureString;
-            ImageFormatInfo formatInfo = (ImageFormatInfo)this.RenderInfo.FormatInfo;
+            ImageFormatInfo formatInfo = (ImageFormatInfo)RenderInfo.FormatInfo;
 
             switch (formatInfo.Failure)
             {
@@ -142,12 +139,12 @@ namespace MigraDocCore.Rendering
 
             // Create stub font
             XFont font = new XFont(GlobalFontSettings.FontResolver.DefaultFontName, 8);
-            this.gfx.DrawString(failureString, font, XBrushes.Red, destRect, XStringFormats.Center);
+            gfx.DrawString(failureString, font, XBrushes.Red, destRect, XStringFormats.Center);
         }
 
         private void CalculateImageDimensions()
         {
-            ImageFormatInfo formatInfo = (ImageFormatInfo)this.renderInfo.FormatInfo;
+            ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
 
             if (formatInfo.Failure == ImageFailure.None)
             {
@@ -166,8 +163,8 @@ namespace MigraDocCore.Rendering
                 {
                     XUnit usrWidth = image.Width.Point;
                     XUnit usrHeight = image.Height.Point;
-                    bool usrWidthSet = !this.image.IsNull("Width");
-                    bool usrHeightSet = !this.image.IsNull("Height");
+                    bool usrWidthSet = !image.IsNull("Width");
+                    bool usrHeightSet = !image.IsNull("Height");
 
                     XUnit resultWidth = usrWidth;
                     XUnit resultHeight = usrHeight;
@@ -181,12 +178,12 @@ namespace MigraDocCore.Rendering
                     double vertRes = usrResolutionSet ? (double)image.Resolution : xImage.VerticalResolution;
                     XUnit inherentHeight = XUnit.FromInch(yPixels / vertRes);
 
-                    bool lockRatio = this.image.IsNull("LockAspectRatio") ? true : image.LockAspectRatio;
+                    bool lockRatio = image.IsNull("LockAspectRatio") ? true : image.LockAspectRatio;
 
-                    double scaleHeight = this.image.ScaleHeight;
-                    double scaleWidth = this.image.ScaleWidth;
-                    bool scaleHeightSet = !this.image.IsNull("ScaleHeight");
-                    bool scaleWidthSet = !this.image.IsNull("ScaleWidth");
+                    double scaleHeight = image.ScaleHeight;
+                    double scaleWidth = image.ScaleWidth;
+                    bool scaleHeightSet = !image.IsNull("ScaleHeight");
+                    bool scaleWidthSet = !image.IsNull("ScaleWidth");
 
                     if (lockRatio)
                     {
@@ -242,9 +239,9 @@ namespace MigraDocCore.Rendering
 
                     formatInfo.CropWidth = (int)xPixels;
                     formatInfo.CropHeight = (int)yPixels;
-                    if (!this.image.IsNull("PictureFormat"))
+                    if (!image.IsNull("PictureFormat"))
                     {
-                        PictureFormat picFormat = this.image.PictureFormat;
+                        PictureFormat picFormat = image.PictureFormat;
                         //Cropping in pixels.
                         XUnit cropLeft = picFormat.CropLeft.Point;
                         XUnit cropRight = picFormat.CropRight.Point;
@@ -272,7 +269,7 @@ namespace MigraDocCore.Rendering
                         formatInfo.Width = XUnit.FromCentimeter(2.5);
                         formatInfo.Height = XUnit.FromCentimeter(2.5);
                         Debug.WriteLine(AppResources.EmptyImageSize);
-                        this.failure = ImageFailure.EmptySize;
+                        failure = ImageFailure.EmptySize;
                     }
                     else
                     {
@@ -293,13 +290,13 @@ namespace MigraDocCore.Rendering
             }
             if (formatInfo.Failure != ImageFailure.None)
             {
-                if (!this.image.IsNull("Width"))
-                    formatInfo.Width = this.image.Width.Point;
+                if (!image.IsNull("Width"))
+                    formatInfo.Width = image.Width.Point;
                 else
                     formatInfo.Width = XUnit.FromCentimeter(2.5);
 
-                if (!this.image.IsNull("Height"))
-                    formatInfo.Height = this.image.Height.Point;
+                if (!image.IsNull("Height"))
+                    formatInfo.Height = image.Height.Point;
                 else
                     formatInfo.Height = XUnit.FromCentimeter(2.5);
                 return;

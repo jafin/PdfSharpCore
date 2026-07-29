@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Charting;
 using PdfSharpCore.Drawing;
 
@@ -46,11 +45,7 @@ namespace MigraDocCore.Rendering.ChartMapper
         fillFormat.Color = XColor.Empty;
       else
       {
-#if noCMYK
-        fillFormat.Color = XColor.FromArgb((int)domFillFormat.Color.Argb);
-#else
         fillFormat.Color = ColorHelper.ToXColor(domFillFormat.Color, domFillFormat.Document.UseCmykColor);
-#endif
       }
       fillFormat.Visible = domFillFormat.Visible;
     }

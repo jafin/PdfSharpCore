@@ -32,7 +32,6 @@ using System;
 using System.Reflection;
 using System.IO;
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Visitors;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
@@ -63,10 +62,8 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// Gets a value indicating whether the text is rendered as Unicode.
         /// </summary>
-        public bool Unicode
-        {
-            get { return this.unicode; }
-        }
+        public bool Unicode => unicode;
+
         bool unicode;
 
         /// <summary>
@@ -75,8 +72,8 @@ namespace MigraDocCore.Rendering
         /// <value>The language.</value>
         public string Language
         {
-            get { return this.language; }
-            set { this.language = value; }
+            get => language;
+            set => language = value;
         }
         string language = String.Empty;
 
@@ -87,9 +84,9 @@ namespace MigraDocCore.Rendering
         {
             set
             {
-                this.document = null;
+                document = null;
                 value.BindToRenderer(this);
-                this.document = value;
+                document = value;
             }
         }
         Document document;
@@ -105,11 +102,11 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                if (this.documentRenderer == null)
+                if (documentRenderer == null)
                     PrepareDocumentRenderer();
-                return this.documentRenderer;
+                return documentRenderer;
             }
-            set { this.documentRenderer = value; }
+            set => documentRenderer = value;
         }
         DocumentRenderer documentRenderer;
 
@@ -120,17 +117,17 @@ namespace MigraDocCore.Rendering
 
         void PrepareDocumentRenderer(bool prepareCompletely)
         {
-            if (this.document == null)
+            if (document == null)
                 throw new InvalidOperationException(string.Format(AppResources.PropertyNotSetBefore, "DocumentRenderer", nameof(PrepareDocumentRenderer)));
 
-            if (this.documentRenderer == null)
+            if (documentRenderer == null)
             {
-                this.documentRenderer = new DocumentRenderer(this.document);
-                this.documentRenderer.WorkingDirectory = this.workingDirectory;
+                documentRenderer = new DocumentRenderer(document);
+                documentRenderer.WorkingDirectory = workingDirectory;
             }
-            if (prepareCompletely && this.documentRenderer.formattedDocument == null)
+            if (prepareCompletely && documentRenderer.formattedDocument == null)
             {
-                this.documentRenderer.PrepareDocument();
+                documentRenderer.PrepareDocument();
             }
         }
 
@@ -140,7 +137,7 @@ namespace MigraDocCore.Rendering
         public void RenderDocument()
         {
             PrepareRenderPages();
-            RenderPages(1, this.documentRenderer.FormattedDocument.PageCount);
+            RenderPages(1, documentRenderer.FormattedDocument.PageCount);
         }
 
         /// <summary>
@@ -151,11 +148,11 @@ namespace MigraDocCore.Rendering
             //if (this.documentRenderer == null)
             PrepareDocumentRenderer(true);
 
-            if (this.pdfDocument == null)
+            if (pdfDocument == null)
             {
-                this.pdfDocument = CreatePdfDocument();
-                if (this.document.UseCmykColor)
-                    this.pdfDocument.Options.ColorMode = PdfColorMode.Cmyk;
+                pdfDocument = CreatePdfDocument();
+                if (document.UseCmykColor)
+                    pdfDocument.Options.ColorMode = PdfColorMode.Cmyk;
             }
 
             WriteDocumentInformation();
@@ -165,10 +162,7 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// Gets the count of pages.
         /// </summary>
-        public int PageCount
-        {
-            get { return this.documentRenderer.FormattedDocument.PageCount; }
-        }
+        public int PageCount => documentRenderer.FormattedDocument.PageCount;
 
         /// <summary>
         /// Saves the PdfDocument to the specified path. If a file already exists, it will be overwritten.
@@ -181,10 +175,10 @@ namespace MigraDocCore.Rendering
             else if (path == "")
                 throw new ArgumentException("PDF file Path must not be empty");
 
-            if (this.workingDirectory != null)
-                Path.Combine(this.workingDirectory, path);
+            if (workingDirectory != null)
+                Path.Combine(workingDirectory, path);
 
-            this.pdfDocument.Save(path);
+            pdfDocument.Save(path);
         }
 
         /// <summary>
@@ -192,7 +186,7 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public void Save(Stream stream, bool closeStream)
         {
-            this.pdfDocument.Save(stream, closeStream);
+            pdfDocument.Save(stream, closeStream);
         }
 
         /// <summary>
@@ -205,28 +199,28 @@ namespace MigraDocCore.Rendering
             if (startPage < 1)
                 throw new ArgumentOutOfRangeException("startPage");
 
-            if (endPage > this.documentRenderer.FormattedDocument.PageCount)
+            if (endPage > documentRenderer.FormattedDocument.PageCount)
                 throw new ArgumentOutOfRangeException("endPage");
 
-            if (this.documentRenderer == null)
+            if (documentRenderer == null)
                 PrepareDocumentRenderer();
 
-            if (this.pdfDocument == null)
-                this.pdfDocument = CreatePdfDocument();
+            if (pdfDocument == null)
+                pdfDocument = CreatePdfDocument();
 
-            this.documentRenderer.printDate = DateTime.Now;
+            documentRenderer.printDate = DateTime.Now;
             for (int pageNr = startPage; pageNr <= endPage; ++pageNr)
             {
-                PdfPage pdfPage = this.pdfDocument.AddPage();
-                PageInfo pageInfo = this.documentRenderer.FormattedDocument.GetPageInfo(pageNr);
+                PdfPage pdfPage = pdfDocument.AddPage();
+                PageInfo pageInfo = documentRenderer.FormattedDocument.GetPageInfo(pageNr);
                 pdfPage.Width = pageInfo.Width;
                 pdfPage.Height = pageInfo.Height;
                 pdfPage.Orientation = pageInfo.Orientation;
 
                 using (XGraphics gfx = XGraphics.FromPdfPage(pdfPage))
                 {
-                    gfx.MUH = this.unicode ? PdfFontEncoding.Unicode : PdfFontEncoding.WinAnsi;
-                    this.documentRenderer.RenderPage(gfx, pageNr);
+                    gfx.MUH = unicode ? PdfFontEncoding.Unicode : PdfFontEncoding.WinAnsi;
+                    documentRenderer.RenderPage(gfx, pageNr);
                 }
             }
         }
@@ -236,8 +230,8 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public string WorkingDirectory
         {
-            get { return this.workingDirectory; }
-            set { this.workingDirectory = value; }
+            get => workingDirectory;
+            set => workingDirectory = value;
         }
         string workingDirectory;
 
@@ -247,8 +241,8 @@ namespace MigraDocCore.Rendering
         /// <remarks>A PDF document in memory is automatically created when printing before this property was set.</remarks>
         public PdfDocument PdfDocument
         {
-            get { return this.pdfDocument; }
-            set { this.pdfDocument = value; }
+            get => pdfDocument;
+            set => pdfDocument = value;
         }
         PdfDocument pdfDocument;
 
@@ -257,10 +251,10 @@ namespace MigraDocCore.Rendering
         /// </summary>
         public void WriteDocumentInformation()
         {
-            if (!this.document.IsNull("Info"))
+            if (!document.IsNull("Info"))
             {
-                DocumentInfo docInfo = this.document.Info;
-                PdfDocumentInformation pdfInfo = this.pdfDocument.Info;
+                DocumentInfo docInfo = document.Info;
+                PdfDocumentInformation pdfInfo = pdfDocument.Info;
 
                 if (!docInfo.IsNull("Author"))
                     pdfInfo.Author = docInfo.Author;
@@ -283,8 +277,8 @@ namespace MigraDocCore.Rendering
         {
             PdfDocument document = new PdfDocument();
             document.Info.Creator = "MigraDoc " + typeof(PdfDocumentRenderer).GetTypeInfo().Assembly.GetName().Version;
-            if (this.language != null && this.language.Length != 0)
-                document.Language = this.language;
+            if (language != null && language.Length != 0)
+                document.Language = language;
             return document;
         }
     }

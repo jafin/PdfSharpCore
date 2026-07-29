@@ -33,7 +33,6 @@ using System.Collections;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.DocumentObjectModel.IO;
 
 namespace MigraDocCore.Rendering
 {
@@ -48,17 +47,17 @@ namespace MigraDocCore.Rendering
       this.fieldInfos = fieldInfos;
       this.yOffset = yOffset;
       this.xOffset = xOffset;
-      this.bordersRenderer = new BordersRenderer(cellBorders, null);
+      bordersRenderer = new BordersRenderer(cellBorders, null);
       this.documentRenderer = documentRenderer;
     }
 
     bool isFirstArea = true;
     Area IAreaProvider.GetNextArea()
     {
-      if (this.isFirstArea)
+      if (isFirstArea)
       {
         Rectangle rect = CalcContentRect();
-        this.isFirstArea = false;
+        isFirstArea = false;
         return rect;
       }
       return null;
@@ -72,33 +71,30 @@ namespace MigraDocCore.Rendering
     internal void Format(XGraphics gfx)
     {
       this.gfx = gfx;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.cell.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-      this.contentHeight = CalcContentHeight(this.documentRenderer);
+      formatter = new TopDownFormatter(this, documentRenderer, cell.Elements);
+      formatter.FormatOnAreas(gfx, false);
+      contentHeight = CalcContentHeight(documentRenderer);
     }
 
     private Rectangle CalcContentRect()
     {
-      Column column = this.cell.Column;
+      Column column = cell.Column;
       XUnit width = InnerWidth;
       width -= column.LeftPadding.Point;
-      Column rightColumn = this.cell.Table.Columns[column.Index + this.cell.MergeRight];
+      Column rightColumn = cell.Table.Columns[column.Index + cell.MergeRight];
       width -= rightColumn.RightPadding.Point;
 
       XUnit height = double.MaxValue;
-      return new Rectangle(this.xOffset, this.yOffset, width, height);
+      return new Rectangle(xOffset, yOffset, width, height);
     }
 
-    internal XUnit ContentHeight
-    {
-      get { return this.contentHeight; }
-    }
+    internal XUnit ContentHeight => contentHeight;
 
     internal XUnit InnerHeight
     {
       get
       {
-        Row row = this.cell.Row;
+        Row row = cell.Row;
         XUnit verticalPadding = row.TopPadding.Point;
         verticalPadding += row.BottomPadding.Point;
 
@@ -108,11 +104,11 @@ namespace MigraDocCore.Rendering
             return row.Height.Point;
 
           case RowHeightRule.Auto:
-            return verticalPadding + this.contentHeight;
+            return verticalPadding + contentHeight;
 
           case RowHeightRule.AtLeast:
           default:
-            return Math.Max(row.Height, verticalPadding + this.contentHeight);
+            return Math.Max(row.Height, verticalPadding + contentHeight);
         }
       }
     }
@@ -122,27 +118,21 @@ namespace MigraDocCore.Rendering
       get
       {
         XUnit width = 0;
-        int cellColumnIdx = this.cell.Column.Index;
-        for (int toRight = 0; toRight <= this.cell.MergeRight; ++toRight)
+        int cellColumnIdx = cell.Column.Index;
+        for (int toRight = 0; toRight <= cell.MergeRight; ++toRight)
         {
           int columnIdx = cellColumnIdx + toRight;
-          width += this.cell.Table.Columns[columnIdx].Width;
+          width += cell.Table.Columns[columnIdx].Width;
         }
-        width -= this.bordersRenderer.GetWidth(BorderType.Right);
+        width -= bordersRenderer.GetWidth(BorderType.Right);
 
         return width;
       }
     }
 
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get
-      {
-        return this.fieldInfos;
-      }
-    }
+    FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
 
-    void IAreaProvider.StoreRenderInfos(System.Collections.ArrayList renderInfos)
+    void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
     {
       this.renderInfos = renderInfos;
     }
@@ -167,9 +157,9 @@ namespace MigraDocCore.Rendering
       XUnit height = RenderInfo.GetTotalHeight(GetRenderInfos());
       if (height == 0)
       {
-        height = ParagraphRenderer.GetLineHeight(this.cell.Format, this.gfx, documentRenderer);
-        height += this.cell.Format.SpaceBefore;
-        height += this.cell.Format.SpaceAfter;
+        height = ParagraphRenderer.GetLineHeight(cell.Format, gfx, documentRenderer);
+        height += cell.Format.SpaceBefore;
+        height += cell.Format.SpaceAfter;
       }
       return height;
     }
@@ -178,8 +168,8 @@ namespace MigraDocCore.Rendering
 
     internal RenderInfo[] GetRenderInfos()
     {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
+      if (renderInfos != null)
+        return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
 
       return null;
     }

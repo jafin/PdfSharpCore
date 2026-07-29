@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "roslyn-refactor": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["tool", "run", "roslyn-mcp"]
+    }
+  }
+}

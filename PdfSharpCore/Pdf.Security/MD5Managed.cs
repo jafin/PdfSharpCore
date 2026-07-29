@@ -53,11 +53,9 @@ namespace PdfSharpCore.Pdf.Security
     /// which is why this implementation is used instead of System.Security.Cryptography.MD5.
     /// </summary>
     class MD5Managed
-        //#if !UWP
         : System.Security.Cryptography.HashAlgorithm  // TODO: WinRT has not even a HashAlgorithm base class.
-                         //#endif
     {
-        // Intitial values as defined in RFC 1321.
+        // Initial values as defined in RFC 1321.
         const uint A = 0x67452301;
         const uint B = 0xefcdab89;
         const uint C = 0x98badcfe;
@@ -84,7 +82,6 @@ namespace PdfSharpCore.Pdf.Security
             _abcd.C = C;
             _abcd.D = D;
         }
-
 
         // TransformBlock, TransformFinalBlock, ComputeHash and Hash are inherited. The base class
         // implements them on top of the HashCore and HashFinal overrides below.
@@ -298,7 +295,7 @@ namespace PdfSharpCore.Pdf.Security
             }
 
             // Implementation of left rotate
-            // s is an int instead of a uint becuase the CLR requires the argument passed to >>/<< is of 
+            // s is an int instead of a uint because the CLR requires the argument passed to >>/<< is of 
             // type int. Doing the demoting inside this function would add overhead.
             private static uint LSR(uint i, int s)
             {
@@ -314,7 +311,7 @@ namespace PdfSharpCore.Pdf.Security
                 uint[] result = new uint[16];
                 for (int idx = 0; idx < 16; idx++)
                 {
-                    result[idx] = (uint)input[ibStart + idx * 4];
+                    result[idx] = input[ibStart + idx * 4];
                     result[idx] += (uint)input[ibStart + idx * 4 + 1] << 8;
                     result[idx] += (uint)input[ibStart + idx * 4 + 2] << 16;
                     result[idx] += (uint)input[ibStart + idx * 4 + 3] << 24;

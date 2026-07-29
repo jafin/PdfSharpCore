@@ -28,11 +28,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Internals;
 using System.Collections;
-using System.Collections.Specialized;
 
 namespace MigraDocCore.Rendering
 {
@@ -49,8 +46,8 @@ namespace MigraDocCore.Rendering
     internal ParagraphIterator(ParagraphElements rootNode)
     {
       this.rootNode = rootNode;
-      this.current = rootNode;
-      this.positionIndices = new ArrayList();
+      current = rootNode;
+      positionIndices = new ArrayList();
     }
 
     /// <summary>
@@ -62,7 +59,7 @@ namespace MigraDocCore.Rendering
     private ParagraphIterator(ParagraphElements rootNode, DocumentObject current, ArrayList indices)
     {
       this.rootNode = rootNode;
-      this.positionIndices = indices;
+      positionIndices = indices;
       this.current = current;
     }
 
@@ -73,9 +70,9 @@ namespace MigraDocCore.Rendering
     {
       get
       {
-        if (!(this.current is DocumentElements))
+        if (!(current is DocumentElements))
         {
-          ParagraphIterator prevIter = this.GetPreviousLeaf();
+          ParagraphIterator prevIter = GetPreviousLeaf();
           return prevIter == null;
         }
         return false;
@@ -89,9 +86,9 @@ namespace MigraDocCore.Rendering
     {
       get
       {
-        if (!(this.current is DocumentElements))
+        if (!(current is DocumentElements))
         {
-          ParagraphIterator nextIter = this.GetNextLeaf();
+          ParagraphIterator nextIter = GetNextLeaf();
           return nextIter == null;
         }
         return false;
@@ -101,10 +98,7 @@ namespace MigraDocCore.Rendering
     /// <summary>
     /// Gets the document object this instance ponits to.
     /// </summary>
-    internal DocumentObject Current
-    {
-      get{return current;}
-    }
+    internal DocumentObject Current => current;
 
     /// <summary>
     /// Gets the last leaf of the document object tree.
@@ -112,7 +106,7 @@ namespace MigraDocCore.Rendering
     /// <returns>The paragraph iterator pointing to the last leaf in the document object tree.</returns>
     internal ParagraphIterator GetLastLeaf()
     {
-      if (this.rootNode.Count == 0)
+      if (rootNode.Count == 0)
         return null;
       return SeekLastLeaf();
     }
@@ -124,7 +118,7 @@ namespace MigraDocCore.Rendering
     /// <returns>The paragraph iterator pointing to the first leaf in the element tree.</returns>
     internal ParagraphIterator GetFirstLeaf()
     {
-      if (this.rootNode.Count == 0)
+      if (rootNode.Count == 0)
         return null;
       return SeekFirstLeaf();
     }
@@ -141,7 +135,7 @@ namespace MigraDocCore.Rendering
       if (parIterator == null)
         return null;
 
-      int elementIndex = this.LastIndex;
+      int elementIndex = LastIndex;
       ParagraphElements parEls = (ParagraphElements)parIterator.current;
       while (elementIndex == parEls.Count - 1)
       {
@@ -161,7 +155,7 @@ namespace MigraDocCore.Rendering
       ArrayList indices = (ArrayList)parIterator.positionIndices.Clone();
       indices.Add(newIndex);
       DocumentObject obj = GetNodeObject(parEls[newIndex]);
-      ParagraphIterator iterator = new ParagraphIterator(this.rootNode, obj, indices);
+      ParagraphIterator iterator = new ParagraphIterator(rootNode, obj, indices);
       return iterator.SeekFirstLeaf();
     }
 
@@ -191,7 +185,7 @@ namespace MigraDocCore.Rendering
       if (parIterator == null)
         return null;
 
-      int elementIndex = this.LastIndex;
+      int elementIndex = LastIndex;
       ParagraphElements parEls = (ParagraphElements)parIterator.current;
       while (elementIndex == 0)
       {
@@ -213,29 +207,29 @@ namespace MigraDocCore.Rendering
       indices.Add(newIndex);
 
       DocumentObject obj = GetNodeObject(parEls[newIndex]);
-      ParagraphIterator iterator = new ParagraphIterator(this.rootNode, obj, indices);
+      ParagraphIterator iterator = new ParagraphIterator(rootNode, obj, indices);
       return iterator.SeekLastLeaf();
     }
 
     private ParagraphIterator SeekLastLeaf()
     {
-      DocumentObject obj = this.Current;
+      DocumentObject obj = Current;
       if (!(obj is ParagraphElements))
         return this;
 
-      ArrayList indices = (ArrayList)this.positionIndices.Clone();
+      ArrayList indices = (ArrayList)positionIndices.Clone();
 
       while (obj is ParagraphElements)
       {
         ParagraphElements parEls = (ParagraphElements)obj;
         if (((ParagraphElements)obj).Count == 0)
-          return new ParagraphIterator(this.rootNode, obj, indices);
+          return new ParagraphIterator(rootNode, obj, indices);
 
         int idx = ((ParagraphElements)obj).Count - 1;
         indices.Add(idx);
         obj = GetNodeObject(parEls[idx]);
       }
-      return new ParagraphIterator(this.rootNode, obj, indices);
+      return new ParagraphIterator(rootNode, obj, indices);
     }
 
     /// <summary>
@@ -244,42 +238,42 @@ namespace MigraDocCore.Rendering
     /// <returns>The searched leaf.</returns>
     ParagraphIterator SeekFirstLeaf()
     {
-      DocumentObject obj = this.Current;
+      DocumentObject obj = Current;
       if (!(obj is ParagraphElements))
         return this;
-      ArrayList indices = (ArrayList)this.positionIndices.Clone();
+      ArrayList indices = (ArrayList)positionIndices.Clone();
 
       while (obj is ParagraphElements)
       {
         ParagraphElements parEls = (ParagraphElements)obj;
         if (parEls.Count == 0)
-          return new ParagraphIterator(this.rootNode, obj, indices);
+          return new ParagraphIterator(rootNode, obj, indices);
 
         indices.Add(0);
         obj = GetNodeObject(parEls[0]);
       }
-      return new ParagraphIterator(this.rootNode, obj, indices);
+      return new ParagraphIterator(rootNode, obj, indices);
     }
 
     private ParagraphIterator GetParentIterator()
     {
-      if (this.positionIndices.Count == 0)
+      if (positionIndices.Count == 0)
         return null;
 
-      ArrayList indices = (ArrayList)this.positionIndices.Clone();
+      ArrayList indices = (ArrayList)positionIndices.Clone();
       indices.RemoveAt(indices.Count - 1);
-      DocumentObject parent = DocumentRelations.GetParentOfType(this.current, typeof(ParagraphElements));
-      return new ParagraphIterator(this.rootNode, parent, indices);
+      DocumentObject parent = DocumentRelations.GetParentOfType(current, typeof(ParagraphElements));
+      return new ParagraphIterator(rootNode, parent, indices);
     }
 
     private int LastIndex
     {
       get
       {
-        if (this.positionIndices.Count == 0)
+        if (positionIndices.Count == 0)
           return -1;
         else
-          return (int)this.positionIndices[this.positionIndices.Count - 1];
+          return (int)positionIndices[positionIndices.Count - 1];
       }
     }
 

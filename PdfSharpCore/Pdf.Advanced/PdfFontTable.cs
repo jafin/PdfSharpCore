@@ -83,14 +83,12 @@ namespace PdfSharpCore.Pdf.Advanced
             return pdfFont;
         }
 
-#if true
         /// <summary>
         /// Gets a PdfFont from a font program. If no PdfFont already exists, a new one is created.
         /// </summary>
         public PdfFont GetFont(string idName, byte[] fontData)
         {
             Debug.Assert(false);
-            //FontSelector selector = new FontSelector(idName);
             string selector = null; // ComputeKey(font); //new FontSelector(font);
             PdfFont pdfFont;
             if (!_fonts.TryGetValue(selector, out pdfFont))
@@ -105,7 +103,6 @@ namespace PdfSharpCore.Pdf.Advanced
             }
             return pdfFont;
         }
-#endif
 
         /// <summary>
         /// Tries to gets a PdfFont from the font dictionary.

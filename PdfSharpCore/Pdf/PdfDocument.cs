@@ -53,15 +53,6 @@ namespace PdfSharpCore.Pdf
         internal DocumentState _state;
         internal PdfDocumentOpenMode _openMode;
 
-#if DEBUG_
-        static PdfDocument()
-        {
-            PSSR.TestResourceMessages();
-            //string test = PSSR.ResMngr.GetString("SampleMessage1");
-            //test.GetType();
-        }
-#endif
-
         /// <summary>
         /// Creates a new PDF document in memory.
         /// To open an existing PDF file, use the PdfReader class.
@@ -199,10 +190,6 @@ namespace PdfSharpCore.Pdf
         /// </summary>
         static string NewName()
         {
-#if DEBUG_
-            if (PdfDocument.nameCount == 57)
-                PdfDocument.nameCount.GetType();
-#endif
             return "Document " + _nameCount++;
         }
         static int _nameCount;
@@ -376,10 +363,6 @@ namespace PdfSharpCore.Pdf
                 for (int idx = 0; idx < count; idx++)
                 {
                     PdfReference iref = irefs[idx];
-#if DEBUG_
-                    if (iref.ObjectNumber == 378)
-                        GetType();
-#endif
                     iref.Position = writer.Position;
                     iref.Value.WriteObject(writer);
                 }
@@ -452,13 +435,11 @@ namespace PdfSharpCore.Pdf
             // Let catalog do the rest.
             Catalog.PrepareForSave();
 
-#if true
             // Remove all unreachable objects (e.g. from deleted pages)
             int removed = _irefTable.Compact();
             if (removed != 0)
                 Debug.WriteLine("PrepareForSave: Number of deleted unreachable objects: " + removed);
             _irefTable.Renumber();
-#endif
         }
 
         /// <summary>

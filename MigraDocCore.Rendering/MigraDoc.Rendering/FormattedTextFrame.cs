@@ -28,11 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Collections;
-
-using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using PdfSharpCore.Drawing;
 
@@ -53,15 +49,15 @@ namespace MigraDocCore.Rendering
     internal void Format(XGraphics gfx)
     {
       this.gfx = gfx;
-      this.isFirstArea = true;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.textframe.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-      this.contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
+      isFirstArea = true;
+      formatter = new TopDownFormatter(this, documentRenderer, textframe.Elements);
+      formatter.FormatOnAreas(gfx, false);
+      contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
     }
 
     Area IAreaProvider.GetNextArea()
     {
-      if (this.isFirstArea)
+      if (isFirstArea)
         return CalcContentRect();
 
       return null;
@@ -72,13 +68,7 @@ namespace MigraDocCore.Rendering
       return null;
     }
 
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get
-      {
-        return this.fieldInfos;
-      }
-    }
+    FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
 
     void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
     {
@@ -92,55 +82,52 @@ namespace MigraDocCore.Rendering
 
     internal RenderInfo[] GetRenderInfos()
     {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
+      if (renderInfos != null)
+        return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
 
       return null;
     }
 
     Rectangle CalcContentRect()
     {
-      LineFormatRenderer lfr = new LineFormatRenderer(this.textframe.LineFormat, this.gfx);
+      LineFormatRenderer lfr = new LineFormatRenderer(textframe.LineFormat, gfx);
       XUnit lineWidth = lfr.GetWidth();
       XUnit width;
       XUnit xOffset = lineWidth / 2;
       XUnit yOffset = lineWidth / 2;
 
-      if (this.textframe.Orientation == TextOrientation.Horizontal ||
-        this.textframe.Orientation == TextOrientation.HorizontalRotatedFarEast)
+      if (textframe.Orientation == TextOrientation.Horizontal ||
+        textframe.Orientation == TextOrientation.HorizontalRotatedFarEast)
       {
-        width = this.textframe.Width.Point;
-        xOffset += this.textframe.MarginLeft;
-        yOffset += this.textframe.MarginTop;
+        width = textframe.Width.Point;
+        xOffset += textframe.MarginLeft;
+        yOffset += textframe.MarginTop;
         width -= xOffset;
-        width -= this.textframe.MarginRight + lineWidth / 2;
+        width -= textframe.MarginRight + lineWidth / 2;
       }
       else
       {
-        width = this.textframe.Height.Point;
-        if (this.textframe.Orientation == TextOrientation.Upward)
+        width = textframe.Height.Point;
+        if (textframe.Orientation == TextOrientation.Upward)
         {
-          xOffset += this.textframe.MarginBottom;
-          yOffset += this.textframe.MarginLeft;
+          xOffset += textframe.MarginBottom;
+          yOffset += textframe.MarginLeft;
           width -= xOffset;
-          width -= this.textframe.MarginTop + lineWidth / 2;
+          width -= textframe.MarginTop + lineWidth / 2;
         }
         else
         {
-          xOffset += this.textframe.MarginTop;
-          yOffset += this.textframe.MarginRight;
+          xOffset += textframe.MarginTop;
+          yOffset += textframe.MarginRight;
           width -= xOffset;
-          width -= this.textframe.MarginBottom + lineWidth / 2;
+          width -= textframe.MarginBottom + lineWidth / 2;
         }
       }
       XUnit height = double.MaxValue;
       return new Rectangle(xOffset, yOffset, width, height);
     }
 
-    XUnit ContentHeight
-    {
-      get { return this.contentHeight; }
-    }
+    XUnit ContentHeight => contentHeight;
 
     bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
     {

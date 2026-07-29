@@ -319,7 +319,6 @@ namespace PdfSharpCore.Pdf.Security
         byte[] ComputeOwnerKey(byte[] userPad, byte[] ownerPad, bool strongEncryption)
         {
             byte[] ownerKey = new byte[32];
-            //#if !SILVERLIGHT
             byte[] digest = _md5.ComputeHash(ownerPad);
             if (strongEncryption)
             {
@@ -536,7 +535,6 @@ namespace PdfSharpCore.Pdf.Security
         /// </summary>
         public void PrepareEncryption()
         {
-            //#if !SILVERLIGHT
             Debug.Assert(_document._securitySettings.DocumentSecurityLevel != PdfDocumentSecurityLevel.None);
             int permissions = (int)Permission;
             bool strongEncryption = _document._securitySettings.DocumentSecurityLevel == PdfDocumentSecurityLevel.Encrypted128Bit;

@@ -28,12 +28,9 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Collections;
 
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Internals;
-
 using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering
@@ -53,16 +50,16 @@ namespace MigraDocCore.Rendering
     internal void Format(XGraphics gfx)
     {
       this.gfx = gfx;
-      this.isFirstArea = true;
-      this.formatter = new TopDownFormatter(this, this.documentRenderer, this.headerFooter.Elements);
-      this.formatter.FormatOnAreas(gfx, false);
-      this.contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
+      isFirstArea = true;
+      formatter = new TopDownFormatter(this, documentRenderer, headerFooter.Elements);
+      formatter.FormatOnAreas(gfx, false);
+      contentHeight = RenderInfo.GetTotalHeight(GetRenderInfos());
     }
 
     Area IAreaProvider.GetNextArea()
     {
-      if (this.isFirstArea)
-        return new Rectangle(this.ContentRect.X, this.ContentRect.Y, this.ContentRect.Width, double.MaxValue);
+      if (isFirstArea)
+        return new Rectangle(ContentRect.X, ContentRect.Y, ContentRect.Width, double.MaxValue);
 
       return null;
     }
@@ -72,10 +69,7 @@ namespace MigraDocCore.Rendering
       return null;
     }
 
-    FieldInfos IAreaProvider.AreaFieldInfos
-    {
-      get { return this.fieldInfos; }
-    }
+    FieldInfos IAreaProvider.AreaFieldInfos => fieldInfos;
 
     void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
     {
@@ -90,38 +84,30 @@ namespace MigraDocCore.Rendering
 
     internal RenderInfo[] GetRenderInfos()
     {
-      if (this.renderInfos != null)
-        return (RenderInfo[])this.renderInfos.ToArray(typeof(RenderInfo));
+      if (renderInfos != null)
+        return (RenderInfo[])renderInfos.ToArray(typeof(RenderInfo));
 
       return new RenderInfo[0];
     }
 
     internal Rectangle ContentRect
     {
-      get
-      { return this.contentRect; }
-      set
-      { this.contentRect = value; }
+      get => contentRect;
+      set => contentRect = value;
     }
     private Rectangle contentRect;
 
-    XUnit ContentHeight
-    {
-      get
-      {
-        return this.contentHeight;
-      }
-    }
+    XUnit ContentHeight => contentHeight;
 
     bool IAreaProvider.PositionVertically(LayoutInfo layoutInfo)
     {
-      IAreaProvider formattedDoc = (IAreaProvider)this.documentRenderer.FormattedDocument;
+      IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
       return formattedDoc.PositionVertically(layoutInfo);
     }
 
     bool IAreaProvider.PositionHorizontally(LayoutInfo layoutInfo)
     {
-      IAreaProvider formattedDoc = (IAreaProvider)this.documentRenderer.FormattedDocument;
+      IAreaProvider formattedDoc = (IAreaProvider)documentRenderer.FormattedDocument;
       return formattedDoc.PositionHorizontally(layoutInfo); ;
     }
 

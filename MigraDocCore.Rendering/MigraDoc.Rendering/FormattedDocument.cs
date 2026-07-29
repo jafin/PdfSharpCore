@@ -63,14 +63,14 @@ namespace MigraDocCore.Rendering
                 if (obj is HeaderFooterPosition)
                 {
                     HeaderFooterPosition hfp = (HeaderFooterPosition)obj;
-                    return this.sectionNr == hfp.sectionNr && this.pagePosition == hfp.pagePosition;
+                    return sectionNr == hfp.sectionNr && pagePosition == hfp.pagePosition;
                 }
                 return false;
             }
 
             public override int GetHashCode()
             {
-                return this.sectionNr.GetHashCode() ^ this.pagePosition.GetHashCode();
+                return sectionNr.GetHashCode() ^ pagePosition.GetHashCode();
             }
             internal int sectionNr;
             internal PagePosition pagePosition;
@@ -87,38 +87,38 @@ namespace MigraDocCore.Rendering
         /// </summary>
         internal void Format(XGraphics gfx)
         {
-            this.bookmarks = new Dictionary<string, FieldInfos.BookmarkInfo>();
-            this.pageRenderInfos = new Dictionary<int, ArrayList>();
-            this.pageInfos = new Dictionary<int, PageInfo>();
-            this.pageFieldInfos = new Dictionary<int, FieldInfos>();
-            this.formattedHeaders = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
-            this.formattedFooters = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
+            bookmarks = new Dictionary<string, FieldInfos.BookmarkInfo>();
+            pageRenderInfos = new Dictionary<int, ArrayList>();
+            pageInfos = new Dictionary<int, PageInfo>();
+            pageFieldInfos = new Dictionary<int, FieldInfos>();
+            formattedHeaders = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
+            formattedFooters = new Dictionary<HeaderFooterPosition, FormattedHeaderFooter>();
             this.gfx = gfx;
-            this.currentPage = 0;
-            this.sectionNumber = 0;
-            this.pageCount = 0;
-            this.shownPageNumber = 0;
-            this.documentRenderer.ProgressCompleted = 0;
-            this.documentRenderer.ProgressMaximum = 0;
-            if (this.documentRenderer.HasPrepareDocumentProgress)
+            currentPage = 0;
+            sectionNumber = 0;
+            pageCount = 0;
+            shownPageNumber = 0;
+            documentRenderer.ProgressCompleted = 0;
+            documentRenderer.ProgressMaximum = 0;
+            if (documentRenderer.HasPrepareDocumentProgress)
             {
-                foreach (Section section in this.document.Sections)
-                    this.documentRenderer.ProgressMaximum += section.Elements.Count;
+                foreach (Section section in document.Sections)
+                    documentRenderer.ProgressMaximum += section.Elements.Count;
             }
-            foreach (Section section in this.document.Sections)
+            foreach (Section section in document.Sections)
             {
-                this.isNewSection = true;
-                this.currentSection = section;
-                ++this.sectionNumber;
+                isNewSection = true;
+                currentSection = section;
+                ++sectionNumber;
                 if (NeedsEmptyPage())
                     InsertEmptyPage();
 
-                TopDownFormatter formatter = new TopDownFormatter(this, this.documentRenderer, section.Elements);
+                TopDownFormatter formatter = new TopDownFormatter(this, documentRenderer, section.Elements);
                 formatter.FormatOnAreas(gfx, true);
                 FillSectionPagesInfo();
-                this.documentRenderer.ProgressCompleted += section.Elements.Count;
+                documentRenderer.ProgressCompleted += section.Elements.Count;
             }
-            this.pageCount = this.currentPage;
+            pageCount = currentPage;
             FillNumPagesInfo();
         }
 
@@ -126,9 +126,9 @@ namespace MigraDocCore.Rendering
         {
             get
             {
-                if (this.isNewSection)
+                if (isNewSection)
                     return PagePosition.First;
-                else if (this.currentPage % 2 == 0)
+                else if (currentPage % 2 == 0)
                     return PagePosition.Even;
                 else
                     return PagePosition.Odd;
@@ -137,21 +137,21 @@ namespace MigraDocCore.Rendering
 
         void FormatHeadersFooters()
         {
-            HeadersFooters headers = (HeadersFooters)this.currentSection.GetValue("Headers", GV.ReadOnly);
+            HeadersFooters headers = (HeadersFooters)currentSection.GetValue("Headers", GV.ReadOnly);
             if (headers != null)
             {
                 PagePosition pagePos = CurrentPagePosition;
-                HeaderFooterPosition hfp = new HeaderFooterPosition(this.sectionNumber, pagePos);
-                if (!this.formattedHeaders.ContainsKey(hfp))
+                HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
+                if (!formattedHeaders.ContainsKey(hfp))
                     FormatHeader(hfp, ChooseHeaderFooter(headers, pagePos));
             }
 
-            HeadersFooters footers = (HeadersFooters)this.currentSection.GetValue("Footers", GV.ReadOnly);
+            HeadersFooters footers = (HeadersFooters)currentSection.GetValue("Footers", GV.ReadOnly);
             if (footers != null)
             {
                 PagePosition pagePos = CurrentPagePosition;
-                HeaderFooterPosition hfp = new HeaderFooterPosition(this.sectionNumber, pagePos);
-                if (!this.formattedFooters.ContainsKey(hfp))
+                HeaderFooterPosition hfp = new HeaderFooterPosition(sectionNumber, pagePos);
+                if (!formattedFooters.ContainsKey(hfp))
                     FormatFooter(hfp, ChooseHeaderFooter(footers, pagePos));
             }
         }
@@ -159,24 +159,24 @@ namespace MigraDocCore.Rendering
 
         void FormatHeader(HeaderFooterPosition hfp, HeaderFooter header)
         {
-            if (header != null && !this.formattedHeaders.ContainsKey(hfp))
+            if (header != null && !formattedHeaders.ContainsKey(hfp))
             {
-                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(header, this.documentRenderer, this.currentFieldInfos);
-                formattedHeaderFooter.ContentRect = GetHeaderArea(this.currentSection, this.currentPage);
+                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(header, documentRenderer, currentFieldInfos);
+                formattedHeaderFooter.ContentRect = GetHeaderArea(currentSection, currentPage);
                 formattedHeaderFooter.Format(gfx);
-                this.formattedHeaders.Add(hfp, formattedHeaderFooter);
+                formattedHeaders.Add(hfp, formattedHeaderFooter);
             }
         }
 
 
         void FormatFooter(HeaderFooterPosition hfp, HeaderFooter footer)
         {
-            if (footer != null && !this.formattedFooters.ContainsKey(hfp))
+            if (footer != null && !formattedFooters.ContainsKey(hfp))
             {
-                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(footer, this.documentRenderer, this.currentFieldInfos);
-                formattedHeaderFooter.ContentRect = GetFooterArea(this.currentSection, this.currentPage);
+                FormattedHeaderFooter formattedHeaderFooter = new FormattedHeaderFooter(footer, documentRenderer, currentFieldInfos);
+                formattedHeaderFooter.ContentRect = GetFooterArea(currentSection, currentPage);
                 formattedHeaderFooter.Format(gfx);
-                this.formattedFooters.Add(hfp, formattedHeaderFooter);
+                formattedFooters.Add(hfp, formattedHeaderFooter);
             }
         }
 
@@ -185,13 +185,13 @@ namespace MigraDocCore.Rendering
         /// </summary>
         void FillNumPagesInfo()
         {
-            for (int page = 1; page <= this.pageCount; ++page)
+            for (int page = 1; page <= pageCount; ++page)
             {
                 if (IsEmptyPage(page))
                     continue;
 
-                FieldInfos fieldInfos = this.pageFieldInfos[page];
-                fieldInfos.numPages = this.pageCount;
+                FieldInfos fieldInfos = pageFieldInfos[page];
+                fieldInfos.numPages = pageCount;
             }
         }
 
@@ -200,22 +200,22 @@ namespace MigraDocCore.Rendering
         /// </summary>
         void FillSectionPagesInfo()
         {
-            for (int page = this.currentPage; page > 0; --page)
+            for (int page = currentPage; page > 0; --page)
             {
                 if (IsEmptyPage(page))
                     continue;
 
-                FieldInfos fieldInfos = this.pageFieldInfos[page];
-                if (fieldInfos.section != this.sectionNumber)
+                FieldInfos fieldInfos = pageFieldInfos[page];
+                if (fieldInfos.section != sectionNumber)
                     break;
 
-                fieldInfos.sectionPages = this.sectionPages;
+                fieldInfos.sectionPages = sectionPages;
             }
         }
 
         Rectangle CalcContentRect(int page)
         {
-            PageSetup pageSetup = this.currentSection.PageSetup;
+            PageSetup pageSetup = currentSection.PageSetup;
             XUnit width;
             if (pageSetup.Orientation == Orientation.Portrait)
                 width = pageSetup.PageWidth.Point;
@@ -250,8 +250,8 @@ namespace MigraDocCore.Rendering
         /// <returns>Rendering information for the page content.</returns>
         internal RenderInfo[] GetRenderInfos(int page)
         {
-            if (this.pageRenderInfos.ContainsKey(page))
-                return (RenderInfo[])(this.pageRenderInfos[page]).ToArray(typeof(RenderInfo));
+            if (pageRenderInfos.ContainsKey(page))
+                return (RenderInfo[])(pageRenderInfos[page]).ToArray(typeof(RenderInfo));
             return null;
         }
         private Dictionary<int, ArrayList> pageRenderInfos;
@@ -265,7 +265,7 @@ namespace MigraDocCore.Rendering
         {
             PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
 
-            FieldInfos fieldInfos = this.pageFieldInfos[page];
+            FieldInfos fieldInfos = pageFieldInfos[page];
 
             if (page == 1)
                 pagePos = PagePosition.First;
@@ -275,14 +275,14 @@ namespace MigraDocCore.Rendering
                     pagePos = PagePosition.First;
                 else
                 {
-                    FieldInfos prevFieldInfos = this.pageFieldInfos[page - 1];
+                    FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
                     if (fieldInfos.section != prevFieldInfos.section)
                         pagePos = PagePosition.First;
                 }
             }
             HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
-            if (this.formattedHeaders.ContainsKey(hfp))
-                return this.formattedHeaders[hfp];
+            if (formattedHeaders.ContainsKey(hfp))
+                return formattedHeaders[hfp];
             return null;
         }
 
@@ -295,7 +295,7 @@ namespace MigraDocCore.Rendering
         {
             PagePosition pagePos = page % 2 == 0 ? PagePosition.Even : PagePosition.Odd;
 
-            FieldInfos fieldInfos = this.pageFieldInfos[page];
+            FieldInfos fieldInfos = pageFieldInfos[page];
 
             if (page == 1)
                 pagePos = PagePosition.First;
@@ -306,14 +306,14 @@ namespace MigraDocCore.Rendering
                     pagePos = PagePosition.First;
                 else
                 {
-                    FieldInfos prevFieldInfos = this.pageFieldInfos[page - 1];
+                    FieldInfos prevFieldInfos = pageFieldInfos[page - 1];
                     if (fieldInfos.section != prevFieldInfos.section)
                         pagePos = PagePosition.First;
                 }
             }
             HeaderFooterPosition hfp = new HeaderFooterPosition(fieldInfos.section, pagePos);
-            if (this.formattedFooters.ContainsKey(hfp))
-                return this.formattedFooters[hfp];
+            if (formattedFooters.ContainsKey(hfp))
+                return formattedFooters[hfp];
             return null;
         }
 
@@ -341,15 +341,15 @@ namespace MigraDocCore.Rendering
 
         internal Rectangle GetHeaderArea(int page)
         {
-            FieldInfos fieldInfos = this.pageFieldInfos[page];
-            Section section = this.document.Sections[fieldInfos.section - 1];
+            FieldInfos fieldInfos = pageFieldInfos[page];
+            Section section = document.Sections[fieldInfos.section - 1];
             return GetHeaderArea(section, page);
         }
 
         internal Rectangle GetFooterArea(int page)
         {
-            FieldInfos fieldInfos = this.pageFieldInfos[page];
-            Section section = this.document.Sections[fieldInfos.section - 1];
+            FieldInfos fieldInfos = pageFieldInfos[page];
+            Section section = document.Sections[fieldInfos.section - 1];
             return GetFooterArea(section, page);
         }
 
@@ -385,14 +385,14 @@ namespace MigraDocCore.Rendering
             if (hfs == null)
                 return null;
 
-            PageSetup pageSetup = this.currentSection.PageSetup;
+            PageSetup pageSetup = currentSection.PageSetup;
 
             if (pagePos == PagePosition.First)
             {
                 if (pageSetup.DifferentFirstPageHeaderFooter)
                     return (HeaderFooter)hfs.GetValue("FirstPage", GV.ReadOnly);
             }
-            if (pagePos == PagePosition.Even || this.currentPage % 2 == 0)
+            if (pagePos == PagePosition.Even || currentPage % 2 == 0)
             {
                 if (pageSetup.OddAndEvenPagesHeaderFooter)
                     return (HeaderFooter)hfs.GetValue("EvenPage", GV.ReadOnly);
@@ -403,10 +403,8 @@ namespace MigraDocCore.Rendering
         /// <summary>
         /// Gets the number of pages of the document.
         /// </summary>
-        public int PageCount
-        {
-            get { return pageCount; }
-        }
+        public int PageCount => pageCount;
+
         int pageCount;
 
 
@@ -417,10 +415,10 @@ namespace MigraDocCore.Rendering
         /// <returns>The page information.</returns>
         public PageInfo GetPageInfo(int page)
         {
-            if (page < 1 || page > this.pageCount)
-                throw new System.ArgumentOutOfRangeException("page");
+            if (page < 1 || page > pageCount)
+                throw new ArgumentOutOfRangeException("page");
 
-            return this.pageInfos[page];
+            return pageInfos[page];
         }
 
 
@@ -440,56 +438,56 @@ namespace MigraDocCore.Rendering
 
         Area IAreaProvider.GetNextArea()
         {
-            if (this.isNewSection)
-                this.sectionPages = 0;
+            if (isNewSection)
+                sectionPages = 0;
 
-            ++this.currentPage;
-            ++this.shownPageNumber;
-            ++this.sectionPages;
+            ++currentPage;
+            ++shownPageNumber;
+            ++sectionPages;
             InitFieldInfos();
             FormatHeadersFooters();
-            this.isNewSection = false;
-            return CalcContentRect(this.currentPage);
+            isNewSection = false;
+            return CalcContentRect(currentPage);
         }
         int currentPage;
 
         Area IAreaProvider.ProbeNextArea()
         {
-            return CalcContentRect(this.currentPage + 1);
+            return CalcContentRect(currentPage + 1);
         }
 
         void InitFieldInfos()
         {
-            this.currentFieldInfos = new FieldInfos(this.bookmarks);
-            this.currentFieldInfos.pyhsicalPageNr = this.currentPage;
-            this.currentFieldInfos.section = this.sectionNumber;
+            currentFieldInfos = new FieldInfos(bookmarks);
+            currentFieldInfos.pyhsicalPageNr = currentPage;
+            currentFieldInfos.section = sectionNumber;
             // A landscape page is the page setup turned on its side, the same way CalcContentRect
             // reads it. This is what lets a bookmark record where up the page it sits.
-            PageSetup pageSetup = this.currentSection.PageSetup;
-            this.currentFieldInfos.pageHeight = pageSetup.Orientation == Orientation.Portrait
+            PageSetup pageSetup = currentSection.PageSetup;
+            currentFieldInfos.pageHeight = pageSetup.Orientation == Orientation.Portrait
                 ? pageSetup.PageHeight.Point
                 : pageSetup.PageWidth.Point;
 
-            if (this.isNewSection && !this.currentSection.PageSetup.IsNull("StartingNumber"))
-                this.shownPageNumber = this.currentSection.PageSetup.StartingNumber;
+            if (isNewSection && !currentSection.PageSetup.IsNull("StartingNumber"))
+                shownPageNumber = currentSection.PageSetup.StartingNumber;
 
-            this.currentFieldInfos.displayPageNr = this.shownPageNumber;
+            currentFieldInfos.displayPageNr = shownPageNumber;
         }
 
         void IAreaProvider.StoreRenderInfos(ArrayList renderInfos)
         {
-            this.pageRenderInfos.Add(this.currentPage, renderInfos);
-            XSize pageSize = CalcPageSize(this.currentSection.PageSetup);
-            PageOrientation pageOrientation = CalcPageOrientation(this.currentSection.PageSetup);
+            pageRenderInfos.Add(currentPage, renderInfos);
+            XSize pageSize = CalcPageSize(currentSection.PageSetup);
+            PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
             PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
-            this.pageInfos.Add(this.currentPage, pageInfo);
-            this.pageFieldInfos.Add(this.currentPage, this.currentFieldInfos);
+            pageInfos.Add(currentPage, pageInfo);
+            pageFieldInfos.Add(currentPage, currentFieldInfos);
         }
 
         PageOrientation CalcPageOrientation(PageSetup pageSetup)
         {
             PageOrientation pageOrientation = PageOrientation.Portrait;
-            if (this.currentSection.PageSetup.Orientation == Orientation.Landscape)
+            if (currentSection.PageSetup.Orientation == Orientation.Landscape)
                 pageOrientation = PageOrientation.Landscape;
 
             return pageOrientation;
@@ -543,7 +541,7 @@ namespace MigraDocCore.Rendering
 
         bool PositionHorizontallyToMargin(LayoutInfo layoutInfo)
         {
-            Rectangle rect = CalcContentRect(this.currentPage);
+            Rectangle rect = CalcContentRect(currentPage);
             ElementAlignment align = GetCurrentAlignment(layoutInfo.HorizontalAlignment);
 
 
@@ -597,14 +595,14 @@ namespace MigraDocCore.Rendering
                     break;
 
                 case ElementAlignment.Far:
-                    xPos = this.currentSection.PageSetup.PageWidth.Point;
+                    xPos = currentSection.PageSetup.PageWidth.Point;
                     xPos -= layoutInfo.ContentArea.Width;
                     xPos -= layoutInfo.MarginRight;
                     layoutInfo.ContentArea.X = xPos;
                     break;
 
                 case ElementAlignment.Center:
-                    xPos = this.currentSection.PageSetup.PageWidth.Point;
+                    xPos = currentSection.PageSetup.PageWidth.Point;
                     xPos -= layoutInfo.ContentArea.Width;
                     xPos /= 2;
                     layoutInfo.ContentArea.X = xPos;
@@ -615,7 +613,7 @@ namespace MigraDocCore.Rendering
 
         bool PositionVerticallyToMargin(LayoutInfo layoutInfo)
         {
-            Rectangle rect = CalcContentRect(this.currentPage);
+            Rectangle rect = CalcContentRect(currentPage);
             XUnit yPos;
             switch (layoutInfo.VerticalAlignment)
             {
@@ -651,8 +649,8 @@ namespace MigraDocCore.Rendering
 
         bool NeedsEmptyPage()
         {
-            int nextPage = this.currentPage + 1;
-            PageSetup pageSetup = this.currentSection.PageSetup;
+            int nextPage = currentPage + 1;
+            PageSetup pageSetup = currentSection.PageSetup;
             bool startOnEvenPage = pageSetup.SectionStart == BreakType.BreakEvenPage;
             bool startOnOddPage = pageSetup.SectionStart == BreakType.BreakOddPage;
 
@@ -666,14 +664,14 @@ namespace MigraDocCore.Rendering
 
         void InsertEmptyPage()
         {
-            ++this.currentPage;
-            ++this.shownPageNumber;
-            this.emptyPages.Add(this.currentPage, null);
+            ++currentPage;
+            ++shownPageNumber;
+            emptyPages.Add(currentPage, null);
 
-            XSize pageSize = CalcPageSize(this.currentSection.PageSetup);
-            PageOrientation pageOrientation = CalcPageOrientation(this.currentSection.PageSetup);
+            XSize pageSize = CalcPageSize(currentSection.PageSetup);
+            PageOrientation pageOrientation = CalcPageOrientation(currentSection.PageSetup);
             PageInfo pageInfo = new PageInfo(pageSize.Width, pageSize.Height, pageOrientation);
-            this.pageInfos.Add(this.currentPage, pageInfo);
+            pageInfos.Add(currentPage, pageInfo);
         }
 
         bool PositionVerticallyToPage(LayoutInfo layoutInfo)
@@ -687,14 +685,14 @@ namespace MigraDocCore.Rendering
                     break;
 
                 case ElementAlignment.Far:
-                    yPos = this.currentSection.PageSetup.PageHeight.Point;
+                    yPos = currentSection.PageSetup.PageHeight.Point;
                     yPos -= layoutInfo.ContentArea.Height;
                     yPos -= layoutInfo.MarginBottom;
                     layoutInfo.ContentArea.Y = yPos;
                     break;
 
                 case ElementAlignment.Center:
-                    yPos = this.currentSection.PageSetup.PageHeight.Point;
+                    yPos = currentSection.PageSetup.PageHeight.Point;
                     yPos -= layoutInfo.ContentArea.Height;
                     yPos /= 2;
                     layoutInfo.ContentArea.Y = yPos;
@@ -722,16 +720,10 @@ namespace MigraDocCore.Rendering
 
         internal FieldInfos GetFieldInfos(int page)
         {
-            return this.pageFieldInfos[page];
+            return pageFieldInfos[page];
         }
 
-        FieldInfos IAreaProvider.AreaFieldInfos
-        {
-            get
-            {
-                return this.currentFieldInfos;
-            }
-        }
+        FieldInfos IAreaProvider.AreaFieldInfos => currentFieldInfos;
 
         bool IAreaProvider.IsAreaBreakBefore(LayoutInfo layoutInfo)
         {
@@ -740,7 +732,7 @@ namespace MigraDocCore.Rendering
 
         internal bool IsEmptyPage(int page)
         {
-            return this.emptyPages.ContainsKey(page);
+            return emptyPages.ContainsKey(page);
         }
         #endregion
 

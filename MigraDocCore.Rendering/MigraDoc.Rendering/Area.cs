@@ -127,10 +127,10 @@ namespace MigraDocCore.Rendering
     /// <param name="rect">The rectangle to copy.</param>
     internal Rectangle(Rectangle rect)
     {
-      this.x = rect.x;
-      this.y = rect.y;
-      this.width = rect.width;
-      this.height = rect.height;
+      x = rect.x;
+      y = rect.y;
+      width = rect.width;
+      height = rect.height;
     }
 
     /// <summary>
@@ -142,11 +142,9 @@ namespace MigraDocCore.Rendering
     internal override Rectangle GetFittingRect(XUnit yPosition, XUnit height)
     {
       // BUG: Code removed because null is not handled in caller
-#if true
-      if (yPosition + height > this.y + this.height + Renderer.Tolerance)
+      if (yPosition + height > y + this.height + Renderer.Tolerance)
         return null;
-#endif
-      return new Rectangle(this.x, yPosition, this.width, height);
+      return new Rectangle(x, yPosition, width, height);
     }
 
     /// <summary>
@@ -154,8 +152,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     public override XUnit X
     {
-      get { return this.x; }
-      set { this.x = value; }
+      get => x;
+      set => x = value;
     }
     XUnit x;
 
@@ -164,8 +162,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     public override XUnit Y
     {
-      get { return this.y; }
-      set { this.y = value; }
+      get => y;
+      set => y = value;
     }
     XUnit y;
 
@@ -174,8 +172,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     public override XUnit Width
     {
-      get { return this.width; }
-      set { this.width = value; }
+      get => width;
+      set => width = value;
     }
     XUnit width;
 
@@ -184,8 +182,8 @@ namespace MigraDocCore.Rendering
     /// </summary>
     public override XUnit Height
     {
-      get { return this.height; }
-      set { this.height = value; }
+      get => height;
+      set => height = value;
     }
     XUnit height;
 
@@ -199,16 +197,16 @@ namespace MigraDocCore.Rendering
       if (area == null)
         return this;
       //This implementation is of course not correct, but it works for our purposes.
-      XUnit minTop = Math.Min(this.y, area.Y);
-      XUnit minLeft = Math.Min(this.x, area.X);
-      XUnit maxRight = Math.Max(this.x + this.width, area.X + area.Width);
-      XUnit maxBottom = Math.Max(this.y + this.height, area.Y + area.Height);
+      XUnit minTop = Math.Min(y, area.Y);
+      XUnit minLeft = Math.Min(x, area.X);
+      XUnit maxRight = Math.Max(x + width, area.X + area.Width);
+      XUnit maxBottom = Math.Max(y + height, area.Y + area.Height);
       return new Rectangle(minLeft, minTop, maxRight - minLeft, maxBottom - minTop);
     }
 
     internal override Area Lower(XUnit verticalOffset)
     {
-      return new Rectangle(this.x, this.y + verticalOffset, this.width, this.height - verticalOffset);
+      return new Rectangle(x, y + verticalOffset, width, height - verticalOffset);
     }
   }
 }

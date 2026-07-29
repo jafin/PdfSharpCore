@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>
@@ -37,17 +35,14 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class TextFrameRenderInfo : ShapeRenderInfo
   {
-    internal TextFrameRenderInfo()
-    {
-    }
     internal override FormatInfo FormatInfo
     {
       get
       {
-        if (this.formatInfo == null)
-          this.formatInfo = new TextFrameFormatInfo();
+        if (formatInfo == null)
+          formatInfo = new TextFrameFormatInfo();
 
-        return this.formatInfo;
+        return formatInfo;
       }
     }
     private TextFrameFormatInfo formatInfo;

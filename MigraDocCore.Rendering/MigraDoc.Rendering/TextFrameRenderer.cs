@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
@@ -44,32 +42,25 @@ namespace MigraDocCore.Rendering
       : base(gfx, textframe, fieldInfos)
     {
       this.textframe = textframe;
-      TextFrameRenderInfo renderInfo = new TextFrameRenderInfo();
-      renderInfo.shape = this.shape;
+      TextFrameRenderInfo renderInfo = new TextFrameRenderInfo
+      {
+        shape = shape
+      };
       this.renderInfo = renderInfo;
     }
 
     internal TextFrameRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
       : base(gfx, renderInfo, fieldInfos)
     {
-      this.textframe = (TextFrame)renderInfo.DocumentObject;
+      textframe = (TextFrame)renderInfo.DocumentObject;
     }
 
     internal override void Format(Area area, FormatInfo previousFormatInfo)
     {
-      FormattedTextFrame formattedTextFrame = new FormattedTextFrame(this.textframe, this.documentRenderer, this.fieldInfos);
-      formattedTextFrame.Format(this.gfx);
-      ((TextFrameFormatInfo)this.renderInfo.FormatInfo).formattedTextFrame = formattedTextFrame;
+      FormattedTextFrame formattedTextFrame = new FormattedTextFrame(textframe, documentRenderer, fieldInfos);
+      formattedTextFrame.Format(gfx);
+      ((TextFrameFormatInfo)renderInfo.FormatInfo).formattedTextFrame = formattedTextFrame;
       base.Format(area, previousFormatInfo);
-    }
-
-
-    internal override LayoutInfo InitialLayoutInfo
-    {
-      get
-      {
-        return base.InitialLayoutInfo;
-      }
     }
 
     internal override void Render()
@@ -81,7 +72,7 @@ namespace MigraDocCore.Rendering
 
     void RenderContent()
     {
-      FormattedTextFrame formattedTextFrame = ((TextFrameFormatInfo)this.renderInfo.FormatInfo).formattedTextFrame;
+      FormattedTextFrame formattedTextFrame = ((TextFrameFormatInfo)renderInfo.FormatInfo).formattedTextFrame;
       RenderInfo[] renderInfos = formattedTextFrame.GetRenderInfos();
       if (renderInfos == null)
         return;
@@ -93,33 +84,33 @@ namespace MigraDocCore.Rendering
 
     XGraphicsState Transform()
     {
-      Area frameContentArea = this.renderInfo.LayoutInfo.ContentArea;
-      XGraphicsState state = this.gfx.Save();
+      Area frameContentArea = renderInfo.LayoutInfo.ContentArea;
+      XGraphicsState state = gfx.Save();
       XUnit xPosition;
       XUnit yPosition;
-      switch (this.textframe.Orientation)
+      switch (textframe.Orientation)
       {
         case TextOrientation.Downward:
         case TextOrientation.Vertical:
         case TextOrientation.VerticalFarEast:
           xPosition = frameContentArea.X + frameContentArea.Width;
           yPosition = frameContentArea.Y;
-          this.gfx.TranslateTransform(xPosition, yPosition);
-          this.gfx.RotateTransform(90);
+          gfx.TranslateTransform(xPosition, yPosition);
+          gfx.RotateTransform(90);
           break;
 
         case TextOrientation.Upward:
-          state = this.gfx.Save();
+          state = gfx.Save();
           xPosition = frameContentArea.X;
           yPosition = frameContentArea.Y + frameContentArea.Height;
-          this.gfx.TranslateTransform(xPosition, yPosition);
-          this.gfx.RotateTransform(-90);
+          gfx.TranslateTransform(xPosition, yPosition);
+          gfx.RotateTransform(-90);
           break;
 
         default:
           xPosition = frameContentArea.X;
           yPosition = frameContentArea.Y;
-          this.gfx.TranslateTransform(xPosition, yPosition);
+          gfx.TranslateTransform(xPosition, yPosition);
           break;
       }
       return state;
@@ -128,7 +119,7 @@ namespace MigraDocCore.Rendering
     void ResetTransform(XGraphicsState state)
     {
       if (state != null)
-        this.gfx.Restore(state);
+        gfx.Restore(state);
     }
     TextFrame textframe;
   }

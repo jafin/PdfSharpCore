@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Collections;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
@@ -74,34 +73,27 @@ namespace MigraDocCore.Rendering
   {
     ArrayList lineInfos = new ArrayList();
 
-    internal ParagraphFormatInfo()
-    {
-    }
-
     internal LineInfo GetLineInfo(int lineIdx)
     {
-      return (LineInfo)this.lineInfos[lineIdx];
+      return (LineInfo)lineInfos[lineIdx];
     }
 
     internal LineInfo GetLastLineInfo()
     {
-      return (LineInfo)this.lineInfos[this.LineCount - 1];
+      return (LineInfo)lineInfos[LineCount - 1];
     }
 
     internal LineInfo GetFirstLineInfo()
     {
-      return (LineInfo)this.lineInfos[0];
+      return (LineInfo)lineInfos[0];
     }
 
     internal void AddLineInfo(LineInfo lineInfo)
     {
-      this.lineInfos.Add(lineInfo);
+      lineInfos.Add(lineInfo);
     }
 
-    internal int LineCount
-    {
-      get { return this.lineInfos.Count; }
-    }
+    internal int LineCount => lineInfos.Count;
 
     /// <summary>
     /// 
@@ -111,47 +103,37 @@ namespace MigraDocCore.Rendering
     internal void Append(FormatInfo mergeInfo)
     {
       ParagraphFormatInfo formatInfo = (ParagraphFormatInfo)mergeInfo;
-      this.lineInfos.AddRange(formatInfo.lineInfos);
+      lineInfos.AddRange(formatInfo.lineInfos);
     }
 
     /// <summary>
     /// Indicates whether the paragraph is ending.
     /// </summary>
     /// <returns>True if the paragraph is ending.</returns>
-    internal override bool IsEnding
-    {
-      get { return this.isEnding; }
-    }
+    internal override bool IsEnding => isEnding;
+
     internal bool isEnding;
 
     /// <summary>
     /// Indicates whether the paragraph is starting.
     /// </summary>
     /// <returns>True if the paragraph is starting.</returns>
-    internal override bool IsStarting
-    {
-      get { return this.isStarting; }
-    }
+    internal override bool IsStarting => isStarting;
+
     internal bool isStarting;
 
-    internal override bool IsComplete
-    {
-      get { return this.isStarting && this.isEnding; }
-    }
+    internal override bool IsComplete => isStarting && isEnding;
 
-    internal override bool IsEmpty
-    {
-      get { return this.lineInfos.Count == 0; }
-    }
+    internal override bool IsEmpty => lineInfos.Count == 0;
 
     internal override bool StartingIsComplete
     {
       get
       {
-        if (this.widowControl)
-          return (this.IsComplete || (this.isStarting && this.lineInfos.Count >= 2));
+        if (widowControl)
+          return (IsComplete || (isStarting && lineInfos.Count >= 2));
         else
-          return this.isStarting;
+          return isStarting;
       }
     }
 
@@ -161,23 +143,23 @@ namespace MigraDocCore.Rendering
     {
       get
       {
-        if (this.widowControl)
-          return (this.IsComplete || (this.isEnding && this.lineInfos.Count >= 2));
+        if (widowControl)
+          return (IsComplete || (isEnding && lineInfos.Count >= 2));
         else
-          return this.isEnding;
+          return isEnding;
       }
     }
 
     internal void RemoveEnding()
     {
-      if (!this.IsEmpty)
+      if (!IsEmpty)
       {
-        if (this.widowControl && this.isEnding && this.LineCount >= 2)
-          this.lineInfos.RemoveAt(this.LineCount - 2);
-        if (this.LineCount > 0)
-          this.lineInfos.RemoveAt(this.LineCount - 1);
+        if (widowControl && isEnding && LineCount >= 2)
+          lineInfos.RemoveAt(LineCount - 2);
+        if (LineCount > 0)
+          lineInfos.RemoveAt(LineCount - 1);
 
-        this.isEnding = false;
+        isEnding = false;
       }
     }
 

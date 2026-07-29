@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using PdfSharpCore.Charting;
 using PdfSharpCore.Drawing;
 
@@ -52,11 +51,7 @@ namespace MigraDocCore.Rendering.ChartMapper
                 lineFormat.Color = XColor.Empty;
             else
             {
-#if noCMYK
-        lineFormat.Color = XColor.FromArgb(domLineFormat.Color.Argb);
-#else
                 lineFormat.Color = ColorHelper.ToXColor(domLineFormat.Color, domLineFormat.Document.UseCmykColor);
-#endif
             }
             switch (domLineFormat.DashStyle)
             {

@@ -32,11 +32,7 @@ namespace System.Diagnostics.CodeAnalysis
         AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Method |
         AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Struct,
         Inherited = false)]
-#if SYSTEM_PRIVATE_CORELIB
-    public
-#else
     internal
-#endif
     sealed class DynamicallyAccessedMembersAttribute : Attribute
     {
         /// <summary>

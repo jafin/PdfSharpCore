@@ -290,10 +290,6 @@ namespace PdfSharpCore.Pdf
             for (int idx = 0; idx < count; idx++)
             {
                 PdfReference iref = irefs[idx];
-#if DEBUG_
-                if (iref.ObjectNumber == 1108)
-                    GetType();
-#endif
                 iref.ObjectID = new PdfObjectID(idx + 1);
                 // Rehash with new number.
                 ObjectTable.Add(iref.ObjectID, iref);
@@ -327,7 +323,6 @@ namespace PdfSharpCore.Pdf
             int count = collection.Count;
             PdfReference[] irefs = new PdfReference[count];
             collection.CopyTo(irefs, 0);
-#if true
             for (int i = 0; i < count; i++)
                 for (int j = 0; j < count; j++)
                     if (i != j)
@@ -341,7 +336,6 @@ namespace PdfSharpCore.Pdf
                         Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
                         GetType();
                     }
-#endif
         }
 
         ///// <summary>
@@ -405,21 +399,6 @@ namespace PdfSharpCore.Pdf
             PdfReference[] irefs = new PdfReference[count];
             collection.CopyTo(irefs, 0);
 
-#if true_
-            for (int i = 0; i < count; i++)
-                for (int j = 0; j < count; j++)
-                    if (i != j)
-                    {
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, _document));
-                        Debug.Assert(irefs[i] != irefs[j]);
-                        Debug.Assert(!ReferenceEquals(irefs[i], irefs[j]));
-                        Debug.Assert(!ReferenceEquals(irefs[i].Value, irefs[j].Value));
-                        Debug.Assert(!Equals(irefs[i].ObjectID, irefs[j].Value.ObjectID));
-                        Debug.Assert(irefs[i].ObjectNumber != irefs[j].Value.ObjectNumber);
-                        Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
-                        GetType();
-                    }
-#endif
             return irefs;
         }
 
@@ -437,19 +416,6 @@ namespace PdfSharpCore.Pdf
                         _overflow.Add(pdfObject, null);
                     return;
                 }
-#if DEBUG_
-                //enterCount++;
-                if (enterCount == 5400)
-                    GetType();
-                //if (!Object.ReferenceEquals(pdfObject.Owner, _document))
-                //  GetType();
-                //////Debug.Assert(Object.ReferenceEquals(pdfObject27.Document, _document));
-                //      if (item is PdfObject && ((PdfObject)item).ObjectID.ObjectNumber == 5)
-                //        Debug.WriteLine("items: " + ((PdfObject)item).ObjectID.ToString());
-                //if (pdfObject.ObjectNumber == 5)
-                //  GetType();
-#endif
-
                 IEnumerable enumerable = null; //(IEnumerator)pdfObject;
                 PdfDictionary dict;
                 PdfArray array;
@@ -489,10 +455,7 @@ namespace PdfSharpCore.Pdf
                                 Debug.WriteLine(String.Format("Bad iref: {0}", iref.ObjectID.ToString()));
                             }
                             Debug.Assert(ReferenceEquals(iref.Document, _document) || iref.Document == null, "External object detected!");
-#if DEBUG_
-                            if (iref.ObjectID.ObjectNumber == 23)
-                                GetType();
-#endif
+
                             if (!objects.ContainsKey(iref))
                             {
                                 PdfObject value = iref.Value;

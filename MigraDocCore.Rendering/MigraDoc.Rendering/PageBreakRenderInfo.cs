@@ -28,7 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using MigraDocCore.DocumentObjectModel;
 namespace MigraDocCore.Rendering
 {
@@ -37,20 +36,12 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class PageBreakRenderInfo : RenderInfo
   {
-    internal PageBreakRenderInfo()
-    {
-    }
+    internal override FormatInfo FormatInfo => pageBreakFormatInfo;
 
-    internal override FormatInfo FormatInfo
-    {
-      get { return this.pageBreakFormatInfo; }
-    }
     internal PageBreakFormatInfo pageBreakFormatInfo;
 
-    public override DocumentObject DocumentObject
-    {
-      get { return this.pageBreak; }
-    }
+    public override DocumentObject DocumentObject => pageBreak;
+
     internal PageBreak pageBreak;
   }
 }

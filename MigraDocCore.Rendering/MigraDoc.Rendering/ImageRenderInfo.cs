@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>
@@ -37,17 +35,13 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class ImageRenderInfo : ShapeRenderInfo
   {
-    public ImageRenderInfo()
-    {
-    }
-
     internal override FormatInfo FormatInfo
     {
       get
       {
-        if (this.formatInfo == null)
-          this.formatInfo = new ImageFormatInfo();
-        return this.formatInfo;
+        if (formatInfo == null)
+          formatInfo = new ImageFormatInfo();
+        return formatInfo;
       }
     }
     ImageFormatInfo formatInfo;

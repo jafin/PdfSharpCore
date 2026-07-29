@@ -28,10 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using PdfSharpCore.Drawing;
@@ -43,44 +40,20 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class TableFormatInfo : FormatInfo
   {
-    internal TableFormatInfo()
-    {
-    }
-
-    internal override bool EndingIsComplete
-    {
-      get { return this.isEnding; }
-    }
+    internal override bool EndingIsComplete => isEnding;
 
 
-    internal override bool StartingIsComplete
-    {
-      get { return !this.IsEmpty && this.startRow > this.lastHeaderRow; }
-    }
+    internal override bool StartingIsComplete => !IsEmpty && startRow > lastHeaderRow;
 
-    internal override bool IsComplete
-    {
-      get { return false; }
-    }
+    internal override bool IsComplete => false;
 
-    internal override bool IsEmpty
-    {
-      get { return this.startRow < 0; }
-    }
+    internal override bool IsEmpty => startRow < 0;
 
-    internal override bool IsEnding
-    {
-      get { return this.isEnding; }
-    }
+    internal override bool IsEnding => isEnding;
+
     internal bool isEnding;
 
-    internal override bool IsStarting
-    {
-      get
-      {
-        return this.startRow == this.lastHeaderRow + 1;
-      }
-    }
+    internal override bool IsStarting => startRow == lastHeaderRow + 1;
 
     internal int startColumn = -1;
     internal int endColumn = -1;

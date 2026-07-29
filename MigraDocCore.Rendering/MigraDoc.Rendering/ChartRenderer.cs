@@ -28,12 +28,9 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Tables;
 using PdfSharpCore.Drawing;
-using MigraDocCore.Rendering.ChartMapper;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 
@@ -49,14 +46,14 @@ namespace MigraDocCore.Rendering
     {
       this.chart = chart;
       ChartRenderInfo renderInfo = new ChartRenderInfo();
-      renderInfo.shape = this.shape;
+      renderInfo.shape = shape;
       this.renderInfo = renderInfo;
     }
 
     internal ChartRenderer(XGraphics gfx, RenderInfo renderInfo, FieldInfos fieldInfos)
       : base(gfx, renderInfo, fieldInfos)
     {
-      this.chart = (Chart)renderInfo.DocumentObject;
+      chart = (Chart)renderInfo.DocumentObject;
     }
 
     FormattedTextArea GetFormattedTextArea(TextArea area, XUnit width)
@@ -64,12 +61,12 @@ namespace MigraDocCore.Rendering
       if (area == null)
         return null;
 
-      FormattedTextArea formattedTextArea = new FormattedTextArea(this.documentRenderer, area, this.fieldInfos);
+      FormattedTextArea formattedTextArea = new FormattedTextArea(documentRenderer, area, fieldInfos);
 
       if (!double.IsNaN(width))
         formattedTextArea.InnerWidth = width;
 
-      formattedTextArea.Format(this.gfx);
+      formattedTextArea.Format(gfx);
       return formattedTextArea;
     }
 
@@ -81,8 +78,8 @@ namespace MigraDocCore.Rendering
     void GetLeftRightVerticalPosition(out XUnit top, out XUnit bottom)
     {
       //REM: Line width is still ignored while layouting charts.
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       top = contentArea.Y;
 
       if (formatInfo.formattedHeader != null)
@@ -95,8 +92,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetLeftRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       XUnit top;
       XUnit bottom;
       GetLeftRightVerticalPosition(out top, out bottom);
@@ -109,8 +106,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetRightRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       XUnit top;
       XUnit bottom;
       GetLeftRightVerticalPosition(out top, out bottom);
@@ -123,8 +120,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetHeaderRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
 
       XUnit left = contentArea.X;
       XUnit top = contentArea.Y;
@@ -136,8 +133,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetFooterRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
 
       XUnit left = contentArea.X;
       XUnit top = contentArea.Y + contentArea.Height - formatInfo.formattedFooter.InnerHeight;
@@ -149,8 +146,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetTopRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
 
       XUnit left;
       XUnit right;
@@ -167,8 +164,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetBottomRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
 
       XUnit left;
       XUnit right;
@@ -184,8 +181,8 @@ namespace MigraDocCore.Rendering
 
     Rectangle GetPlotRect()
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       XUnit top = contentArea.Y;
       if (formatInfo.formattedHeader != null)
         top += formatInfo.formattedHeader.InnerHeight;
@@ -213,28 +210,28 @@ namespace MigraDocCore.Rendering
 
     internal override void Format(Area area, FormatInfo previousFormatInfo)
     {
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
 
-      TextArea textArea = (TextArea)this.chart.GetValue("HeaderArea", GV.ReadOnly);
-      formatInfo.formattedHeader = GetFormattedTextArea(textArea, this.chart.Width.Point);
+      TextArea textArea = (TextArea)chart.GetValue("HeaderArea", GV.ReadOnly);
+      formatInfo.formattedHeader = GetFormattedTextArea(textArea, chart.Width.Point);
 
-      textArea = (TextArea)this.chart.GetValue("FooterArea", GV.ReadOnly);
-      formatInfo.formattedFooter = GetFormattedTextArea(textArea, this.chart.Width.Point);
+      textArea = (TextArea)chart.GetValue("FooterArea", GV.ReadOnly);
+      formatInfo.formattedFooter = GetFormattedTextArea(textArea, chart.Width.Point);
 
-      textArea = (TextArea)this.chart.GetValue("LeftArea", GV.ReadOnly);
+      textArea = (TextArea)chart.GetValue("LeftArea", GV.ReadOnly);
       formatInfo.formattedLeft = GetFormattedTextArea(textArea);
 
-      textArea = (TextArea)this.chart.GetValue("RightArea", GV.ReadOnly);
+      textArea = (TextArea)chart.GetValue("RightArea", GV.ReadOnly);
       formatInfo.formattedRight = GetFormattedTextArea(textArea);
 
-      textArea = (TextArea)this.chart.GetValue("TopArea", GV.ReadOnly);
+      textArea = (TextArea)chart.GetValue("TopArea", GV.ReadOnly);
       formatInfo.formattedTop = GetFormattedTextArea(textArea, GetTopBottomWidth());
 
-      textArea = (TextArea)this.chart.GetValue("BottomArea", GV.ReadOnly);
+      textArea = (TextArea)chart.GetValue("BottomArea", GV.ReadOnly);
       formatInfo.formattedBottom = GetFormattedTextArea(textArea, GetTopBottomWidth());
 
       base.Format(area, previousFormatInfo);
-      formatInfo.chartFrame = ChartMapper.ChartMapper.Map(this.chart);
+      formatInfo.chartFrame = ChartMapper.ChartMapper.Map(chart);
     }
 
 
@@ -258,8 +255,8 @@ namespace MigraDocCore.Rendering
     /// <returns>The width of the top and bottom area</returns>
     private XUnit GetTopBottomWidth()
     {
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
-      XUnit width = this.chart.Width.Point;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
+      XUnit width = chart.Width.Point;
       if (formatInfo.formattedRight != null)
         width -= formatInfo.formattedRight.InnerWidth;
       if (formatInfo.formattedLeft != null)
@@ -275,8 +272,8 @@ namespace MigraDocCore.Rendering
     /// <param name="right">The right boundary of the top and bottom area</param>
     private void GetTopBottomHorizontalPosition(out XUnit left, out XUnit right)
     {
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       left = contentArea.X;
       right = contentArea.X + contentArea.Width;
 
@@ -295,7 +292,7 @@ namespace MigraDocCore.Rendering
       TextArea textArea = area.textArea;
 
 
-      FillFormatRenderer fillFormatRenderer = new FillFormatRenderer((FillFormat)textArea.GetValue("FillFormat", GV.ReadOnly), this.gfx);
+      FillFormatRenderer fillFormatRenderer = new FillFormatRenderer((FillFormat)textArea.GetValue("FillFormat", GV.ReadOnly), gfx);
       fillFormatRenderer.Render(rect.X, rect.Y, rect.Width, rect.Height);
 
       XUnit top = rect.Y;
@@ -310,16 +307,16 @@ namespace MigraDocCore.Rendering
       RenderInfo[] renderInfos = area.GetRenderInfos();
       RenderByInfos(left, top, renderInfos);
 
-      LineFormatRenderer lineFormatRenderer = new LineFormatRenderer((LineFormat)textArea.GetValue("LineFormat", GV.ReadOnly), this.gfx);
+      LineFormatRenderer lineFormatRenderer = new LineFormatRenderer((LineFormat)textArea.GetValue("LineFormat", GV.ReadOnly), gfx);
       lineFormatRenderer.Render(rect.X, rect.Y, rect.Width, rect.Height);
     }
 
     internal override void Render()
     {
       RenderFilling();
-      Area contentArea = this.renderInfo.LayoutInfo.ContentArea;
+      Area contentArea = renderInfo.LayoutInfo.ContentArea;
 
-      ChartFormatInfo formatInfo = (ChartFormatInfo)this.renderInfo.FormatInfo;
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
       if (formatInfo.formattedHeader != null)
         RenderArea(formatInfo.formattedHeader, GetHeaderRect());
 
@@ -338,7 +335,7 @@ namespace MigraDocCore.Rendering
       if (formatInfo.formattedRight != null)
         RenderArea(formatInfo.formattedRight, GetRightRect());
 
-      PlotArea plotArea = (PlotArea)this.chart.GetValue("PlotArea", GV.ReadOnly);
+      PlotArea plotArea = (PlotArea)chart.GetValue("PlotArea", GV.ReadOnly);
       if (plotArea != null)
         RenderPlotArea(plotArea, GetPlotRect());
 
@@ -347,7 +344,7 @@ namespace MigraDocCore.Rendering
 
     void RenderPlotArea(PlotArea area, Rectangle rect)
     {
-      PdfSharpCore.Charting.ChartFrame chartFrame = ((ChartFormatInfo)this.renderInfo.FormatInfo).chartFrame;
+      PdfSharpCore.Charting.ChartFrame chartFrame = ((ChartFormatInfo)renderInfo.FormatInfo).chartFrame;
 
       XUnit top = rect.Y;
       top += area.TopPadding;
@@ -363,7 +360,7 @@ namespace MigraDocCore.Rendering
 
       chartFrame.Location = new XPoint(left, top);
       chartFrame.Size = new XSize(right - left, bottom - top);
-      chartFrame.DrawChart(this.gfx);
+      chartFrame.DrawChart(gfx);
     }
     Chart chart;
   }

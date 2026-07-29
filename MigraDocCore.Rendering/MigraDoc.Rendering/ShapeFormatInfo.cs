@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>
@@ -37,45 +35,23 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class ShapeFormatInfo : FormatInfo
   {
-    internal ShapeFormatInfo()
-    {
-    }
+    internal override bool IsStarting => fits;
 
-    internal override bool IsStarting
-    {
-      get { return this.fits; }
-    }
+    internal override bool IsEnding => fits;
 
-    internal override bool IsEnding
-    {
-      get { return this.fits; }
-    }
-
-    internal override bool IsComplete
-    {
-      get { return this.fits; }
-    }
+    internal override bool IsComplete => fits;
 
     /// <summary>
     /// Indicates that the starting of the element is completed
     /// </summary>
-    internal override bool StartingIsComplete
-    {
-      get { return this.fits; }
-    }
+    internal override bool StartingIsComplete => fits;
 
     /// <summary>
     /// Indicates that the ending of the element is completed
     /// </summary>
-    internal override bool EndingIsComplete
-    {
-      get { return this.fits; }
-    }
+    internal override bool EndingIsComplete => fits;
 
-    internal override bool IsEmpty
-    {
-      get { return !this.fits; }
-    }
+    internal override bool IsEmpty => !fits;
 
     internal bool fits;
   }

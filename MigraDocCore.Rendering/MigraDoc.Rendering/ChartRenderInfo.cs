@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace MigraDocCore.Rendering
 {
   /// <summary>
@@ -37,17 +35,13 @@ namespace MigraDocCore.Rendering
   /// </summary>
   internal class ChartRenderInfo : ShapeRenderInfo
   {
-    internal ChartRenderInfo()
-    {
-    }
-
     internal override FormatInfo FormatInfo
     {
       get
       {
-        if (this.formatInfo == null)
-          this.formatInfo = new ChartFormatInfo();
-        return this.formatInfo;
+        if (formatInfo == null)
+          formatInfo = new ChartFormatInfo();
+        return formatInfo;
       }
     }
     ChartFormatInfo formatInfo;

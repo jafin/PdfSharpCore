@@ -1,6 +1,4 @@
-using System;
 using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.Rendering;
 
 namespace MigraDocCore.Rendering.UnitTest
 {
@@ -9,11 +7,6 @@ namespace MigraDocCore.Rendering.UnitTest
   /// </summary>
   public class TestParagraphIterator
   {
-    public TestParagraphIterator()
-    {
-
-    }
-
     public static string GetIterators(Paragraph paragraph)
     {
       ParagraphIterator iter = new ParagraphIterator(paragraph.Elements);
