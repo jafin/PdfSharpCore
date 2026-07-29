@@ -13,7 +13,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   and both are pinned here as-is so that whichever way they are resolved is a deliberate choice
 ///   with a failing test to mark it, rather than a silent change during the migration.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class ValueModelKnownDefectsTests
 {
     /// <summary>

@@ -18,7 +18,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   assert that the rules are written down correctly. When Meta becomes generated they assert that
 ///   the generator produces the same model - unchanged, which is the point of writing them first.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class ValueModelParityTests
 {
     /// <summary>

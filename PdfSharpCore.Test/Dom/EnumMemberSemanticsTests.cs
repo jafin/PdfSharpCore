@@ -17,7 +17,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   an out-of-range assignment still throws, and that Character - which stores raw characters in
 ///   the same field its SymbolName property uses - is exempt from the check, as it was under NEnum.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class EnumMemberSemanticsTests
 {
     static Border ABorder() => new Document().AddSection().AddParagraph().Format.Borders.Top;
