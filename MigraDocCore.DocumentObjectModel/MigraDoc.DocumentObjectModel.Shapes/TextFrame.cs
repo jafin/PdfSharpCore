@@ -41,7 +41,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Represents a text frame that can be freely placed.
 /// </summary>
-public class TextFrame : Shape, IVisitable
+public partial class TextFrame : Shape, IVisitable
 {
     /// <summary>
     /// Initializes a new instance of the TextFrame class.
@@ -209,11 +209,11 @@ public class TextFrame : Shape, IVisitable
     /// </summary>
     public TextOrientation Orientation
     {
-        get => (TextOrientation)this.orientation.Value;
-        set => this.orientation.Value = (int)value;
+        get => this.orientation ?? default;
+        set => this.orientation = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(TextOrientation))]
-    internal NEnum orientation = NEnum.NullValue(typeof(TextOrientation));
+    [DV]
+    internal TextOrientation? orientation;
 
     /// <summary>
     /// The document elements that build the textframe's content.
@@ -233,7 +233,7 @@ public class TextFrame : Shape, IVisitable
             this.elements = value;
         }
     }
-    [DV(ItemType = typeof(DocumentObject))]
+    [DV]
     protected DocumentElements elements;
     #endregion
 
@@ -265,7 +265,7 @@ public class TextFrame : Shape, IVisitable
             serializer.WriteSimpleAttribute("MarginTop", this.MarginTop);
         if (!this.marginBottom.IsNull)
             serializer.WriteSimpleAttribute("MarginBottom", this.MarginBottom);
-        if (!this.orientation.IsNull)
+        if (this.orientation != null)
             serializer.WriteSimpleAttribute("Orientation", this.Orientation);
         serializer.EndAttributes(pos);
 
@@ -275,16 +275,5 @@ public class TextFrame : Shape, IVisitable
         serializer.EndContent();
     }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(TextFrame));
     #endregion
 }

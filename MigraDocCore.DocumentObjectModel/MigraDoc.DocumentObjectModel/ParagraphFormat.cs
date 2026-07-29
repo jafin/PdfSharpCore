@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// A ParagraphFormat represents the formatting of a paragraph.
 /// </summary>
-public class ParagraphFormat : DocumentObject
+public partial class ParagraphFormat : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the ParagraphFormat class that can be used as a template.
@@ -159,11 +159,11 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public ParagraphAlignment Alignment
   {
-    get => (ParagraphAlignment)alignment.Value;
-    set => alignment.Value = (int)value;
+    get => alignment ?? default;
+    set => alignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(ParagraphAlignment))]
-  internal NEnum alignment = NEnum.NullValue(typeof(ParagraphAlignment));
+  [DV]
+  internal ParagraphAlignment? alignment;
 
   /// <summary>
   /// Gets the Borders object.
@@ -267,11 +267,11 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public LineSpacingRule LineSpacingRule
   {
-    get => (LineSpacingRule)lineSpacingRule.Value;
-    set => lineSpacingRule.Value = (int)value;
+    get => lineSpacingRule ?? default;
+    set => lineSpacingRule = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(LineSpacingRule))]
-  internal NEnum lineSpacingRule = NEnum.NullValue(typeof(LineSpacingRule));
+  [DV]
+  internal LineSpacingRule? lineSpacingRule;
 
   /// <summary>
   /// Gets or sets the ListInfo object of the paragraph.
@@ -299,11 +299,11 @@ public class ParagraphFormat : DocumentObject
   /// </summary>
   public OutlineLevel OutlineLevel
   {
-    get => (OutlineLevel)outlineLevel.Value;
-    set => outlineLevel.Value = (int)value;
+    get => outlineLevel ?? default;
+    set => outlineLevel = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(OutlineLevel))]
-  internal NEnum outlineLevel = NEnum.NullValue(typeof(OutlineLevel));
+  [DV]
+  internal OutlineLevel? outlineLevel;
 
   /// <summary>
   /// Gets or sets a value indicating whether a page break is inserted before the paragraph.
@@ -435,7 +435,7 @@ public class ParagraphFormat : DocumentObject
     // Efw.Application framework the nullable values and all the meta stuff is kept internal to
     // give the user the illusion of simplicity.
 
-    if (!alignment.IsNull && (refFormat == null || (alignment != refFormat.alignment)))
+    if (alignment != null && (refFormat == null || (alignment != refFormat.alignment)))
       serializer.WriteSimpleAttribute("Alignment", Alignment);
 
     if (!leftIndent.IsNull && (refFormat == null || (leftIndent != refFormat.leftIndent)))
@@ -453,7 +453,7 @@ public class ParagraphFormat : DocumentObject
     if (!spaceAfter.IsNull && (refFormat == null || spaceAfter != refFormat.spaceAfter))
       serializer.WriteSimpleAttribute("SpaceAfter", SpaceAfter);
 
-    if (!lineSpacingRule.IsNull && (refFormat == null || lineSpacingRule != refFormat.lineSpacingRule))
+    if (lineSpacingRule != null && (refFormat == null || lineSpacingRule != refFormat.lineSpacingRule))
       serializer.WriteSimpleAttribute("LineSpacingRule", LineSpacingRule);
 
     if (!lineSpacing.IsNull && (refFormat == null || lineSpacing != refFormat.lineSpacing))
@@ -471,7 +471,7 @@ public class ParagraphFormat : DocumentObject
     if (pageBreakBefore != null && (refFormat == null || pageBreakBefore != refFormat.pageBreakBefore))
       serializer.WriteSimpleAttribute("PageBreakBefore", PageBreakBefore);
 
-    if (!outlineLevel.IsNull && (refFormat == null || outlineLevel != refFormat.outlineLevel))
+    if (outlineLevel != null && (refFormat == null || outlineLevel != refFormat.outlineLevel))
       serializer.WriteSimpleAttribute("OutlineLevel", OutlineLevel);
 
     if (!IsNull("ListInfo"))
@@ -494,16 +494,5 @@ public class ParagraphFormat : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the metaobject of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(ParagraphFormat));
   #endregion
 }

@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents a DataLabel of a Series
 /// </summary>
-public class DataLabel : DocumentObject
+public partial class DataLabel : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the DataLabel class.
@@ -125,22 +125,22 @@ public class DataLabel : DocumentObject
   /// </summary>
   public DataLabelPosition Position
   {
-    get => (DataLabelPosition)this.position.Value;
-    set => this.position.Value = (int)value;
+    get => this.position ?? default;
+    set => this.position = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(DataLabelPosition))]
-  internal NEnum position = NEnum.NullValue(typeof(DataLabelPosition));
+  [DV]
+  internal DataLabelPosition? position;
 
   /// <summary>
   /// Gets or sets the type of the DataLabel.
   /// </summary>
   public DataLabelType Type
   {
-    get => (DataLabelType)this.type.Value;
-    set => this.type.Value = (int)value;
+    get => this.type ?? default;
+    set => this.type = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(DataLabelType))]
-  internal NEnum type = NEnum.NullValue(typeof(DataLabelType));
+  [DV]
+  internal DataLabelType? type;
   #endregion
 
   #region Internal
@@ -155,9 +155,9 @@ public class DataLabel : DocumentObject
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (this.Format != string.Empty)
       serializer.WriteSimpleAttribute("Format", this.Format);
-    if (!this.position.IsNull)
+    if (this.position != null)
       serializer.WriteSimpleAttribute("Position", this.Position);
-    if (!this.type.IsNull)
+    if (this.type != null)
       serializer.WriteSimpleAttribute("Type", this.Type);
     if (!this.IsNull("Font"))
       this.font.Serialize(serializer);
@@ -165,16 +165,5 @@ public class DataLabel : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(DataLabel));
   #endregion
 }

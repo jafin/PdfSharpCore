@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Fields;
 /// <summary>
 /// DateField is used to reference the date and time the printing starts.
 /// </summary>
-public class DateField : DocumentObject
+public partial class DateField : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the DateField class.
@@ -97,16 +97,5 @@ public class DateField : DocumentObject
     return false;
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(DateField));
   #endregion
 }

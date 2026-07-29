@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents a formatted value on the data series.
 /// </summary>
-public class Point : ChartObject
+public partial class Point : ChartObject
 {
   /// <summary>
   /// Initializes a new instance of the Point class.
@@ -167,16 +167,5 @@ public class Point : ChartObject
     serializer.Write(", ");
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Point));
   #endregion
 }

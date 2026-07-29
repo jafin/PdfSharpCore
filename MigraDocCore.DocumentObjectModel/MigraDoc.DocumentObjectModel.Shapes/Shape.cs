@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Base Class for all positionable Classes.
 /// </summary>
-public class Shape : DocumentObject
+public partial class Shape : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Shape class.
@@ -113,22 +113,22 @@ public class Shape : DocumentObject
   /// </summary>
   public RelativeVertical RelativeVertical
   {
-    get => (RelativeVertical)this.relativeVertical.Value;
-    set => this.relativeVertical.Value = (int)value;
+    get => this.relativeVertical ?? default;
+    set => this.relativeVertical = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(RelativeVertical))]
-  internal NEnum relativeVertical = NEnum.NullValue(typeof(RelativeVertical));
+  [DV]
+  internal RelativeVertical? relativeVertical;
 
   /// <summary>
   /// Gets or sets the reference point of the Left property.
   /// </summary>
   public RelativeHorizontal RelativeHorizontal
   {
-    get => (RelativeHorizontal)this.relativeHorizontal.Value;
-    set => this.relativeHorizontal.Value = (int)value;
+    get => this.relativeHorizontal ?? default;
+    set => this.relativeHorizontal = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(RelativeHorizontal))]
-  internal NEnum relativeHorizontal = NEnum.NullValue(typeof(RelativeHorizontal));
+  [DV]
+  internal RelativeHorizontal? relativeHorizontal;
 
   /// <summary>
   /// Gets or sets the position of the top side of the shape.
@@ -227,9 +227,9 @@ public class Shape : DocumentObject
       serializer.WriteSimpleAttribute("Height", this.Height);
     if (!this.width.IsNull)
       serializer.WriteSimpleAttribute("Width", this.Width);
-    if (!this.relativeHorizontal.IsNull)
+    if (this.relativeHorizontal != null)
       serializer.WriteSimpleAttribute("RelativeHorizontal", this.RelativeHorizontal);
-    if (!this.relativeVertical.IsNull)
+    if (this.relativeVertical != null)
       serializer.WriteSimpleAttribute("RelativeVertical", this.RelativeVertical);
     if (!this.IsNull("Left"))
       this.left.Serialize(serializer);
@@ -243,16 +243,5 @@ public class Shape : DocumentObject
       this.fillFormat.Serialize(serializer);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Shape));
   #endregion
 }

@@ -9,20 +9,31 @@ That was not a test problem. It was a race in `Color.ToString` that had been in 
 the port, was reachable from any two threads that serialize a document at once, and sat behind
 public API.
 
-**All items are now closed.** Items 1-6 are fixed, item 7 was assessed and the recommendation is
-to leave it, and item 8 was fixed earlier in [#46](https://github.com/jafin/PdfSharpCore/pull/46).
-Each section keeps the evidence it was written from.
+**All items are now closed.** Items 1, 4 and 6 were fixed here, items 2, 3, 5 and 7 by the value
+model work below, and item 8 earlier in
+[#46](https://github.com/jafin/PdfSharpCore/pull/46). Each section keeps the evidence it was
+written from.
 
 | item | what | severity | status |
 |---|---|---|---|
 | 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
 | 2 | Every `DocumentObject` builds its metadata twice or more under load | low | **done** |
-| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | low | **done** |
+| 3 | `ValueTypeDescriptor.SetNull` casts to `INullableValue` without checking | ~~low~~ **medium** | **done** |
 | 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | **done** |
 | 5 | `Meta.IsNull` decides by testing for each descriptor type by name | low | **done** |
 | 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | **done** |
-| 7 | `NEnum` is the last wrapper struct standing | low | **assessed** |
+| 7 | `NEnum` is the last wrapper struct standing | low | **done** |
 | 8 | `Clear()` does nothing unless the object also carries a value | medium | **done** |
+
+Items 2, 3, 5 and 7 all lived in the value descriptor and metadata layer, and were resolved by
+[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md), which replaced that layer's
+reflection with a Roslyn source generator. Only item 7 was a phase of that work; the other three
+fell out of the new design rather than being fixed one at a time, which is why they were moved there
+instead of being done here first. Each section below records how.
+
+Items 1 (`Color.ToString`), 4 (`DocumentInfo`) and 6 (`CS8073`) were fixed here as written. Item 1
+was the one live bug behind public API, and fixing it is what allowed `DomSerializationCollection`
+to be deleted and the DOM tests to run in parallel again.
 
 ---
 
@@ -147,10 +158,16 @@ and properties two or more times and throws all but one result away. It is waste
 wrong, which is why it is low severity — but it is the same shape of mistake as item 1 and should
 be corrected while the area is open.
 
-### Fix
+### Fix — done, in the value model spec
 
 `Lazy<Meta>` with the default thread-safety mode, or a static initializer as in item 1. There are
-roughly 60 of these to change, all mechanical.
+67 of these to change, all mechanical.
+
+Do not change them by hand. [`compile-time-dom-value-model.md`](compile-time-dom-value-model.md)
+§4.4 deletes all 67 accessors outright: once each type's descriptor table is generated, the
+generator emits the `Meta` override into the class as a `static readonly` field initializer, which
+the CLR guarantees runs once and completes before any thread reads it. Same guarantee as item 1's
+fix, no lock, no `Lazy<T>`, and no per-type edit to get wrong.
 
 ---
 
@@ -171,15 +188,70 @@ public override void SetNull(DocumentObject dom)
 while `IsNull` twenty lines below tests first and answers `false` for anything that is not an
 `INullableValue` — so the two disagree about what this descriptor is for.
 
-Every value type that currently routes here does implement `INullableValue`, so nothing fails
-today. It became briefly reachable during the `NString` migration, when plain `string` members
+~~Every value type that currently routes here does implement `INullableValue`, so nothing fails
+today.~~ It became briefly reachable during the `NString` migration, when plain `string` members
 started matching the `typeof(String)` branch, and was fixed by routing strings to
 `NullableMemberDescriptor` instead. The unguarded cast is still there for the next value type that
 does not implement the interface.
 
-### Fix
+### Correction — it is not waiting for a next value type. It is live.
+
+Found while building the parity harness for
+[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md). `FormattedText` carries `[DV]`
+on nine *properties* that delegate to its `Font` (`FormattedText.cs:485-570`), and five of them are
+value types that do not implement `INullableValue`:
+
+| member | type |
+|---|---|
+| `Bold`, `Italic`, `Superscript`, `Subscript` | `bool` |
+| `Underline` | `Underline` (enum) |
+
+`bool` is a `ValueType`, so `CreateValueDescriptor` routes it to `ValueTypeDescriptor`, and
+`SetNull` casts it to `INullableValue`. Reproduction, one line through public API:
+
+```csharp
+new FormattedText().SetNull();
+// System.InvalidCastException: Unable to cast object of type 'System.Boolean'
+// to type 'MigraDocCore.DocumentObjectModel.Internals.INullableValue'.
+```
+
+Nothing had noticed because reading is fine — `IsNull` tests the cast before using it, and
+serialization never calls `SetNull` on a whole object. Only the whole-object `SetNull` reaches it.
+
+Pinned as-is by `ValueModelKnownDefectsTests.FormattedTextSetNullThrows`, so that whichever way it
+is resolved is a deliberate choice with a failing test to mark it. Severity should be **medium**,
+not low: it is a public-API crash, not a latent cast.
+
+### Second defect, found alongside it
+
+`DocumentObjectDescriptor.IsNull` computes `val.IsNull()` on its property branch, discards the
+result and returns `true` unconditionally (`ValueDescriptor.cs`, property branch):
+
+```csharp
+if (val != null)
+    val.IsNull();   // <-- result thrown away
+return true;
+```
+
+`Style.Font` is the only `[DV]` property in the DOM whose type is a `DocumentObject`, so it is the
+only member the branch applies to. The blast radius is small — `Meta.IsNull(dom, name)` does not
+use the descriptor for `DocumentObject` members, it calls `GetValue` and asks the object itself, so
+`style.IsNull("Font")` answers correctly. Only the whole-object `Meta.IsNull(dom)` sweep calls the
+descriptor, and there `Style`'s separately tracked `paragraphFormat` field masks the wrong answer.
+
+Latent rather than live, therefore, but it is a discarded result in a one-line method. Pinned at
+the descriptor by `ValueModelKnownDefectsTests.ADocumentObjectPropertyDescriptorAlwaysReportsNull`,
+which is the only place it is observable.
+
+### Fix — done, in the value model spec
 
 Match `IsNull`: test the cast, and throw something that names the value if it fails.
+
+[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md) §4.3 goes further and makes the
+cast unreachable. Whether a struct member implements `INullableValue` is knowable at compile time,
+so the generator emits `ValueKind.NullableValue` only when it does, and raises MDG002 when it does
+not. The next value type that does not implement the interface fails the build at its `[DV]`
+declaration rather than throwing `InvalidCastException` from `SetNull` at run time.
 
 ---
 
@@ -224,11 +296,17 @@ that the rest of a dotted name is reached through". Asking it by listing types m
 descriptor is wrong by default: `NullableMemberDescriptor` fell through to the `DocumentObject`
 branch and threw `InvalidCastException` on every string until the third name was added by hand.
 
-### Fix
+### Fix — done, in the value model spec
 
 A virtual on `ValueDescriptor` — `IsSimpleValue`, defaulting to `false` and overridden to `true` by
 the three — puts the answer next to the type it describes. One call site, so this is about the next
 descriptor rather than about this one.
+
+There is no next descriptor. [`compile-time-dom-value-model.md`](compile-time-dom-value-model.md)
+§4.3 collapses the hierarchy into one sealed `ValueDescriptor` carrying a `ValueKind`, so the test
+becomes `vd.Kind is ValueKind.Leaf or ValueKind.NullableValue` and there is no subclass left to
+forget to list. Note that item 7 removes one of the three named here — `NullableDescriptor` is
+reachable only through `NEnum` — so fixing this by hand first would mean editing the list twice.
 
 ---
 
@@ -269,48 +347,43 @@ their own state and should stay. `NEnum` was the open question.
 `Nullable.GetUnderlyingType` gives the descriptor the same `ValueType` that `[DV(Type = ...)]`
 supplies today — making that attribute argument redundant as well.
 
-**It should not, because of what would be lost.** `NEnum` carries the enum's `Type` and uses it:
+### Assessment — concluded "migrate", and done
 
-```csharp
-public int Value
-{
-    set
-    {
-        if (this.type == typeof(SymbolName))
-            this.val = value;                    // SymbolName's values are not all declared
-        else
-        {
-            if (Enum.IsDefined(this.type, value))
-                this.val = value;
-            else
-                throw new ArgumentException("value");
-        }
-    }
-}
-```
+The `Type` is redundant, and the answer is better than the one guessed at above: the field does not
+become `int?` carrying the attribute, it becomes `TEnum?` carrying nothing. `NullableMemberDescriptor`
+already handles `Nullable<T>` by reading the underlying type off the member itself
+(`ValueDescriptor.cs:88-90`), so neither `NEnum.type` nor `[DV(Type = ...)]` has anything left to
+say. `DVAttribute.Type` goes with `NEnum`.
 
-That check is reachable from public API and it fires — `EnumValueTests` pins it:
+Two things make the migration safe, both checked rather than assumed:
 
-| assignment | today | as a `BorderStyle?` |
-|---|---|---|
-| `Top.Style = BorderStyle.Dot` | accepted | accepted |
-| `Top.Style = (BorderStyle)999` | **`ArgumentException`** | silently accepted |
-| `AddCharacter((SymbolName)0x2200A)` | accepted, by exception | accepted |
+* **Read semantics already agree.** `NEnum.Value` returns the zero enum value when unset
+  (`NEnum.cs:68-70`); `NullableMemberDescriptor.valueWhenNull` is `Activator.CreateInstance(valueType)`
+  (`NullableMemberDescriptor.cs:64`), which for an enum is also zero. Both paths produce the same
+  answer today, so `TEnum?` read as `?? default` changes nothing observable.
+* **`DdlParser` keeps working unchanged.** `ParseAssign` dispatches on `vd.ValueType`
+  (`DdlParser.cs:2008-2037`), and for a `TEnum?` member that is the underlying enum type — the same
+  value the `[DV(Type = ...)]` branch supplies now. The `typeof(Enum).IsAssignableFrom` test still
+  hits `ParseEnumAssignment`.
 
-C# does not stop an undeclared value being cast to an enum, so a plain `BorderStyle?` would take
-`(BorderStyle)999` without complaint and write it into the DDL, where it would not parse back.
-Converting would mean either accepting that, or writing the same `Enum.IsDefined` check by hand into
-every enum property setter — more code than `NEnum` is, spread across more places.
+Two things are not mechanical, and are the reason this is a phase rather than a rewrite pass:
 
-### Recommendation
+* **The range check has nowhere to live.** `NEnum.Value` throws `ArgumentException` on a value
+  `Enum.IsDefined` rejects (`NEnum.cs:84-87`); a `TEnum?` field accepts anything the cast produces.
+  It moves to the public property setters via one `EnumGuard.Checked` helper.
+* **`Character` must not take that guard.** `Character.Char` writes raw character values through the
+  same field `SymbolName` uses and separates them by top nibble (`Character.cs:106-116`) — which is
+  exactly why `NEnum` carves `SymbolName` out of its own validation. Applying the guard mechanically
+  there would break every `Character` that is not a defined `SymbolName`.
 
-Leave `NEnum`, and with it `INullableValue`. The interface is no longer a wrapper-struct mechanism
-propped up by four types that did not need it; it is now implemented only by types that genuinely
-carry state a `Nullable<T>` cannot — an enum plus its type, a value plus its unit, a colour plus its
-colour space, a position plus its reference frame.
+The payoff is larger than removing one struct. `NullableDescriptor` is reachable **only** through
+the `type == typeof(NEnum)` branch (`ValueDescriptor.cs:95-100`), so migrating `NEnum` deletes an
+entire descriptor kind — five become four — which is what makes item 5's collapse worth doing.
+`INullableValue` shrinks to `Unit`, `Color`, `LeftPosition` and `TopPosition`, the four that earn it.
 
-`EnumValueTests` was added while assessing this and is worth keeping either way: nothing else
-covered enum validation, the `SymbolName` exception, or `GV.GetNull` on an enum.
+Scheduled as phase 2 of [`compile-time-dom-value-model.md`](compile-time-dom-value-model.md) §3,
+where it runs *before* the generator rather than last, because every descriptor kind it removes is
+one the generator does not have to model.
 
 ---
 
@@ -390,11 +463,17 @@ siblings behind.
 
 ---
 
-## Suggested order
+## Remaining order
 
 1. **Item 1** on its own, with the concurrency test. It is a live bug behind public API and it is
    the one blocking `DomSerializationCollection` from being deleted.
-2. **Item 6**, one line, guards everything after it.
-3. **Items 2, 3 and 5** together — all in the value descriptor and metadata layer, all mechanical.
-4. **Items 4 and 8** on their own, because they change emitted DDL.
-5. **Item 7** last, as an assessment that may conclude "leave it".
+2. **Item 6**, one line, guards everything after it — including the `NEnum` migration, which is the
+   exact kind of mechanical rewrite that produced the `CS8073` near-misses in the first place.
+3. **Item 4** on its own, because it changes emitted DDL.
+Items 2, 3, 5, 7 and 8 are done.
+
+The original plan had items 2, 3 and 5 batched together as "all mechanical", and item 7 last as an
+assessment that might conclude "leave it". The assessment concluded "migrate", and that inverts the
+order: item 7 removes a descriptor kind that items 3 and 5 would otherwise have to account for, and
+item 2's 67 accessors are deleted rather than edited once the generator emits them. Doing the three
+mechanical ones first would mean touching the same code twice and throwing the first pass away.

@@ -46,30 +46,10 @@ internal class DVAttribute : Attribute
   public DVAttribute()
   {
     RefOnly = false;
-    ItemType = null;
   }
-
-  /// <summary>
-  /// Gets or sets the type of the reflected value. Must be specified by NEnum.
-  /// </summary>
-  [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-  public Type Type
-  {
-    get => type;
-    set => type = value;
-  }
-
-  [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-  internal Type type;
 
   /// <summary>
   /// Determines whether the field is RefOnly and should be excluded from recursive operations.
   /// </summary>
   public bool RefOnly;
-
-  // TODO: Check type in value descriptor
-  /// <summary>
-  /// Describes the type of the elements a collection contains.
-  /// </summary>
-  public Type ItemType;
 }

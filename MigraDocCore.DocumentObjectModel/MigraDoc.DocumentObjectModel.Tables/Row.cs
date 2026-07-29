@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a row of a table.
 /// </summary>
-public class Row : DocumentObject, IVisitable
+public partial class Row : DocumentObject, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Row class.
@@ -175,11 +175,11 @@ public class Row : DocumentObject, IVisitable
   /// </summary>
   public VerticalAlignment VerticalAlignment
   {
-    get => (VerticalAlignment)this.verticalAlignment.Value;
-    set => this.verticalAlignment.Value = (int)value;
+    get => this.verticalAlignment ?? default;
+    set => this.verticalAlignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(VerticalAlignment))]
-  internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+  [DV]
+  internal VerticalAlignment? verticalAlignment;
 
   /// <summary>
   /// Gets or sets the height of the row.
@@ -197,11 +197,11 @@ public class Row : DocumentObject, IVisitable
   /// </summary>
   public RowHeightRule HeightRule
   {
-    get => (RowHeightRule)this.heightRule.Value;
-    set => this.heightRule.Value = (int)value;
+    get => this.heightRule ?? default;
+    set => this.heightRule = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(RowHeightRule))]
-  internal NEnum heightRule = NEnum.NullValue(typeof(RowHeightRule));
+  [DV]
+  internal RowHeightRule? heightRule;
 
   /// <summary>
   /// Gets or sets the default value for all cells of the row.
@@ -343,7 +343,7 @@ public class Row : DocumentObject, IVisitable
     if (!this.height.IsNull)
       serializer.WriteSimpleAttribute("Height", this.Height);
 
-    if (!this.heightRule.IsNull)
+    if (this.heightRule != null)
       serializer.WriteSimpleAttribute("HeightRule", this.HeightRule);
 
     if (!this.topPadding.IsNull)
@@ -355,7 +355,7 @@ public class Row : DocumentObject, IVisitable
     if (this.headingFormat != null)
       serializer.WriteSimpleAttribute("HeadingFormat", this.HeadingFormat);
 
-    if (!this.verticalAlignment.IsNull)
+    if (this.verticalAlignment != null)
       serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
 
     if (this.keepWith.HasValue)
@@ -387,16 +387,5 @@ public class Row : DocumentObject, IVisitable
       ((IVisitable)cell).AcceptVisitor(visitor, visitChildren);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Row));
   #endregion
 }

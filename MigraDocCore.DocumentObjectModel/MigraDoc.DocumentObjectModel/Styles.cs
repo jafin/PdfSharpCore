@@ -42,7 +42,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents the collection of all styles.
 /// </summary>
-public class Styles : DocumentObjectCollection, IVisitable
+public partial class Styles : DocumentObjectCollection, IVisitable
 {
     /// <summary>
     /// Initializes a new instance of the Styles class.
@@ -159,7 +159,7 @@ public class Styles : DocumentObjectCollection, IVisitable
             throw new ArgumentException(DomSR.UndefinedBaseStyle(style.BaseStyle));
 
         if (baseStyle != null)
-            style.styleType.Value = (int)baseStyle.Type;
+            style.styleType = baseStyle.Type;
 
         int index = GetIndex(style.Name);
 
@@ -204,13 +204,13 @@ public class Styles : DocumentObjectCollection, IVisitable
         {
             readOnly = true
         };
-        style.styleType.Value = (int)StyleType.Character;
+        style.styleType = StyleType.Character;
         style.buildIn = true;
         Add(style);
 
         // Normal 'Standard' (Paragraph Style)
         style = new Style(Style.DefaultParagraphName, null);
-        style.styleType.Value = (int)StyleType.Paragraph;
+        style.styleType = StyleType.Paragraph;
         style.buildIn = true;
         style.Font.Name = GlobalFontSettings.FontResolver.DefaultFontName;
         style.Font.Size = 10;
@@ -430,16 +430,5 @@ public class Styles : DocumentObjectCollection, IVisitable
 
     internal static readonly Styles BuildInStyles = new Styles();
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Styles));
     #endregion
 }

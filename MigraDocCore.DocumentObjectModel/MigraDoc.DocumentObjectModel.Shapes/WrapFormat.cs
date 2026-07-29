@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Define how the shape should be wrapped between the texts.
 /// </summary>
-public class WrapFormat : DocumentObject
+public partial class WrapFormat : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the WrapFormat class.
@@ -67,11 +67,11 @@ public class WrapFormat : DocumentObject
   /// </summary>
   public WrapStyle Style
   {
-    get => (WrapStyle)this.style.Value;
-    set => this.style.Value = (int)value;
+    get => this.style ?? default;
+    set => this.style = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(WrapStyle))]
-  internal NEnum style = NEnum.NullValue(typeof(WrapStyle));
+  [DV]
+  internal WrapStyle? style;
 
   /// <summary>
   /// Gets or sets the distance between the top side of the shape with the adjacent text.
@@ -125,7 +125,7 @@ public class WrapFormat : DocumentObject
   internal override void Serialize(Serializer serializer)
   {
     int pos = serializer.BeginContent("WrapFormat");
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (!this.distanceTop.IsNull)
       serializer.WriteSimpleAttribute("DistanceTop", this.DistanceTop);
@@ -138,16 +138,5 @@ public class WrapFormat : DocumentObject
     serializer.EndContent();
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(WrapFormat));
   #endregion
 }

@@ -26,468 +26,232 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Reflection;
 
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
 /// <summary>
-/// Base class of all value descriptor classes.
+/// Describes one member of a <see cref="DocumentObject"/> that is reachable by name through
+/// GetValue, SetValue, IsNull and SetNull.
 /// </summary>
-public abstract class ValueDescriptor
+/// <remarks>
+/// <para>
+/// Sealed, and built from delegates rather than from FieldInfo and PropertyInfo. The accessors are
+/// emitted by the source generator in MigraDocCore.DocumentObjectModel.Generators, which reads the
+/// [DV] attributes at compile time. Nothing here reflects.
+/// </para>
+/// <para>
+/// The behaviour of every method below is the behaviour of the five descriptor classes it replaced,
+/// with one deliberate exception, marked at <see cref="SetNull"/>.
+/// </para>
+/// </remarks>
+public sealed class ValueDescriptor
 {
-    internal ValueDescriptor(
-        string valueName, 
-        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-        Type valueType, 
-        Type memberType, 
-        MemberInfo memberInfo, 
-        VDFlags flags
-    )
+  readonly Func<DocumentObject, object> getter;
+  readonly Action<DocumentObject, object> setter;
+  readonly Func<DocumentObject> factory;
+  readonly object valueWhenNull;
+  readonly bool isField;
+
+  internal ValueDescriptor(
+    string valueName,
+    Type valueType,
+    Type memberType,
+    ValueKind kind,
+    bool isRefOnly,
+    Func<DocumentObject, object> getter,
+    Action<DocumentObject, object> setter,
+    Func<DocumentObject> factory = null,
+    object valueWhenNull = null,
+    bool isField = false)
+  {
+    ValueName = valueName;
+    ValueType = valueType;
+    MemberType = memberType;
+    Kind = kind;
+    IsRefOnly = isRefOnly;
+    this.getter = getter;
+    this.setter = setter;
+    this.factory = factory;
+    this.valueWhenNull = valueWhenNull;
+    this.isField = isField;
+  }
+
+  /// <summary>
+  /// Name of the value, as written in DDL and passed to GetValue and SetValue.
+  /// </summary>
+  public string ValueName { get; }
+
+  /// <summary>
+  /// Type of the described value, e.g. typeof(int) for an int?.
+  /// </summary>
+  public Type ValueType { get; }
+
+  /// <summary>
+  /// Type of the described field or property, e.g. typeof(int?) for an int?.
+  /// </summary>
+  public Type MemberType { get; }
+
+  /// <summary>
+  /// What kind of member this is, and so how the methods below answer.
+  /// </summary>
+  public ValueKind Kind { get; }
+
+  /// <summary>
+  /// Whether the member is excluded from recursive operations. Only DocumentObject.parent is,
+  /// which is what stops IsNull and SetNull walking up the document tree forever.
+  /// </summary>
+  public bool IsRefOnly { get; }
+
+  /// <summary>
+  /// Whether this describes a simple value rather than a DocumentObject that the rest of a dotted
+  /// name is reached through.
+  /// </summary>
+  /// <remarks>
+  /// Meta used to ask this by listing the descriptor classes that answered yes, so a new descriptor
+  /// was wrong by default - NullableMemberDescriptor fell through to the DocumentObject branch and
+  /// threw InvalidCastException on every string until the third name was added by hand.
+  /// </remarks>
+  public bool IsSimpleValue =>
+    Kind == ValueKind.Leaf || Kind == ValueKind.NullableValue || Kind == ValueKind.PlainValue;
+
+  /// <summary>
+  /// Creates an instance of the described type using its parameterless constructor.
+  /// </summary>
+  public object CreateValue()
+  {
+    if (factory == null)
+      throw new InvalidOperationException($"'{ValueName}' is not a type that can be created.");
+    return factory();
+  }
+
+  /// <summary>
+  /// Reads the member.
+  /// </summary>
+  public object GetValue(DocumentObject dom, GV flags)
+  {
+    if (!Enum.IsDefined(typeof(GV), flags))
+      throw new ArgumentException("flags");
+
+    switch (Kind)
     {
-        this.ValueName = valueName;
-        this.ValueType = valueType;
-        this.MemberType = memberType;
-        this.memberInfo = memberInfo;
-        this.flags = flags;
-    }
+      case ValueKind.Leaf:
+      {
+        object value = getter(dom);
+        if (value == null)
+          return flags == GV.GetNull ? null : valueWhenNull;
+        return value;
+      }
 
-    public object CreateValue()
-    {
-        ConstructorInfo constructorInfoObj = ValueType.GetConstructor(Type.EmptyTypes);
-            
-        return constructorInfoObj.Invoke(null);
-    }
+      case ValueKind.NullableValue:
+      {
+        object value = getter(dom);
+        if (value is INullableValue nullable && nullable.IsNull && flags == GV.GetNull)
+          return null;
+        return value;
+      }
 
-    public abstract object GetValue(DocumentObject dom, GV flags);
-    public abstract void SetValue(DocumentObject dom, object val);
-    public abstract void SetNull(DocumentObject dom);
-    public abstract bool IsNull(DocumentObject dom);
+      case ValueKind.PlainValue:
+        return getter(dom);
 
-    /// <summary>
-    /// Whether the described value answers for itself - a number, a string, an enum - rather than
-    /// being a DocumentObject that the rest of a dotted value name is reached through.
-    /// </summary>
-    /// <remarks>
-    /// Meta.IsNull used to decide this by naming each descriptor type it knew about, which made a
-    /// new descriptor wrong by default: NullableMemberDescriptor fell through to the DocumentObject
-    /// branch and threw InvalidCastException on every string until it was added to the list by
-    /// hand. Answering it here puts the answer next to the type it describes.
-    /// </remarks>
-    internal virtual bool IsSimpleValue => false;
-
-    internal static ValueDescriptor CreateValueDescriptor(MemberInfo memberInfo, DVAttribute attr)
-    {
-        VDFlags flags = VDFlags.None;
-        if (attr.RefOnly)
-            flags |= VDFlags.RefOnly;
-
-        string name = memberInfo.Name;
-             
-        Type type;
-        if (memberInfo is FieldInfo)
-            type = ((FieldInfo)memberInfo).FieldType;
-        else
-            type = ((PropertyInfo)memberInfo).PropertyType;
-
-        // A member that carries its own null - bool?, int?, double? or a string - needs no wrapper
-        // struct. Checked before the ValueType test below, which Nullable<T> would otherwise match.
-        Type nullableUnderlyingType = Nullable.GetUnderlyingType(type);
-        if (nullableUnderlyingType != null)
-            return new NullableMemberDescriptor(name, nullableUnderlyingType, type, memberInfo, flags);
-
-        if (type == typeof(String))
-            return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
-
-        if (type == typeof(NEnum))
+      default:
+      {
+        DocumentObject value = getter(dom) as DocumentObject;
+        // Only a field is created on demand. A property has nowhere to put the new object.
+        if (isField && value == null && flags == GV.ReadWrite)
         {
-            Type valueType = attr.Type;
-            Debug.Assert(valueType.GetTypeInfo().IsSubclassOf(typeof(Enum)), "NEnum must have 'Type' attribute with the underlying type");
-            return new NullableDescriptor(name, valueType, type, memberInfo, flags);
+          value = factory();
+          value.parent = dom;
+          setter(dom, value);
+          return value;
         }
-
-        if (type.GetTypeInfo().IsSubclassOf(typeof(ValueType)))
-            return new ValueTypeDescriptor(name, type, type, memberInfo, flags);
-
-        if (typeof(DocumentObjectCollection).IsAssignableFrom(type))
-            return new DocumentObjectCollectionDescriptor(name, type, type, memberInfo, flags);
-
-        if (typeof(DocumentObject).IsAssignableFrom(type))
-            return new DocumentObjectDescriptor(name, type, type, memberInfo, flags);
-
-        Debug.Assert(false, type.FullName);
-        return null;
+        if (value != null && value.IsNull() && flags == GV.GetNull)
+          return null;
+        return value;
+      }
     }
+  }
 
-    public bool IsRefOnly => (this.flags & VDFlags.RefOnly) == VDFlags.RefOnly;
+  /// <summary>
+  /// Writes the member.
+  /// </summary>
+  public void SetValue(DocumentObject dom, object value)
+  {
+    if (setter == null)
+      throw new InvalidOperationException("This value cannot be set.");
+    setter(dom, value);
+  }
 
-    public FieldInfo FieldInfo => this.memberInfo as FieldInfo;
-
-    public PropertyInfo PropertyInfo => this.memberInfo as PropertyInfo;
-
-    /// <summary>
-    /// Name of the value.
-    /// </summary>
-    public string ValueName;
-
-    /// <summary>
-    /// Type of the described value, e.g. typeof(Int32) for an int?.
-    /// </summary>
-    ///
-    [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-    public Type ValueType;
-
-    /// <summary>
-    /// Type of the described field or property, e.g. typeof(int?) for an int?.
-    /// </summary>
-    public Type MemberType;
-
-    /// <summary>
-    /// FieldInfo of the described field.
-    /// </summary>
-    protected MemberInfo memberInfo;
-
-    /// <summary>
-    /// Flags of the described field, e.g. RefOnly.
-    /// </summary>
-    VDFlags flags;
-}
-
-/// <summary>
-/// Value descriptor of all nullable types.
-/// </summary>
-internal class NullableDescriptor : ValueDescriptor
-{
-    internal override bool IsSimpleValue => true;
-
-    internal NullableDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
-        : base(valueName, valueType, fieldType, memberInfo, flags)
+  /// <summary>
+  /// Resets the member, so that <see cref="IsNull"/> is true afterwards.
+  /// </summary>
+  public void SetNull(DocumentObject dom)
+  {
+    switch (Kind)
     {
+      case ValueKind.Leaf:
+        setter(dom, null);
+        break;
+
+      case ValueKind.NullableValue:
+      {
+        // The struct is boxed by the getter, mutated through the interface, and written back.
+        object value = getter(dom);
+        ((INullableValue)value).SetNull();
+        setter(dom, value);
+        break;
+      }
+
+      case ValueKind.PlainValue:
+        // A bool or a plain enum has no null to write. The descriptor class this replaced cast to
+        // INullableValue here without checking, so new FormattedText().SetNull() threw
+        // InvalidCastException on the first of its five bool and enum properties. This is the one
+        // deliberate behaviour change in the move to a generated model: it does nothing instead.
+        break;
+
+      default:
+      {
+        DocumentObject value = getter(dom) as DocumentObject;
+        if (value != null)
+          value.SetNull();
+        break;
+      }
     }
+  }
 
-    public override object GetValue(DocumentObject dom, GV flags)
+  /// <summary>
+  /// Determines whether the member is null (not set).
+  /// </summary>
+  public bool IsNull(DocumentObject dom)
+  {
+    switch (Kind)
     {
-        if (!Enum.IsDefined(typeof(GV), flags))
-            throw new ArgumentException("flags");
-        // throw new InvalidEnumArgumentException("flags", (int)flags, typeof(GV));
+      case ValueKind.Leaf:
+        return getter(dom) == null;
 
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        INullableValue ival = (INullableValue)val;
-        if (ival.IsNull && flags == GV.GetNull)
-            return null;
-        return ival.GetValue();
-    }
+      case ValueKind.NullableValue:
+        return getter(dom) is INullableValue nullable && nullable.IsNull;
 
-    public override void SetValue(DocumentObject dom, object value)
-    {
-        object val;
-        INullableValue ival;
-        if (FieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom);
-            ival = (INullableValue)val;
-            ival.SetValue(value);
-            FieldInfo.SetValue(dom, ival);
-        }
-        else
-        {
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            ival = (INullableValue)val;
-            ival.SetValue(value);
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
-        }
-    }
-
-    public override void SetNull(DocumentObject dom)
-    {
-        object val;
-        INullableValue ival;
-        if (FieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom);
-            ival = (INullableValue)val;
-            ival.SetNull();
-            FieldInfo.SetValue(dom, ival);
-        }
-        else
-        {
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            ival = (INullableValue)val;
-            ival.SetNull();
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
-        }
-    }
-
-    /// <summary>
-    /// Determines whether the given DocumentObject is null (not set).
-    /// </summary>
-    public override bool IsNull(DocumentObject dom)
-    {
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        return ((INullableValue)val).IsNull;
-    }
-}
-
-/// <summary>
-/// Value descriptor of value types.
-/// </summary>
-internal class ValueTypeDescriptor : ValueDescriptor
-{
-    internal override bool IsSimpleValue => true;
-
-    internal ValueTypeDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
-        :
-        base(valueName, valueType, fieldType, memberInfo, flags)
-    {
-    }
-
-    public override object GetValue(DocumentObject dom, GV flags)
-    {
-        if (!Enum.IsDefined(typeof(GV), flags))
-            throw new ArgumentException("flags");
-        //throw new InvalidEnumArgumentException("flags", (int)flags, typeof(GV));
-
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        INullableValue ival = val as INullableValue;
-        if (ival != null && ival.IsNull && flags == GV.GetNull)
-            return null;
-        return val;
-    }
-
-    public override void SetValue(DocumentObject dom, object value)
-    {
-        if (FieldInfo != null)
-            FieldInfo.SetValue(dom, value);
-        else
-        {
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { value });
-        }
-    }
-
-    public override void SetNull(DocumentObject dom)
-    {
-        object val;
-        if (FieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom);
-            INullableValue ival = AsNullableValue(val);
-            ival.SetNull();
-            FieldInfo.SetValue(dom, ival);
-        }
-        else
-        {
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            INullableValue ival = AsNullableValue(val);
-            ival.SetNull();
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
-        }
-    }
-
-    /// <summary>
-    /// Casts a value to INullableValue, saying which value it was if it is not one.
-    /// </summary>
-    /// <remarks>
-    /// IsNull below answers false for anything that does not implement the interface, so without
-    /// this the two would disagree about what this descriptor is for - SetNull throwing a bare
-    /// InvalidCastException naming nothing, IsNull quietly answering. Every value type that routes
-    /// here implements INullableValue today; this is for the next one that does not.
-    /// </remarks>
-    private INullableValue AsNullableValue(object val)
-    {
-        if (val is INullableValue ival)
-            return ival;
-
-        throw new InvalidOperationException(
-            $"The value '{ValueName}' of type {MemberType} cannot be set to null, because it does not implement INullableValue.");
-    }
-
-    /// <summary>
-    /// Determines whether the given DocumentObject is null (not set).
-    /// </summary>
-    public override bool IsNull(DocumentObject dom)
-    {
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        INullableValue ival = val as INullableValue;
-        if (ival != null)
-            return ival.IsNull;
+      case ValueKind.PlainValue:
         return false;
+
+      default:
+      {
+        // Preserved as-is, including the answer the property branch throws away. The class this
+        // replaced computed val.IsNull() for a property and then returned true regardless.
+        // Style.Font is the only [DV] property in the DOM whose type is a DocumentObject, and the
+        // wrong answer is unobservable through Meta - see ValueModelKnownDefectsTests. Changing it
+        // is a separate decision, not a side effect of deleting the reflection.
+        if (!isField)
+          return true;
+
+        DocumentObject value = getter(dom) as DocumentObject;
+        return value == null || value.IsNull();
+      }
     }
-}
-
-/// <summary>
-/// Value descriptor of DocumentObject.
-/// </summary>
-internal class DocumentObjectDescriptor : ValueDescriptor
-{
-    internal DocumentObjectDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
-        :
-        base(valueName, valueType, fieldType, memberInfo, flags)
-    {
-    }
-
-    public override object GetValue(DocumentObject dom, GV flags)
-    {
-        if (!Enum.IsDefined(typeof(GV), flags))
-            //throw new InvalidEnumArgumentException("flags", (int)flags, typeof(GV));
-            throw new ArgumentException("flags");
-
-        FieldInfo fieldInfo = FieldInfo;
-        DocumentObject val;
-        if (fieldInfo != null)
-        {
-            // Member is a field
-            val = FieldInfo.GetValue(dom) as DocumentObject;
-            if (val == null && flags == GV.ReadWrite)
-            {
-                val = CreateValue() as DocumentObject;
-                val.parent = dom;
-                FieldInfo.SetValue(dom, val);
-                return val;
-            }
-        }
-        else
-        {
-            // Member is a property
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes) as DocumentObject;
-        }
-        if (val != null && (val.IsNull() && flags == GV.GetNull))
-            return null;
-
-        return val;
-    }
-
-    public override void SetValue(DocumentObject dom, object val)
-    {
-        FieldInfo fieldInfo = FieldInfo;
-        // Member is a field
-        if (fieldInfo != null)
-        {
-            fieldInfo.SetValue(dom, val);
-            return;
-        }
-        throw new InvalidOperationException("This value cannot be set.");
-    }
-
-    public override void SetNull(DocumentObject dom)
-    {
-        FieldInfo fieldInfo = FieldInfo;
-        DocumentObject val;
-        // Member is a field
-        if (fieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom) as DocumentObject;
-            if (val != null)
-                val.SetNull();
-        }
-        // Member is a property
-        //REVIEW KlPo4All: Wird das gebraucht?
-        if (PropertyInfo != null)
-        {
-            PropertyInfo propInfo = PropertyInfo;
-            val = propInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes) as DocumentObject;
-            if (val != null)
-                val.SetNull();
-        }
-        return;
-    }
-
-    /// <summary>
-    /// Determines whether the given DocumentObject is null (not set).
-    /// </summary>
-    public override bool IsNull(DocumentObject dom)
-    {
-        FieldInfo fieldInfo = FieldInfo;
-        DocumentObject val;
-        // Member is a field
-        if (fieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom) as DocumentObject;
-            if (val == null)
-                return true;
-            return val.IsNull();
-        }
-        // Member is a property
-        PropertyInfo propInfo = PropertyInfo;
-        val = propInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes) as DocumentObject;
-        if (val != null)
-            val.IsNull();
-        return true;
-    }
-}
-
-/// <summary>
-/// Value descriptor of DocumentObjectCollection.
-/// </summary>
-internal class DocumentObjectCollectionDescriptor : ValueDescriptor
-{
-    internal DocumentObjectCollectionDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
-        :
-        base(valueName, valueType, fieldType, memberInfo, flags)
-    {
-    }
-
-    public override object GetValue(DocumentObject dom, GV flags)
-    {
-        if (!Enum.IsDefined(typeof(GV), flags))
-            throw new ArgumentException("flags");
-        //throw new InvalidEnumArgumentException("flags", (int)flags, typeof(GV));
-
-        Debug.Assert(this.memberInfo is FieldInfo, "Properties of DocumentObjectCollection not allowed.");
-        DocumentObjectCollection val = FieldInfo.GetValue(dom) as DocumentObjectCollection;
-        if (val == null && flags == GV.ReadWrite)
-        {
-            val = CreateValue() as DocumentObjectCollection;
-            val.parent = dom;
-            FieldInfo.SetValue(dom, val);
-            return val;
-        }
-        if (val != null && val.IsNull() && flags == GV.GetNull)
-            return null;
-
-        return val;
-    }
-
-    public override void SetValue(DocumentObject dom, object val)
-    {
-        FieldInfo.SetValue(dom, val);
-    }
-
-    public override void SetNull(DocumentObject dom)
-    {
-        DocumentObjectCollection val = FieldInfo.GetValue(dom) as DocumentObjectCollection;
-        if (val != null)
-            val.SetNull();
-    }
-
-    /// <summary>
-    /// Determines whether the given DocumentObject is null (not set).
-    /// </summary>
-    public override bool IsNull(DocumentObject dom)
-    {
-        DocumentObjectCollection val = FieldInfo.GetValue(dom) as DocumentObjectCollection;
-        if (val == null)
-            return true;
-        return val.IsNull();
-    }
+  }
 }

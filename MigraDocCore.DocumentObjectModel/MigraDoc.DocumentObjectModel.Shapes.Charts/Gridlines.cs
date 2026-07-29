@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents the gridlines on the axes.
 /// </summary>
-public class Gridlines : ChartObject
+public partial class Gridlines : ChartObject
 {
   /// <summary>
   /// Initializes a new instance of the Gridlines class.
@@ -114,16 +114,5 @@ public class Gridlines : ChartObject
     serializer.EndContent();
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Gridlines));
   #endregion
 }

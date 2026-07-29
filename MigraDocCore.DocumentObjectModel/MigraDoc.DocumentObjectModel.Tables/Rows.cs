@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents the collection of all rows of a table.
 /// </summary>
-public class Rows : DocumentObjectCollection, IVisitable
+public partial class Rows : DocumentObjectCollection, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Rows class.
@@ -92,11 +92,11 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public RowAlignment Alignment
   {
-    get => (RowAlignment)alignment.Value;
-    set => alignment.Value = (int)value;
+    get => alignment ?? default;
+    set => alignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(RowAlignment))]
-  internal NEnum alignment = NEnum.NullValue(typeof(RowAlignment));
+  [DV]
+  internal RowAlignment? alignment;
 
   /// <summary>
   /// Gets or sets the left indent of the table. If row alignment is not Left,
@@ -115,11 +115,11 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public VerticalAlignment VerticalAlignment
   {
-    get => (VerticalAlignment)verticalAlignment.Value;
-    set => verticalAlignment.Value = (int)value;
+    get => verticalAlignment ?? default;
+    set => verticalAlignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(VerticalAlignment))]
-  internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+  [DV]
+  internal VerticalAlignment? verticalAlignment;
 
   /// <summary>
   /// Gets or sets the height of the rows.
@@ -137,11 +137,11 @@ public class Rows : DocumentObjectCollection, IVisitable
   /// </summary>
   public RowHeightRule HeightRule
   {
-    get => (RowHeightRule)heightRule.Value;
-    set => heightRule.Value = (int)value;
+    get => heightRule ?? default;
+    set => heightRule = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(RowHeightRule))]
-  internal NEnum heightRule = NEnum.NullValue(typeof(RowHeightRule));
+  [DV]
+  internal RowHeightRule? heightRule;
 
   /// <summary>
   /// Gets or sets a comment associated with this object.
@@ -166,19 +166,19 @@ public class Rows : DocumentObjectCollection, IVisitable
 
     int pos = serializer.BeginAttributes();
 
-    if (!alignment.IsNull)
+    if (alignment != null)
       serializer.WriteSimpleAttribute("Alignment", Alignment);
 
     if (!height.IsNull)
       serializer.WriteSimpleAttribute("Height", Height);
 
-    if (!heightRule.IsNull)
+    if (heightRule != null)
       serializer.WriteSimpleAttribute("HeightRule", HeightRule);
 
     if (!leftIndent.IsNull)
       serializer.WriteSimpleAttribute("LeftIndent", LeftIndent);
 
-    if (!verticalAlignment.IsNull)
+    if (verticalAlignment != null)
       serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
     serializer.EndAttributes(pos);
@@ -206,16 +206,5 @@ public class Rows : DocumentObjectCollection, IVisitable
       ((IVisitable)row).AcceptVisitor(visitor, visitChildren);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Rows));
   #endregion
 }

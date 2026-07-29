@@ -40,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents a MigraDoc document.
 /// </summary>
-public sealed class Document : DocumentObject, IVisitable
+public sealed partial class Document : DocumentObject, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Document class.
@@ -228,33 +228,33 @@ public sealed class Document : DocumentObject, IVisitable
   /// </summary>
   public FootnoteLocation FootnoteLocation
   {
-    get => (FootnoteLocation)footnoteLocation.Value;
-    set => footnoteLocation.Value = (int)value;
+    get => footnoteLocation ?? default;
+    set => footnoteLocation = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(FootnoteLocation))]
-  internal NEnum footnoteLocation = NEnum.NullValue(typeof(FootnoteLocation));
+  [DV]
+  internal FootnoteLocation? footnoteLocation;
 
   /// <summary>
   /// Gets or sets the rule which is used to determine the footnote number on a new page.
   /// </summary>
   public FootnoteNumberingRule FootnoteNumberingRule
   {
-    get => (FootnoteNumberingRule)footnoteNumberingRule.Value;
-    set => footnoteNumberingRule.Value = (int)value;
+    get => footnoteNumberingRule ?? default;
+    set => footnoteNumberingRule = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(FootnoteNumberingRule))]
-  internal NEnum footnoteNumberingRule = NEnum.NullValue(typeof(FootnoteNumberingRule));
+  [DV]
+  internal FootnoteNumberingRule? footnoteNumberingRule;
 
   /// <summary>
   /// Gets or sets the type of number which is used for the footnote.
   /// </summary>
   public FootnoteNumberStyle FootnoteNumberStyle
   {
-    get => (FootnoteNumberStyle)footnoteNumberStyle.Value;
-    set => footnoteNumberStyle.Value = (int)value;
+    get => footnoteNumberStyle ?? default;
+    set => footnoteNumberStyle = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(FootnoteNumberStyle))]
-  internal NEnum footnoteNumberStyle = NEnum.NullValue(typeof(FootnoteNumberStyle));
+  [DV]
+  internal FootnoteNumberStyle? footnoteNumberStyle;
 
   /// <summary>
   /// Gets or sets the starting number of the footnote.
@@ -331,11 +331,11 @@ public sealed class Document : DocumentObject, IVisitable
       Info.Serialize(serializer);
     if (!defaultTabStop.IsNull)
       serializer.WriteSimpleAttribute("DefaultTabStop", DefaultTabStop);
-    if (!footnoteLocation.IsNull)
+    if (footnoteLocation != null)
       serializer.WriteSimpleAttribute("FootnoteLocation", FootnoteLocation);
-    if (!footnoteNumberingRule.IsNull)
+    if (footnoteNumberingRule != null)
       serializer.WriteSimpleAttribute("FootnoteNumberingRule", FootnoteNumberingRule);
-    if (!footnoteNumberStyle.IsNull)
+    if (footnoteNumberStyle != null)
       serializer.WriteSimpleAttribute("FootnoteNumberStyle", FootnoteNumberStyle);
     if (footnoteStartingNumber != null)
       serializer.WriteSimpleAttribute("FootnoteStartingNumber", FootnoteStartingNumber);
@@ -367,16 +367,5 @@ public sealed class Document : DocumentObject, IVisitable
     }
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Document));
   #endregion
 }

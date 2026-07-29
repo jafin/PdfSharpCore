@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents the area where the actual chart is drawn.
 /// </summary>
-public class PlotArea : ChartObject
+public partial class PlotArea : ChartObject
 {
   /// <summary>
   /// Initializes a new instance of the PlotArea class.
@@ -197,16 +197,5 @@ public class PlotArea : ChartObject
     serializer.EndContent();
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(PlotArea));
   #endregion
 }

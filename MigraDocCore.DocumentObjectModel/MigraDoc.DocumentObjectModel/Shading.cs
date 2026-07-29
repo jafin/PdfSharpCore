@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Shading represents the background color of a document object.
 /// </summary>
-public sealed class Shading : DocumentObject
+public sealed partial class Shading : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Shading class.
@@ -146,16 +146,5 @@ public sealed class Shading : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Shading));
   #endregion
 }

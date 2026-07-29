@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents a legend of a chart.
 /// </summary>
-public class Legend : ChartObject, IVisitable
+public partial class Legend : ChartObject, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Legend class.
@@ -166,17 +166,6 @@ public class Legend : ChartObject, IVisitable
     return false;
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Legend));
   #endregion
 
   #region IVisitable Members

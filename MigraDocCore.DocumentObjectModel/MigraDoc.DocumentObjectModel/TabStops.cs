@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// A TabStops collection represents all TabStop objects in a paragraph.
 /// </summary>
-public class TabStops : DocumentObjectCollection
+public partial class TabStops : DocumentObjectCollection
 {
   /// <summary>
   /// Specifies the minimal spacing between two TabStop positions.
@@ -230,16 +230,5 @@ public class TabStops : DocumentObjectCollection
     return false;
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(TabStops));
   #endregion
 }

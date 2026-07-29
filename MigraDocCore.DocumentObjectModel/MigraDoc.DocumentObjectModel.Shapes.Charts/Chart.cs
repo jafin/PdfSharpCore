@@ -38,7 +38,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents charts with different types.
 /// </summary>
-public class Chart : Shape, IVisitable
+public partial class Chart : Shape, IVisitable
 {
   /// <summary>
   /// Initializes a new instance of the Chart class.
@@ -157,11 +157,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public ChartType Type
   {
-    get => (ChartType)this.type.Value;
-    set => this.type.Value = (int)value;
+    get => this.type ?? default;
+    set => this.type = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(ChartType))]
-  internal NEnum type = NEnum.NullValue(typeof(ChartType));
+  [DV]
+  internal ChartType? type;
 
   /// <summary>
   /// Gets or sets the default style name of the whole chart.
@@ -276,7 +276,7 @@ public class Chart : Shape, IVisitable
       this.seriesCollection = value;
     }
   }
-  [DV(ItemType = typeof(Series))]
+  [DV]
   internal SeriesCollection seriesCollection;
 
   /// <summary>
@@ -297,7 +297,7 @@ public class Chart : Shape, IVisitable
       this.xValues = value;
     }
   }
-  [DV(ItemType = typeof(Series))]
+  [DV]
   internal XValues xValues;
 
   /// <summary>
@@ -452,11 +452,11 @@ public class Chart : Shape, IVisitable
   /// </summary>
   public BlankType DisplayBlanksAs
   {
-    get => (BlankType)this.displayBlanksAs.Value;
-    set => this.displayBlanksAs.Value = (int)value;
+    get => this.displayBlanksAs ?? default;
+    set => this.displayBlanksAs = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(BlankType))]
-  internal NEnum displayBlanksAs = NEnum.NullValue(typeof(BlankType));
+  [DV]
+  internal BlankType? displayBlanksAs;
 
   /// <summary>
   /// Gets or sets whether XAxis Labels should be merged.
@@ -548,7 +548,7 @@ public class Chart : Shape, IVisitable
     int pos = serializer.BeginAttributes();
 
     base.Serialize(serializer);
-    if (!this.displayBlanksAs.IsNull)
+    if (this.displayBlanksAs != null)
       serializer.WriteSimpleAttribute("DisplayBlanksAs", this.DisplayBlanksAs);
     if (this.pivotChart != null)
       serializer.WriteSimpleAttribute("PivotChart", this.PivotChart);
@@ -623,16 +623,5 @@ public class Chart : Shape, IVisitable
     }
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Chart));
   #endregion
 }

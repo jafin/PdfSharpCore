@@ -43,7 +43,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// A Hyperlink is used to reference targets in the document (Local), on a drive (File) or a network (Web).
 /// </summary>
-public class Hyperlink : DocumentObject, IVisitable
+public partial class Hyperlink : DocumentObject, IVisitable
 {
     /// <summary>
     /// Initializes a new instance of the Hyperlink class.
@@ -469,11 +469,11 @@ public class Hyperlink : DocumentObject, IVisitable
     /// </summary>
     public HyperlinkType Type
     {
-        get => (HyperlinkType)type.Value;
-        set => type.Value = (int)value;
+        get => type ?? default;
+        set => type = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(HyperlinkType))]
-    internal NEnum type = NEnum.NullValue(typeof(HyperlinkType));
+    [DV]
+    internal HyperlinkType? type;
 
     /// <summary>
     /// Gets the ParagraphElements of the Hyperlink specifying its 'clickable area'.
@@ -493,7 +493,7 @@ public class Hyperlink : DocumentObject, IVisitable
             elements = value;
         }
     }
-    [DV(ItemType = typeof(DocumentObject))]
+    [DV]
     internal ParagraphElements elements;
     #endregion
 
@@ -507,7 +507,7 @@ public class Hyperlink : DocumentObject, IVisitable
             throw new InvalidOperationException(DomSR.MissingObligatoryProperty("Name", "Hyperlink"));
         serializer.Write("\\hyperlink");
         string str = "[Name = \"" + Name.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-        if (!type.IsNull)
+        if (type != null)
             str += " Type = " + Type;
         str += "]";
         serializer.Write(str);
@@ -517,17 +517,6 @@ public class Hyperlink : DocumentObject, IVisitable
         serializer.Write("}");
     }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Hyperlink));
     #endregion
 
     #region IDomVisitable Members

@@ -41,7 +41,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Represents an image in the document or paragraph.
 /// </summary>
-public class Image : Shape
+public partial class Image : Shape
 {
     /// <summary>
     /// Initializes a new instance of the Image class.
@@ -212,19 +212,6 @@ public class Image : Shape
 
         return filePath;
     }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Image));
-
 
     #endregion
 }

@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// A Borders collection represents the eight border objects used for paragraphs, tables etc.
 /// </summary>
-public class Borders : DocumentObject, IEnumerable
+public partial class Borders : DocumentObject, IEnumerable
 {
     /// <summary>
     /// Initializes a new instance of the Borders class.
@@ -282,11 +282,11 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public BorderStyle Style
     {
-        get => (BorderStyle)style.Value;
-        set => style.Value = (int)value;
+        get => style ?? default;
+        set => style = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(BorderStyle))]
-    internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
+    [DV]
+    internal BorderStyle? style;
 
     /// <summary>
     /// Gets or sets the standard width of the borders.
@@ -426,7 +426,7 @@ public class Borders : DocumentObject, IEnumerable
         if (visible != null && (refBorders == null || refBorders.visible == null || (Visible != refBorders.Visible)))
             serializer.WriteSimpleAttribute("Visible", Visible);
 
-        if (!style.IsNull && (refBorders == null || (Style != refBorders.Style)))
+        if (style != null && (refBorders == null || (Style != refBorders.Style)))
             serializer.WriteSimpleAttribute("Style", Style);
 
         if (!width.IsNull && (refBorders == null || (width.Value != refBorders.width.Value)))
@@ -543,16 +543,5 @@ public class Borders : DocumentObject, IEnumerable
         }
     }
 
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Borders));
     #endregion
 }

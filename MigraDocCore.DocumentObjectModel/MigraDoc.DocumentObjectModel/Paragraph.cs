@@ -43,7 +43,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Represents a paragraph which is used to build up a document with text.
 /// </summary>
-public class Paragraph : DocumentObject, IVisitable
+public partial class Paragraph : DocumentObject, IVisitable
 {
     /// <summary>
     /// Initializes a new instance of the Paragraph class.
@@ -567,18 +567,6 @@ public class Paragraph : DocumentObject, IVisitable
             serializer.CloseUpLine();
         }
     }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Paragraph));
 
     /// <summary>
     /// Returns an array of Paragraphs that are separated by parabreaks. Null if no parabreak is found.

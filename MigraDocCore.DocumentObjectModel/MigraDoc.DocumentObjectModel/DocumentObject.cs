@@ -40,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// <summary>
 /// Base class of all objects of the MigraDoc Document Object Model.
 /// </summary>
-public abstract class DocumentObject
+public abstract partial class DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the DocumentObject class.

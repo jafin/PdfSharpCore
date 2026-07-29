@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes;
 /// <summary>
 /// Defines the format of a line in a shape object.
 /// </summary>
-public class LineFormat : DocumentObject
+public partial class LineFormat : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the LineFormat class.
@@ -100,22 +100,22 @@ public class LineFormat : DocumentObject
   /// </summary>
   public DashStyle DashStyle
   {
-    get => (DashStyle)this.dashStyle.Value;
-    set => this.dashStyle.Value = (int)value;
+    get => this.dashStyle ?? default;
+    set => this.dashStyle = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(DashStyle))]
-  internal NEnum dashStyle = NEnum.NullValue(typeof(DashStyle));
+  [DV]
+  internal DashStyle? dashStyle;
 
   /// <summary>
   /// Gets or sets the style of the line.
   /// </summary>
   public LineStyle Style
   {
-    get => (LineStyle)this.style.Value;
-    set => this.style.Value = (int)value;
+    get => this.style ?? default;
+    set => this.style = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(LineStyle))]
-  internal NEnum style = NEnum.NullValue(typeof(LineStyle));
+  [DV]
+  internal LineStyle? style;
   #endregion
 
   #region Internal
@@ -127,9 +127,9 @@ public class LineFormat : DocumentObject
     int pos = serializer.BeginContent("LineFormat");
     if (this.visible != null)
       serializer.WriteSimpleAttribute("Visible", this.Visible);
-    if (!this.style.IsNull)
+    if (this.style != null)
       serializer.WriteSimpleAttribute("Style", this.Style);
-    if (!this.dashStyle.IsNull)
+    if (this.dashStyle != null)
       serializer.WriteSimpleAttribute("DashStyle", this.DashStyle);
     if (!this.width.IsNull)
       serializer.WriteSimpleAttribute("Width", this.Width);
@@ -138,16 +138,5 @@ public class LineFormat : DocumentObject
     serializer.EndContent();
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(LineFormat));
   #endregion
 }

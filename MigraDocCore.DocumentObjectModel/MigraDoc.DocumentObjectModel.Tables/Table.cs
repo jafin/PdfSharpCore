@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a table in a document.
 /// </summary>
-public class Table : DocumentObject, IVisitable
+public partial class Table : DocumentObject, IVisitable
 {
     /// <summary>
     /// Initializes a new instance of the Table class.
@@ -512,18 +512,6 @@ public class Table : DocumentObject, IVisitable
     /// Gets the cell with the given row and column indices.
     /// </summary>
     public Cell this[int rwIdx, int clmIdx] => Rows[rwIdx].Cells[clmIdx];
-
-    /// <summary>
-    /// Returns the metaobject of this instance.
-    /// </summary>
-    internal override Meta Meta => meta;
-
-    /// <summary>
-    /// Built once by the CLR, which finishes a static initializer before any thread
-    /// can read the field it initializes. The lazy version this replaces had every
-    /// thread that arrived first build its own and throw all but one away.
-    /// </summary>
-    static readonly Meta meta = new Meta(typeof(Table));
 
 
     #endregion

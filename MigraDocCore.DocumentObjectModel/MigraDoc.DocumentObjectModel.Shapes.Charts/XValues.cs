@@ -37,7 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
 /// <summary>
 /// Represents the collection of values on the X-Axis.
 /// </summary>
-public class XValues : DocumentObjectCollection
+public partial class XValues : DocumentObjectCollection
 {
   /// <summary>
   /// Initializes a new instance of the XValues class.
@@ -90,16 +90,5 @@ public class XValues : DocumentObjectCollection
     }
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(XValues));
   #endregion
 }

@@ -39,7 +39,7 @@ namespace MigraDocCore.DocumentObjectModel;
 /// Represents one border in a borders collection. The type determines its position in a cell,
 /// paragraph etc.
 /// </summary>
-public class Border : DocumentObject
+public partial class Border : DocumentObject
 {
   /// <summary>
   /// Initializes a new instance of the Border class.
@@ -89,11 +89,11 @@ public class Border : DocumentObject
   /// </summary>
   public BorderStyle Style
   {
-    get => (BorderStyle)style.Value;
-    set => style.Value = (int)value;
+    get => style ?? default;
+    set => style = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(BorderStyle))]
-  internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
+  [DV]
+  internal BorderStyle? style;
 
   /// <summary>
   /// Gets or sets the line width of the border.
@@ -179,7 +179,7 @@ public class Border : DocumentObject
     if (visible != null && (refBorder == null || (Visible != refBorder.Visible)))
       serializer.WriteSimpleAttribute("Visible", Visible);
 
-    if (!style.IsNull && (refBorder == null || (Style != refBorder.Style)))
+    if (style != null && (refBorder == null || (Style != refBorder.Style)))
       serializer.WriteSimpleAttribute("Style", Style);
 
     if (!width.IsNull && (refBorder == null || (Width != refBorder.Width)))
@@ -191,16 +191,5 @@ public class Border : DocumentObject
     serializer.EndContent(pos);
   }
 
-  /// <summary>
-  /// Returns the meta object of this instance.
-  /// </summary>
-  internal override Meta Meta => meta;
-
-  /// <summary>
-  /// Built once by the CLR, which finishes a static initializer before any thread
-  /// can read the field it initializes. The lazy version this replaces had every
-  /// thread that arrived first build its own and throw all but one away.
-  /// </summary>
-  static readonly Meta meta = new Meta(typeof(Border));
   #endregion
 }

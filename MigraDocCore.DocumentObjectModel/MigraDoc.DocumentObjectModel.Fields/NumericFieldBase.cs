@@ -40,7 +40,7 @@ namespace MigraDocCore.DocumentObjectModel.Fields;
 /// NumericFieldBase serves as a base for Numeric fields, which are: 
 /// NumPagesField, PageField, PageRefField, SectionField, SectionPagesField
 /// </summary>
-public abstract class NumericFieldBase : DocumentObject
+public abstract partial class NumericFieldBase : DocumentObject
 {
   protected static string[] validFormatStrings =
   {
