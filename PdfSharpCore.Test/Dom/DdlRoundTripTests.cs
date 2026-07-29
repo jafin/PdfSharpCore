@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.IO;
-using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Dom;
@@ -14,7 +13,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   These tests pin the emitted DDL - which attributes appear, which are left out, and that a
 ///   document survives a write, a read and a second write unchanged.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class DdlRoundTripTests
 {
     /// <summary>
@@ -90,13 +88,12 @@ public class DdlRoundTripTests
     }
 
     /// <summary>
-    ///   DocumentInfo asks whether the string is empty rather than whether it is null, so an
-    ///   explicitly assigned "" is written the same way an unassigned one is - not at all. That is
-    ///   a property of DocumentInfo.Serialize and not of the value type behind it, so it should
-    ///   hold just as well once NString becomes a plain string.
+    ///   DocumentInfo used to ask whether the string was empty rather than whether it was null, so
+    ///   an explicitly assigned "" was written the same way an unassigned one was - not at all -
+    ///   and a round trip lost the difference. It now asks about nullness like the rest of the DOM.
     /// </summary>
     [Fact]
-    public void AnExplicitlyEmptyStringIsNotWrittenEvenThoughItIsSet()
+    public void AnExplicitlyEmptyStringIsWrittenBecauseItWasSet()
     {
         var document = new Document();
         document.AddSection().AddParagraph("Hello");
@@ -104,7 +101,35 @@ public class DdlRoundTripTests
         document.Info.Title = "";
 
         document.Info.IsNull("Title").Should().BeFalse("the value was assigned");
-        Ddl(document).Should().NotContain("Title", "DocumentInfo skips empty strings when writing");
+        Ddl(document).Should().Contain("Title = \"\"");
+    }
+
+    [Fact]
+    public void AnUnassignedInfoStringIsStillNotWritten()
+    {
+        var document = new Document();
+        document.AddSection().AddParagraph("Hello");
+
+        document.Info.Title = "A title";
+
+        var ddl = Ddl(document);
+        ddl.Should().Contain("Title");
+        ddl.Should().NotContain("Subject").And.NotContain("Author").And.NotContain("Keywords");
+    }
+
+    [Fact]
+    public void AnExplicitlyEmptyInfoStringSurvivesTheRoundTrip()
+    {
+        var document = new Document();
+        document.AddSection().AddParagraph("Hello");
+        document.Info.Title = "";
+
+        var written = Ddl(document);
+        var reread = DdlReader.DocumentFromString(written);
+
+        reread.Info.IsNull("Title").Should().BeFalse("an assigned empty string is not unset");
+        reread.Info.Title.Should().BeEmpty();
+        Ddl(reread).Should().Be(written);
     }
 
     [Fact]

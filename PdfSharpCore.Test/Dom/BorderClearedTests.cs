@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.IO;
-using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Dom;
@@ -18,7 +17,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   Borders.ClearAll and Shading.Clear work the same way and had the same defect, so they are
 ///   covered here too.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class BorderClearedTests
 {
     static Borders ABordersObject() =>

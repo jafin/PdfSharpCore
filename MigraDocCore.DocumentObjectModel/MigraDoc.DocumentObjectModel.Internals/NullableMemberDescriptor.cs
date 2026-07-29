@@ -43,6 +43,8 @@ namespace MigraDocCore.DocumentObjectModel.Internals;
 /// </summary>
 internal class NullableMemberDescriptor : ValueDescriptor
 {
+    internal override bool IsSimpleValue => true;
+
     /// <summary>
     /// What GetValue hands back for a member that was never set. The DOM has always answered with
     /// the type's default rather than with null unless GV.GetNull was asked for, so an unset
