@@ -106,6 +106,7 @@ internal static class Parser
             IsWritable: settable,
             CanConstruct: kind is MemberKind.DocumentObject or MemberKind.Collection
                           && HasAccessibleParameterlessConstructor(memberType),
+            IsEnum: valueTypeSymbol.TypeKind == TypeKind.Enum,
             BoxedDefaultExpression: kind == MemberKind.Leaf
                 ? BoxedDefault(valueTypeSymbol)
                 : null);

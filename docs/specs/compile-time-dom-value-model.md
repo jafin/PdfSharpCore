@@ -228,6 +228,24 @@ public char Char
 This is the one place in the migration where a mechanical edit is wrong. Every other `NEnum` field
 takes the guard.
 
+### Preserving the int assignment
+
+`NEnum` held the value as an `int` and its setter took one, so a boxed `int` handed to the model
+API — `border.SetValue("Style", (int)BorderStyle.DashLargeGap)` — reached an enum member and worked.
+The generated setter assigns by cast, and unboxing has to name the boxed type exactly: a boxed
+`int` cast to `BorderStyle?` throws `InvalidCastException`.
+
+That is a public API contract, so the emitter converts rather than letting it break. For an enum
+member only, the setter tests for an `int` first:
+
+```csharp
+setter: static (o, v) => ((Border)o).style = (BorderStyle?)(v is int ? (BorderStyle)(int)v : v),
+```
+
+The test lives in `EnumMemberSemanticsTests`. It was `EnumValueTests` in
+[#48](https://github.com/jafin/PdfSharpCore/pull/48) that caught this, and only after the rebase —
+the test was written against `NEnum` while this branch was already replacing it.
+
 ### Done
 
 45 fields across 25 files. The rewrite was scripted for the uniform forms — declaration, the

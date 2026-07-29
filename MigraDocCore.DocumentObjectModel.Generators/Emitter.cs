@@ -67,7 +67,18 @@ internal static class Emitter
         // too - and additionally allocated for the FieldInfo.GetValue call itself.
         source.Append("            getter: static o => ").Append(self).Append('.').Append(member.Name).AppendLine(",");
 
-        if (member.IsWritable)
+        if (member.IsWritable && member.IsEnum)
+        {
+            // An enum member takes a boxed int as well as a boxed enum. NEnum stored the value as
+            // an int and its setter took one, so SetValue("Style", (int)BorderStyle.Dot) worked
+            // through the public model API; a straight cast to BorderStyle? throws
+            // InvalidCastException on it. Unboxing has to name the boxed type exactly, hence the
+            // test rather than one cast that covers both.
+            source.Append("            setter: static (o, v) => ").Append(self).Append('.').Append(member.Name)
+                  .Append(" = (").Append(member.MemberTypeFqn).Append(")(v is int ? (")
+                  .Append(member.ValueTypeFqn).AppendLine(")(int)v : v),");
+        }
+        else if (member.IsWritable)
         {
             source.Append("            setter: static (o, v) => ").Append(self).Append('.').Append(member.Name)
                   .Append(" = (").Append(member.MemberTypeFqn).AppendLine(")v,");

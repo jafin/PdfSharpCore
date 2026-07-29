@@ -32,6 +32,7 @@ internal sealed record DomMemberModel(
     bool IsField,
     bool IsWritable,
     bool CanConstruct,
+    bool IsEnum,
     string? BoxedDefaultExpression) : IEquatable<DomMemberModel>;
 
 /// <summary>

@@ -75,6 +75,23 @@ public class EnumMemberSemanticsTests
         border.IsNull("Style").Should().BeTrue("the rejected assignment left nothing behind");
     }
 
+    /// <summary>
+    ///   NEnum held the value as an int and its setter took one, so an int handed to the model API
+    ///   reached an enum member. A TEnum? member is assigned by cast, and unboxing has to name the
+    ///   boxed type exactly - so without the conversion the generated setter makes, this throws
+    ///   InvalidCastException on a call that has worked since the port.
+    /// </summary>
+    [Fact]
+    public void AnEnumMemberStillTakesAnIntThroughTheModelApi()
+    {
+        var border = ABorder();
+
+        border.SetValue("Style", (int)BorderStyle.DashLargeGap);
+
+        border.Style.Should().Be(BorderStyle.DashLargeGap);
+        border.GetValue("Style", GV.GetNull).Should().Be(BorderStyle.DashLargeGap);
+    }
+
     [Fact]
     public void EveryDefinedValueIsAccepted()
     {
