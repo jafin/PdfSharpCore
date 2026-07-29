@@ -30,78 +30,77 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Represents the legend renderer specific to bar charts.
+/// </summary>
+internal class BarClusteredLegendRenderer : ColumnLikeLegendRenderer
 {
   /// <summary>
-  /// Represents the legend renderer specific to bar charts.
+  /// Initializes a new instance of the BarClusteredLegendRenderer class with the
+  /// specified renderer parameters.
   /// </summary>
-  internal class BarClusteredLegendRenderer : ColumnLikeLegendRenderer
+  internal BarClusteredLegendRenderer(RendererParameters parms)
+    : base(parms)
   {
-    /// <summary>
-    /// Initializes a new instance of the BarClusteredLegendRenderer class with the
-    /// specified renderer parameters.
-    /// </summary>
-    internal BarClusteredLegendRenderer(RendererParameters parms)
-      : base(parms)
+  }
+
+  /// <summary>
+  /// Draws the legend.
+  /// </summary>
+  internal override void Draw()
+  {
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+    LegendRendererInfo lri = cri.legendRendererInfo;
+    if (lri == null)
+      return;
+
+    XGraphics gfx = this.rendererParms.Graphics;
+    RendererParameters parms = new RendererParameters();
+    parms.Graphics = gfx;
+
+    LegendEntryRenderer ler = new LegendEntryRenderer(parms);
+
+    bool verticalLegend = (lri.legend.docking == DockingType.Left || lri.legend.docking == DockingType.Right);
+    int paddingFactor = 1;
+    if (lri.BorderPen != null)
+      paddingFactor = 2;
+    XRect legendRect = lri.Rect;
+    legendRect.X += LegendRenderer.LeftPadding * paddingFactor;
+    if (verticalLegend)
+      legendRect.Y = legendRect.Bottom - LegendRenderer.BottomPadding * paddingFactor;
+    else
+      legendRect.Y += LegendRenderer.TopPadding * paddingFactor;
+
+    foreach (LegendEntryRendererInfo leri in cri.legendRendererInfo.Entries)
     {
+      if (verticalLegend)
+        legendRect.Y -= leri.Height;
+
+      XRect entryRect = legendRect;
+      entryRect.Width = leri.Width;
+      entryRect.Height = leri.Height;
+
+      leri.Rect = entryRect;
+      parms.RendererInfo = leri;
+      ler.Draw();
+
+      if (verticalLegend)
+        legendRect.Y -= LegendRenderer.EntrySpacing;
+      else
+        legendRect.X += entryRect.Width + LegendRenderer.EntrySpacing;
     }
 
-    /// <summary>
-    /// Draws the legend.
-    /// </summary>
-    internal override void Draw()
+    // Draw border around legend
+    if (lri.BorderPen != null)
     {
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-      LegendRendererInfo lri = cri.legendRendererInfo;
-      if (lri == null)
-        return;
-
-      XGraphics gfx = this.rendererParms.Graphics;
-      RendererParameters parms = new RendererParameters();
-      parms.Graphics = gfx;
-
-      LegendEntryRenderer ler = new LegendEntryRenderer(parms);
-
-      bool verticalLegend = (lri.legend.docking == DockingType.Left || lri.legend.docking == DockingType.Right);
-      int paddingFactor = 1;
-      if (lri.BorderPen != null)
-        paddingFactor = 2;
-      XRect legendRect = lri.Rect;
-      legendRect.X += LegendRenderer.LeftPadding * paddingFactor;
-      if (verticalLegend)
-        legendRect.Y = legendRect.Bottom - LegendRenderer.BottomPadding * paddingFactor;
-      else
-        legendRect.Y += LegendRenderer.TopPadding * paddingFactor;
-
-      foreach (LegendEntryRendererInfo leri in cri.legendRendererInfo.Entries)
-      {
-        if (verticalLegend)
-          legendRect.Y -= leri.Height;
-
-        XRect entryRect = legendRect;
-        entryRect.Width = leri.Width;
-        entryRect.Height = leri.Height;
-
-        leri.Rect = entryRect;
-        parms.RendererInfo = leri;
-        ler.Draw();
-
-        if (verticalLegend)
-          legendRect.Y -= LegendRenderer.EntrySpacing;
-        else
-          legendRect.X += entryRect.Width + LegendRenderer.EntrySpacing;
-      }
-
-      // Draw border around legend
-      if (lri.BorderPen != null)
-      {
-        XRect borderRect = lri.Rect;
-        borderRect.X += LegendRenderer.LeftPadding;
-        borderRect.Y += LegendRenderer.TopPadding;
-        borderRect.Width -= LegendRenderer.LeftPadding + LegendRenderer.RightPadding;
-        borderRect.Height -= LegendRenderer.TopPadding + LegendRenderer.BottomPadding;
-        gfx.DrawRectangle(lri.BorderPen, borderRect);
-      }
+      XRect borderRect = lri.Rect;
+      borderRect.X += LegendRenderer.LeftPadding;
+      borderRect.Y += LegendRenderer.TopPadding;
+      borderRect.Width -= LegendRenderer.LeftPadding + LegendRenderer.RightPadding;
+      borderRect.Height -= LegendRenderer.TopPadding + LegendRenderer.BottomPadding;
+      gfx.DrawRectangle(lri.BorderPen, borderRect);
     }
   }
 }

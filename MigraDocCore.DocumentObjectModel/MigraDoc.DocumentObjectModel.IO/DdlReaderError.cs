@@ -36,97 +36,96 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Collections;
 
-namespace MigraDocCore.DocumentObjectModel.IO
+namespace MigraDocCore.DocumentObjectModel.IO;
+
+/// <summary>
+/// Represents an error or diagnostic message reported by the DDL reader.
+/// </summary>
+public class DdlReaderError
 {
   /// <summary>
-  /// Represents an error or diagnostic message reported by the DDL reader.
+  /// Initializes a new instance of the DdlReaderError class.
   /// </summary>
-  public class DdlReaderError
+  public DdlReaderError(DdlErrorLevel errorLevel, string errorMessage, int errorNumber,
+    string sourceFile, int sourceLine, int sourceColumn)
   {
-    /// <summary>
-    /// Initializes a new instance of the DdlReaderError class.
-    /// </summary>
-    public DdlReaderError(DdlErrorLevel errorLevel, string errorMessage, int errorNumber,
-      string sourceFile, int sourceLine, int sourceColumn)
-    {
-      this.ErrorLevel = errorLevel;
-      this.ErrorMessage = errorMessage;
-      this.ErrorNumber = errorNumber;
-      this.SourceFile = sourceFile;
-      this.SourceLine = sourceLine;
-      this.SourceColumn = sourceColumn;
-    }
-
-    public DdlReaderError(DdlErrorLevel errorLevel, string errorMessage, int errorNumber)
-    {
-      this.ErrorLevel = errorLevel;
-      this.ErrorMessage = errorMessage;
-      this.ErrorNumber = errorNumber;
-    }
-
-
-    //    public DdlReaderError(string errorName, DdlReaderError _level, DomMsgID _error, string message, string msg2,
-    //      string DocumentFileName, int CurrentLine, int CurrentLinePos)
-    //    {
-    //    }
-    //
-    //    public DdlReaderError(string errorName, int _level, string _error, string message, string adf,
-    //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
-    //    {
-    //    }
-    //
-    //    public DdlReaderError(string errorName, DdlErrorLevel errorInfo , string _error, string message, string adf,
-    //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
-    //    {
-    //    }
-    //
-    //    public DdlReaderError(string errorName, DdlErrorLevel errorInfo , DomMsgID _error, string message, string adf,
-    //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
-    //    {
-    //    }
-
-    public const int NoErrorNumber = -1;
-
-    /// <summary>
-    /// Returns a String that represents the current DdlReaderError.
-    /// </summary>
-    public override string ToString()
-    {
-      return String.Format("[{0}({1},{2}):] {3} DDL{4}: {5}",
-        SourceFile, SourceLine, SourceColumn, "xxx", ErrorNumber, ErrorMessage);
-    }
-
-    /// <summary>
-    /// Specifies the severity of this diagnostic.
-    /// </summary>
-    public DdlErrorLevel ErrorLevel;
-
-    /// <summary>
-    /// Specifies the diagnostic message text.
-    /// </summary>
-    public string ErrorMessage;
-
-    /// <summary>
-    /// Specifies the diagnostic number.
-    /// </summary>
-    public int ErrorNumber;
-
-    /// <summary>
-    /// Specifies the filename of the DDL text that caused the diagnostic,
-    /// or an empty string ("").
-    /// </summary>
-    public string SourceFile;
-
-    /// <summary>
-    /// Specifies the line of the DDL text that caused the diagnostic (1 based),
-    /// or 0 if there is no line information. 
-    /// </summary>
-    public int SourceLine;
-
-    /// <summary>
-    /// Specifies the column of the source text that caused the diagnostic (1 based),
-    /// or 0 if there is no column information.
-    /// </summary>
-    public int SourceColumn;
+    this.ErrorLevel = errorLevel;
+    this.ErrorMessage = errorMessage;
+    this.ErrorNumber = errorNumber;
+    this.SourceFile = sourceFile;
+    this.SourceLine = sourceLine;
+    this.SourceColumn = sourceColumn;
   }
+
+  public DdlReaderError(DdlErrorLevel errorLevel, string errorMessage, int errorNumber)
+  {
+    this.ErrorLevel = errorLevel;
+    this.ErrorMessage = errorMessage;
+    this.ErrorNumber = errorNumber;
+  }
+
+
+  //    public DdlReaderError(string errorName, DdlReaderError _level, DomMsgID _error, string message, string msg2,
+  //      string DocumentFileName, int CurrentLine, int CurrentLinePos)
+  //    {
+  //    }
+  //
+  //    public DdlReaderError(string errorName, int _level, string _error, string message, string adf,
+  //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
+  //    {
+  //    }
+  //
+  //    public DdlReaderError(string errorName, DdlErrorLevel errorInfo , string _error, string message, string adf,
+  //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
+  //    {
+  //    }
+  //
+  //    public DdlReaderError(string errorName, DdlErrorLevel errorInfo , DomMsgID _error, string message, string adf,
+  //      string  DocumentFileName,  int CurrentLine, int CurrentLinePos)
+  //    {
+  //    }
+
+  public const int NoErrorNumber = -1;
+
+  /// <summary>
+  /// Returns a String that represents the current DdlReaderError.
+  /// </summary>
+  public override string ToString()
+  {
+    return String.Format("[{0}({1},{2}):] {3} DDL{4}: {5}",
+      SourceFile, SourceLine, SourceColumn, "xxx", ErrorNumber, ErrorMessage);
+  }
+
+  /// <summary>
+  /// Specifies the severity of this diagnostic.
+  /// </summary>
+  public DdlErrorLevel ErrorLevel;
+
+  /// <summary>
+  /// Specifies the diagnostic message text.
+  /// </summary>
+  public string ErrorMessage;
+
+  /// <summary>
+  /// Specifies the diagnostic number.
+  /// </summary>
+  public int ErrorNumber;
+
+  /// <summary>
+  /// Specifies the filename of the DDL text that caused the diagnostic,
+  /// or an empty string ("").
+  /// </summary>
+  public string SourceFile;
+
+  /// <summary>
+  /// Specifies the line of the DDL text that caused the diagnostic (1 based),
+  /// or 0 if there is no line information. 
+  /// </summary>
+  public int SourceLine;
+
+  /// <summary>
+  /// Specifies the column of the source text that caused the diagnostic (1 based),
+  /// or 0 if there is no column information.
+  /// </summary>
+  public int SourceColumn;
 }

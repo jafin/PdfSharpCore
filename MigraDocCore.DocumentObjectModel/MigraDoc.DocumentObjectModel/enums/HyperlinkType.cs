@@ -32,36 +32,35 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the target of the hyperlink.
+/// </summary>
+public enum HyperlinkType
 {
   /// <summary>
-  /// Specifies the target of the hyperlink.
+  /// Targets a position in the document. Same as 'Bookmark'.
   /// </summary>
-  public enum HyperlinkType
-  {
-    /// <summary>
-    /// Targets a position in the document. Same as 'Bookmark'.
-    /// </summary>
-    Local = 0,
+  Local = 0,
 
-    /// <summary>
-    /// Targets a position in the document. Same as 'Local'.
-    /// </summary>
-    Bookmark = Local,
+  /// <summary>
+  /// Targets a position in the document. Same as 'Local'.
+  /// </summary>
+  Bookmark = Local,
 
-    /// <summary>
-    /// Targets a resource on the Internet or network. Same as 'Url'.
-    /// </summary>
-    Web,
+  /// <summary>
+  /// Targets a resource on the Internet or network. Same as 'Url'.
+  /// </summary>
+  Web,
 
-    /// <summary>
-    /// Targets a resource on the Internet or network. Same as 'Web'.
-    /// </summary>
-    Url = Web,
+  /// <summary>
+  /// Targets a resource on the Internet or network. Same as 'Web'.
+  /// </summary>
+  Url = Web,
 
-    /// <summary>
-    /// Targets a physical file.
-    /// </summary>
-    File
-  }
+  /// <summary>
+  /// Targets a physical file.
+  /// </summary>
+  File
 }

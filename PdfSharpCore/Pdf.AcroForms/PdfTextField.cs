@@ -58,7 +58,7 @@ public sealed class PdfTextField : PdfAcroField
     /// </summary>
     public string Text
     {
-        get { return Elements.GetString(Keys.V); }
+        get => Elements.GetString(Keys.V);
         set
         {
             Elements.SetString(Keys.V, value);
@@ -71,19 +71,19 @@ public sealed class PdfTextField : PdfAcroField
     /// </summary>
     public XFont Font
     {
-        get { return _font; }
-        set { _font = value; }
+        get => _font;
+        set => _font = value;
     }
 
-    XFont _font = new XFont(GlobalFontSettings.FontResolver.DefaultFontName, 10);
+    XFont _font = new(GlobalFontSettings.FontResolver.DefaultFontName, 10);
 
     /// <summary>
     /// Gets or sets the foreground color of the field.
     /// </summary>
     public XColor ForeColor
     {
-        get { return _foreColor; }
-        set { _foreColor = value; }
+        get => _foreColor;
+        set => _foreColor = value;
     }
 
     XColor _foreColor = XColors.Black;
@@ -93,8 +93,8 @@ public sealed class PdfTextField : PdfAcroField
     /// </summary>
     public XColor BackColor
     {
-        get { return _backColor; }
-        set { _backColor = value; }
+        get => _backColor;
+        set => _backColor = value;
     }
 
     XColor _backColor = XColor.Empty;
@@ -105,8 +105,8 @@ public sealed class PdfTextField : PdfAcroField
     /// <value>The length of the max.</value>
     public int MaxLength
     {
-        get { return Elements.GetInteger(Keys.MaxLen); }
-        set { Elements.SetInteger(Keys.MaxLen, value); }
+        get => Elements.GetInteger(Keys.MaxLen);
+        set => Elements.SetInteger(Keys.MaxLen, value);
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public sealed class PdfTextField : PdfAcroField
     /// </summary>
     public bool MultiLine
     {
-        get { return (Flags & PdfAcroFieldFlags.Multiline) != 0; }
+        get => (Flags & PdfAcroFieldFlags.Multiline) != 0;
         set
         {
             if (value)
@@ -129,7 +129,7 @@ public sealed class PdfTextField : PdfAcroField
     /// </summary>
     public bool Password
     {
-        get { return (Flags & PdfAcroFieldFlags.Password) != 0; }
+        get => (Flags & PdfAcroFieldFlags.Password) != 0;
         set
         {
             if (value)
@@ -200,10 +200,7 @@ public sealed class PdfTextField : PdfAcroField
         /// <summary>
         /// Gets the KeysMeta for these keys.
         /// </summary>
-        internal static DictionaryMeta Meta
-        {
-            get { return _meta ?? (_meta = CreateMeta(typeof(Keys))); }
-        }
+        internal static DictionaryMeta Meta => _meta ?? (_meta = CreateMeta(typeof(Keys)));
 
         static DictionaryMeta _meta;
     }
@@ -211,8 +208,5 @@ public sealed class PdfTextField : PdfAcroField
     /// <summary>
     /// Gets the KeysMeta of this dictionary type.
     /// </summary>
-    internal override DictionaryMeta Meta
-    {
-        get { return Keys.Meta; }
-    }
+    internal override DictionaryMeta Meta => Keys.Meta;
 }

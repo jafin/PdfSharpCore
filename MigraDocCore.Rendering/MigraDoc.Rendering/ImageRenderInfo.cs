@@ -28,22 +28,21 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Represents rendering information for images.
+/// </summary>
+internal class ImageRenderInfo : ShapeRenderInfo
 {
-  /// <summary>
-  /// Represents rendering information for images.
-  /// </summary>
-  internal class ImageRenderInfo : ShapeRenderInfo
+  internal override FormatInfo FormatInfo
   {
-    internal override FormatInfo FormatInfo
+    get
     {
-      get
-      {
-        if (formatInfo == null)
-          formatInfo = new ImageFormatInfo();
-        return formatInfo;
-      }
+      if (formatInfo == null)
+        formatInfo = new ImageFormatInfo();
+      return formatInfo;
     }
-    ImageFormatInfo formatInfo;
   }
+  ImageFormatInfo formatInfo;
 }

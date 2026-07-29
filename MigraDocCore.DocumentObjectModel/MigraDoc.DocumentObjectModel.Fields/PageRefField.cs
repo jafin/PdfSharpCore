@@ -35,86 +35,85 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// PageRefField is used to reference the page number of a bookmark in the document.
+/// </summary>
+public class PageRefField : NumericFieldBase
 {
   /// <summary>
-  /// PageRefField is used to reference the page number of a bookmark in the document.
-  /// </summary>
-  public class PageRefField : NumericFieldBase
+  /// Initializes a new instance of the PageRefField class.
+  /// </summary>    
+  internal PageRefField()
   {
-    /// <summary>
-    /// Initializes a new instance of the PageRefField class.
-    /// </summary>    
-    internal PageRefField()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the PageRefField class with the necessary bookmark name.
-    /// </summary>
-    public PageRefField(string name)
-      : this()
-    {
-      this.Name = name;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the PageRefField class with the specified parent.
-    /// </summary>
-    internal PageRefField(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new PageRefField Clone()
-    {
-      return (PageRefField)DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the bookmark name whose page is to be shown.
-    /// </summary>
-    public string Name
-    {
-      get { return this.name.Value; }
-      set { this.name.Value = value; }
-    }
-    [DV]
-    internal NString name = NString.NullValue;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts PageRefField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string str = "\\field(PageRef)";
-      str += "[Name = \"" + this.Name + "\"";
-
-      if (this.format.Value != "")
-        str += " Format = \"" + this.Format + "\"";
-      str += "]";
-
-      serializer.Write(str);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(PageRefField));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the PageRefField class with the necessary bookmark name.
+  /// </summary>
+  public PageRefField(string name)
+    : this()
+  {
+    this.Name = name;
+  }
+
+  /// <summary>
+  /// Initializes a new instance of the PageRefField class with the specified parent.
+  /// </summary>
+  internal PageRefField(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new PageRefField Clone()
+  {
+    return (PageRefField)DeepCopy();
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the bookmark name whose page is to be shown.
+  /// </summary>
+  public string Name
+  {
+    get => this.name.Value;
+    set => this.name.Value = value;
+  }
+  [DV]
+  internal NString name = NString.NullValue;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts PageRefField into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    string str = "\\field(PageRef)";
+    str += "[Name = \"" + this.Name + "\"";
+
+    if (this.format.Value != "")
+      str += " Format = \"" + this.Format + "\"";
+    str += "]";
+
+    serializer.Write(str);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(PageRefField));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

@@ -27,28 +27,27 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore
+namespace PdfSharpCore;
+
+/// <summary>
+/// Base namespace of PdfSharpCore. Most classes are implemented in nested namespaces like e. g. PdfSharpCore.Pdf.
+/// </summary>
+/// <seealso cref="PdfSharpCore.Pdf"></seealso>
+[System.Runtime.CompilerServices.CompilerGenerated]
+internal class NamespaceDoc { }
+
+/// <summary>
+/// Specifies the orientation of a page.
+/// </summary>
+public enum PageOrientation
 {
     /// <summary>
-    /// Base namespace of PdfSharpCore. Most classes are implemented in nested namespaces like e. g. PdfSharpCore.Pdf.
+    /// The default page orientation.
     /// </summary>
-    /// <seealso cref="PdfSharpCore.Pdf"></seealso>
-    [System.Runtime.CompilerServices.CompilerGenerated]
-    internal class NamespaceDoc { }
+    Portrait,
 
     /// <summary>
-    /// Specifies the orientation of a page.
+    /// The width and height of the page are reversed.
     /// </summary>
-    public enum PageOrientation
-    {
-        /// <summary>
-        /// The default page orientation.
-        /// </summary>
-        Portrait,
-
-        /// <summary>
-        /// The width and height of the page are reversed.
-        /// </summary>
-        Landscape,
-    }
+    Landscape,
 }

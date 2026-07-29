@@ -32,20 +32,19 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the page orientation.
+/// </summary>
+public enum Orientation
 {
   /// <summary>
-  /// Specifies the page orientation.
+  /// Page height is bigger than page width.
   /// </summary>
-  public enum Orientation
-  {
-    /// <summary>
-    /// Page height is bigger than page width.
-    /// </summary>
-    Portrait,
-    /// <summary>
-    /// Page width is bigger than page height.
-    /// </summary>
-    Landscape
-  }
+  Portrait,
+  /// <summary>
+  /// Page width is bigger than page height.
+  /// </summary>
+  Landscape
 }

@@ -32,41 +32,40 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Used to determine the leader for the tab.
+/// </summary>
+public enum TabLeader
 {
   /// <summary>
-  /// Used to determine the leader for the tab.
+  /// Blanks are used as leader.
   /// </summary>
-  public enum TabLeader
-  {
-    /// <summary>
-    /// Blanks are used as leader.
-    /// </summary>
-    Spaces,
+  Spaces,
 
-    /// <summary>
-    /// Dots at the baseline.
-    /// </summary>
-    Dots,
+  /// <summary>
+  /// Dots at the baseline.
+  /// </summary>
+  Dots,
     
-    /// <summary>
-    /// Dashes are used as leader.
-    /// </summary>
-    Dashes,
+  /// <summary>
+  /// Dashes are used as leader.
+  /// </summary>
+  Dashes,
     
-    /// <summary>
-    /// Same as Heavy.
-    /// </summary>
-    Lines,
+  /// <summary>
+  /// Same as Heavy.
+  /// </summary>
+  Lines,
     
-    /// <summary>
-    /// Leader will be underlined.
-    /// </summary>
-    Heavy,
+  /// <summary>
+  /// Leader will be underlined.
+  /// </summary>
+  Heavy,
     
-    /// <summary>
-    /// Dots in the middle (vertical) of the line.
-    /// </summary>
-    MiddleDot
-  }
+  /// <summary>
+  /// Dots in the middle (vertical) of the line.
+  /// </summary>
+  MiddleDot
 }

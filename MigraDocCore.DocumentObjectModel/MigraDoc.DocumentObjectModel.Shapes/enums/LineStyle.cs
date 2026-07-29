@@ -32,16 +32,15 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes
+namespace MigraDocCore.DocumentObjectModel.Shapes;
+
+/// <summary>
+/// Specifies the line style of the LineFormat object.
+/// </summary>
+public enum LineStyle
 {
   /// <summary>
-  /// Specifies the line style of the LineFormat object.
+  /// A solid line.
   /// </summary>
-  public enum LineStyle
-  {
-    /// <summary>
-    /// A solid line.
-    /// </summary>
-    Single
-  }
+  Single
 }

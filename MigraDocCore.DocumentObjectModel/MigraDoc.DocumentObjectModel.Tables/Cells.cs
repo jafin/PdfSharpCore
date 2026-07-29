@@ -35,118 +35,117 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Tables
+namespace MigraDocCore.DocumentObjectModel.Tables;
+
+/// <summary>
+/// Represents the collection of all cells of a row.
+/// </summary>
+public class Cells : DocumentObjectCollection
 {
   /// <summary>
-  /// Represents the collection of all cells of a row.
+  /// Initializes a new instance of the Cells class.
   /// </summary>
-  public class Cells : DocumentObjectCollection
+  public Cells()
   {
-    /// <summary>
-    /// Initializes a new instance of the Cells class.
-    /// </summary>
-    public Cells()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Cells class with the specified parent.
-    /// </summary>
-    internal Cells(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Cells Clone()
-    {
-      return (Cells)base.DeepCopy();
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the table the cells collection belongs to.
-    /// </summary>
-    public Table Table
-    {
-      get
-      {
-        if (this.table == null)
-        {
-          Row rw = this.Parent as Row;
-          if (rw != null)
-            this.table = rw.Table;
-        }
-        return this.table;
-      }
-    }
-    Table table;
-
-    /// <summary>
-    /// Gets the row the cells collection belongs to.
-    /// </summary>
-    public Row Row
-    {
-      get
-      {
-        if (this.row == null)
-          this.row = this.Parent as Row;
-
-        return this.row;
-      }
-    }
-    Row row;
-
-    /// <summary>
-    /// Gets a cell by its index. The first cell has the index 0.
-    /// </summary>
-    public new Cell this[int index]
-    {
-      get
-      {
-        if (index < 0 || (this.Table != null && index >= this.Table.Columns.Count))
-          throw new ArgumentOutOfRangeException("index");
-
-        Resize(index);
-        return base[index] as Cell;
-      }
-    }
-    #endregion
-
-    /// <summary>
-    /// Resizes this cells' list if necessary.
-    /// </summary>
-    private void Resize(int index)
-    {
-      for (int currentIndex = this.Count; currentIndex <= index; currentIndex++)
-        Add(new Cell());
-    }
-
-    #region Internal
-    /// <summary>
-    /// Converts Cells into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      int cells = Count;
-      for (int cell = 0; cell < cells; cell++)
-        this[cell].Serialize(serializer);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Cells));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Cells class with the specified parent.
+  /// </summary>
+  internal Cells(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Cells Clone()
+  {
+    return (Cells)base.DeepCopy();
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets the table the cells collection belongs to.
+  /// </summary>
+  public Table Table
+  {
+    get
+    {
+      if (this.table == null)
+      {
+        Row rw = this.Parent as Row;
+        if (rw != null)
+          this.table = rw.Table;
+      }
+      return this.table;
+    }
+  }
+  Table table;
+
+  /// <summary>
+  /// Gets the row the cells collection belongs to.
+  /// </summary>
+  public Row Row
+  {
+    get
+    {
+      if (this.row == null)
+        this.row = this.Parent as Row;
+
+      return this.row;
+    }
+  }
+  Row row;
+
+  /// <summary>
+  /// Gets a cell by its index. The first cell has the index 0.
+  /// </summary>
+  public new Cell this[int index]
+  {
+    get
+    {
+      if (index < 0 || (this.Table != null && index >= this.Table.Columns.Count))
+        throw new ArgumentOutOfRangeException("index");
+
+      Resize(index);
+      return base[index] as Cell;
+    }
+  }
+  #endregion
+
+  /// <summary>
+  /// Resizes this cells' list if necessary.
+  /// </summary>
+  private void Resize(int index)
+  {
+    for (int currentIndex = this.Count; currentIndex <= index; currentIndex++)
+      Add(new Cell());
+  }
+
+  #region Internal
+  /// <summary>
+  /// Converts Cells into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    int cells = Count;
+    for (int cell = 0; cell < cells; cell++)
+      this[cell].Serialize(serializer);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(Cells));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

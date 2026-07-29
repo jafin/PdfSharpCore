@@ -31,100 +31,99 @@ using System;
 using System.ComponentModel;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Represents a legend of a chart.
+/// </summary>
+public class Legend : ChartObject
 {
   /// <summary>
-  /// Represents a legend of a chart.
+  /// Initializes a new instance of the Legend class.
   /// </summary>
-  public class Legend : ChartObject
+  public Legend()
   {
-    /// <summary>
-    /// Initializes a new instance of the Legend class.
-    /// </summary>
-    public Legend()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Legend class with the specified parent.
-    /// </summary>
-    internal Legend(DocumentObject parent) : base(parent) {}
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Legend Clone()
-    {
-      return (Legend)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Legend legend = (Legend)base.DeepCopy();
-      if (legend.lineFormat != null)
-      {
-        legend.lineFormat = legend.lineFormat.Clone();
-        legend.lineFormat.parent = legend;
-      }
-      if (legend.font != null)
-      {
-        legend.font = legend.font.Clone();
-        legend.font.parent = legend;
-      }
-      return legend;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the line format of the legend's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-    }
-    internal LineFormat lineFormat;
-
-    /// <summary>
-    /// Gets the font of the legend.
-    /// </summary>
-    public Font Font
-    {
-      get
-      {
-        if (this.font == null)
-          this.font = new Font(this);
-
-        return this.font;
-      }
-    }
-    internal Font font;
-
-    /// <summary>
-    /// Gets or sets the docking type.
-    /// </summary>
-    public DockingType Docking
-    {
-      get {return this.docking;}
-      set
-      {
-        if (!Enum.IsDefined(typeof(DockingType), value))
-          throw new InvalidEnumArgumentException("value", (int)value, typeof(DockingType));
-
-        this.docking = value;
-      }
-    }
-    internal DockingType docking;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Legend class with the specified parent.
+  /// </summary>
+  internal Legend(DocumentObject parent) : base(parent) {}
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Legend Clone()
+  {
+    return (Legend)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    Legend legend = (Legend)base.DeepCopy();
+    if (legend.lineFormat != null)
+    {
+      legend.lineFormat = legend.lineFormat.Clone();
+      legend.lineFormat.parent = legend;
+    }
+    if (legend.font != null)
+    {
+      legend.font = legend.font.Clone();
+      legend.font.parent = legend;
+    }
+    return legend;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets the line format of the legend's border.
+  /// </summary>
+  public LineFormat LineFormat
+  {
+    get
+    {
+      if (this.lineFormat == null)
+        this.lineFormat = new LineFormat(this);
+
+      return this.lineFormat;
+    }
+  }
+  internal LineFormat lineFormat;
+
+  /// <summary>
+  /// Gets the font of the legend.
+  /// </summary>
+  public Font Font
+  {
+    get
+    {
+      if (this.font == null)
+        this.font = new Font(this);
+
+      return this.font;
+    }
+  }
+  internal Font font;
+
+  /// <summary>
+  /// Gets or sets the docking type.
+  /// </summary>
+  public DockingType Docking
+  {
+    get => this.docking;
+    set
+    {
+      if (!Enum.IsDefined(typeof(DockingType), value))
+        throw new InvalidEnumArgumentException("value", (int)value, typeof(DockingType));
+
+      this.docking = value;
+    }
+  }
+  internal DockingType docking;
+  #endregion
 }

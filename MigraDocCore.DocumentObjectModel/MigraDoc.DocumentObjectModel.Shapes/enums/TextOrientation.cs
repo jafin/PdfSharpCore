@@ -32,36 +32,35 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes
+namespace MigraDocCore.DocumentObjectModel.Shapes;
+
+/// <summary>
+/// Specifies the orientation of the text in the TextFrame.
+/// </summary>
+public enum TextOrientation
 {
   /// <summary>
-  /// Specifies the orientation of the text in the TextFrame.
+  /// Horizontal orientation.
   /// </summary>
-  public enum TextOrientation
-  {
-    /// <summary>
-    /// Horizontal orientation.
-    /// </summary>
-    Horizontal,
-    /// <summary>
-    /// Horizontal orientation.
-    /// </summary>
-    HorizontalRotatedFarEast,
-    /// <summary>
-    /// Vertical orientation (upward).
-    /// </summary>
-    Upward,
-    /// <summary>
-    /// Vertical orientation (downward).
-    /// </summary>
-    Vertical,
-    /// <summary>
-    /// Vertical orientation (downward).
-    /// </summary>
-    VerticalFarEast,
-    /// <summary>
-    /// Vertical orientation (downward).
-    /// </summary>
-    Downward
-  }
+  Horizontal,
+  /// <summary>
+  /// Horizontal orientation.
+  /// </summary>
+  HorizontalRotatedFarEast,
+  /// <summary>
+  /// Vertical orientation (upward).
+  /// </summary>
+  Upward,
+  /// <summary>
+  /// Vertical orientation (downward).
+  /// </summary>
+  Vertical,
+  /// <summary>
+  /// Vertical orientation (downward).
+  /// </summary>
+  VerticalFarEast,
+  /// <summary>
+  /// Vertical orientation (downward).
+  /// </summary>
+  Downward
 }

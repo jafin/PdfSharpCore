@@ -36,343 +36,342 @@ using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Fields;
 using PdfSharpCore.Drawing;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Formats a series of document elements from top to bottom.
+/// </summary>
+internal class TopDownFormatter
 {
     /// <summary>
-    /// Formats a series of document elements from top to bottom.
+    /// Returns the max of the given Margins, if both are positive or 0, the sum otherwise.
     /// </summary>
-    internal class TopDownFormatter
+    /// <param name="prevBottomMargin">The bottom margin of the previous element.</param>
+    /// <param name="nextTopMargin">The top margin of the next element.</param>
+    /// <returns></returns>
+    private XUnit MarginMax(XUnit prevBottomMargin, XUnit nextTopMargin)
     {
-        /// <summary>
-        /// Returns the max of the given Margins, if both are positive or 0, the sum otherwise.
-        /// </summary>
-        /// <param name="prevBottomMargin">The bottom margin of the previous element.</param>
-        /// <param name="nextTopMargin">The top margin of the next element.</param>
-        /// <returns></returns>
-        private XUnit MarginMax(XUnit prevBottomMargin, XUnit nextTopMargin)
+        if (prevBottomMargin >= 0 && nextTopMargin >= 0)
+            return Math.Max(prevBottomMargin, nextTopMargin);
+        else
+            return prevBottomMargin + nextTopMargin;
+    }
+
+    internal TopDownFormatter(IAreaProvider areaProvider, DocumentRenderer documentRenderer,
+        DocumentElements elements)
+    {
+        this.documentRenderer = documentRenderer;
+        this.areaProvider = areaProvider;
+        this.elements = elements;
+    }
+
+    IAreaProvider areaProvider;
+
+    private DocumentElements elements;
+
+    /// <summary>
+    /// Formats the elements on the areas provided by the area provider.
+    /// </summary>
+    /// <param name="gfx">The graphics object to render on.</param>
+    /// <param name="topLevel">if set to <c>true</c> formats the object is on top level.</param>
+    public void FormatOnAreas(XGraphics gfx, bool topLevel)
+    {
+        this.gfx = gfx;
+        XUnit prevBottomMargin = 0;
+        RenderInfo prevRenderInfo = null;
+        FormatInfo prevFormatInfo = null;
+        var renderInfos = new ArrayList();
+        var ready = elements.Count == 0;
+        var isFirstOnPage = true;
+        var area = areaProvider.GetNextArea();
+        var maxHeight = area.Height;
+        if (ready)
         {
-            if (prevBottomMargin >= 0 && nextTopMargin >= 0)
-                return Math.Max(prevBottomMargin, nextTopMargin);
-            else
-                return prevBottomMargin + nextTopMargin;
+            areaProvider.StoreRenderInfos(renderInfos);
+            return;
         }
 
-        internal TopDownFormatter(IAreaProvider areaProvider, DocumentRenderer documentRenderer,
-            DocumentElements elements)
+        var idx = 0;
+        while (!ready && area != null)
         {
-            this.documentRenderer = documentRenderer;
-            this.areaProvider = areaProvider;
-            this.elements = elements;
-        }
+            var docObj = elements[idx];
+            var renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
+            if (renderer != null) // "Slightly hacked" for legends: see below
+                renderer.MaxElementHeight = maxHeight;
 
-        IAreaProvider areaProvider;
-
-        private DocumentElements elements;
-
-        /// <summary>
-        /// Formats the elements on the areas provided by the area provider.
-        /// </summary>
-        /// <param name="gfx">The graphics object to render on.</param>
-        /// <param name="topLevel">if set to <c>true</c> formats the object is on top level.</param>
-        public void FormatOnAreas(XGraphics gfx, bool topLevel)
-        {
-            this.gfx = gfx;
-            XUnit prevBottomMargin = 0;
-            RenderInfo prevRenderInfo = null;
-            FormatInfo prevFormatInfo = null;
-            var renderInfos = new ArrayList();
-            var ready = elements.Count == 0;
-            var isFirstOnPage = true;
-            var area = areaProvider.GetNextArea();
-            var maxHeight = area.Height;
-            if (ready)
+            if (topLevel && documentRenderer.HasPrepareDocumentProgress)
             {
-                areaProvider.StoreRenderInfos(renderInfos);
-                return;
+                documentRenderer.OnPrepareDocumentProgress(documentRenderer.ProgressCompleted + idx + 1,
+                    documentRenderer.ProgressMaximum);
             }
 
-            var idx = 0;
-            while (!ready && area != null)
+            // "Slightly hacked" for legends: they are rendered as part of the chart.
+            // So they are skipped here.
+            if (renderer == null)
             {
-                var docObj = elements[idx];
-                var renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
-                if (renderer != null) // "Slightly hacked" for legends: see below
+                // A bookmark draws nothing, so it has no renderer and would otherwise be skipped along
+                // with the legends -- silently, which is what made a bookmark put on a section rather
+                // than in a paragraph vanish without a word. Register it where it stands instead.
+                var bookmark = docObj as BookmarkField;
+                if (bookmark != null)
+                    areaProvider.AreaFieldInfos.AddBookmark(bookmark.Name, area.Y);
+
+                ready = idx == elements.Count - 1;
+                if (ready)
+                    areaProvider.StoreRenderInfos(renderInfos);
+                ++idx;
+                continue;
+            }
+
+            if (prevFormatInfo == null)
+            {
+                var initialLayoutInfo = renderer.InitialLayoutInfo;
+                var distance = prevBottomMargin;
+                if (initialLayoutInfo.VerticalReference == VerticalReference.PreviousElement &&
+                    initialLayoutInfo.Floating != Floating.None) //Added KlPo 12.07.07
+                    distance = MarginMax(initialLayoutInfo.MarginTop, distance);
+
+                area = area.Lower(distance);
+            }
+
+            renderer.Format(area, prevFormatInfo);
+            areaProvider.PositionHorizontally(renderer.RenderInfo.LayoutInfo);
+            var pagebreakBefore = areaProvider.IsAreaBreakBefore(renderer.RenderInfo.LayoutInfo) && !isFirstOnPage;
+            pagebreakBefore = pagebreakBefore || !isFirstOnPage && IsForcedAreaBreak(idx, renderer, area);
+
+            if (!pagebreakBefore && renderer.RenderInfo.FormatInfo.IsEnding)
+            {
+                if (PreviousRendererNeedsRemoveEnding(prevRenderInfo, renderer.RenderInfo))
+                {
+                    prevRenderInfo.RemoveEnding();
+                    renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
                     renderer.MaxElementHeight = maxHeight;
-
-                if (topLevel && documentRenderer.HasPrepareDocumentProgress)
-                {
-                    documentRenderer.OnPrepareDocumentProgress(documentRenderer.ProgressCompleted + idx + 1,
-                        documentRenderer.ProgressMaximum);
+                    renderer.Format(area, prevRenderInfo.FormatInfo);
                 }
-
-                // "Slightly hacked" for legends: they are rendered as part of the chart.
-                // So they are skipped here.
-                if (renderer == null)
+                else if (NeedsEndingOnNextArea(idx, renderer, area, isFirstOnPage))
                 {
-                    // A bookmark draws nothing, so it has no renderer and would otherwise be skipped along
-                    // with the legends -- silently, which is what made a bookmark put on a section rather
-                    // than in a paragraph vanish without a word. Register it where it stands instead.
-                    var bookmark = docObj as BookmarkField;
-                    if (bookmark != null)
-                        areaProvider.AreaFieldInfos.AddBookmark(bookmark.Name, area.Y);
-
-                    ready = idx == elements.Count - 1;
-                    if (ready)
-                        areaProvider.StoreRenderInfos(renderInfos);
-                    ++idx;
-                    continue;
-                }
-
-                if (prevFormatInfo == null)
-                {
-                    var initialLayoutInfo = renderer.InitialLayoutInfo;
-                    var distance = prevBottomMargin;
-                    if (initialLayoutInfo.VerticalReference == VerticalReference.PreviousElement &&
-                        initialLayoutInfo.Floating != Floating.None) //Added KlPo 12.07.07
-                        distance = MarginMax(initialLayoutInfo.MarginTop, distance);
-
-                    area = area.Lower(distance);
-                }
-
-                renderer.Format(area, prevFormatInfo);
-                areaProvider.PositionHorizontally(renderer.RenderInfo.LayoutInfo);
-                var pagebreakBefore = areaProvider.IsAreaBreakBefore(renderer.RenderInfo.LayoutInfo) && !isFirstOnPage;
-                pagebreakBefore = pagebreakBefore || !isFirstOnPage && IsForcedAreaBreak(idx, renderer, area);
-
-                if (!pagebreakBefore && renderer.RenderInfo.FormatInfo.IsEnding)
-                {
-                    if (PreviousRendererNeedsRemoveEnding(prevRenderInfo, renderer.RenderInfo))
-                    {
-                        prevRenderInfo.RemoveEnding();
-                        renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
-                        renderer.MaxElementHeight = maxHeight;
-                        renderer.Format(area, prevRenderInfo.FormatInfo);
-                    }
-                    else if (NeedsEndingOnNextArea(idx, renderer, area, isFirstOnPage))
-                    {
-                        renderer.RenderInfo.RemoveEnding();
-                        prevRenderInfo = FinishPage(renderer.RenderInfo, pagebreakBefore, ref renderInfos);
-                        if (prevRenderInfo != null)
-                            prevFormatInfo = prevRenderInfo.FormatInfo;
-                        else
-                        {
-                            prevFormatInfo = null;
-                            isFirstOnPage = true;
-                        }
-
-                        prevBottomMargin = 0;
-                        area = areaProvider.GetNextArea();
-                        maxHeight = area.Height;
-                    }
-                    else
-                    {
-                        renderInfos.Add(renderer.RenderInfo);
-                        isFirstOnPage = false;
-                        areaProvider.PositionVertically(renderer.RenderInfo.LayoutInfo);
-                        if (renderer.RenderInfo.LayoutInfo.VerticalReference == VerticalReference.PreviousElement
-                            && renderer.RenderInfo.LayoutInfo.Floating != Floating.None) //Added KlPo 12.07.07
-                        {
-                            prevBottomMargin = renderer.RenderInfo.LayoutInfo.MarginBottom;
-                            if (renderer.RenderInfo.LayoutInfo.Floating != Floating.None)
-                                area = area.Lower(renderer.RenderInfo.LayoutInfo.ContentArea.Height);
-                        }
-                        else
-                            prevBottomMargin = 0;
-
-                        prevFormatInfo = null;
-                        prevRenderInfo = null;
-
-                        ++idx;
-                    }
-                }
-                else
-                {
-                    if (renderer.RenderInfo.FormatInfo.IsEmpty && isFirstOnPage)
-                    {
-                        area = area.Unite(new Rectangle(area.X, area.Y, area.Width, double.MaxValue));
-
-                        renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
-                        renderer.MaxElementHeight = maxHeight;
-                        renderer.Format(area, prevFormatInfo);
-
-                        areaProvider.PositionHorizontally(renderer.RenderInfo.LayoutInfo);
-                        areaProvider.PositionVertically(renderer.RenderInfo.LayoutInfo);
-                        ready = idx == elements.Count - 1;
-
-                        ++idx;
-                    }
-
+                    renderer.RenderInfo.RemoveEnding();
                     prevRenderInfo = FinishPage(renderer.RenderInfo, pagebreakBefore, ref renderInfos);
                     if (prevRenderInfo != null)
                         prevFormatInfo = prevRenderInfo.FormatInfo;
                     else
                     {
                         prevFormatInfo = null;
+                        isFirstOnPage = true;
                     }
 
-                    isFirstOnPage = true;
                     prevBottomMargin = 0;
-                    if (!ready) //!!!newTHHO 19.01.2007: korrekt? oder GetNextArea immer ausf�hren???
-                    {
-                        area = areaProvider.GetNextArea();
-                        maxHeight = area.Height;
-                    }
+                    area = areaProvider.GetNextArea();
+                    maxHeight = area.Height;
                 }
-
-                if (idx == elements.Count && !ready)
+                else
                 {
-                    areaProvider.StoreRenderInfos(renderInfos);
-                    ready = true;
-                }
-            }
-        }
+                    renderInfos.Add(renderer.RenderInfo);
+                    isFirstOnPage = false;
+                    areaProvider.PositionVertically(renderer.RenderInfo.LayoutInfo);
+                    if (renderer.RenderInfo.LayoutInfo.VerticalReference == VerticalReference.PreviousElement
+                        && renderer.RenderInfo.LayoutInfo.Floating != Floating.None) //Added KlPo 12.07.07
+                    {
+                        prevBottomMargin = renderer.RenderInfo.LayoutInfo.MarginBottom;
+                        if (renderer.RenderInfo.LayoutInfo.Floating != Floating.None)
+                            area = area.Lower(renderer.RenderInfo.LayoutInfo.ContentArea.Height);
+                    }
+                    else
+                        prevBottomMargin = 0;
 
-        /// <summary>
-        /// Finishes rendering for the page.
-        /// </summary>
-        /// <param name="lastRenderInfo">The last render info.</param>
-        /// <param name="pagebreakBefore">set to <c>true</c> if there is a pagebreak before this page.</param>
-        /// <param name="renderInfos">The render infos.</param>
-        /// <returns>
-        /// The RenderInfo to set as previous RenderInfo.
-        /// </returns>
-        RenderInfo FinishPage(RenderInfo lastRenderInfo, bool pagebreakBefore, ref ArrayList renderInfos)
-        {
-            RenderInfo prevRenderInfo;
-            if (lastRenderInfo.FormatInfo.IsEmpty || pagebreakBefore)
-            {
-                prevRenderInfo = null;
+                    prevFormatInfo = null;
+                    prevRenderInfo = null;
+
+                    ++idx;
+                }
             }
             else
             {
-                prevRenderInfo = lastRenderInfo;
-                renderInfos.Add(lastRenderInfo);
-                if (lastRenderInfo.FormatInfo.IsEnding)
-                    prevRenderInfo = null;
+                if (renderer.RenderInfo.FormatInfo.IsEmpty && isFirstOnPage)
+                {
+                    area = area.Unite(new Rectangle(area.X, area.Y, area.Width, double.MaxValue));
+
+                    renderer = Renderer.Create(gfx, documentRenderer, docObj, areaProvider.AreaFieldInfos);
+                    renderer.MaxElementHeight = maxHeight;
+                    renderer.Format(area, prevFormatInfo);
+
+                    areaProvider.PositionHorizontally(renderer.RenderInfo.LayoutInfo);
+                    areaProvider.PositionVertically(renderer.RenderInfo.LayoutInfo);
+                    ready = idx == elements.Count - 1;
+
+                    ++idx;
+                }
+
+                prevRenderInfo = FinishPage(renderer.RenderInfo, pagebreakBefore, ref renderInfos);
+                if (prevRenderInfo != null)
+                    prevFormatInfo = prevRenderInfo.FormatInfo;
+                else
+                {
+                    prevFormatInfo = null;
+                }
+
+                isFirstOnPage = true;
+                prevBottomMargin = 0;
+                if (!ready) //!!!newTHHO 19.01.2007: korrekt? oder GetNextArea immer ausf�hren???
+                {
+                    area = areaProvider.GetNextArea();
+                    maxHeight = area.Height;
+                }
             }
 
-            areaProvider.StoreRenderInfos(renderInfos);
-            renderInfos = new ArrayList();
-            return prevRenderInfo;
-        }
-
-        /// <summary>
-        /// Indicates that a break between areas has to be performed before the element with the given idx.
-        /// </summary>
-        /// <param name="idx">Index of the document element.</param>
-        /// <param name="renderer">A formatted renderer for the document element.</param>
-        /// <param name="remainingArea">The remaining area.</param>
-        bool IsForcedAreaBreak(int idx, Renderer renderer, Area remainingArea)
-        {
-            var formatInfo = renderer.RenderInfo.FormatInfo;
-            var layoutInfo = renderer.RenderInfo.LayoutInfo;
-
-            if (formatInfo.IsStarting && !formatInfo.StartingIsComplete)
-                return true;
-
-            if (layoutInfo.KeepTogether && !formatInfo.IsComplete)
-                return true;
-
-            if (layoutInfo.KeepTogether && layoutInfo.KeepWithNext)
+            if (idx == elements.Count && !ready)
             {
-                var area = remainingArea.Lower(layoutInfo.ContentArea.Height);
-                return NextElementsDontFit(idx, area, layoutInfo.MarginBottom);
+                areaProvider.StoreRenderInfos(renderInfos);
+                ready = true;
             }
-
-            return false;
         }
-
-        /// <summary>
-        /// Indicates that the Ending of the element has to be removed.
-        /// </summary>
-        /// <param name="prevRenderInfo">The prev render info.</param>
-        /// <param name="succedingRenderInfo">The succeding render info.</param>
-        bool PreviousRendererNeedsRemoveEnding(RenderInfo prevRenderInfo, RenderInfo succedingRenderInfo)
-        {
-            if (prevRenderInfo == null)
-                return false;
-            var layoutInfo = succedingRenderInfo.LayoutInfo;
-            var formatInfo = succedingRenderInfo.FormatInfo;
-            var prevLayoutInfo = prevRenderInfo.LayoutInfo;
-            if (formatInfo.IsEnding && !formatInfo.EndingIsComplete)
-            {
-                var area = areaProvider.ProbeNextArea();
-                if (area.Height > prevLayoutInfo.TrailingHeight + layoutInfo.TrailingHeight + Renderer.Tolerance)
-                    return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// The maximum number of elements that can be combined via keepwithnext and keeptogether
-        /// </summary>
-        private static readonly int MaxCombineElements = 10;
-
-        bool NextElementsDontFit(int idx, Area remainingArea, XUnit previousMarginBottom)
-        {
-            var elementDistance = previousMarginBottom;
-            var area = remainingArea;
-            for (var index = idx + 1; index < elements.Count; ++index)
-            {
-                // Never combine more than MaxCombineElements elements
-                if (index - idx > MaxCombineElements)
-                    return false;
-
-                var obj = elements[index];
-                var currRenderer = Renderer.Create(gfx, documentRenderer, obj, areaProvider.AreaFieldInfos);
-                elementDistance = MarginMax(elementDistance, currRenderer.InitialLayoutInfo.MarginTop);
-                area = area.Lower(elementDistance);
-
-                if (area.Height <= 0)
-                    return true;
-
-                currRenderer.Format(area, null);
-                var currFormatInfo = currRenderer.RenderInfo.FormatInfo;
-                var currLayoutInfo = currRenderer.RenderInfo.LayoutInfo;
-
-                if (currLayoutInfo.VerticalReference != VerticalReference.PreviousElement)
-                    return false;
-
-                if (!currFormatInfo.StartingIsComplete)
-                    return true;
-
-                if (currLayoutInfo.KeepTogether && !currFormatInfo.IsComplete)
-                    return true;
-
-                if (!(currLayoutInfo.KeepTogether && currLayoutInfo.KeepWithNext))
-                    return false;
-
-                area = area.Lower(currLayoutInfo.ContentArea.Height);
-                if (area.Height <= 0)
-                    return true;
-
-                elementDistance = currLayoutInfo.MarginBottom;
-            }
-
-            return false;
-        }
-
-        bool NeedsEndingOnNextArea(int idx, Renderer renderer, Area remainingArea, bool isFirstOnPage)
-        {
-            var layoutInfo = renderer.RenderInfo.LayoutInfo;
-            if (isFirstOnPage && layoutInfo.KeepTogether)
-                return false;
-            var formatInfo = renderer.RenderInfo.FormatInfo;
-
-            if (!formatInfo.EndingIsComplete)
-                return false;
-
-            if (layoutInfo.KeepWithNext)
-            {
-                remainingArea = remainingArea.Lower(layoutInfo.ContentArea.Height);
-                return NextElementsDontFit(idx, remainingArea, layoutInfo.MarginBottom);
-            }
-
-            return false;
-        }
-
-        DocumentRenderer documentRenderer;
-        XGraphics gfx;
     }
+
+    /// <summary>
+    /// Finishes rendering for the page.
+    /// </summary>
+    /// <param name="lastRenderInfo">The last render info.</param>
+    /// <param name="pagebreakBefore">set to <c>true</c> if there is a pagebreak before this page.</param>
+    /// <param name="renderInfos">The render infos.</param>
+    /// <returns>
+    /// The RenderInfo to set as previous RenderInfo.
+    /// </returns>
+    RenderInfo FinishPage(RenderInfo lastRenderInfo, bool pagebreakBefore, ref ArrayList renderInfos)
+    {
+        RenderInfo prevRenderInfo;
+        if (lastRenderInfo.FormatInfo.IsEmpty || pagebreakBefore)
+        {
+            prevRenderInfo = null;
+        }
+        else
+        {
+            prevRenderInfo = lastRenderInfo;
+            renderInfos.Add(lastRenderInfo);
+            if (lastRenderInfo.FormatInfo.IsEnding)
+                prevRenderInfo = null;
+        }
+
+        areaProvider.StoreRenderInfos(renderInfos);
+        renderInfos = new ArrayList();
+        return prevRenderInfo;
+    }
+
+    /// <summary>
+    /// Indicates that a break between areas has to be performed before the element with the given idx.
+    /// </summary>
+    /// <param name="idx">Index of the document element.</param>
+    /// <param name="renderer">A formatted renderer for the document element.</param>
+    /// <param name="remainingArea">The remaining area.</param>
+    bool IsForcedAreaBreak(int idx, Renderer renderer, Area remainingArea)
+    {
+        var formatInfo = renderer.RenderInfo.FormatInfo;
+        var layoutInfo = renderer.RenderInfo.LayoutInfo;
+
+        if (formatInfo.IsStarting && !formatInfo.StartingIsComplete)
+            return true;
+
+        if (layoutInfo.KeepTogether && !formatInfo.IsComplete)
+            return true;
+
+        if (layoutInfo.KeepTogether && layoutInfo.KeepWithNext)
+        {
+            var area = remainingArea.Lower(layoutInfo.ContentArea.Height);
+            return NextElementsDontFit(idx, area, layoutInfo.MarginBottom);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Indicates that the Ending of the element has to be removed.
+    /// </summary>
+    /// <param name="prevRenderInfo">The prev render info.</param>
+    /// <param name="succedingRenderInfo">The succeding render info.</param>
+    bool PreviousRendererNeedsRemoveEnding(RenderInfo prevRenderInfo, RenderInfo succedingRenderInfo)
+    {
+        if (prevRenderInfo == null)
+            return false;
+        var layoutInfo = succedingRenderInfo.LayoutInfo;
+        var formatInfo = succedingRenderInfo.FormatInfo;
+        var prevLayoutInfo = prevRenderInfo.LayoutInfo;
+        if (formatInfo.IsEnding && !formatInfo.EndingIsComplete)
+        {
+            var area = areaProvider.ProbeNextArea();
+            if (area.Height > prevLayoutInfo.TrailingHeight + layoutInfo.TrailingHeight + Renderer.Tolerance)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The maximum number of elements that can be combined via keepwithnext and keeptogether
+    /// </summary>
+    private static readonly int MaxCombineElements = 10;
+
+    bool NextElementsDontFit(int idx, Area remainingArea, XUnit previousMarginBottom)
+    {
+        var elementDistance = previousMarginBottom;
+        var area = remainingArea;
+        for (var index = idx + 1; index < elements.Count; ++index)
+        {
+            // Never combine more than MaxCombineElements elements
+            if (index - idx > MaxCombineElements)
+                return false;
+
+            var obj = elements[index];
+            var currRenderer = Renderer.Create(gfx, documentRenderer, obj, areaProvider.AreaFieldInfos);
+            elementDistance = MarginMax(elementDistance, currRenderer.InitialLayoutInfo.MarginTop);
+            area = area.Lower(elementDistance);
+
+            if (area.Height <= 0)
+                return true;
+
+            currRenderer.Format(area, null);
+            var currFormatInfo = currRenderer.RenderInfo.FormatInfo;
+            var currLayoutInfo = currRenderer.RenderInfo.LayoutInfo;
+
+            if (currLayoutInfo.VerticalReference != VerticalReference.PreviousElement)
+                return false;
+
+            if (!currFormatInfo.StartingIsComplete)
+                return true;
+
+            if (currLayoutInfo.KeepTogether && !currFormatInfo.IsComplete)
+                return true;
+
+            if (!(currLayoutInfo.KeepTogether && currLayoutInfo.KeepWithNext))
+                return false;
+
+            area = area.Lower(currLayoutInfo.ContentArea.Height);
+            if (area.Height <= 0)
+                return true;
+
+            elementDistance = currLayoutInfo.MarginBottom;
+        }
+
+        return false;
+    }
+
+    bool NeedsEndingOnNextArea(int idx, Renderer renderer, Area remainingArea, bool isFirstOnPage)
+    {
+        var layoutInfo = renderer.RenderInfo.LayoutInfo;
+        if (isFirstOnPage && layoutInfo.KeepTogether)
+            return false;
+        var formatInfo = renderer.RenderInfo.FormatInfo;
+
+        if (!formatInfo.EndingIsComplete)
+            return false;
+
+        if (layoutInfo.KeepWithNext)
+        {
+            remainingArea = remainingArea.Lower(layoutInfo.ContentArea.Height);
+            return NextElementsDontFit(idx, remainingArea, layoutInfo.MarginBottom);
+        }
+
+        return false;
+    }
+
+    DocumentRenderer documentRenderer;
+    XGraphics gfx;
 }

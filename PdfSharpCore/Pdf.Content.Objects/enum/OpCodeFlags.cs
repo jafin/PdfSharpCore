@@ -29,23 +29,22 @@
 
 using System;
 
-namespace PdfSharpCore.Pdf.Content.Objects
+namespace PdfSharpCore.Pdf.Content.Objects;
+
+/// <summary>
+/// Specifies the group of operations the op-code belongs to.
+/// </summary>
+[Flags]
+public enum OpCodeFlags
 {
     /// <summary>
-    /// Specifies the group of operations the op-code belongs to.
+    /// 
     /// </summary>
-    [Flags]
-    public enum OpCodeFlags
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        None,
+    None,
 
-        /// <summary>
-        /// 
-        /// </summary>
-        TextOut = 0x0001,
-        //Color, Pattern, Images,...
-    }
+    /// <summary>
+    /// 
+    /// </summary>
+    TextOut = 0x0001,
+    //Color, Pattern, Images,...
 }

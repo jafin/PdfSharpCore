@@ -32,26 +32,25 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Determines how null values will be handled in a chart.
+/// </summary>
+public enum BlankType
 {
   /// <summary>
-  /// Determines how null values will be handled in a chart.
+  /// Null value is not plotted.
   /// </summary>
-  public enum BlankType
-  {
-    /// <summary>
-    /// Null value is not plotted.
-    /// </summary>
-    NotPlotted,
+  NotPlotted,
 
-    /// <summary>
-    /// Null value will be interpolated.
-    /// </summary>
-    Interpolated,
+  /// <summary>
+  /// Null value will be interpolated.
+  /// </summary>
+  Interpolated,
 
-    /// <summary>
-    /// Null value will be handled as zero.
-    /// </summary>
-    Zero
-  }
+  /// <summary>
+  /// Null value will be handled as zero.
+  /// </summary>
+  Zero
 }

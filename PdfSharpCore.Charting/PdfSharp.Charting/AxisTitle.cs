@@ -30,104 +30,103 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Represents the title of an axis.
+/// </summary>
+public class AxisTitle : ChartObject
 {
   /// <summary>
-  /// Represents the title of an axis.
+  /// Initializes a new instance of the AxisTitle class.
   /// </summary>
-  public class AxisTitle : ChartObject
+  public AxisTitle()
   {
-    /// <summary>
-    /// Initializes a new instance of the AxisTitle class.
-    /// </summary>
-    public AxisTitle()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the AxisTitle class with the specified parent.
-    /// </summary>
-    internal AxisTitle(DocumentObject parent) : base(parent) {}
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new AxisTitle Clone()
-    {
-      return (AxisTitle)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      AxisTitle axisTitle = (AxisTitle)base.DeepCopy();
-      if (axisTitle.font != null)
-      {
-        axisTitle.font = axisTitle.font.Clone();
-        axisTitle.font.parent = axisTitle;
-      }
-      return axisTitle;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the caption of the title.
-    /// </summary>
-    public string Caption
-    {
-      get {return this.caption;}
-      set {this.caption = value;}
-    }
-    internal string caption = String.Empty;
-
-    /// <summary>
-    /// Gets the font of the title.
-    /// </summary>
-    public Font Font
-    {
-      get
-      {
-        if (this.font == null)
-          this.font = new Font(this);
-
-        return this.font;
-      }
-    }
-    internal Font font;
-
-    /// <summary>
-    /// Gets or sets the orientation of the caption.
-    /// </summary>
-    public double Orientation
-    {
-      get {return this.orientation;}
-      set {this.orientation = value;}
-    }
-    internal double orientation;
-
-    /// <summary>
-    /// Gets or sets the horizontal alignment of the caption.
-    /// </summary>
-    public HorizontalAlignment Alignment
-    {
-      get {return this.alignment;}
-      set {this.alignment = value;}
-    }
-    internal HorizontalAlignment alignment;
-
-    /// <summary>
-    /// Gets or sets the vertical alignment of the caption.
-    /// </summary>
-    public VerticalAlignment VerticalAlignment
-    {
-      get {return this.verticalAlignment;}
-      set {this.verticalAlignment = value;}
-    }
-    internal VerticalAlignment verticalAlignment;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the AxisTitle class with the specified parent.
+  /// </summary>
+  internal AxisTitle(DocumentObject parent) : base(parent) {}
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new AxisTitle Clone()
+  {
+    return (AxisTitle)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    AxisTitle axisTitle = (AxisTitle)base.DeepCopy();
+    if (axisTitle.font != null)
+    {
+      axisTitle.font = axisTitle.font.Clone();
+      axisTitle.font.parent = axisTitle;
+    }
+    return axisTitle;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets or sets the caption of the title.
+  /// </summary>
+  public string Caption
+  {
+    get => this.caption;
+    set => this.caption = value;
+  }
+  internal string caption = String.Empty;
+
+  /// <summary>
+  /// Gets the font of the title.
+  /// </summary>
+  public Font Font
+  {
+    get
+    {
+      if (this.font == null)
+        this.font = new Font(this);
+
+      return this.font;
+    }
+  }
+  internal Font font;
+
+  /// <summary>
+  /// Gets or sets the orientation of the caption.
+  /// </summary>
+  public double Orientation
+  {
+    get => this.orientation;
+    set => this.orientation = value;
+  }
+  internal double orientation;
+
+  /// <summary>
+  /// Gets or sets the horizontal alignment of the caption.
+  /// </summary>
+  public HorizontalAlignment Alignment
+  {
+    get => this.alignment;
+    set => this.alignment = value;
+  }
+  internal HorizontalAlignment alignment;
+
+  /// <summary>
+  /// Gets or sets the vertical alignment of the caption.
+  /// </summary>
+  public VerticalAlignment VerticalAlignment
+  {
+    get => this.verticalAlignment;
+    set => this.verticalAlignment = value;
+  }
+  internal VerticalAlignment verticalAlignment;
+  #endregion
 }

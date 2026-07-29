@@ -32,31 +32,30 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Determines where the data label will be positioned.
+/// </summary>
+public enum DataLabelPosition
 {
   /// <summary>
-  /// Determines where the data label will be positioned.
+  /// DataLabel will be centered inside the bar or pie.
   /// </summary>
-  public enum DataLabelPosition
-  {
-    /// <summary>
-    /// DataLabel will be centered inside the bar or pie.
-    /// </summary>
-    Center,
+  Center,
 
-    /// <summary>
-    /// Inside the bar or pie at the origin.
-    /// </summary>
-    InsideBase,
+  /// <summary>
+  /// Inside the bar or pie at the origin.
+  /// </summary>
+  InsideBase,
 
-    /// <summary>
-    /// Inside the bar or pie at the edge.
-    /// </summary>
-    InsideEnd,
+  /// <summary>
+  /// Inside the bar or pie at the edge.
+  /// </summary>
+  InsideEnd,
 
-    /// <summary>
-    /// Outside the bar or pie.
-    /// </summary>
-    OutsideEnd
-  }
+  /// <summary>
+  /// Outside the bar or pie.
+  /// </summary>
+  OutsideEnd
 }

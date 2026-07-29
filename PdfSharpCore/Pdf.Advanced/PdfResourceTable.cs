@@ -29,30 +29,27 @@
 
 using System;
 
-namespace PdfSharpCore.Pdf.Advanced
+namespace PdfSharpCore.Pdf.Advanced;
+
+/// <summary>
+/// Base class for FontTable, ImageTable, FormXObjectTable etc.
+/// </summary>
+public class PdfResourceTable
 {
     /// <summary>
-    /// Base class for FontTable, ImageTable, FormXObjectTable etc.
+    /// Base class for document wide resource tables.
     /// </summary>
-    public class PdfResourceTable
+    public PdfResourceTable(PdfDocument owner)
     {
-        /// <summary>
-        /// Base class for document wide resource tables.
-        /// </summary>
-        public PdfResourceTable(PdfDocument owner)
-        {
-            if (owner == null)
-                throw new ArgumentNullException("owner");
-            _owner = owner;
-        }
-
-        /// <summary>
-        /// Gets the owning document of this resource table.
-        /// </summary>
-        protected PdfDocument Owner
-        {
-            get { return _owner; }
-        }
-        readonly PdfDocument _owner;
+        if (owner == null)
+            throw new ArgumentNullException(nameof(owner));
+        _owner = owner;
     }
+
+    /// <summary>
+    /// Gets the owning document of this resource table.
+    /// </summary>
+    protected PdfDocument Owner => _owner;
+
+    readonly PdfDocument _owner;
 }

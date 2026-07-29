@@ -34,86 +34,85 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Helps measuring and handling fonts.
+/// </summary>
+internal class FontHandler
 {
+#if DEBUG
+  internal static int CreateFontCounter;
+#endif
+
   /// <summary>
-  /// Helps measuring and handling fonts.
+  /// Converts an DOM Font to an XFont.
   /// </summary>
-  internal class FontHandler
+  internal static XFont FontToXFont(Font font, XPrivateFontCollection pfc, 
+    PdfFontEncoding encoding)
   {
+    XFont xFont = null;
+
+    // #PFC
+    XPdfFontOptions options = null;
+    options = new XPdfFontOptions(encoding);
+    XFontStyle style = GetXStyle(font);
+
+    if (xFont == null)
+      xFont = new XFont(font.Name, font.Size, style, options);
 #if DEBUG
-    internal static int CreateFontCounter;
+    CreateFontCounter++;
 #endif
+    return xFont;
+  }
 
-    /// <summary>
-    /// Converts an DOM Font to an XFont.
-    /// </summary>
-    internal static XFont FontToXFont(Font font, XPrivateFontCollection pfc, 
-      PdfFontEncoding encoding)
+  internal static XFontStyle GetXStyle(Font font)
+  {
+    XFontStyle style = XFontStyle.Regular;
+    if (font.Bold)
     {
-      XFont xFont = null;
-
-      // #PFC
-      XPdfFontOptions options = null;
-      options = new XPdfFontOptions(encoding);
-      XFontStyle style = GetXStyle(font);
-
-      if (xFont == null)
-        xFont = new XFont(font.Name, font.Size, style, options);
-#if DEBUG
-      CreateFontCounter++;
-#endif
-      return xFont;
+      if (font.Italic)
+        style = XFontStyle.BoldItalic;
+      else
+        style = XFontStyle.Bold;
     }
+    else if (font.Italic)
+      style = XFontStyle.Italic;
 
-    internal static XFontStyle GetXStyle(Font font)
-    {
-      XFontStyle style = XFontStyle.Regular;
-      if (font.Bold)
-      {
-        if (font.Italic)
-          style = XFontStyle.BoldItalic;
-        else
-          style = XFontStyle.Bold;
-      }
-      else if (font.Italic)
-        style = XFontStyle.Italic;
+    return style;
+  }
 
-      return style;
-    }
+  internal static XUnit GetDescent(XFont font)
+  {
+    XUnit descent = font.Metrics.Descent;
+    descent *= font.Size;
+    descent /= font.FontFamily.GetEmHeight(font.Style);
+    return descent;
+  }
 
-    internal static XUnit GetDescent(XFont font)
-    {
-      XUnit descent = font.Metrics.Descent;
-      descent *= font.Size;
-      descent /= font.FontFamily.GetEmHeight(font.Style);
-      return descent;
-    }
+  internal static XUnit GetAscent(XFont font)
+  {
+    XUnit ascent = font.Metrics.Ascent;
+    ascent *= font.Size;
+    ascent /= font.FontFamily.GetEmHeight(font.Style);
+    return ascent;
+  }
 
-    internal static XUnit GetAscent(XFont font)
-    {
-      XUnit ascent = font.Metrics.Ascent;
-      ascent *= font.Size;
-      ascent /= font.FontFamily.GetEmHeight(font.Style);
-      return ascent;
-    }
+  internal static double GetSubSuperScaling(XFont font)
+  {
+    return 0.8 * GetAscent(font) / font.GetHeight();
+  }
 
-    internal static double GetSubSuperScaling(XFont font)
-    {
-      return 0.8 * GetAscent(font) / font.GetHeight();
-    }
+  internal static XFont ToSubSuperFont(XFont font)
+  {
+    double size = font.Size * GetSubSuperScaling(font);
 
-    internal static XFont ToSubSuperFont(XFont font)
-    {
-      double size = font.Size * GetSubSuperScaling(font);
+    // #PFC
+    return new XFont(font.Name, size, font.Style, font.PdfOptions);
+  }
 
-      // #PFC
-      return new XFont(font.Name, size, font.Style, font.PdfOptions);
-    }
-
-    internal static XBrush FontColorToXBrush(Font font)
-    {
-      return new XSolidBrush(ColorHelper.ToXColor(font.Color, font.Document.UseCmykColor));
-    }
+  internal static XBrush FontColorToXBrush(Font font)
+  {
+    return new XSolidBrush(ColorHelper.ToXColor(font.Color, font.Document.UseCmykColor));
   }
 }

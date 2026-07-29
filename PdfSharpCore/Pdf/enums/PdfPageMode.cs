@@ -29,41 +29,40 @@
 
 // ReSharper disable InconsistentNaming
 
-namespace PdfSharpCore.Pdf
+namespace PdfSharpCore.Pdf;
+
+/// <summary>
+/// Specifies how the document should be displayed by a viewer when opened.
+/// </summary>
+public enum PdfPageMode
 {
     /// <summary>
-    /// Specifies how the document should be displayed by a viewer when opened.
+    /// Neither document outline nor thumbnail images visible.
     /// </summary>
-    public enum PdfPageMode
-    {
-        /// <summary>
-        /// Neither document outline nor thumbnail images visible.
-        /// </summary>
-        UseNone,
+    UseNone,
 
-        /// <summary>
-        /// Document outline visible.
-        /// </summary>
-        UseOutlines,
+    /// <summary>
+    /// Document outline visible.
+    /// </summary>
+    UseOutlines,
 
-        /// <summary>
-        /// Thumbnail images visible.
-        /// </summary>
-        UseThumbs,
+    /// <summary>
+    /// Thumbnail images visible.
+    /// </summary>
+    UseThumbs,
 
-        /// <summary>
-        /// Full-screen mode, with no menu bar, windowcontrols, or any other window visible.
-        /// </summary>
-        FullScreen,
+    /// <summary>
+    /// Full-screen mode, with no menu bar, windowcontrols, or any other window visible.
+    /// </summary>
+    FullScreen,
 
-        /// <summary>
-        /// (PDF 1.5) Optional content group panel visible.
-        /// </summary>
-        UseOC,
+    /// <summary>
+    /// (PDF 1.5) Optional content group panel visible.
+    /// </summary>
+    UseOC,
 
-        /// <summary>
-        /// (PDF 1.6) Attachments panel visible.
-        /// </summary>
-        UseAttachments,
-    }
+    /// <summary>
+    /// (PDF 1.6) Attachments panel visible.
+    /// </summary>
+    UseAttachments,
 }

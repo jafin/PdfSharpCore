@@ -32,22 +32,21 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Symbols of a data point in a line chart.
+/// </summary>
+public enum MarkerStyle
 {
-  /// <summary>
-  /// Symbols of a data point in a line chart.
-  /// </summary>
-  public enum MarkerStyle
-  {
-    None,
-    Circle,
-    Dash,
-    Diamond,
-    Dot,
-    Plus,
-    Square,
-    Star,
-    Triangle,
-    X
-  }
+  None,
+  Circle,
+  Dash,
+  Diamond,
+  Dot,
+  Plus,
+  Square,
+  Star,
+  Triangle,
+  X
 }

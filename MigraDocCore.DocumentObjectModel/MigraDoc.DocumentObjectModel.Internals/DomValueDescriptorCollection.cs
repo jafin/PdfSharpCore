@@ -36,60 +36,50 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// A collection that manages ValueDescriptors.
+/// </summary>
+public class ValueDescriptorCollection : IEnumerable
 {
   /// <summary>
-  /// A collection that manages ValueDescriptors.
+  /// Gets the count of ValueDescriptors.
   /// </summary>
-  public class ValueDescriptorCollection : IEnumerable
+  public int Count => this.arrayList.Count;
+
+  /// <summary>
+  /// Adds the specified ValueDescriptor.
+  /// </summary>
+  public int Add(ValueDescriptor vd)
   {
-    /// <summary>
-    /// Gets the count of ValueDescriptors.
-    /// </summary>
-    public int Count
-    {
-      get { return this.arrayList.Count; }
-    }
-
-    /// <summary>
-    /// Adds the specified ValueDescriptor.
-    /// </summary>
-    public int Add(ValueDescriptor vd)
-    {
-      this.hashTable.Add(vd.ValueName, vd);
-      return this.arrayList.Add(vd);
-    }
-
-    /// <summary>
-    /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> at the specified index.
-    /// </summary>
-    /// <value></value>
-    public ValueDescriptor this[int index]
-    {
-      get { return this.arrayList[index] as ValueDescriptor; }
-    }
-
-    /// <summary>
-    /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> with the specified name.
-    /// </summary>
-    /// <value></value>
-    public ValueDescriptor this[string name]
-    {
-      get { return this.hashTable[name] as ValueDescriptor; }
-    }
-
-    /// <summary>
-    /// Returns an enumerator that iterates through a collection.
-    /// </summary>
-    /// <returns>
-    /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
-    /// </returns>
-    public IEnumerator GetEnumerator()
-    {
-      return this.arrayList.GetEnumerator();
-    }
-
-    ArrayList arrayList = new ArrayList();
-    Hashtable hashTable = new Hashtable(StringComparer.InvariantCultureIgnoreCase);
+    this.hashTable.Add(vd.ValueName, vd);
+    return this.arrayList.Add(vd);
   }
+
+  /// <summary>
+  /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> at the specified index.
+  /// </summary>
+  /// <value></value>
+  public ValueDescriptor this[int index] => this.arrayList[index] as ValueDescriptor;
+
+  /// <summary>
+  /// Gets the <see cref="MigraDoc.DocumentObjectModel.Internals.ValueDescriptor"/> with the specified name.
+  /// </summary>
+  /// <value></value>
+  public ValueDescriptor this[string name] => this.hashTable[name] as ValueDescriptor;
+
+  /// <summary>
+  /// Returns an enumerator that iterates through a collection.
+  /// </summary>
+  /// <returns>
+  /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
+  /// </returns>
+  public IEnumerator GetEnumerator()
+  {
+    return this.arrayList.GetEnumerator();
+  }
+
+  ArrayList arrayList = new ArrayList();
+  Hashtable hashTable = new Hashtable(StringComparer.InvariantCultureIgnoreCase);
 }

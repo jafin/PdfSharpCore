@@ -33,15 +33,14 @@
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
-namespace MigraDocCore.Rendering
-{
-    /// <summary>
-    /// Rendering information for shapes.
-    /// </summary>
-    internal abstract class ShapeRenderInfo : RenderInfo
-    {
-        public override DocumentObject DocumentObject => shape;
+namespace MigraDocCore.Rendering;
 
-        internal Shape shape;
-    }
+/// <summary>
+/// Rendering information for shapes.
+/// </summary>
+internal abstract class ShapeRenderInfo : RenderInfo
+{
+    public override DocumentObject DocumentObject => shape;
+
+    internal Shape shape;
 }

@@ -29,31 +29,30 @@
 
 using System;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Determines the position where the Tickmarks will be rendered.
+/// </summary>
+public enum TickMarkType
 {
   /// <summary>
-  /// Determines the position where the Tickmarks will be rendered.
+  /// Tickmarks are not rendered.
   /// </summary>
-  public enum TickMarkType
-  {
-    /// <summary>
-    /// Tickmarks are not rendered.
-    /// </summary>
-    None,
+  None,
 
-    /// <summary>
-    /// Tickmarks are rendered inside the plot area.
-    /// </summary>
-    Inside,
+  /// <summary>
+  /// Tickmarks are rendered inside the plot area.
+  /// </summary>
+  Inside,
     
-    /// <summary>
-    /// Tickmarks are rendered outside the plot area.
-    /// </summary>
-    Outside,
+  /// <summary>
+  /// Tickmarks are rendered outside the plot area.
+  /// </summary>
+  Outside,
     
-    /// <summary>
-    /// Tickmarks are rendered inside and outside the plot area.
-    /// </summary>
-    Cross
-  }
+  /// <summary>
+  /// Tickmarks are rendered inside and outside the plot area.
+  /// </summary>
+  Cross
 }

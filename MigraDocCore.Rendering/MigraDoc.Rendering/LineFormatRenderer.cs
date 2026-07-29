@@ -32,86 +32,85 @@ using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Renders a line format to an XGraphics object.
+/// </summary>
+internal class LineFormatRenderer
 {
-  /// <summary>
-  /// Renders a line format to an XGraphics object.
-  /// </summary>
-  internal class LineFormatRenderer
+  public LineFormatRenderer(LineFormat lineFormat, XGraphics gfx)
   {
-    public LineFormatRenderer(LineFormat lineFormat, XGraphics gfx)
-    {
-      this.lineFormat = lineFormat;
-      this.gfx = gfx;
-    }
-
-    private XColor GetColor()
-    {
-      Color clr = Colors.Black;
-
-      if (lineFormat != null && !lineFormat.Color.IsEmpty)
-        clr = lineFormat.Color;
-
-      return ColorHelper.ToXColor(clr, lineFormat.Document.UseCmykColor);
-    }
-
-    internal XUnit GetWidth()
-    {
-      if (lineFormat == null)
-        return 0;
-      if (!lineFormat.IsNull("Visible") && !lineFormat.Visible)
-        return 0;
-
-      if (!lineFormat.IsNull("Width"))
-        return lineFormat.Width.Point;
-
-      if (!lineFormat.IsNull("Color") || !lineFormat.IsNull("Style") || lineFormat.Visible)
-        return 1;
-
-      return 0;
-    }
-
-    internal void Render(XUnit xPosition, XUnit yPosition, XUnit width, XUnit height)
-    {
-      XUnit lineWidth = GetWidth();
-      if (lineWidth > 0)
-      {
-        XPen pen = GetPen(lineWidth);
-        gfx.DrawRectangle(pen, xPosition, yPosition, width, height);
-      }
-    }
-
-    XPen GetPen(XUnit width)
-    {
-      if (width == 0)
-        return null;
-
-      XPen pen = new XPen(GetColor(), width);
-      switch (lineFormat.DashStyle)
-      {
-        case DashStyle.Dash:
-          pen.DashStyle = XDashStyle.Dash;
-          break;
-
-        case DashStyle.DashDot:
-          pen.DashStyle = XDashStyle.DashDot;
-          break;
-
-        case DashStyle.DashDotDot:
-          pen.DashStyle = XDashStyle.DashDotDot;
-          break;
-
-        case DashStyle.Solid:
-          pen.DashStyle = XDashStyle.Solid;
-          break;
-
-        case DashStyle.SquareDot:
-          pen.DashStyle = XDashStyle.Dot;
-          break;
-      }
-      return pen;
-    }
-    LineFormat lineFormat;
-    XGraphics gfx;
+    this.lineFormat = lineFormat;
+    this.gfx = gfx;
   }
+
+  private XColor GetColor()
+  {
+    Color clr = Colors.Black;
+
+    if (lineFormat != null && !lineFormat.Color.IsEmpty)
+      clr = lineFormat.Color;
+
+    return ColorHelper.ToXColor(clr, lineFormat.Document.UseCmykColor);
+  }
+
+  internal XUnit GetWidth()
+  {
+    if (lineFormat == null)
+      return 0;
+    if (!lineFormat.IsNull("Visible") && !lineFormat.Visible)
+      return 0;
+
+    if (!lineFormat.IsNull("Width"))
+      return lineFormat.Width.Point;
+
+    if (!lineFormat.IsNull("Color") || !lineFormat.IsNull("Style") || lineFormat.Visible)
+      return 1;
+
+    return 0;
+  }
+
+  internal void Render(XUnit xPosition, XUnit yPosition, XUnit width, XUnit height)
+  {
+    XUnit lineWidth = GetWidth();
+    if (lineWidth > 0)
+    {
+      XPen pen = GetPen(lineWidth);
+      gfx.DrawRectangle(pen, xPosition, yPosition, width, height);
+    }
+  }
+
+  XPen GetPen(XUnit width)
+  {
+    if (width == 0)
+      return null;
+
+    XPen pen = new XPen(GetColor(), width);
+    switch (lineFormat.DashStyle)
+    {
+      case DashStyle.Dash:
+        pen.DashStyle = XDashStyle.Dash;
+        break;
+
+      case DashStyle.DashDot:
+        pen.DashStyle = XDashStyle.DashDot;
+        break;
+
+      case DashStyle.DashDotDot:
+        pen.DashStyle = XDashStyle.DashDotDot;
+        break;
+
+      case DashStyle.Solid:
+        pen.DashStyle = XDashStyle.Solid;
+        break;
+
+      case DashStyle.SquareDot:
+        pen.DashStyle = XDashStyle.Dot;
+        break;
+    }
+    return pen;
+  }
+  LineFormat lineFormat;
+  XGraphics gfx;
 }

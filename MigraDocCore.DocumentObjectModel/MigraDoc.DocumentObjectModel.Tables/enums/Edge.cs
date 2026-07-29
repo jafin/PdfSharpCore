@@ -32,24 +32,23 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Tables
+namespace MigraDocCore.DocumentObjectModel.Tables;
+
+/// <summary>
+/// Combinable flags to set Borders using the SetEdge function.
+/// </summary>
+[Flags]
+public enum Edge
 {
-  /// <summary>
-  /// Combinable flags to set Borders using the SetEdge function.
-  /// </summary>
-  [Flags]
-  public enum Edge
-  {
-    Top = 0x0001,
-    Left = 0x0002,
-    Bottom = 0x0004,
-    Right = 0x0008,
-    Horizontal = 0x0010,
-    Vertical = 0x0020,
-    DiagonalDown = 0x0040,
-    DiagonalUp = 0x0080,
-    Box = Top | Left | Bottom | Right,
-    Interior = Horizontal | Vertical,
-    Cross = DiagonalDown | DiagonalUp,
-  }
+  Top = 0x0001,
+  Left = 0x0002,
+  Bottom = 0x0004,
+  Right = 0x0008,
+  Horizontal = 0x0010,
+  Vertical = 0x0020,
+  DiagonalDown = 0x0040,
+  DiagonalUp = 0x0080,
+  Box = Top | Left | Bottom | Right,
+  Interior = Horizontal | Vertical,
+  Cross = DiagonalDown | DiagonalUp,
 }

@@ -27,9 +27,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing.Internal
+namespace PdfSharpCore.Drawing.Internal;
+
+internal abstract class ImageImporterRoot
 {
-    internal abstract class ImageImporterRoot
-    {
-    }
 }

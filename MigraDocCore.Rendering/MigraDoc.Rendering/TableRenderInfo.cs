@@ -31,19 +31,18 @@
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Tables;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Rendering information for tables.
+/// </summary>
+internal class TableRenderInfo : RenderInfo
 {
-  /// <summary>
-  /// Rendering information for tables.
-  /// </summary>
-  internal class TableRenderInfo : RenderInfo
-  {
-    internal override FormatInfo FormatInfo => formatInfo;
+  internal override FormatInfo FormatInfo => formatInfo;
 
-    private TableFormatInfo formatInfo = new();
+  private TableFormatInfo formatInfo = new();
 
-    public override DocumentObject DocumentObject => table;
+  public override DocumentObject DocumentObject => table;
 
-    internal Table table;
-  }
+  internal Table table;
 }

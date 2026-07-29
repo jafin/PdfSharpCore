@@ -30,46 +30,37 @@
 using System;
 using PdfSharpCore.Pdf;
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Specifies details about how the font is used in PDF creation.
+/// </summary>
+public class XPdfFontOptions
 {
+    internal XPdfFontOptions() { }
+
     /// <summary>
-    /// Specifies details about how the font is used in PDF creation.
+    /// Initializes a new instance of the <see cref="XPdfFontOptions"/> class.
     /// </summary>
-    public class XPdfFontOptions
+    public XPdfFontOptions(PdfFontEncoding encoding)
     {
-        internal XPdfFontOptions() { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="XPdfFontOptions"/> class.
-        /// </summary>
-        public XPdfFontOptions(PdfFontEncoding encoding)
-        {
-            _fontEncoding = encoding;
-        }
-
-        /// <summary>
-        /// Gets a value indicating how the font is encoded.
-        /// </summary>
-        public PdfFontEncoding FontEncoding
-        {
-            get { return _fontEncoding; }
-        }
-        readonly PdfFontEncoding _fontEncoding;
-
-        /// <summary>
-        /// Gets the default options with WinAnsi encoding and always font embedding.
-        /// </summary>
-        public static XPdfFontOptions WinAnsiDefault
-        {
-            get { return new XPdfFontOptions(PdfFontEncoding.WinAnsi); }
-        }
-
-        /// <summary>
-        /// Gets the default options with Unicode encoding and always font embedding.
-        /// </summary>
-        public static XPdfFontOptions UnicodeDefault
-        {
-            get { return new XPdfFontOptions(PdfFontEncoding.Unicode); }
-        }
+        _fontEncoding = encoding;
     }
+
+    /// <summary>
+    /// Gets a value indicating how the font is encoded.
+    /// </summary>
+    public PdfFontEncoding FontEncoding => _fontEncoding;
+
+    readonly PdfFontEncoding _fontEncoding;
+
+    /// <summary>
+    /// Gets the default options with WinAnsi encoding and always font embedding.
+    /// </summary>
+    public static XPdfFontOptions WinAnsiDefault => new(PdfFontEncoding.WinAnsi);
+
+    /// <summary>
+    /// Gets the default options with Unicode encoding and always font embedding.
+    /// </summary>
+    public static XPdfFontOptions UnicodeDefault => new(PdfFontEncoding.Unicode);
 }

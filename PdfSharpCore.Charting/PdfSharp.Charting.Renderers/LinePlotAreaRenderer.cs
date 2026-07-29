@@ -31,72 +31,71 @@ using System;
 using System.Diagnostics;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting.Renderers
+namespace PdfSharpCore.Charting.Renderers;
+
+/// <summary>
+/// Renders the plot area used by line charts. 
+/// </summary>
+internal class LinePlotAreaRenderer : ColumnLikePlotAreaRenderer
 {
   /// <summary>
-  /// Renders the plot area used by line charts. 
+  /// Initializes a new instance of the LinePlotAreaRenderer class with the
+  /// specified renderer parameters.
   /// </summary>
-  internal class LinePlotAreaRenderer : ColumnLikePlotAreaRenderer
+  internal LinePlotAreaRenderer(RendererParameters parms) : base(parms)
   {
-    /// <summary>
-    /// Initializes a new instance of the LinePlotAreaRenderer class with the
-    /// specified renderer parameters.
-    /// </summary>
-    internal LinePlotAreaRenderer(RendererParameters parms) : base(parms)
+  }
+
+  /// <summary>
+  /// Draws the content of the line plot area.
+  /// </summary>
+  internal override void Draw()
+  {
+    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
+
+    XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
+    if (plotAreaRect.IsEmpty)
+      return;
+
+    XGraphics gfx = this.rendererParms.Graphics;
+    XGraphicsState state = gfx.Save();
+    //gfx.SetClip(plotAreaRect, XCombineMode.Intersect);
+    gfx.IntersectClip(plotAreaRect);
+
+    //TODO null-Values müssen berücksichtigt werden.
+    //     Verbindungspunkte können fehlen, je nachdem wie null-Values behandelt werden sollen.
+    //     (NotPlotted, Interpolate etc.)
+
+    // Draw lines and markers for each data series.
+    XMatrix matrix = cri.plotAreaRendererInfo.matrix;
+
+    double xMajorTick = cri.xAxisRendererInfo.MajorTick;
+    foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
     {
-    }
-
-    /// <summary>
-    /// Draws the content of the line plot area.
-    /// </summary>
-    internal override void Draw()
-    {
-      ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-
-      XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-      if (plotAreaRect.IsEmpty)
-        return;
-
-      XGraphics gfx = this.rendererParms.Graphics;
-      XGraphicsState state = gfx.Save();
-      //gfx.SetClip(plotAreaRect, XCombineMode.Intersect);
-      gfx.IntersectClip(plotAreaRect);
-
-      //TODO null-Values müssen berücksichtigt werden.
-      //     Verbindungspunkte können fehlen, je nachdem wie null-Values behandelt werden sollen.
-      //     (NotPlotted, Interpolate etc.)
-
-      // Draw lines and markers for each data series.
-      XMatrix matrix = cri.plotAreaRendererInfo.matrix;
-
-      double xMajorTick = cri.xAxisRendererInfo.MajorTick;
-      foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
+      int count = sri.series.Elements.Count;
+      XPoint[] points = new XPoint[count];
+      for (int idx = 0; idx < count; idx++)
       {
-        int count = sri.series.Elements.Count;
-        XPoint[] points = new XPoint[count];
-        for (int idx = 0; idx < count; idx++)
-        {
-          double v = sri.series.Elements[idx].Value;
-          if (double.IsNaN(v))
-            v = 0;
-          points[idx] = new XPoint(idx + xMajorTick / 2, v);
-        }
-        matrix.TransformPoints(points);
-        gfx.DrawLines(sri.LineFormat, points);
-        DrawMarker(gfx, points, sri);
+        double v = sri.series.Elements[idx].Value;
+        if (double.IsNaN(v))
+          v = 0;
+        points[idx] = new XPoint(idx + xMajorTick / 2, v);
       }
-
-      //gfx.ResetClip();
-      gfx.Restore(state);
+      matrix.TransformPoints(points);
+      gfx.DrawLines(sri.LineFormat, points);
+      DrawMarker(gfx, points, sri);
     }
 
-    /// <summary>
-    /// Draws all markers given in rendererInfo at the positions specified by points.
-    /// </summary>
-    private void DrawMarker(XGraphics graphics, XPoint[] points, SeriesRendererInfo rendererInfo)
-    {
-      foreach (XPoint pos in points)
-        MarkerRenderer.Draw(graphics, pos, rendererInfo.markerRendererInfo);
-    }
+    //gfx.ResetClip();
+    gfx.Restore(state);
+  }
+
+  /// <summary>
+  /// Draws all markers given in rendererInfo at the positions specified by points.
+  /// </summary>
+  private void DrawMarker(XGraphics graphics, XPoint[] points, SeriesRendererInfo rendererInfo)
+  {
+    foreach (XPoint pos in points)
+      MarkerRenderer.Draw(graphics, pos, rendererInfo.markerRendererInfo);
   }
 }

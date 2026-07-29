@@ -32,15 +32,14 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Tables
+namespace MigraDocCore.DocumentObjectModel.Tables;
+
+/// <summary>
+/// Specifies the vertical alignment of the cell's content.
+/// </summary>
+public enum VerticalAlignment
 {
-  /// <summary>
-  /// Specifies the vertical alignment of the cell's content.
-  /// </summary>
-  public enum VerticalAlignment
-  {
-    Top,
-    Center,
-    Bottom
-  }
+  Top,
+  Center,
+  Bottom
 }

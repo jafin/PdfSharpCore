@@ -32,87 +32,83 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// Represents a nullable string value.
+/// </summary>
+internal struct NString : INullableValue
 {
   /// <summary>
-  /// Represents a nullable string value.
+  /// Gets or sets the value of the instance.
   /// </summary>
-  internal struct NString : INullableValue
+  public string Value
   {
-    /// <summary>
-    /// Gets or sets the value of the instance.
-    /// </summary>
-    public string Value
-    {
-      get { return this.val != null ? this.val : ""; }
-      set { this.val = value; }
-    }
-
-    /// <summary>
-    /// Returns the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
-
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (String)value;
-    }
-
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = null;
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return this.val == null; }
-    }
-
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NString)
-        return this == (NString)value;
-      return false;
-    }
-
-    public override int GetHashCode()
-    {
-      return this.val == null ? 0 : this.val.GetHashCode();
-    }
-
-    public static bool operator ==(NString l, NString r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
-
-    public static bool operator !=(NString l, NString r)
-    {
-      return !(l == r);
-    }
-
-    public static readonly NString NullValue = new NString();
-
-    string val;
+    get => this.val != null ? this.val : "";
+    set => this.val = value;
   }
+
+  /// <summary>
+  /// Returns the value of the instance.
+  /// </summary>
+  object INullableValue.GetValue()
+  {
+    return this.Value;
+  }
+
+  /// <summary>
+  /// Sets the value of the instance.
+  /// </summary>
+  void INullableValue.SetValue(object value)
+  {
+    this.val = (String)value;
+  }
+
+  /// <summary>
+  /// Resets this instance,
+  /// i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public void SetNull()
+  {
+    this.val = null;
+  }
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public bool IsNull => this.val == null;
+
+  /// <summary>
+  /// Returns a value indicating whether this instance is equal to the specified object.
+  /// </summary>
+  public override bool Equals(object value)
+  {
+    if (value is NString)
+      return this == (NString)value;
+    return false;
+  }
+
+  public override int GetHashCode()
+  {
+    return this.val == null ? 0 : this.val.GetHashCode();
+  }
+
+  public static bool operator ==(NString l, NString r)
+  {
+    if (l.IsNull)
+      return r.IsNull;
+    else if (r.IsNull)
+      return false;
+    else
+      return l.Value == r.Value;
+  }
+
+  public static bool operator !=(NString l, NString r)
+  {
+    return !(l == r);
+  }
+
+  public static readonly NString NullValue = new NString();
+
+  string val;
 }

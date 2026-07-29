@@ -35,64 +35,63 @@ using System.Diagnostics;
 using System.Reflection;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// NumPagesField is used to reference the number of all pages in the document.
+/// </summary>
+public class NumPagesField : NumericFieldBase
 {
   /// <summary>
-  /// NumPagesField is used to reference the number of all pages in the document.
+  /// Initializes a new instance of the NumPagesField class.
   /// </summary>
-  public class NumPagesField : NumericFieldBase
+  public NumPagesField()
   {
-    /// <summary>
-    /// Initializes a new instance of the NumPagesField class.
-    /// </summary>
-    public NumPagesField()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the NumPagesField class with the specified parent.
-    /// </summary>
-    internal NumPagesField(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new NumPagesField Clone()
-    {
-      return (NumPagesField)DeepCopy();
-    }
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts NumPagesField into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      string str = "\\field(NumPages)";
-
-      if (this.format.Value != "")
-        str += "[Format = \"" + this.Format + "\"]";
-      else
-        str += "[]"; // Has to be appended to avoid confusion with '[' in directly following text.
-
-      serializer.Write(str);
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(NumPagesField));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the NumPagesField class with the specified parent.
+  /// </summary>
+  internal NumPagesField(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new NumPagesField Clone()
+  {
+    return (NumPagesField)DeepCopy();
+  }
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts NumPagesField into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    string str = "\\field(NumPages)";
+
+    if (this.format.Value != "")
+      str += "[Format = \"" + this.Format + "\"]";
+    else
+      str += "[]"; // Has to be appended to avoid confusion with '[' in directly following text.
+
+    serializer.Write(str);
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(NumPagesField));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

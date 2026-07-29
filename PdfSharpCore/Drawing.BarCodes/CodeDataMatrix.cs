@@ -30,214 +30,213 @@
 
 using System;
 
-namespace PdfSharpCore.Drawing.BarCodes
+namespace PdfSharpCore.Drawing.BarCodes;
+
+/// <summary>
+/// Defines the DataMatrix 2D barcode. THIS IS AN EMPIRA INTERNAL IMPLEMENTATION. THE CODE IN
+/// THE OPEN SOURCE VERSION IS A FAKE.
+/// </summary>
+public class CodeDataMatrix : MatrixCode
 {
     /// <summary>
-    /// Defines the DataMatrix 2D barcode. THIS IS AN EMPIRA INTERNAL IMPLEMENTATION. THE CODE IN
-    /// THE OPEN SOURCE VERSION IS A FAKE.
+    /// Initializes a new instance of CodeDataMatrix.
     /// </summary>
-    public class CodeDataMatrix : MatrixCode
+    public CodeDataMatrix()
+        : this("", "", 26, 26, 0, XSize.Empty)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, int length)
+        : this(code, "", length, length, 0, XSize.Empty)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, int length, XSize size)
+        : this(code, "", length, length, 0, size)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, DataMatrixEncoding dmEncoding, int length, XSize size)
+        : this(code, CreateEncoding(dmEncoding, code.Length), length, length, 0, size)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, int rows, int columns)
+        : this(code, "", rows, columns, 0, XSize.Empty)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, int rows, int columns, XSize size)
+        : this(code, "", rows, columns, 0, size)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, DataMatrixEncoding dmEncoding, int rows, int columns, XSize size)
+        : this(code, CreateEncoding(dmEncoding, code.Length), rows, columns, 0, size)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, int rows, int columns, int quietZone)
+        : this(code, "", rows, columns, quietZone, XSize.Empty)
+    {}
+
+    /// <summary>
+    /// Initializes a new instance of CodeDataMatrix.
+    /// </summary>
+    public CodeDataMatrix(string code, string encoding, int rows, int columns, int quietZone, XSize size)
+        : base(code, encoding, rows, columns, size)
     {
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix()
-            : this("", "", 26, 26, 0, XSize.Empty)
-        {}
+        QuietZone = quietZone;
+    }
 
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, int length)
-            : this(code, "", length, length, 0, XSize.Empty)
-        {}
+    /// <summary>
+    /// Sets the encoding of the DataMatrix.
+    /// </summary>
+    public void SetEncoding(DataMatrixEncoding dmEncoding)
+    {
+        Encoding = CreateEncoding(dmEncoding, Text.Length);
+    }
 
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, int length, XSize size)
-            : this(code, "", length, length, 0, size)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, DataMatrixEncoding dmEncoding, int length, XSize size)
-            : this(code, CreateEncoding(dmEncoding, code.Length), length, length, 0, size)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, int rows, int columns)
-            : this(code, "", rows, columns, 0, XSize.Empty)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, int rows, int columns, XSize size)
-            : this(code, "", rows, columns, 0, size)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, DataMatrixEncoding dmEncoding, int rows, int columns, XSize size)
-            : this(code, CreateEncoding(dmEncoding, code.Length), rows, columns, 0, size)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, int rows, int columns, int quietZone)
-            : this(code, "", rows, columns, quietZone, XSize.Empty)
-        {}
-
-        /// <summary>
-        /// Initializes a new instance of CodeDataMatrix.
-        /// </summary>
-        public CodeDataMatrix(string code, string encoding, int rows, int columns, int quietZone, XSize size)
-            : base(code, encoding, rows, columns, size)
+    static string CreateEncoding(DataMatrixEncoding dmEncoding, int length)
+    {
+        string tempencoding = "";
+        switch (dmEncoding)
         {
-            QuietZone = quietZone;
+            case DataMatrixEncoding.Ascii:
+                tempencoding = new string('a', length);
+                break;
+            case DataMatrixEncoding.C40:
+                tempencoding = new string('c', length);
+                break;
+            case DataMatrixEncoding.Text:
+                tempencoding = new string('t', length);
+                break;
+            case DataMatrixEncoding.X12:
+                tempencoding = new string('x', length);
+                break;
+            case DataMatrixEncoding.EDIFACT:
+                tempencoding = new string('e', length);
+                break;
+            case DataMatrixEncoding.Base256:
+                tempencoding = new string('b', length);
+                break;
+        }
+        return tempencoding;
+    }
+
+    /// <summary>
+    /// Gets or sets the size of the Matrix' Quiet Zone.
+    /// </summary>
+    public int QuietZone
+    {
+        get => _quietZone;
+        set => _quietZone = value;
+    }
+    int _quietZone;
+
+    /// <summary>
+    /// Renders the matrix code.
+    /// </summary>
+    protected internal override void Render(XGraphics gfx, XBrush brush, XPoint position)
+    {
+        XGraphicsState state = gfx.Save();
+
+        switch (Direction)
+        {
+            case CodeDirection.RightToLeft:
+                gfx.RotateAtTransform(180, position);
+                break;
+
+            case CodeDirection.TopToBottom:
+                gfx.RotateAtTransform(90, position);
+                break;
+
+            case CodeDirection.BottomToTop:
+                gfx.RotateAtTransform(-90, position);
+                break;
         }
 
-        /// <summary>
-        /// Sets the encoding of the DataMatrix.
-        /// </summary>
-        public void SetEncoding(DataMatrixEncoding dmEncoding)
-        {
-            Encoding = CreateEncoding(dmEncoding, Text.Length);
-        }
+        XPoint pos = position + CalcDistance(Anchor, AnchorType.TopLeft, Size);
 
-        static string CreateEncoding(DataMatrixEncoding dmEncoding, int length)
+        bool[,] modules = DataMatrixSymbol.Build(Text, Encoding, Rows, Columns);
+
+        if (QuietZone > 0)
         {
-            string tempencoding = "";
-            switch (dmEncoding)
+            XSize sizeWithZone = new XSize(Size.Width, Size.Height);
+            sizeWithZone.Width = sizeWithZone.Width / (Columns + 2 * QuietZone) * Columns;
+            sizeWithZone.Height = sizeWithZone.Height / (Rows + 2 * QuietZone) * Rows;
+
+            XPoint posWithZone = new XPoint(pos.X, pos.Y);
+            posWithZone.X += Size.Width / (Columns + 2 * QuietZone) * QuietZone;
+            posWithZone.Y += Size.Height / (Rows + 2 * QuietZone) * QuietZone;
+
+            gfx.DrawRectangle(XBrushes.White, pos.X, pos.Y, Size.Width, Size.Height);
+            DrawModules(gfx, brush, modules, posWithZone, sizeWithZone);
+        }
+        else
+            DrawModules(gfx, brush, modules, pos, Size);
+
+        gfx.Restore(state);
+    }
+
+    /// <summary>
+    /// Draws the modules of the symbol, one filled square for each dark one. Drawn rather
+    /// than drawn as a picture: a square is exact at any size, where a picture of one has a
+    /// resolution of its own to disagree with the paper about, and needs an imaging backend
+    /// that a caller wanting nothing but a barcode would otherwise not have to install.
+    /// </summary>
+    static void DrawModules(XGraphics gfx, XBrush brush, bool[,] modules, XPoint position, XSize size)
+    {
+        int rows = modules.GetLength(0);
+        int columns = modules.GetLength(1);
+        double moduleWidth = size.Width / columns;
+        double moduleHeight = size.Height / rows;
+
+        for (int row = 0; row < rows; row++)
+        {
+            for (int column = 0; column < columns; column++)
             {
-                case DataMatrixEncoding.Ascii:
-                    tempencoding = new string('a', length);
-                    break;
-                case DataMatrixEncoding.C40:
-                    tempencoding = new string('c', length);
-                    break;
-                case DataMatrixEncoding.Text:
-                    tempencoding = new string('t', length);
-                    break;
-                case DataMatrixEncoding.X12:
-                    tempencoding = new string('x', length);
-                    break;
-                case DataMatrixEncoding.EDIFACT:
-                    tempencoding = new string('e', length);
-                    break;
-                case DataMatrixEncoding.Base256:
-                    tempencoding = new string('b', length);
-                    break;
-            }
-            return tempencoding;
-        }
+                if (!modules[row, column])
+                    continue;
 
-        /// <summary>
-        /// Gets or sets the size of the Matrix' Quiet Zone.
-        /// </summary>
-        public int QuietZone
-        {
-            get { return _quietZone; }
-            set { _quietZone = value; }
-        }
-        int _quietZone;
+                // Run of adjacent dark modules drawn as one rectangle, which keeps the
+                // content stream short and leaves no seam between them.
+                int run = 1;
+                while (column + run < columns && modules[row, column + run])
+                    run++;
 
-        /// <summary>
-        /// Renders the matrix code.
-        /// </summary>
-        protected internal override void Render(XGraphics gfx, XBrush brush, XPoint position)
-        {
-            XGraphicsState state = gfx.Save();
+                gfx.DrawRectangle(brush,
+                    position.X + column * moduleWidth,
+                    position.Y + row * moduleHeight,
+                    run * moduleWidth,
+                    moduleHeight);
 
-            switch (Direction)
-            {
-                case CodeDirection.RightToLeft:
-                    gfx.RotateAtTransform(180, position);
-                    break;
-
-                case CodeDirection.TopToBottom:
-                    gfx.RotateAtTransform(90, position);
-                    break;
-
-                case CodeDirection.BottomToTop:
-                    gfx.RotateAtTransform(-90, position);
-                    break;
-            }
-
-            XPoint pos = position + CalcDistance(Anchor, AnchorType.TopLeft, Size);
-
-            bool[,] modules = DataMatrixSymbol.Build(Text, Encoding, Rows, Columns);
-
-            if (QuietZone > 0)
-            {
-                XSize sizeWithZone = new XSize(Size.Width, Size.Height);
-                sizeWithZone.Width = sizeWithZone.Width / (Columns + 2 * QuietZone) * Columns;
-                sizeWithZone.Height = sizeWithZone.Height / (Rows + 2 * QuietZone) * Rows;
-
-                XPoint posWithZone = new XPoint(pos.X, pos.Y);
-                posWithZone.X += Size.Width / (Columns + 2 * QuietZone) * QuietZone;
-                posWithZone.Y += Size.Height / (Rows + 2 * QuietZone) * QuietZone;
-
-                gfx.DrawRectangle(XBrushes.White, pos.X, pos.Y, Size.Width, Size.Height);
-                DrawModules(gfx, brush, modules, posWithZone, sizeWithZone);
-            }
-            else
-                DrawModules(gfx, brush, modules, pos, Size);
-
-            gfx.Restore(state);
-        }
-
-        /// <summary>
-        /// Draws the modules of the symbol, one filled square for each dark one. Drawn rather
-        /// than drawn as a picture: a square is exact at any size, where a picture of one has a
-        /// resolution of its own to disagree with the paper about, and needs an imaging backend
-        /// that a caller wanting nothing but a barcode would otherwise not have to install.
-        /// </summary>
-        static void DrawModules(XGraphics gfx, XBrush brush, bool[,] modules, XPoint position, XSize size)
-        {
-            int rows = modules.GetLength(0);
-            int columns = modules.GetLength(1);
-            double moduleWidth = size.Width / columns;
-            double moduleHeight = size.Height / rows;
-
-            for (int row = 0; row < rows; row++)
-            {
-                for (int column = 0; column < columns; column++)
-                {
-                    if (!modules[row, column])
-                        continue;
-
-                    // Run of adjacent dark modules drawn as one rectangle, which keeps the
-                    // content stream short and leaves no seam between them.
-                    int run = 1;
-                    while (column + run < columns && modules[row, column + run])
-                        run++;
-
-                    gfx.DrawRectangle(brush,
-                        position.X + column * moduleWidth,
-                        position.Y + row * moduleHeight,
-                        run * moduleWidth,
-                        moduleHeight);
-
-                    column += run - 1;
-                }
+                column += run - 1;
             }
         }
+    }
 
-        /// <summary>
-        /// Determines whether the specified string can be used as data in the DataMatrix.
-        /// </summary>
-        /// <param name="text">The code to be checked.</param>
-        protected override void CheckCode(string text)
-        {
-            if (text == null)
-                throw new ArgumentNullException("text");
-        }
+    /// <summary>
+    /// Determines whether the specified string can be used as data in the DataMatrix.
+    /// </summary>
+    /// <param name="text">The code to be checked.</param>
+    protected override void CheckCode(string text)
+    {
+        if (text == null)
+            throw new ArgumentNullException(nameof(text));
     }
 }

@@ -32,15 +32,14 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Tables
+namespace MigraDocCore.DocumentObjectModel.Tables;
+
+/// <summary>
+/// Specifies the calculation rule of the row height.
+/// </summary>
+public enum RowHeightRule
 {
-  /// <summary>
-  /// Specifies the calculation rule of the row height.
-  /// </summary>
-  public enum RowHeightRule
-  {
-    AtLeast,
-    Auto,
-    Exactly
-  }
+  AtLeast,
+  Auto,
+  Exactly
 }

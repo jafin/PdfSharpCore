@@ -27,31 +27,30 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Pdf.Actions
+namespace PdfSharpCore.Pdf.Actions;
+
+/// <summary>
+/// Specifies the predefined PDF actions.
+/// </summary>
+public enum PdfNamedActionNames
 {
     /// <summary>
-    /// Specifies the predefined PDF actions.
+    /// Go to next page.
     /// </summary>
-    public enum PdfNamedActionNames
-    {
-        /// <summary>
-        /// Go to next page.
-        /// </summary>
-        NextPage,
+    NextPage,
 
-        /// <summary>
-        /// Go to previous page.
-        /// </summary>
-        PrevPage,
+    /// <summary>
+    /// Go to previous page.
+    /// </summary>
+    PrevPage,
 
-        /// <summary>
-        /// Go to first page.
-        /// </summary>
-        FirstPage,
+    /// <summary>
+    /// Go to first page.
+    /// </summary>
+    FirstPage,
 
-        /// <summary>
-        /// Go to last page.
-        /// </summary>
-        LastPage
-    }
+    /// <summary>
+    /// Go to last page.
+    /// </summary>
+    LastPage
 }

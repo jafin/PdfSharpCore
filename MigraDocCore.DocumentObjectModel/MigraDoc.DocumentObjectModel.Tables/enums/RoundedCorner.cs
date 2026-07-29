@@ -30,17 +30,16 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.DocumentObjectModel.Tables
+namespace MigraDocCore.DocumentObjectModel.Tables;
+
+/// <summary>
+/// Specifies if the Cell should be rendered as a rounded corner.
+/// </summary>
+public enum RoundedCorner
 {
-    /// <summary>
-    /// Specifies if the Cell should be rendered as a rounded corner.
-    /// </summary>
-    public enum RoundedCorner
-    {
-        None,
-        TopLeft,
-        TopRight,
-        BottomLeft,
-        BottomRight
-    }
+    None,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight
 }

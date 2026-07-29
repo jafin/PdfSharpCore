@@ -30,40 +30,39 @@
 
 using PdfSharpCore.Charting;
 
-namespace MigraDocCore.Rendering.ChartMapper
+namespace MigraDocCore.Rendering.ChartMapper;
+
+/// <summary>
+/// The XValuesMapper class.
+/// </summary>
+public class XValuesMapper
 {
   /// <summary>
-  /// The XValuesMapper class.
+  /// Initializes a new instance of the <see cref="XValuesMapper"/> class.
   /// </summary>
-  public class XValuesMapper
+  public XValuesMapper()
   {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="XValuesMapper"/> class.
-    /// </summary>
-    public XValuesMapper()
-    {
-    }
+  }
 
-    void MapObject(XValues xValues, DocumentObjectModel.Shapes.Charts.XValues domXValues)
+  void MapObject(XValues xValues, DocumentObjectModel.Shapes.Charts.XValues domXValues)
+  {
+    foreach (DocumentObjectModel.Shapes.Charts.XSeries domXSeries in domXValues)
     {
-      foreach (DocumentObjectModel.Shapes.Charts.XSeries domXSeries in domXValues)
+      XSeries xSeries = xValues.AddXSeries();
+      DocumentObjectModel.Shapes.Charts.XSeriesElements domXSeriesElements = domXSeries.GetValue("XSeriesElements") as DocumentObjectModel.Shapes.Charts.XSeriesElements;
+      foreach (DocumentObjectModel.Shapes.Charts.XValue domXValue in domXSeriesElements)
       {
-        XSeries xSeries = xValues.AddXSeries();
-        DocumentObjectModel.Shapes.Charts.XSeriesElements domXSeriesElements = domXSeries.GetValue("XSeriesElements") as DocumentObjectModel.Shapes.Charts.XSeriesElements;
-        foreach (DocumentObjectModel.Shapes.Charts.XValue domXValue in domXSeriesElements)
-        {
-          if (domXValue == null)
-            xSeries.AddBlank();
-          else
-            xSeries.Add(domXValue.GetValue("Value").ToString());
-        }
+        if (domXValue == null)
+          xSeries.AddBlank();
+        else
+          xSeries.Add(domXValue.GetValue("Value").ToString());
       }
     }
+  }
 
-    internal static void Map(XValues xValues, DocumentObjectModel.Shapes.Charts.XValues domXValues)
-    {
-      XValuesMapper mapper = new XValuesMapper();
-      mapper.MapObject(xValues, domXValues);
-    }
+  internal static void Map(XValues xValues, DocumentObjectModel.Shapes.Charts.XValues domXValues)
+  {
+    XValuesMapper mapper = new XValuesMapper();
+    mapper.MapObject(xValues, domXValues);
   }
 }

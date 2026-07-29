@@ -29,26 +29,25 @@
 
 // ReSharper disable InconsistentNaming
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Indicates how to handle the first point of a path.
+/// </summary>
+internal enum PathStart
 {
     /// <summary>
-    /// Indicates how to handle the first point of a path.
+    /// Set the current position to the first point.
     /// </summary>
-    internal enum PathStart
-    {
-        /// <summary>
-        /// Set the current position to the first point.
-        /// </summary>
-        MoveTo1st,
+    MoveTo1st,
 
-        /// <summary>
-        /// Draws a line to the first point.
-        /// </summary>
-        LineTo1st,
+    /// <summary>
+    /// Draws a line to the first point.
+    /// </summary>
+    LineTo1st,
 
-        /// <summary>
-        /// Ignores the first point.
-        /// </summary>
-        Ignore1st,
-    }
+    /// <summary>
+    /// Ignores the first point.
+    /// </summary>
+    Ignore1st,
 }

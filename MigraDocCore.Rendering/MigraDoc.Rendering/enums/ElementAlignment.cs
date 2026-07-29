@@ -28,17 +28,16 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Alignment of layout elements.
+/// </summary>
+internal enum ElementAlignment
 {
-  /// <summary>
-  /// Alignment of layout elements.
-  /// </summary>
-  internal enum ElementAlignment
-  {
-    Near = 0, //Default
-    Center,
-    Far,
-    Inside,
-    Outside
-  }
+  Near = 0, //Default
+  Center,
+  Far,
+  Inside,
+  Outside
 }

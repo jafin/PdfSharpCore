@@ -32,31 +32,30 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Fields
+namespace MigraDocCore.DocumentObjectModel.Fields;
+
+/// <summary>
+/// Specifies the information to be shown in the field.
+/// </summary>
+public enum InfoFieldType
 {
   /// <summary>
-  /// Specifies the information to be shown in the field.
+  /// Specifies the title for the document.
   /// </summary>
-  public enum InfoFieldType
-  {
-    /// <summary>
-    /// Specifies the title for the document.
-    /// </summary>
-    Title,
+  Title,
     
-    /// <summary>
-    /// Specifies the author for the document.
-    /// </summary>
-    Author,
+  /// <summary>
+  /// Specifies the author for the document.
+  /// </summary>
+  Author,
     
-    /// <summary>
-    /// Specifies the keywords for the document.
-    /// </summary>
-    Keywords,
+  /// <summary>
+  /// Specifies the keywords for the document.
+  /// </summary>
+  Keywords,
     
-    /// <summary>
-    /// Specifies the subject for the document.
-    /// </summary>
-    Subject
-  }
+  /// <summary>
+  /// Specifies the subject for the document.
+  /// </summary>
+  Subject
 }

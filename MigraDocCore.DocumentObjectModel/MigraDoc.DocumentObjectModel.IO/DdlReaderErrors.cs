@@ -36,49 +36,45 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Collections;
 
-namespace MigraDocCore.DocumentObjectModel.IO
+namespace MigraDocCore.DocumentObjectModel.IO;
+
+/// <summary>
+/// Used to collect errors reported by the DDL parser.
+/// </summary>
+public class DdlReaderErrors : IEnumerable
 {
   /// <summary>
-  /// Used to collect errors reported by the DDL parser.
+  /// Adds the specified DdlReaderError at the end of the error list.
   /// </summary>
-  public class DdlReaderErrors : IEnumerable
+  public void AddError(DdlReaderError error)
   {
-    /// <summary>
-    /// Adds the specified DdlReaderError at the end of the error list.
-    /// </summary>
-    public void AddError(DdlReaderError error)
-    {
-      this.errors.Add(error);
-    }
+    this.errors.Add(error);
+  }
 
-    /// <summary>
-    /// Gets the DdlReaderError at the specified position.
-    /// </summary>
-    public DdlReaderError this[int index]
-    {
-      get { return (DdlReaderError)this.errors[index]; }
-    }
+  /// <summary>
+  /// Gets the DdlReaderError at the specified position.
+  /// </summary>
+  public DdlReaderError this[int index] => (DdlReaderError)this.errors[index];
 
-    /// <summary>
-    /// Gets the number of messages that are errors.
-    /// </summary>
-    public int ErrorCount
+  /// <summary>
+  /// Gets the number of messages that are errors.
+  /// </summary>
+  public int ErrorCount
+  {
+    get
     {
-      get
-      {
-        int count = 0;
-        for (int idx = 0; idx < this.errors.Count; idx++)
-          if (((DdlReaderError)this.errors[idx]).ErrorLevel == DdlErrorLevel.Error)
-            count++;
-        return count;
-      }
+      int count = 0;
+      for (int idx = 0; idx < this.errors.Count; idx++)
+        if (((DdlReaderError)this.errors[idx]).ErrorLevel == DdlErrorLevel.Error)
+          count++;
+      return count;
     }
+  }
 
-    private ArrayList errors = new ArrayList();
+  private ArrayList errors = new ArrayList();
 
-    public IEnumerator GetEnumerator()
-    {
-      return this.errors.GetEnumerator();
-    }
+  public IEnumerator GetEnumerator()
+  {
+    return this.errors.GetEnumerator();
   }
 }

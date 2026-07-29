@@ -32,100 +32,96 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel.Internals
+namespace MigraDocCore.DocumentObjectModel.Internals;
+
+/// <summary>
+/// Represents a nullable boolean value.
+/// </summary>
+internal struct NBool : INullableValue
 {
-  /// <summary>
-  /// Represents a nullable boolean value.
-  /// </summary>
-  internal struct NBool : INullableValue
+  public NBool(bool value)
   {
-    public NBool(bool value)
-    {
-      this.val = value ? (sbyte)1 : (sbyte)0;
-    }
-
-    NBool(sbyte value)
-    {
-      this.val = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the value of the instance.
-    /// </summary>
-    public bool Value
-    {
-      get { return this.val == 1; }
-      set { this.val = value ? (sbyte)1 : (sbyte)0; }
-    }
-
-    /// <summary>
-    /// Gets the value of the instance.
-    /// </summary>
-    object INullableValue.GetValue()
-    {
-      return this.Value;
-    }
-
-    /// <summary>
-    /// Sets the value of the instance.
-    /// </summary>
-    void INullableValue.SetValue(object value)
-    {
-      this.val = (bool)value ? (sbyte)1 : (sbyte)0;
-    }
-
-    /// <summary>
-    /// Resets this instance,
-    /// i.e. IsNull() will return true afterwards.
-    /// </summary>
-    public void SetNull()
-    {
-      this.val = -1;
-    }
-
-    /// <summary>
-    /// Determines whether this instance is null (not set).
-    /// </summary>
-    public bool IsNull
-    {
-      get { return this.val == -1; }
-    }
-
-    /// <summary>
-    /// Returns a value indicating whether this instance is equal to the specified object.
-    /// </summary>
-    public override bool Equals(object value)
-    {
-      if (value is NBool)
-        return this == (NBool)value;
-      return false;
-    }
-
-    public override int GetHashCode()
-    {
-      return this.val.GetHashCode();
-    }
-
-    public static bool operator ==(NBool l, NBool r)
-    {
-      if (l.IsNull)
-        return r.IsNull;
-      else if (r.IsNull)
-        return false;
-      else
-        return l.Value == r.Value;
-    }
-
-    public static bool operator !=(NBool l, NBool r)
-    {
-      return !(l == r);
-    }
-
-    public static readonly NBool NullValue = new NBool(-1);
-
-    /// <summary>
-    /// -1 (undefined), 0 (false), or 1 (true).
-    /// </summary>
-    sbyte val;
+    this.val = value ? (sbyte)1 : (sbyte)0;
   }
+
+  NBool(sbyte value)
+  {
+    this.val = value;
+  }
+
+  /// <summary>
+  /// Gets or sets the value of the instance.
+  /// </summary>
+  public bool Value
+  {
+    get => this.val == 1;
+    set => this.val = value ? (sbyte)1 : (sbyte)0;
+  }
+
+  /// <summary>
+  /// Gets the value of the instance.
+  /// </summary>
+  object INullableValue.GetValue()
+  {
+    return this.Value;
+  }
+
+  /// <summary>
+  /// Sets the value of the instance.
+  /// </summary>
+  void INullableValue.SetValue(object value)
+  {
+    this.val = (bool)value ? (sbyte)1 : (sbyte)0;
+  }
+
+  /// <summary>
+  /// Resets this instance,
+  /// i.e. IsNull() will return true afterwards.
+  /// </summary>
+  public void SetNull()
+  {
+    this.val = -1;
+  }
+
+  /// <summary>
+  /// Determines whether this instance is null (not set).
+  /// </summary>
+  public bool IsNull => this.val == -1;
+
+  /// <summary>
+  /// Returns a value indicating whether this instance is equal to the specified object.
+  /// </summary>
+  public override bool Equals(object value)
+  {
+    if (value is NBool)
+      return this == (NBool)value;
+    return false;
+  }
+
+  public override int GetHashCode()
+  {
+    return this.val.GetHashCode();
+  }
+
+  public static bool operator ==(NBool l, NBool r)
+  {
+    if (l.IsNull)
+      return r.IsNull;
+    else if (r.IsNull)
+      return false;
+    else
+      return l.Value == r.Value;
+  }
+
+  public static bool operator !=(NBool l, NBool r)
+  {
+    return !(l == r);
+  }
+
+  public static readonly NBool NullValue = new NBool(-1);
+
+  /// <summary>
+  /// -1 (undefined), 0 (false), or 1 (true).
+  /// </summary>
+  sbyte val;
 }

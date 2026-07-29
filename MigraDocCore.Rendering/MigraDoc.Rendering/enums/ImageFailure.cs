@@ -28,14 +28,13 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+internal enum ImageFailure
 {
-  internal enum ImageFailure
-  {
-    None = 0,
-    FileNotFound,
-    InvalidType,
-    NotRead,
-    EmptySize
-  }
+  None = 0,
+  FileNotFound,
+  InvalidType,
+  NotRead,
+  EmptySize
 }

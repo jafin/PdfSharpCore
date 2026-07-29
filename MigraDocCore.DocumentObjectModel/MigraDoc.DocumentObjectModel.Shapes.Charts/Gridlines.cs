@@ -33,101 +33,100 @@
 using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
-namespace MigraDocCore.DocumentObjectModel.Shapes.Charts
+namespace MigraDocCore.DocumentObjectModel.Shapes.Charts;
+
+/// <summary>
+/// Represents the gridlines on the axes.
+/// </summary>
+public class Gridlines : ChartObject
 {
   /// <summary>
-  /// Represents the gridlines on the axes.
+  /// Initializes a new instance of the Gridlines class.
   /// </summary>
-  public class Gridlines : ChartObject
+  public Gridlines()
   {
-    /// <summary>
-    /// Initializes a new instance of the Gridlines class.
-    /// </summary>
-    public Gridlines()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Gridlines class with the specified parent.
-    /// </summary>
-    internal Gridlines(DocumentObject parent) : base(parent) { }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Gridlines Clone()
-    {
-      return (Gridlines)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Gridlines gridlines = (Gridlines)base.DeepCopy();
-      if (gridlines.lineFormat != null)
-      {
-        gridlines.lineFormat = gridlines.lineFormat.Clone();
-        gridlines.lineFormat.parent = gridlines;
-      }
-      return gridlines;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the line format of the grid.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-      set
-      {
-        SetParent(value);
-        this.lineFormat = value;
-      }
-    }
-    [DV]
-    internal LineFormat lineFormat;
-    #endregion
-
-    #region Internal
-    /// <summary>
-    /// Converts Gridlines into DDL.
-    /// </summary>
-    internal override void Serialize(Serializer serializer)
-    {
-      Axis axisObject = this.parent as Axis;
-
-      int pos = serializer.BeginContent(axisObject.CheckGridlines(this));
-
-      if (!this.IsNull("LineFormat"))
-        this.lineFormat.Serialize(serializer);
-
-      serializer.EndContent();
-    }
-
-    /// <summary>
-    /// Returns the meta object of this instance.
-    /// </summary>
-    internal override Meta Meta
-    {
-      get
-      {
-        if (meta == null)
-          meta = new Meta(typeof(Gridlines));
-        return meta;
-      }
-    }
-    static Meta meta;
-    #endregion
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Gridlines class with the specified parent.
+  /// </summary>
+  internal Gridlines(DocumentObject parent) : base(parent) { }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Gridlines Clone()
+  {
+    return (Gridlines)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    Gridlines gridlines = (Gridlines)base.DeepCopy();
+    if (gridlines.lineFormat != null)
+    {
+      gridlines.lineFormat = gridlines.lineFormat.Clone();
+      gridlines.lineFormat.parent = gridlines;
+    }
+    return gridlines;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets the line format of the grid.
+  /// </summary>
+  public LineFormat LineFormat
+  {
+    get
+    {
+      if (this.lineFormat == null)
+        this.lineFormat = new LineFormat(this);
+
+      return this.lineFormat;
+    }
+    set
+    {
+      SetParent(value);
+      this.lineFormat = value;
+    }
+  }
+  [DV]
+  internal LineFormat lineFormat;
+  #endregion
+
+  #region Internal
+  /// <summary>
+  /// Converts Gridlines into DDL.
+  /// </summary>
+  internal override void Serialize(Serializer serializer)
+  {
+    Axis axisObject = this.parent as Axis;
+
+    int pos = serializer.BeginContent(axisObject.CheckGridlines(this));
+
+    if (!this.IsNull("LineFormat"))
+      this.lineFormat.Serialize(serializer);
+
+    serializer.EndContent();
+  }
+
+  /// <summary>
+  /// Returns the meta object of this instance.
+  /// </summary>
+  internal override Meta Meta
+  {
+    get
+    {
+      if (meta == null)
+        meta = new Meta(typeof(Gridlines));
+      return meta;
+    }
+  }
+  static Meta meta;
+  #endregion
 }

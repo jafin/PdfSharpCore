@@ -31,26 +31,25 @@
 using PdfSharpCore.Drawing;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Formatting information for an image.
+/// </summary>
+internal class ImageFormatInfo : ShapeFormatInfo
 {
-    /// <summary>
-    /// Formatting information for an image.
-    /// </summary>
-    internal class ImageFormatInfo : ShapeFormatInfo
+    internal int CropX;
+    internal int CropY;
+    internal int CropWidth;
+    internal int CropHeight;
+    internal XUnit Width;
+    internal XUnit Height;
+
+    internal ImageFailure Failure
     {
-        internal int CropX;
-        internal int CropY;
-        internal int CropWidth;
-        internal int CropHeight;
-        internal XUnit Width;
-        internal XUnit Height;
-
-        internal ImageFailure Failure
-        {
-            get;
-            set;
-        }
-
-        internal IImageSource ImageSource { get; set; }
+        get;
+        set;
     }
+
+    internal IImageSource ImageSource { get; set; }
 }

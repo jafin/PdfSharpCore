@@ -30,23 +30,22 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Base class for all chart classes.
+/// </summary>
+public class ChartObject : DocumentObject
 {
   /// <summary>
-  /// Base class for all chart classes.
+  /// Initializes a new instance of the ChartObject class.
   /// </summary>
-  public class ChartObject : DocumentObject
+  public ChartObject()
   {
-    /// <summary>
-    /// Initializes a new instance of the ChartObject class.
-    /// </summary>
-    public ChartObject()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the ChartObject class with the specified parent.
-    /// </summary>
-    internal ChartObject(DocumentObject parent) : base(parent) {}
   }
+
+  /// <summary>
+  /// Initializes a new instance of the ChartObject class with the specified parent.
+  /// </summary>
+  internal ChartObject(DocumentObject parent) : base(parent) {}
 }

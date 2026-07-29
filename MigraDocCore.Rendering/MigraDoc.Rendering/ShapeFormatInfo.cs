@@ -28,31 +28,30 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Format information for all shapes.
+/// </summary>
+internal class ShapeFormatInfo : FormatInfo
 {
+  internal override bool IsStarting => fits;
+
+  internal override bool IsEnding => fits;
+
+  internal override bool IsComplete => fits;
+
   /// <summary>
-  /// Format information for all shapes.
+  /// Indicates that the starting of the element is completed
   /// </summary>
-  internal class ShapeFormatInfo : FormatInfo
-  {
-    internal override bool IsStarting => fits;
+  internal override bool StartingIsComplete => fits;
 
-    internal override bool IsEnding => fits;
+  /// <summary>
+  /// Indicates that the ending of the element is completed
+  /// </summary>
+  internal override bool EndingIsComplete => fits;
 
-    internal override bool IsComplete => fits;
+  internal override bool IsEmpty => !fits;
 
-    /// <summary>
-    /// Indicates that the starting of the element is completed
-    /// </summary>
-    internal override bool StartingIsComplete => fits;
-
-    /// <summary>
-    /// Indicates that the ending of the element is completed
-    /// </summary>
-    internal override bool EndingIsComplete => fits;
-
-    internal override bool IsEmpty => !fits;
-
-    internal bool fits;
-  }
+  internal bool fits;
 }

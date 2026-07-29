@@ -29,19 +29,18 @@
 
 #endregion
 
-namespace PdfSharpCore.Drawing
-{
-    /// <summary>
-    /// Provides access to the internal data structures of XGraphicsPath.
-    /// This class prevents the public interface from pollution with internal functions.
-    /// </summary>
-    public sealed class XGraphicsPathInternals
-    {
-        internal XGraphicsPathInternals(XGraphicsPath path)
-        {
-            _path = path;
-        }
+namespace PdfSharpCore.Drawing;
 
-        XGraphicsPath _path;
+/// <summary>
+/// Provides access to the internal data structures of XGraphicsPath.
+/// This class prevents the public interface from pollution with internal functions.
+/// </summary>
+public sealed class XGraphicsPathInternals
+{
+    internal XGraphicsPathInternals(XGraphicsPath path)
+    {
+        _path = path;
     }
+
+    XGraphicsPath _path;
 }

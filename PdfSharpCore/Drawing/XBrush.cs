@@ -27,13 +27,12 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-namespace PdfSharpCore.Drawing
+namespace PdfSharpCore.Drawing;
+
+/// <summary>
+/// Classes derived from this abstract base class define objects used to fill the 
+/// interiors of paths.
+/// </summary>
+public abstract class XBrush
 {
-    /// <summary>
-    /// Classes derived from this abstract base class define objects used to fill the 
-    /// interiors of paths.
-    /// </summary>
-    public abstract class XBrush
-    {
-    }
 }

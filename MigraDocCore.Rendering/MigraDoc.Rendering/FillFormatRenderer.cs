@@ -31,44 +31,43 @@
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Renders fill formats.
+/// </summary>
+internal class FillFormatRenderer
 {
-  /// <summary>
-  /// Renders fill formats.
-  /// </summary>
-  internal class FillFormatRenderer
+  public FillFormatRenderer(FillFormat fillFormat, XGraphics gfx)
   {
-    public FillFormatRenderer(FillFormat fillFormat, XGraphics gfx)
-    {
-      this.gfx = gfx;
-      this.fillFormat = fillFormat;
-    }
-
-    internal void Render(XUnit x, XUnit y, XUnit width, XUnit height)
-    {
-      XBrush brush = GetBrush();
-
-      if (brush == null)
-        return;
-
-      gfx.DrawRectangle(brush, x.Point, y.Point, width.Point, height.Point);
-    }
-
-    private bool IsVisible()
-    {
-      if (!fillFormat.IsNull("Visible"))
-        return fillFormat.Visible;
-      return !fillFormat.IsNull("Color");
-    }
-
-    private XBrush GetBrush()
-    {
-      if (fillFormat == null || !IsVisible())
-        return null;
-
-      return new XSolidBrush(ColorHelper.ToXColor(fillFormat.Color, fillFormat.Document.UseCmykColor));
-    }
-    private XGraphics gfx;
-    private FillFormat fillFormat;
+    this.gfx = gfx;
+    this.fillFormat = fillFormat;
   }
+
+  internal void Render(XUnit x, XUnit y, XUnit width, XUnit height)
+  {
+    XBrush brush = GetBrush();
+
+    if (brush == null)
+      return;
+
+    gfx.DrawRectangle(brush, x.Point, y.Point, width.Point, height.Point);
+  }
+
+  private bool IsVisible()
+  {
+    if (!fillFormat.IsNull("Visible"))
+      return fillFormat.Visible;
+    return !fillFormat.IsNull("Color");
+  }
+
+  private XBrush GetBrush()
+  {
+    if (fillFormat == null || !IsVisible())
+      return null;
+
+    return new XSolidBrush(ColorHelper.ToXColor(fillFormat.Color, fillFormat.Document.UseCmykColor));
+  }
+  private XGraphics gfx;
+  private FillFormat fillFormat;
 }

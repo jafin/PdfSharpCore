@@ -30,19 +30,18 @@
 
 using PdfSharpCore.Charting;
 
-namespace MigraDocCore.Rendering
+namespace MigraDocCore.Rendering;
+
+/// <summary>
+/// Formatting information for a chart.
+/// </summary>
+internal class ChartFormatInfo : ShapeFormatInfo
 {
-  /// <summary>
-  /// Formatting information for a chart.
-  /// </summary>
-  internal class ChartFormatInfo : ShapeFormatInfo
-  {
-    internal ChartFrame chartFrame;
-    internal FormattedTextArea formattedHeader;
-    internal FormattedTextArea formattedLeft;
-    internal FormattedTextArea formattedTop;
-    internal FormattedTextArea formattedBottom;
-    internal FormattedTextArea formattedRight;
-    internal FormattedTextArea formattedFooter;
-  }
+  internal ChartFrame chartFrame;
+  internal FormattedTextArea formattedHeader;
+  internal FormattedTextArea formattedLeft;
+  internal FormattedTextArea formattedTop;
+  internal FormattedTextArea formattedBottom;
+  internal FormattedTextArea formattedRight;
+  internal FormattedTextArea formattedFooter;
 }

@@ -33,448 +33,447 @@ using System.Linq;
 using PdfSharpCore.Drawing.Layout.enums;
 using PdfSharpCore.Pdf.IO;
 
-namespace PdfSharpCore.Drawing.Layout
+namespace PdfSharpCore.Drawing.Layout;
+
+/// <summary>
+/// Represents a very simple text formatter.
+/// If this class does not satisfy your needs on formatting paragraphs I recommend to take a look
+/// at MigraDoc Foundation. Alternatively you should copy this class in your own source code and modify it.
+/// </summary>
+public class XTextFormatter
 {
     /// <summary>
-    /// Represents a very simple text formatter.
-    /// If this class does not satisfy your needs on formatting paragraphs I recommend to take a look
-    /// at MigraDoc Foundation. Alternatively you should copy this class in your own source code and modify it.
+    /// Initializes a new instance of the <see cref="XTextFormatter"/> class.
     /// </summary>
-    public class XTextFormatter
+    public XTextFormatter(XGraphics gfx)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="XTextFormatter"/> class.
-        /// </summary>
-        public XTextFormatter(XGraphics gfx)
+        if (gfx == null)
+            throw new ArgumentNullException(nameof(gfx));
+        _gfx = gfx;
+    }
+    readonly XGraphics _gfx;
+
+    /// <summary>
+    /// Gets or sets the text.
+    /// </summary>
+    /// <value>The text.</value>
+    public string Text
+    {
+        get => _text;
+        set => _text = value;
+    }
+    string _text;
+
+    /// <summary>
+    /// Gets or sets the font.
+    /// </summary>
+    public XFont Font
+    {
+        get => _font;
+        set
         {
-            if (gfx == null)
-                throw new ArgumentNullException("gfx");
-            _gfx = gfx;
+            if (value == null)
+                throw new ArgumentNullException("Font");
+            _font = value;
+
+            _lineSpace = _font.GetHeight(); // old: _font.GetHeight(_gfx);
+            _cyAscent = _lineSpace * _font.CellAscent / _font.CellSpace;
+            _cyDescent = _lineSpace * _font.CellDescent / _font.CellSpace;
+
+            // HACK in XTextFormatter
+            _spaceWidth = _gfx.MeasureString("x x", value).Width;
+            _spaceWidth -= _gfx.MeasureString("xx", value).Width;
         }
-        readonly XGraphics _gfx;
+    }
+    XFont _font;
+    double _lineSpace;
+    double _cyAscent;
+    double _cyDescent;
+    double _spaceWidth;
+    double _lineHeight;
 
-        /// <summary>
-        /// Gets or sets the text.
-        /// </summary>
-        /// <value>The text.</value>
-        public string Text
-        {
-            get { return _text; }
-            set { _text = value; }
-        }
-        string _text;
+    /// <summary>
+    /// Gets or sets the bounding box of the layout.
+    /// </summary>
+    public XRect LayoutRectangle
+    {
+        get => _layoutRectangle;
+        set => _layoutRectangle = value;
+    }
+    XRect _layoutRectangle;
 
-        /// <summary>
-        /// Gets or sets the font.
-        /// </summary>
-        public XFont Font
-        {
-            get { return _font; }
-            set
-            {
-                if (value == null)
-                    throw new ArgumentNullException("Font");
-                _font = value;
-
-                _lineSpace = _font.GetHeight(); // old: _font.GetHeight(_gfx);
-                _cyAscent = _lineSpace * _font.CellAscent / _font.CellSpace;
-                _cyDescent = _lineSpace * _font.CellDescent / _font.CellSpace;
-
-                // HACK in XTextFormatter
-                _spaceWidth = _gfx.MeasureString("x x", value).Width;
-                _spaceWidth -= _gfx.MeasureString("xx", value).Width;
-            }
-        }
-        XFont _font;
-        double _lineSpace;
-        double _cyAscent;
-        double _cyDescent;
-        double _spaceWidth;
-        double _lineHeight;
-
-        /// <summary>
-        /// Gets or sets the bounding box of the layout.
-        /// </summary>
-        public XRect LayoutRectangle
-        {
-            get { return _layoutRectangle; }
-            set { _layoutRectangle = value; }
-        }
-        XRect _layoutRectangle;
-
-        /// <summary>
-        /// When true, ignore the height of text areas when rendering multiline strings
-        /// </summary>
-        public bool AllowVerticalOverflow { get; set; } = false;
+    /// <summary>
+    /// When true, ignore the height of text areas when rendering multiline strings
+    /// </summary>
+    public bool AllowVerticalOverflow { get; set; } = false;
         
-        /// <summary>
-        /// Gets or sets the horizontal alignment of the text.
-        /// </summary>
-        public XParagraphAlignment Alignment { get; set; } = XParagraphAlignment.Left;
+    /// <summary>
+    /// Gets or sets the horizontal alignment of the text.
+    /// </summary>
+    public XParagraphAlignment Alignment { get; set; } = XParagraphAlignment.Left;
         
-        /// <summary>
-        /// Gets or sets the vertical alignment of the text.
-        /// </summary>
-        public XVerticalAlignment VerticalAlignment { get; set; } = XVerticalAlignment.Top;
+    /// <summary>
+    /// Gets or sets the vertical alignment of the text.
+    /// </summary>
+    public XVerticalAlignment VerticalAlignment { get; set; } = XVerticalAlignment.Top;
 
-        /// <summary>
-        /// Set vertical and horizontal alignment
-        /// </summary>
-        /// <param name="alignments"></param>
-        public void SetAlignment(TextFormatAlignment alignments)
-        {
-            Alignment = alignments.Horizontal;
-            VerticalAlignment = alignments.Vertical;
-        }
+    /// <summary>
+    /// Set vertical and horizontal alignment
+    /// </summary>
+    /// <param name="alignments"></param>
+    public void SetAlignment(TextFormatAlignment alignments)
+    {
+        Alignment = alignments.Horizontal;
+        VerticalAlignment = alignments.Vertical;
+    }
         
         
-        /// <summary>
-        /// Draws the text.
-        /// </summary>
-        /// <param name="text">The text to be drawn.</param>
-        /// <param name="font">The font.</param>
-        /// <param name="brush">The text brush.</param>
-        /// <param name="layoutRectangle">The layout rectangle.</param>
-        /// <param name="lineHeight">The line height.</param>
-        /// <remarks>
-        /// The text is drawn with the alignment the formatter has been given, which is to the top
-        /// left until <see cref="SetAlignment"/> or the properties behind it say otherwise.
-        /// </remarks>
-        public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XUnit? lineHeight = null)
+    /// <summary>
+    /// Draws the text.
+    /// </summary>
+    /// <param name="text">The text to be drawn.</param>
+    /// <param name="font">The font.</param>
+    /// <param name="brush">The text brush.</param>
+    /// <param name="layoutRectangle">The layout rectangle.</param>
+    /// <param name="lineHeight">The line height.</param>
+    /// <remarks>
+    /// The text is drawn with the alignment the formatter has been given, which is to the top
+    /// left until <see cref="SetAlignment"/> or the properties behind it say otherwise.
+    /// </remarks>
+    public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XUnit? lineHeight = null)
+    {
+        DrawString(text, font, brush, layoutRectangle, new TextFormatAlignment()
         {
-            DrawString(text, font, brush, layoutRectangle, new TextFormatAlignment()
-            {
-                Horizontal = Alignment, Vertical = VerticalAlignment
-            }, lineHeight);
-        }
+            Horizontal = Alignment, Vertical = VerticalAlignment
+        }, lineHeight);
+    }
 
-        /// <summary>
-        /// Get the layout rectangle required.
-        /// </summary>
-        /// <param name="text">The text to be drawn.</param>
-        /// <param name="font">The font.</param>
-        /// <param name="brush">The text brush.</param>
-        /// <param name="layoutRectangle">The layout rectangle.</param>
-        /// <param name="lineHeight">The height of each line</param>
-        public XRect GetLayout(string text, XFont font, XBrush brush, XRect layoutRectangle,
-            XUnit? lineHeight = null)
-        {
-            if (text == null)
-                throw new ArgumentNullException("text");
-            if (font == null)
-                throw new ArgumentNullException("font");
-            if (brush == null)
-                throw new ArgumentNullException("brush");
+    /// <summary>
+    /// Get the layout rectangle required.
+    /// </summary>
+    /// <param name="text">The text to be drawn.</param>
+    /// <param name="font">The font.</param>
+    /// <param name="brush">The text brush.</param>
+    /// <param name="layoutRectangle">The layout rectangle.</param>
+    /// <param name="lineHeight">The height of each line</param>
+    public XRect GetLayout(string text, XFont font, XBrush brush, XRect layoutRectangle,
+        XUnit? lineHeight = null)
+    {
+        if (text == null)
+            throw new ArgumentNullException(nameof(text));
+        if (font == null)
+            throw new ArgumentNullException(nameof(font));
+        if (brush == null)
+            throw new ArgumentNullException(nameof(brush));
 
-            Text = text;
-            Font = font;
-            LayoutRectangle = layoutRectangle;
+        Text = text;
+        Font = font;
+        LayoutRectangle = layoutRectangle;
             
-            _lineHeight = lineHeight?.Point ?? _lineSpace;
+        _lineHeight = lineHeight?.Point ?? _lineSpace;
 
-            if (text.Length == 0)
-                return new XRect(layoutRectangle.Location.X, layoutRectangle.Location.Y, 0, 0);
+        if (text.Length == 0)
+            return new XRect(layoutRectangle.Location.X, layoutRectangle.Location.Y, 0, 0);
 
-            CreateBlocks();
+        CreateBlocks();
 
-            CreateLayout();
+        CreateLayout();
 
-            return _layoutRectangle;
+        return _layoutRectangle;
+    }
+
+    /// <summary>
+    /// Draws the text.
+    /// </summary>
+    /// <param name="text">The text to be drawn.</param>
+    /// <param name="font">The font.</param>
+    /// <param name="brush">The text brush.</param>
+    /// <param name="layoutRectangle">The layout rectangle.</param>
+    /// <param name="alignments">The alignments.</c></param>
+    /// <param name="lineHeight">The height of each line.</param>
+    public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, TextFormatAlignment alignments,
+        XUnit? lineHeight = null)
+    {
+        if (alignments == null)
+            throw new ArgumentNullException(nameof(alignments));
+
+        if (text.Length == 0)
+            return;
+
+        GetLayout(text, font, brush, layoutRectangle, lineHeight);
+
+        SetAlignment(alignments);
+
+        double dx = layoutRectangle.Location.X;
+        double dy = layoutRectangle.Location.Y;
+
+        var lines = GetLines(_blocks).ToArray();
+
+        if (VerticalAlignment == XVerticalAlignment.Middle)
+        {
+            dy += (layoutRectangle.Height - _layoutRectangle.Height) / 2;
+        }
+        else if (VerticalAlignment == XVerticalAlignment.Bottom)
+        {
+            // A line is placed by its top, so the last one ends on the bottom of the rectangle
+            // once the text as a whole is put that far down.
+            dy = layoutRectangle.Location.Y + layoutRectangle.Height - _layoutRectangle.Height;
         }
 
-        /// <summary>
-        /// Draws the text.
-        /// </summary>
-        /// <param name="text">The text to be drawn.</param>
-        /// <param name="font">The font.</param>
-        /// <param name="brush">The text brush.</param>
-        /// <param name="layoutRectangle">The layout rectangle.</param>
-        /// <param name="alignments">The alignments.</c></param>
-        /// <param name="lineHeight">The height of each line.</param>
-        public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, TextFormatAlignment alignments,
-            XUnit? lineHeight = null)
+        foreach (var line in lines)
         {
-            if (alignments == null)
-                throw new ArgumentNullException(nameof(alignments));
-
-            if (text.Length == 0)
-                return;
-
-            GetLayout(text, font, brush, layoutRectangle, lineHeight);
-
-            SetAlignment(alignments);
-
-            double dx = layoutRectangle.Location.X;
-            double dy = layoutRectangle.Location.Y;
-
-            var lines = GetLines(_blocks).ToArray();
-
-            if (VerticalAlignment == XVerticalAlignment.Middle)
+            var lineBlocks = line as Block[] ?? line.ToArray();
+            // The last line of a paragraph keeps its natural width. Stretching it over the
+            // full width of the layout rectangle would tear the few words it holds apart.
+            if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
             {
-                dy += (layoutRectangle.Height - _layoutRectangle.Height) / 2;
-            }
-            else if (VerticalAlignment == XVerticalAlignment.Bottom)
-            {
-                // A line is placed by its top, so the last one ends on the bottom of the rectangle
-                // once the text as a whole is put that far down.
-                dy = layoutRectangle.Location.Y + layoutRectangle.Height - _layoutRectangle.Height;
-            }
-
-            foreach (var line in lines)
-            {
-                var lineBlocks = line as Block[] ?? line.ToArray();
-                // The last line of a paragraph keeps its natural width. Stretching it over the
-                // full width of the layout rectangle would tear the few words it holds apart.
-                if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
+                var locationX = dx;
+                var gaps = lineBlocks.Length - 1;
+                var gapSize = gaps > 0 ? (layoutRectangle.Width - lineBlocks.Select(l => l.Width).Sum()) / gaps : 0;
+                foreach (var block in lineBlocks)
                 {
-                    var locationX = dx;
-                    var gaps = lineBlocks.Length - 1;
-                    var gapSize = gaps > 0 ? (layoutRectangle.Width - lineBlocks.Select(l => l.Width).Sum()) / gaps : 0;
-                    foreach (var block in lineBlocks)
-                    {
-                        _gfx.DrawString(block.Text.Trim(), font, brush, locationX, dy + lineBlocks.First().Location.Y, XStringFormats.TopLeft);
-                        locationX += block.Width + gapSize;
-                    }
-                }
-                else
-                {
-                    var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
-                    var locationX = dx;
-                    if (Alignment == XParagraphAlignment.Center)
-                        locationX = dx + layoutRectangle.Width / 2;
-                    if (Alignment == XParagraphAlignment.Right)
-                        locationX += layoutRectangle.Width;
-                    _gfx.DrawString(lineText, font, brush, locationX, dy + lineBlocks.First().Location.Y, GetXStringFormat());
+                    _gfx.DrawString(block.Text.Trim(), font, brush, locationX, dy + lineBlocks.First().Location.Y, XStringFormats.TopLeft);
+                    locationX += block.Width + gapSize;
                 }
             }
-        }
-
-        private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
-        {
-            return GetLaidOutBlocks(blocks).GroupBy(b => b.Location.Y);
-        }
-
-        /// <summary>
-        /// Gets the blocks that carry text and were given a location by <see cref="CreateLayout"/>.
-        /// Line breaks have neither, and the blocks from the first one marked with <see cref="Block.Stop"/>
-        /// onwards did not fit into the layout rectangle and were left unpositioned.
-        /// </summary>
-        private static IEnumerable<Block> GetLaidOutBlocks(List<Block> blocks)
-        {
-            return blocks.TakeWhile(b => !b.Stop).Where(b => b.Type != BlockType.LineBreak);
-        }
-
-        void CreateBlocks()
-        {
-            _blocks.Clear();
-            int length = _text.Length;
-            bool inNonWhiteSpace = false;
-            int startIndex = 0, blockLength = 0;
-            for (int idx = 0; idx < length; idx++)
+            else
             {
-                char ch = _text[idx];
+                var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
+                var locationX = dx;
+                if (Alignment == XParagraphAlignment.Center)
+                    locationX = dx + layoutRectangle.Width / 2;
+                if (Alignment == XParagraphAlignment.Right)
+                    locationX += layoutRectangle.Width;
+                _gfx.DrawString(lineText, font, brush, locationX, dy + lineBlocks.First().Location.Y, GetXStringFormat());
+            }
+        }
+    }
 
-                // Treat CR and CRLF as LF
-                if (ch == Chars.CR)
+    private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
+    {
+        return GetLaidOutBlocks(blocks).GroupBy(b => b.Location.Y);
+    }
+
+    /// <summary>
+    /// Gets the blocks that carry text and were given a location by <see cref="CreateLayout"/>.
+    /// Line breaks have neither, and the blocks from the first one marked with <see cref="Block.Stop"/>
+    /// onwards did not fit into the layout rectangle and were left unpositioned.
+    /// </summary>
+    private static IEnumerable<Block> GetLaidOutBlocks(List<Block> blocks)
+    {
+        return blocks.TakeWhile(b => !b.Stop).Where(b => b.Type != BlockType.LineBreak);
+    }
+
+    void CreateBlocks()
+    {
+        _blocks.Clear();
+        int length = _text.Length;
+        bool inNonWhiteSpace = false;
+        int startIndex = 0, blockLength = 0;
+        for (int idx = 0; idx < length; idx++)
+        {
+            char ch = _text[idx];
+
+            // Treat CR and CRLF as LF
+            if (ch == Chars.CR)
+            {
+                if (idx < length - 1 && _text[idx + 1] == Chars.LF)
+                    idx++;
+                ch = Chars.LF;
+            }
+            if (ch == Chars.LF)
+            {
+                if (blockLength != 0)
                 {
-                    if (idx < length - 1 && _text[idx + 1] == Chars.LF)
-                        idx++;
-                    ch = Chars.LF;
+                    string token = _text.Substring(startIndex, blockLength);
+                    _blocks.Add(new Block(token, BlockType.Text,
+                        _gfx.MeasureString(token, _font).Width));
                 }
-                if (ch == Chars.LF)
+                startIndex = idx + 1;
+                blockLength = 0;
+                _blocks.Add(new Block(BlockType.LineBreak));
+            }
+            else if (char.IsWhiteSpace(ch))
+            {
+                if (inNonWhiteSpace)
                 {
-                    if (blockLength != 0)
-                    {
-                        string token = _text.Substring(startIndex, blockLength);
-                        _blocks.Add(new Block(token, BlockType.Text,
-                          _gfx.MeasureString(token, _font).Width));
-                    }
+                    string token = _text.Substring(startIndex, blockLength);
+                    _blocks.Add(new Block(token, BlockType.Text,
+                        _gfx.MeasureString(token, _font).Width));
                     startIndex = idx + 1;
                     blockLength = 0;
-                    _blocks.Add(new Block(BlockType.LineBreak));
-                }
-                else if (char.IsWhiteSpace(ch))
-                {
-                    if (inNonWhiteSpace)
-                    {
-                        string token = _text.Substring(startIndex, blockLength);
-                        _blocks.Add(new Block(token, BlockType.Text,
-                          _gfx.MeasureString(token, _font).Width));
-                        startIndex = idx + 1;
-                        blockLength = 0;
-                    }
-                    else
-                    {
-                        blockLength++;
-                    }
                 }
                 else
                 {
-                    inNonWhiteSpace = true;
                     blockLength++;
                 }
             }
-            if (blockLength != 0)
+            else
             {
-                string token = _text.Substring(startIndex, blockLength);
-                _blocks.Add(new Block(token, BlockType.Text,
-                  _gfx.MeasureString(token, _font).Width));
+                inNonWhiteSpace = true;
+                blockLength++;
             }
         }
-
-        void CreateLayout()
+        if (blockLength != 0)
         {
-            double rectWidth = _layoutRectangle.Width;
-            double rectHeight = _layoutRectangle.Height - _cyAscent - _cyDescent;
-            int firstIndex = 0;
-            double x = 0, y = 0;
-            int count = _blocks.Count;
-            for (int idx = 0; idx < count; idx++)
+            string token = _text.Substring(startIndex, blockLength);
+            _blocks.Add(new Block(token, BlockType.Text,
+                _gfx.MeasureString(token, _font).Width));
+        }
+    }
+
+    void CreateLayout()
+    {
+        double rectWidth = _layoutRectangle.Width;
+        double rectHeight = _layoutRectangle.Height - _cyAscent - _cyDescent;
+        int firstIndex = 0;
+        double x = 0, y = 0;
+        int count = _blocks.Count;
+        for (int idx = 0; idx < count; idx++)
+        {
+            Block block = _blocks[idx];
+            if (block.Type == BlockType.LineBreak)
             {
-                Block block = _blocks[idx];
-                if (block.Type == BlockType.LineBreak)
+                if (idx > firstIndex)
+                    _blocks[idx - 1].EndsParagraph = true;
+                if (Alignment == XParagraphAlignment.Justify)
+                    _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
+                HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
+                firstIndex = idx + 1;
+                x = 0;
+                y += _lineHeight;
+                if (!AllowVerticalOverflow && y > rectHeight)
                 {
-                    if (idx > firstIndex)
-                        _blocks[idx - 1].EndsParagraph = true;
-                    if (Alignment == XParagraphAlignment.Justify)
-                        _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
+                    block.Stop = true;
+                    break;
+                }
+            }
+            else
+            {
+                double width = block.Width;
+                if ((x + width <= rectWidth || x == 0) && block.Type != BlockType.LineBreak)
+                {
+                    block.Location = new XPoint(x, y);
+                    x += width + _spaceWidth;
+                }
+                else
+                {
                     HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
-                    firstIndex = idx + 1;
-                    x = 0;
+
+                    // Begin implicit line break
+                    firstIndex = idx;
                     y += _lineHeight;
                     if (!AllowVerticalOverflow && y > rectHeight)
                     {
                         block.Stop = true;
                         break;
                     }
-                }
-                else
-                {
-                    double width = block.Width;
-                    if ((x + width <= rectWidth || x == 0) && block.Type != BlockType.LineBreak)
-                    {
-                        block.Location = new XPoint(x, y);
-                        x += width + _spaceWidth;
-                    }
-                    else
-                    {
-                        HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
-
-                        // Begin implicit line break
-                        firstIndex = idx;
-                        y += _lineHeight;
-                        if (!AllowVerticalOverflow && y > rectHeight)
-                        {
-                            block.Stop = true;
-                            break;
-                        }
-                        block.Location = new XPoint(0, y);
-                        x = width + _spaceWidth;
-                    }
+                    block.Location = new XPoint(0, y);
+                    x = width + _spaceWidth;
                 }
             }
-            if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
-                HorizontalAlignLine(firstIndex, count - 1, rectWidth);
+        }
+        if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
+            HorizontalAlignLine(firstIndex, count - 1, rectWidth);
             
-            var laidOutBlocks = GetLaidOutBlocks(_blocks).ToArray();
-            if (laidOutBlocks.Length == 0)
-            {
-                _layoutRectangle = new XRect();
-                return;
-            }
-
-            laidOutBlocks[laidOutBlocks.Length - 1].EndsParagraph = true;
-
-            var minY = laidOutBlocks.Min(b => b.Location.Y);
-            var maxY = laidOutBlocks.Max(b => b.Location.Y + _lineHeight);
-            var minX = laidOutBlocks.Min(b => b.Location.X);
-            var maxX = laidOutBlocks.Max(b => b.Location.X + b.Width);
-            _layoutRectangle = new XRect
-            {
-                X = minX,
-                Y = minY,
-                Height = maxY - minY,
-                Width = maxX - minX
-            };
-        }
-
-        /// <summary>
-        /// Align center, right, or justify.
-        /// </summary>
-        void HorizontalAlignLine(int firstIndex, int lastIndex, double layoutWidth)
+        var laidOutBlocks = GetLaidOutBlocks(_blocks).ToArray();
+        if (laidOutBlocks.Length == 0)
         {
-            XParagraphAlignment blockAlignment = _blocks[firstIndex].Alignment;
-            if (Alignment == XParagraphAlignment.Left || blockAlignment == XParagraphAlignment.Left)
-                return;
-
-            int count = lastIndex - firstIndex + 1;
-            if (count == 0)
-                return;
-
-            double totalWidth = -_spaceWidth;
-            for (int idx = firstIndex; idx <= lastIndex; idx++)
-                totalWidth += _blocks[idx].Width + _spaceWidth;
-
-            double dx = Math.Max(layoutWidth - totalWidth, 0);
-            //Debug.Assert(dx >= 0);
-            if (Alignment != XParagraphAlignment.Justify)
-            {
-                if (Alignment == XParagraphAlignment.Center)
-                    dx /= 2;
-                for (int idx = firstIndex; idx <= lastIndex; idx++)
-                {
-                    Block block = _blocks[idx];
-                    block.Location += new XSize(dx, 0);
-                }
-            }
-            else if (count > 1) // case: justify
-            {
-                dx /= count - 1;
-                for (int idx = firstIndex + 1, i = 1; idx <= lastIndex; idx++, i++)
-                {
-                    Block block = _blocks[idx];
-                    block.Location += new XSize(dx * i, 0);
-                }
-            }
+            _layoutRectangle = new XRect();
+            return;
         }
 
-        readonly List<Block> _blocks = new List<Block>();
+        laidOutBlocks[laidOutBlocks.Length - 1].EndsParagraph = true;
 
-        // TODO:
-        // - more XStringFormat variations
-        // - left and right indent
-        // - first line indent
-        // - margins and paddings
-        // - background color
-        // - text background color
-        // - border style
-        // - hyphens, soft hyphens, hyphenation
-        // - kerning
-        // - change font, size, text color etc.
-        // - underline and strike-out variation
-        // - super- and sub-script
-        // - ...
-
-        private XStringFormat GetXStringFormat()
+        var minY = laidOutBlocks.Min(b => b.Location.Y);
+        var maxY = laidOutBlocks.Max(b => b.Location.Y + _lineHeight);
+        var minX = laidOutBlocks.Min(b => b.Location.X);
+        var maxX = laidOutBlocks.Max(b => b.Location.X + b.Width);
+        _layoutRectangle = new XRect
         {
-            switch (Alignment)
-            {
-                case XParagraphAlignment.Center:
-                    return XStringFormats.TopCenter;
-                case XParagraphAlignment.Right:
-                    return XStringFormats.TopRight;
-                case XParagraphAlignment.Default:
-                case XParagraphAlignment.Justify:
-                case XParagraphAlignment.Left:
-                default:
-                    return XStringFormats.TopLeft;
-            }
-        }
+            X = minX,
+            Y = minY,
+            Height = maxY - minY,
+            Width = maxX - minX
+        };
     }
 
-    public class TextFormatAlignment
+    /// <summary>
+    /// Align center, right, or justify.
+    /// </summary>
+    void HorizontalAlignLine(int firstIndex, int lastIndex, double layoutWidth)
     {
-        public XParagraphAlignment Horizontal { get; set; } = XParagraphAlignment.Left;
-        public XVerticalAlignment Vertical { get; set; } = XVerticalAlignment.Top;
+        XParagraphAlignment blockAlignment = _blocks[firstIndex].Alignment;
+        if (Alignment == XParagraphAlignment.Left || blockAlignment == XParagraphAlignment.Left)
+            return;
+
+        int count = lastIndex - firstIndex + 1;
+        if (count == 0)
+            return;
+
+        double totalWidth = -_spaceWidth;
+        for (int idx = firstIndex; idx <= lastIndex; idx++)
+            totalWidth += _blocks[idx].Width + _spaceWidth;
+
+        double dx = Math.Max(layoutWidth - totalWidth, 0);
+        //Debug.Assert(dx >= 0);
+        if (Alignment != XParagraphAlignment.Justify)
+        {
+            if (Alignment == XParagraphAlignment.Center)
+                dx /= 2;
+            for (int idx = firstIndex; idx <= lastIndex; idx++)
+            {
+                Block block = _blocks[idx];
+                block.Location += new XSize(dx, 0);
+            }
+        }
+        else if (count > 1) // case: justify
+        {
+            dx /= count - 1;
+            for (int idx = firstIndex + 1, i = 1; idx <= lastIndex; idx++, i++)
+            {
+                Block block = _blocks[idx];
+                block.Location += new XSize(dx * i, 0);
+            }
+        }
     }
+
+    readonly List<Block> _blocks = new();
+
+    // TODO:
+    // - more XStringFormat variations
+    // - left and right indent
+    // - first line indent
+    // - margins and paddings
+    // - background color
+    // - text background color
+    // - border style
+    // - hyphens, soft hyphens, hyphenation
+    // - kerning
+    // - change font, size, text color etc.
+    // - underline and strike-out variation
+    // - super- and sub-script
+    // - ...
+
+    private XStringFormat GetXStringFormat()
+    {
+        switch (Alignment)
+        {
+            case XParagraphAlignment.Center:
+                return XStringFormats.TopCenter;
+            case XParagraphAlignment.Right:
+                return XStringFormats.TopRight;
+            case XParagraphAlignment.Default:
+            case XParagraphAlignment.Justify:
+            case XParagraphAlignment.Left:
+            default:
+                return XStringFormats.TopLeft;
+        }
+    }
+}
+
+public class TextFormatAlignment
+{
+    public XParagraphAlignment Horizontal { get; set; } = XParagraphAlignment.Left;
+    public XVerticalAlignment Vertical { get; set; } = XVerticalAlignment.Top;
 }

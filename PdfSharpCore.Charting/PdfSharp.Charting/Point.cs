@@ -30,106 +30,105 @@
 using System;
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpCore.Charting
-{
+namespace PdfSharpCore.Charting;
+
+/// <summary>
+/// Represents a formatted value on the data series.
+/// </summary>
+public class Point : ChartObject
+{    
   /// <summary>
-  /// Represents a formatted value on the data series.
+  /// Initializes a new instance of the Point class.
   /// </summary>
-  public class Point : ChartObject
-  {    
-    /// <summary>
-    /// Initializes a new instance of the Point class.
-    /// </summary>
-    internal Point()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Point class with a real value.
-    /// </summary>
-    public Point(double value) : this() 
-    {
-      this.Value = value;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the Point class with a real value.
-    /// </summary>
-    public Point(string value) : this() 
-    {
-      // = "34.5 23.9"
-      this.Value = 0;
-    }
-
-    #region Methods
-    /// <summary>
-    /// Creates a deep copy of this object.
-    /// </summary>
-    public new Point Clone()
-    {
-      return (Point)DeepCopy();
-    }
-
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-      Point point = (Point)base.DeepCopy();
-      if (point.lineFormat != null)
-      {
-        point.lineFormat = point.lineFormat.Clone();
-        point.lineFormat.parent = point;
-      }
-      if (point.fillFormat != null)
-      {
-        point.fillFormat = point.fillFormat.Clone();
-        point.fillFormat.parent = point;
-      }
-      return point;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets the line format of the data point's border.
-    /// </summary>
-    public LineFormat LineFormat
-    {
-      get
-      {
-        if (this.lineFormat == null)
-          this.lineFormat = new LineFormat(this);
-
-        return this.lineFormat;
-      }
-    }
-    internal LineFormat lineFormat;
-
-    /// <summary>
-    /// Gets the filling format of the data point.
-    /// </summary>
-    public FillFormat FillFormat
-    {
-      get
-      {
-        if (this.fillFormat == null)
-          this.fillFormat = new FillFormat(this);
-
-        return this.fillFormat;
-      }
-    }
-    internal FillFormat fillFormat;
-
-    /// <summary>
-    /// The actual value of the data point.
-    /// </summary>
-    public double Value
-    {
-      get {return this.value;}
-      set {this.value = value;}
-    }
-    internal double value;
-    #endregion
+  internal Point()
+  {
   }
+
+  /// <summary>
+  /// Initializes a new instance of the Point class with a real value.
+  /// </summary>
+  public Point(double value) : this() 
+  {
+    this.Value = value;
+  }
+
+  /// <summary>
+  /// Initializes a new instance of the Point class with a real value.
+  /// </summary>
+  public Point(string value) : this() 
+  {
+    // = "34.5 23.9"
+    this.Value = 0;
+  }
+
+  #region Methods
+  /// <summary>
+  /// Creates a deep copy of this object.
+  /// </summary>
+  public new Point Clone()
+  {
+    return (Point)DeepCopy();
+  }
+
+  /// <summary>
+  /// Implements the deep copy of the object.
+  /// </summary>
+  protected override object DeepCopy()
+  {
+    Point point = (Point)base.DeepCopy();
+    if (point.lineFormat != null)
+    {
+      point.lineFormat = point.lineFormat.Clone();
+      point.lineFormat.parent = point;
+    }
+    if (point.fillFormat != null)
+    {
+      point.fillFormat = point.fillFormat.Clone();
+      point.fillFormat.parent = point;
+    }
+    return point;
+  }
+  #endregion
+
+  #region Properties
+  /// <summary>
+  /// Gets the line format of the data point's border.
+  /// </summary>
+  public LineFormat LineFormat
+  {
+    get
+    {
+      if (this.lineFormat == null)
+        this.lineFormat = new LineFormat(this);
+
+      return this.lineFormat;
+    }
+  }
+  internal LineFormat lineFormat;
+
+  /// <summary>
+  /// Gets the filling format of the data point.
+  /// </summary>
+  public FillFormat FillFormat
+  {
+    get
+    {
+      if (this.fillFormat == null)
+        this.fillFormat = new FillFormat(this);
+
+      return this.fillFormat;
+    }
+  }
+  internal FillFormat fillFormat;
+
+  /// <summary>
+  /// The actual value of the data point.
+  /// </summary>
+  public double Value
+  {
+    get => this.value;
+    set => this.value = value;
+  }
+  internal double value;
+  #endregion
 }

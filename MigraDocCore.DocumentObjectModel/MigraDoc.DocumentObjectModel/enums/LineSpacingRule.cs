@@ -32,18 +32,17 @@
 
 using System;
 
-namespace MigraDocCore.DocumentObjectModel
+namespace MigraDocCore.DocumentObjectModel;
+
+/// <summary>
+/// Specifies the space between lines in a paragraph.
+/// </summary>
+public enum LineSpacingRule
 {
-  /// <summary>
-  /// Specifies the space between lines in a paragraph.
-  /// </summary>
-  public enum LineSpacingRule
-  {
-    Single,
-    OnePtFive,
-    Double,
-    AtLeast,
-    Exactly,
-    Multiple
-  }
+  Single,
+  OnePtFive,
+  Double,
+  AtLeast,
+  Exactly,
+  Multiple
 }
