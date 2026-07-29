@@ -69,6 +69,18 @@ public abstract class ValueDescriptor
     public abstract void SetNull(DocumentObject dom);
     public abstract bool IsNull(DocumentObject dom);
 
+    /// <summary>
+    /// Whether the described value answers for itself - a number, a string, an enum - rather than
+    /// being a DocumentObject that the rest of a dotted value name is reached through.
+    /// </summary>
+    /// <remarks>
+    /// Meta.IsNull used to decide this by naming each descriptor type it knew about, which made a
+    /// new descriptor wrong by default: NullableMemberDescriptor fell through to the DocumentObject
+    /// branch and threw InvalidCastException on every string until it was added to the list by
+    /// hand. Answering it here puts the answer next to the type it describes.
+    /// </remarks>
+    internal virtual bool IsSimpleValue => false;
+
     internal static ValueDescriptor CreateValueDescriptor(MemberInfo memberInfo, DVAttribute attr)
     {
         VDFlags flags = VDFlags.None;
@@ -151,6 +163,8 @@ public abstract class ValueDescriptor
 /// </summary>
 internal class NullableDescriptor : ValueDescriptor
 {
+    internal override bool IsSimpleValue => true;
+
     internal NullableDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
         : base(valueName, valueType, fieldType, memberInfo, flags)
     {
@@ -232,6 +246,8 @@ internal class NullableDescriptor : ValueDescriptor
 /// </summary>
 internal class ValueTypeDescriptor : ValueDescriptor
 {
+    internal override bool IsSimpleValue => true;
+
     internal ValueTypeDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
         :
         base(valueName, valueType, fieldType, memberInfo, flags)
@@ -268,21 +284,38 @@ internal class ValueTypeDescriptor : ValueDescriptor
     public override void SetNull(DocumentObject dom)
     {
         object val;
-        INullableValue ival;
         if (FieldInfo != null)
         {
             val = FieldInfo.GetValue(dom);
-            ival = (INullableValue)val;
+            INullableValue ival = AsNullableValue(val);
             ival.SetNull();
             FieldInfo.SetValue(dom, ival);
         }
         else
         {
             val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            ival = (INullableValue)val;
+            INullableValue ival = AsNullableValue(val);
             ival.SetNull();
             PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
         }
+    }
+
+    /// <summary>
+    /// Casts a value to INullableValue, saying which value it was if it is not one.
+    /// </summary>
+    /// <remarks>
+    /// IsNull below answers false for anything that does not implement the interface, so without
+    /// this the two would disagree about what this descriptor is for - SetNull throwing a bare
+    /// InvalidCastException naming nothing, IsNull quietly answering. Every value type that routes
+    /// here implements INullableValue today; this is for the next one that does not.
+    /// </remarks>
+    private INullableValue AsNullableValue(object val)
+    {
+        if (val is INullableValue ival)
+            return ival;
+
+        throw new InvalidOperationException(
+            $"The value '{ValueName}' of type {MemberType} cannot be set to null, because it does not implement INullableValue.");
     }
 
     /// <summary>
