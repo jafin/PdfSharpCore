@@ -33,6 +33,7 @@
 using System;
 using System.Diagnostics;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
@@ -384,23 +385,6 @@ public struct Color : INullableValue
     /// </summary>
     public override string ToString()
     {
-        if (stdColors == null)
-        {
-            Array colorNames = Enum.GetNames(typeof(ColorName));
-            Array colorValues = Enum.GetValues(typeof(ColorName));
-            int count = colorNames.GetLength(0);
-            stdColors = new Hashtable(count);
-            for (int index = 0; index < count; index++)
-            {
-                string c = (string)colorNames.GetValue(index);
-                uint d = (uint)colorValues.GetValue(index);
-                // Some color are double named...
-                // Aqua == Cyan
-                // Fuchsia == Magenta
-                if (!stdColors.ContainsKey(d))
-                    stdColors.Add(d, c);
-            }
-        }
         if (isCmyk)
         {
             string s;
@@ -412,8 +396,8 @@ public struct Color : INullableValue
         }
         else
         {
-            if (stdColors.ContainsKey(argb))
-                return (string)stdColors[argb];
+            if (StdColors.TryGetValue(argb, out string name))
+                return name;
             else
             {
                 if ((argb & 0xFF000000) == 0xFF000000)
@@ -426,7 +410,36 @@ public struct Color : INullableValue
             }
         }
     }
-    static Hashtable stdColors;
+
+    /// <summary>
+    /// The name of each standard colour, by its ARGB value.
+    /// </summary>
+    /// <remarks>
+    /// Built by a static initializer rather than on first use. The CLR runs one of those once and
+    /// finishes it before any thread reads the field, which is what the previous lazy version got
+    /// wrong: it assigned the table to the static while the table was still empty and only then
+    /// filled it, so a second thread could read one that was half built, or race the
+    /// ContainsKey/Add pair and hit "Item has already been added". Calling ToString on a standard
+    /// colour from several threads at once returned the name, "RGB(r,g,b)", an empty string or an
+    /// ArgumentException, depending on the timing.
+    /// </remarks>
+    static readonly Dictionary<uint, string> StdColors = BuildStdColors();
+
+    static Dictionary<uint, string> BuildStdColors()
+    {
+        string[] names = Enum.GetNames(typeof(ColorName));
+        Array values = Enum.GetValues(typeof(ColorName));
+        var colors = new Dictionary<uint, string>(names.Length);
+        for (int index = 0; index < names.Length; index++)
+        {
+            // Some colors are double named, and the first name of a pair wins:
+            // Aqua == Cyan, Fuchsia == Magenta.
+            uint value = (uint)values.GetValue(index);
+            if (!colors.ContainsKey(value))
+                colors.Add(value, names[index]);
+        }
+        return colors;
+    }
 
     /// <summary>
     /// Creates an RGB color from an existing color with a new alpha (transparency) value.

@@ -3,7 +3,6 @@ using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Shapes;
-using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Dom;
@@ -17,7 +16,6 @@ namespace PdfSharpCore.Test.Dom;
 ///   type back to the caller. These tests are the inverted form of the ones that pinned the defect,
 ///   and are what stops it coming back.
 /// </summary>
-[Collection(DomSerializationCollection.Name)]
 public class SentinelCollisionTests
 {
     static PageSetup APageSetup() => new Document().AddSection().PageSetup;
