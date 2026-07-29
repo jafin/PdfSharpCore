@@ -125,22 +125,22 @@ public class DataLabel : DocumentObject
   /// </summary>
   public DataLabelPosition Position
   {
-    get => (DataLabelPosition)this.position.Value;
-    set => this.position.Value = (int)value;
+    get => this.position ?? default;
+    set => this.position = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(DataLabelPosition))]
-  internal NEnum position = NEnum.NullValue(typeof(DataLabelPosition));
+  [DV]
+  internal DataLabelPosition? position;
 
   /// <summary>
   /// Gets or sets the type of the DataLabel.
   /// </summary>
   public DataLabelType Type
   {
-    get => (DataLabelType)this.type.Value;
-    set => this.type.Value = (int)value;
+    get => this.type ?? default;
+    set => this.type = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(DataLabelType))]
-  internal NEnum type = NEnum.NullValue(typeof(DataLabelType));
+  [DV]
+  internal DataLabelType? type;
   #endregion
 
   #region Internal
@@ -155,9 +155,9 @@ public class DataLabel : DocumentObject
       serializer.WriteSimpleAttribute("Style", this.Style);
     if (this.Format != string.Empty)
       serializer.WriteSimpleAttribute("Format", this.Format);
-    if (!this.position.IsNull)
+    if (this.position != null)
       serializer.WriteSimpleAttribute("Position", this.Position);
-    if (!this.type.IsNull)
+    if (this.type != null)
       serializer.WriteSimpleAttribute("Type", this.Type);
     if (!this.IsNull("Font"))
       this.font.Serialize(serializer);

@@ -104,13 +104,6 @@ public abstract class ValueDescriptor
         if (type == typeof(String))
             return new NullableMemberDescriptor(name, typeof(String), type, memberInfo, flags);
 
-        if (type == typeof(NEnum))
-        {
-            Type valueType = attr.Type;
-            Debug.Assert(valueType.GetTypeInfo().IsSubclassOf(typeof(Enum)), "NEnum must have 'Type' attribute with the underlying type");
-            return new NullableDescriptor(name, valueType, type, memberInfo, flags);
-        }
-
         if (type.GetTypeInfo().IsSubclassOf(typeof(ValueType)))
             return new ValueTypeDescriptor(name, type, type, memberInfo, flags);
 
@@ -156,89 +149,6 @@ public abstract class ValueDescriptor
     /// Flags of the described field, e.g. RefOnly.
     /// </summary>
     VDFlags flags;
-}
-
-/// <summary>
-/// Value descriptor of all nullable types.
-/// </summary>
-internal class NullableDescriptor : ValueDescriptor
-{
-    internal override bool IsSimpleValue => true;
-
-    internal NullableDescriptor(string valueName, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]Type valueType, Type fieldType, MemberInfo memberInfo, VDFlags flags)
-        : base(valueName, valueType, fieldType, memberInfo, flags)
-    {
-    }
-
-    public override object GetValue(DocumentObject dom, GV flags)
-    {
-        if (!Enum.IsDefined(typeof(GV), flags))
-            throw new ArgumentException("flags");
-        // throw new InvalidEnumArgumentException("flags", (int)flags, typeof(GV));
-
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        INullableValue ival = (INullableValue)val;
-        if (ival.IsNull && flags == GV.GetNull)
-            return null;
-        return ival.GetValue();
-    }
-
-    public override void SetValue(DocumentObject dom, object value)
-    {
-        object val;
-        INullableValue ival;
-        if (FieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom);
-            ival = (INullableValue)val;
-            ival.SetValue(value);
-            FieldInfo.SetValue(dom, ival);
-        }
-        else
-        {
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            ival = (INullableValue)val;
-            ival.SetValue(value);
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
-        }
-    }
-
-    public override void SetNull(DocumentObject dom)
-    {
-        object val;
-        INullableValue ival;
-        if (FieldInfo != null)
-        {
-            val = FieldInfo.GetValue(dom);
-            ival = (INullableValue)val;
-            ival.SetNull();
-            FieldInfo.SetValue(dom, ival);
-        }
-        else
-        {
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-            ival = (INullableValue)val;
-            ival.SetNull();
-            PropertyInfo.GetSetMethod(true).Invoke(dom, new object[] { ival });
-        }
-    }
-
-    /// <summary>
-    /// Determines whether the given DocumentObject is null (not set).
-    /// </summary>
-    public override bool IsNull(DocumentObject dom)
-    {
-        object val;
-        if (FieldInfo != null)
-            val = FieldInfo.GetValue(dom);
-        else
-            val = PropertyInfo.GetGetMethod(true).Invoke(dom, Type.EmptyTypes);
-        return ((INullableValue)val).IsNull;
-    }
 }
 
 /// <summary>

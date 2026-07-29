@@ -311,11 +311,11 @@ public class TextArea : ChartObject, IVisitable
   /// </summary>
   public VerticalAlignment VerticalAlignment
   {
-    get => (VerticalAlignment)this.verticalAlignment.Value;
-    set => this.verticalAlignment.Value = (int)value;
+    get => this.verticalAlignment ?? default;
+    set => this.verticalAlignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(VerticalAlignment))]
-  internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+  [DV]
+  internal VerticalAlignment? verticalAlignment;
 
   /// <summary>
   /// Gets the document objects that creates the text area.
@@ -335,7 +335,7 @@ public class TextArea : ChartObject, IVisitable
       this.elements = value;
     }
   }
-  [DV(ItemType = typeof(DocumentObject))]
+  [DV]
   internal DocumentElements elements;
   #endregion
 
@@ -369,7 +369,7 @@ public class TextArea : ChartObject, IVisitable
     if (!this.height.IsNull)
       serializer.WriteSimpleAttribute("Height", this.Height);
 
-    if (!this.verticalAlignment.IsNull)
+    if (this.verticalAlignment != null)
       serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
 
     if (!this.IsNull("LineFormat"))

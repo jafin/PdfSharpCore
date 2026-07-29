@@ -89,11 +89,11 @@ public class Border : DocumentObject
   /// </summary>
   public BorderStyle Style
   {
-    get => (BorderStyle)style.Value;
-    set => style.Value = (int)value;
+    get => style ?? default;
+    set => style = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(BorderStyle))]
-  internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
+  [DV]
+  internal BorderStyle? style;
 
   /// <summary>
   /// Gets or sets the line width of the border.
@@ -179,7 +179,7 @@ public class Border : DocumentObject
     if (visible != null && (refBorder == null || (Visible != refBorder.Visible)))
       serializer.WriteSimpleAttribute("Visible", Visible);
 
-    if (!style.IsNull && (refBorder == null || (Style != refBorder.Style)))
+    if (style != null && (refBorder == null || (Style != refBorder.Style)))
       serializer.WriteSimpleAttribute("Style", Style);
 
     if (!width.IsNull && (refBorder == null || (Width != refBorder.Width)))

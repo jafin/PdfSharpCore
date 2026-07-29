@@ -69,22 +69,22 @@ public class Barcode : Shape
   /// </summary>
   public TextOrientation Orientation
   {
-    get => (TextOrientation)this.orientation.Value;
-    set => this.orientation.Value = (int)value;
+    get => this.orientation ?? default;
+    set => this.orientation = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(TextOrientation))]
-  internal NEnum orientation = NEnum.NullValue(typeof(TextOrientation));
+  [DV]
+  internal TextOrientation? orientation;
 
   /// <summary>
   /// Gets or sets the type of the barcode.
   /// </summary>
   public BarcodeType Type
   {
-    get => (BarcodeType)this.type.Value;
-    set => this.type.Value = (int)value;
+    get => this.type ?? default;
+    set => this.type = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(BarcodeType))]
-  internal NEnum type = NEnum.NullValue(typeof(BarcodeType));
+  [DV]
+  internal BarcodeType? type;
 
   /// <summary>
   /// Gets or sets a value indicating whether bars shall appear beside the barcode
@@ -168,13 +168,13 @@ public class Barcode : Shape
 
     base.Serialize(serializer);
 
-    if (!this.orientation.IsNull)
+    if (this.orientation != null)
       serializer.WriteSimpleAttribute("Orientation", this.Orientation);
     if (this.bearerBars != null)
       serializer.WriteSimpleAttribute("BearerBars", this.BearerBars);
     if (this.text != null)
       serializer.WriteSimpleAttribute("Text", this.Text);
-    if (!this.type.IsNull)
+    if (this.type != null)
       serializer.WriteSimpleAttribute("Type", this.Type);
     if (this.lineRatio != null)
       serializer.WriteSimpleAttribute("LineRatio", this.LineRatio);

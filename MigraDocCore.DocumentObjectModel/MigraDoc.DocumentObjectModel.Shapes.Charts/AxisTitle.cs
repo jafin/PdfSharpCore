@@ -136,22 +136,22 @@ public class AxisTitle : ChartObject
   /// </summary>
   public HorizontalAlignment Alignment
   {
-    get => (HorizontalAlignment)this.alignment.Value;
-    set => this.alignment.Value = (int)value;
+    get => this.alignment ?? default;
+    set => this.alignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(HorizontalAlignment))]
-  internal NEnum alignment = NEnum.NullValue(typeof(HorizontalAlignment));
+  [DV]
+  internal HorizontalAlignment? alignment;
 
   /// <summary>
   /// Gets or sets the alignment of the caption.
   /// </summary>
   public VerticalAlignment VerticalAlignment
   {
-    get => (VerticalAlignment)this.verticalAlignment.Value;
-    set => this.verticalAlignment.Value = (int)value;
+    get => this.verticalAlignment ?? default;
+    set => this.verticalAlignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(VerticalAlignment))]
-  internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+  [DV]
+  internal VerticalAlignment? verticalAlignment;
   #endregion
 
   #region Internal
@@ -168,13 +168,13 @@ public class AxisTitle : ChartObject
     if (!this.IsNull("Font"))
       this.font.Serialize(serializer);
 
-    if (!this.orientation.IsNull)
+    if (this.orientation != null)
       serializer.WriteSimpleAttribute("Orientation", this.Orientation);
 
-    if (!this.alignment.IsNull)
+    if (this.alignment != null)
       serializer.WriteSimpleAttribute("Alignment", this.Alignment);
 
-    if (!this.verticalAlignment.IsNull)
+    if (this.verticalAlignment != null)
       serializer.WriteSimpleAttribute("VerticalAlignment", this.VerticalAlignment);
 
     if (this.caption != null)

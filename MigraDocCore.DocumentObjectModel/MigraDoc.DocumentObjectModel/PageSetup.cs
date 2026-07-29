@@ -137,22 +137,22 @@ public class PageSetup : DocumentObject
   /// </summary>
   public BreakType SectionStart
   {
-    get => (BreakType)sectionStart.Value;
-    set => sectionStart.Value = (int)value;
+    get => sectionStart ?? default;
+    set => sectionStart = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(BreakType))]
-  internal NEnum sectionStart = NEnum.NullValue(typeof(BreakType));
+  [DV]
+  internal BreakType? sectionStart;
 
   /// <summary>
   /// Gets or sets the page orientation of the section.
   /// </summary>
   public Orientation Orientation
   {
-    get => (Orientation)orientation.Value;
-    set => orientation.Value = (int)value;
+    get => orientation ?? default;
+    set => orientation = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(Orientation))]
-  internal NEnum orientation = NEnum.NullValue(typeof(Orientation));
+  [DV]
+  internal Orientation? orientation;
 
   /// <summary>
   /// Gets or sets the page width.
@@ -308,11 +308,11 @@ public class PageSetup : DocumentObject
   /// </summary>
   public PageFormat PageFormat
   {
-    get => (PageFormat)pageFormat.Value;
-    set => pageFormat.Value = (int)value;
+    get => pageFormat ?? default;
+    set => pageFormat = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(PageFormat))]
-  internal NEnum pageFormat = NEnum.NullValue(typeof(PageFormat));
+  [DV]
+  internal PageFormat? pageFormat;
 
   /// <summary>
   /// Gets or sets a comment associated with this object.
@@ -426,7 +426,7 @@ public class PageSetup : DocumentObject
     if (!pageWidth.IsNull)
       serializer.WriteSimpleAttribute("PageWidth", PageWidth);
 
-    if (!orientation.IsNull)
+    if (orientation != null)
       serializer.WriteSimpleAttribute("Orientation", Orientation);
 
     if (!leftMargin.IsNull)
@@ -453,10 +453,10 @@ public class PageSetup : DocumentObject
     if (differentFirstPageHeaderFooter != null)
       serializer.WriteSimpleAttribute("DifferentFirstPageHeaderFooter", DifferentFirstPageHeaderFooter);
 
-    if (!sectionStart.IsNull)
+    if (sectionStart != null)
       serializer.WriteSimpleAttribute("SectionStart", SectionStart);
 
-    if (!pageFormat.IsNull)
+    if (pageFormat != null)
       serializer.WriteSimpleAttribute("PageFormat", PageFormat);
 
     if (mirrorMargins != null)

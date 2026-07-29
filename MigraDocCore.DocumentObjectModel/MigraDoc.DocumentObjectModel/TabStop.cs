@@ -85,22 +85,22 @@ public class TabStop : DocumentObject
   /// </summary>
   public TabAlignment Alignment
   {
-    get => (TabAlignment)alignment.Value;
-    set => alignment.Value = (int)value;
+    get => alignment ?? default;
+    set => alignment = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(TabAlignment))]
-  internal NEnum alignment = NEnum.NullValue(typeof(TabAlignment));
+  [DV]
+  internal TabAlignment? alignment;
 
   /// <summary>
   /// Gets or sets the character which is used as a leader for the tabstop.
   /// </summary>
   public TabLeader Leader
   {
-    get => (TabLeader)leader.Value;
-    set => leader.Value = (int)value;
+    get => leader ?? default;
+    set => leader = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(TabLeader))]
-  internal NEnum leader = NEnum.NullValue(typeof(TabLeader));
+  [DV]
+  internal TabLeader? leader;
 
   /// <summary>
   /// Generates a '+=' in DDL if it is true, otherwise '-='.
@@ -119,9 +119,9 @@ public class TabStop : DocumentObject
       serializer.WriteLine("TabStops +=");
       serializer.BeginContent();
       serializer.WriteSimpleAttribute("Position", Position);
-      if (!alignment.IsNull)
+      if (alignment != null)
         serializer.WriteSimpleAttribute("Alignment", Alignment);
-      if (!leader.IsNull)
+      if (leader != null)
         serializer.WriteSimpleAttribute("Leader", Leader);
       serializer.EndContent();
     }

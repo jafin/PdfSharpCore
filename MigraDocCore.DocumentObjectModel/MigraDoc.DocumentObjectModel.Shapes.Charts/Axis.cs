@@ -166,22 +166,22 @@ public class Axis : ChartObject
   /// </summary>
   public TickMarkType MajorTickMark
   {
-    get => (TickMarkType)this.majorTickMark.Value;
-    set => this.majorTickMark.Value = (int)value;
+    get => this.majorTickMark ?? default;
+    set => this.majorTickMark = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(TickMarkType))]
-  internal NEnum majorTickMark = NEnum.NullValue(typeof(TickMarkType));
+  [DV]
+  internal TickMarkType? majorTickMark;
 
   /// <summary>
   /// Gets or sets the type of the secondary tick mark.
   /// </summary>
   public TickMarkType MinorTickMark
   {
-    get => (TickMarkType)this.minorTickMark.Value;
-    set => this.minorTickMark.Value = (int)value;
+    get => this.minorTickMark ?? default;
+    set => this.minorTickMark = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(TickMarkType))]
-  internal NEnum minorTickMark = NEnum.NullValue(typeof(TickMarkType));
+  [DV]
+  internal TickMarkType? minorTickMark;
 
   /// <summary>
   /// Gets the label of the primary tick.
@@ -326,9 +326,9 @@ public class Axis : ChartObject
       serializer.WriteSimpleAttribute("HasMajorGridLines", this.HasMajorGridlines);
     if (this.hasMinorGridlines != null)
       serializer.WriteSimpleAttribute("HasMinorGridLines", this.HasMinorGridlines);
-    if (!this.majorTickMark.IsNull)
+    if (this.majorTickMark != null)
       serializer.WriteSimpleAttribute("MajorTickMark", this.MajorTickMark);
-    if (!this.minorTickMark.IsNull)
+    if (this.minorTickMark != null)
       serializer.WriteSimpleAttribute("MinorTickMark", this.MinorTickMark);
 
     if (!this.IsNull("Title"))

@@ -67,11 +67,11 @@ public class ListInfo : DocumentObject
   /// </summary>
   public ListType ListType
   {
-    get => (ListType)listType.Value;
-    set => listType.Value = (int)value;
+    get => listType ?? default;
+    set => listType = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(ListType))]
-  internal NEnum listType = NEnum.NullValue(typeof(ListType));
+  [DV]
+  internal ListType? listType;
 
   /// <summary>
   /// Gets or sets the left indent of the list symbol.
@@ -103,7 +103,7 @@ public class ListInfo : DocumentObject
   /// </summary>
   internal override void Serialize(Serializer serializer)
   {
-    if (!listType.IsNull)
+    if (listType != null)
       serializer.WriteSimpleAttribute("ListInfo.ListType", ListType);
     if (!numberPosition.IsNull)
       serializer.WriteSimpleAttribute("ListInfo.NumberPosition", NumberPosition);

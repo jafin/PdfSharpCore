@@ -159,7 +159,7 @@ public class Styles : DocumentObjectCollection, IVisitable
             throw new ArgumentException(DomSR.UndefinedBaseStyle(style.BaseStyle));
 
         if (baseStyle != null)
-            style.styleType.Value = (int)baseStyle.Type;
+            style.styleType = baseStyle.Type;
 
         int index = GetIndex(style.Name);
 
@@ -204,13 +204,13 @@ public class Styles : DocumentObjectCollection, IVisitable
         {
             readOnly = true
         };
-        style.styleType.Value = (int)StyleType.Character;
+        style.styleType = StyleType.Character;
         style.buildIn = true;
         Add(style);
 
         // Normal 'Standard' (Paragraph Style)
         style = new Style(Style.DefaultParagraphName, null);
-        style.styleType.Value = (int)StyleType.Paragraph;
+        style.styleType = StyleType.Paragraph;
         style.buildIn = true;
         style.Font.Name = GlobalFontSettings.FontResolver.DefaultFontName;
         style.Font.Size = 10;

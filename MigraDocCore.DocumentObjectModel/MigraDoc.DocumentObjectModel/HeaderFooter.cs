@@ -264,7 +264,7 @@ public class HeaderFooter : DocumentObject, IVisitable
             elements = value;
         }
     }
-    [DV(ItemType = typeof(DocumentObject))]
+    [DV]
     internal DocumentElements elements;
 
     /// <summary>

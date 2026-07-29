@@ -278,11 +278,11 @@ public class Cell : DocumentObject, IVisitable
     /// </summary>
     public VerticalAlignment VerticalAlignment
     {
-        get => (VerticalAlignment)verticalAlignment.Value;
-        set => verticalAlignment.Value = (int)value;
+        get => verticalAlignment ?? default;
+        set => verticalAlignment = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(VerticalAlignment))]
-    internal NEnum verticalAlignment = NEnum.NullValue(typeof(VerticalAlignment));
+    [DV]
+    internal VerticalAlignment? verticalAlignment;
 
     /// <summary>
     /// Gets the Borders object.
@@ -333,11 +333,11 @@ public class Cell : DocumentObject, IVisitable
     /// Specifies if the Cell should be rendered as a rounded corner.
     /// </summary>
     public RoundedCorner RoundedCorner {
-        get => (RoundedCorner)roundedCorner.Value;
-        set => roundedCorner.Value = (int)value;
+        get => roundedCorner ?? default;
+        set => roundedCorner = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(RoundedCorner))]
-    internal NEnum roundedCorner = NEnum.NullValue(typeof(RoundedCorner));
+    [DV]
+    internal RoundedCorner? roundedCorner;
 
     /// <summary>
     /// Gets or sets the number of cells to be merged right.
@@ -379,7 +379,7 @@ public class Cell : DocumentObject, IVisitable
             elements = value;
         }
     }
-    [DV(ItemType = typeof(DocumentObject))]
+    [DV]
     internal DocumentElements elements;
 
     /// <summary>
@@ -417,7 +417,7 @@ public class Cell : DocumentObject, IVisitable
         if (mergeRight.HasValue)
             serializer.WriteSimpleAttribute("MergeRight", MergeRight);
 
-        if (!verticalAlignment.IsNull)
+        if (verticalAlignment != null)
             serializer.WriteSimpleAttribute("VerticalAlignment", VerticalAlignment);
 
         if (!IsNull("Borders"))
@@ -426,7 +426,7 @@ public class Cell : DocumentObject, IVisitable
         if (!IsNull("Shading"))
             shading.Serialize(serializer);
 
-        if (!roundedCorner.IsNull)
+        if (roundedCorner != null)
             serializer.WriteSimpleAttribute("RoundedCorner", RoundedCorner);
 
         serializer.EndAttributes(pos);

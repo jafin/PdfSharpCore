@@ -240,24 +240,24 @@ public sealed class Style : DocumentObject, IVisitable
       //}
       //return styleType;
 
-      if (styleType.IsNull)
+      if (styleType == null)
       {
         if (String.Compare((this.baseStyle ?? ""), DefaultParagraphFontName, true) == 0)
-          styleType.Value = (int)StyleType.Character;
+          styleType = StyleType.Character;
         else
         {
           Style baseStyle = GetBaseStyle();
           if (baseStyle == null)
             throw new InvalidOperationException("User defined style has no valid base Style.");
 
-          styleType.Value = (int)baseStyle.Type;
+          styleType = baseStyle.Type;
         }
       }
-      return (StyleType)styleType.Value;
+      return styleType ?? default;
     }
   }
-  [DV(Type = typeof(StyleType))]
-  internal NEnum styleType = NEnum.NullValue(typeof(StyleType));
+  [DV]
+  internal StyleType? styleType;
 
   /// <summary>
   /// Determines whether the style is the style Normal or DefaultParagraphFont.

@@ -35,21 +35,27 @@ using System;
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
 /// <summary>
-/// Indicates that this field can be accessed via SetValue and GetValue.
+/// Carries forward the range check that NEnum's setter used to apply.
 /// </summary>
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-internal class DVAttribute : Attribute
+/// <remarks>
+/// NEnum stored an int and validated it against the enum type it also carried, throwing
+/// ArgumentException for a value Enum.IsDefined rejected. A TEnum? field accepts whatever the cast
+/// produces, so the guard has to sit in the public property that writes it. Character is the one
+/// deliberate exception - see Character.SymbolName.
+/// </remarks>
+internal static class EnumGuard
 {
   /// <summary>
-  /// Initializes a new instance of the DVAttribute class.
+  /// Returns value if it is a defined member of TEnum, and throws ArgumentException if it is not.
   /// </summary>
-  public DVAttribute()
+  internal static T Checked<T>(T value) where T : struct, Enum
   {
-    RefOnly = false;
+    // Enum.IsDefined(Type, object) rather than the generic Enum.IsDefined<T>(T), which is .NET 5+
+    // and this assembly still targets netstandard2.1. ArgumentException rather than the more
+    // correct ArgumentOutOfRangeException, because NEnum threw ArgumentException and no caller
+    // should be able to tell that NEnum is gone.
+    if (!Enum.IsDefined(typeof(T), value))
+      throw new ArgumentException("value");
+    return value;
   }
-
-  /// <summary>
-  /// Determines whether the field is RefOnly and should be excluded from recursive operations.
-  /// </summary>
-  public bool RefOnly;
 }

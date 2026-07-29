@@ -33,7 +33,9 @@
 namespace MigraDocCore.DocumentObjectModel.Internals;
 
 /// <summary>
-/// Interface for simple nullable values like NInt, NEnum etc.
+/// Interface for the value types that carry their own null: Unit, Color, LeftPosition and
+/// TopPosition. The NBool, NInt, NDouble, NString and NEnum wrappers that used to implement it are
+/// gone, replaced by bool?, int?, double?, string and TEnum?.
 /// </summary>
 internal interface INullableValue
 {

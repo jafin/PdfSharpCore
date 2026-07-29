@@ -589,7 +589,7 @@ public class FormattedText : DocumentObject, IVisitable
             elements = value;
         }
     }
-    [DV(ItemType = typeof(DocumentObject))]
+    [DV]
     internal ParagraphElements elements;
     #endregion
 

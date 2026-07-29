@@ -200,11 +200,11 @@ public class Series : ChartObject
   /// </summary>
   public MarkerStyle MarkerStyle
   {
-    get => (MarkerStyle)this.markerStyle.Value;
-    set => this.markerStyle.Value = (int)value;
+    get => this.markerStyle ?? default;
+    set => this.markerStyle = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(MarkerStyle))]
-  internal NEnum markerStyle = NEnum.NullValue(typeof(MarkerStyle));
+  [DV]
+  internal MarkerStyle? markerStyle;
 
   /// <summary>
   /// Gets or sets the foreground color of the marker in a line chart.
@@ -233,11 +233,11 @@ public class Series : ChartObject
   /// </summary>
   public ChartType ChartType
   {
-    get => (ChartType)this.chartType.Value;
-    set => this.chartType.Value = (int)value;
+    get => this.chartType ?? default;
+    set => this.chartType = EnumGuard.Checked(value);
   }
-  [DV(Type = typeof(ChartType))]
-  internal NEnum chartType = NEnum.NullValue(typeof(ChartType));
+  [DV]
+  internal ChartType? chartType;
 
   /// <summary>
   /// Gets the DataLabel of the series.
@@ -301,7 +301,7 @@ public class Series : ChartObject
 
     if (!this.markerSize.IsNull)
       serializer.WriteSimpleAttribute("MarkerSize", this.MarkerSize);
-    if (!this.markerStyle.IsNull)
+    if (this.markerStyle != null)
       serializer.WriteSimpleAttribute("MarkerStyle", this.MarkerStyle);
 
     if (!this.markerBackgroundColor.IsNull)
@@ -309,7 +309,7 @@ public class Series : ChartObject
     if (!this.markerForegroundColor.IsNull)
       serializer.WriteSimpleAttribute("MarkerForegroundColor", this.MarkerForegroundColor);
 
-    if (!this.chartType.IsNull)
+    if (this.chartType != null)
       serializer.WriteSimpleAttribute("ChartType", this.ChartType);
 
     if (this.hasDataLabel != null)

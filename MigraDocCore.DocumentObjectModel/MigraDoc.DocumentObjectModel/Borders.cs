@@ -282,11 +282,11 @@ public class Borders : DocumentObject, IEnumerable
     /// </summary>
     public BorderStyle Style
     {
-        get => (BorderStyle)style.Value;
-        set => style.Value = (int)value;
+        get => style ?? default;
+        set => style = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(BorderStyle))]
-    internal NEnum style = NEnum.NullValue(typeof(BorderStyle));
+    [DV]
+    internal BorderStyle? style;
 
     /// <summary>
     /// Gets or sets the standard width of the borders.
@@ -426,7 +426,7 @@ public class Borders : DocumentObject, IEnumerable
         if (visible != null && (refBorders == null || refBorders.visible == null || (Visible != refBorders.Visible)))
             serializer.WriteSimpleAttribute("Visible", Visible);
 
-        if (!style.IsNull && (refBorders == null || (Style != refBorders.Style)))
+        if (style != null && (refBorders == null || (Style != refBorders.Style)))
             serializer.WriteSimpleAttribute("Style", Style);
 
         if (!width.IsNull && (refBorders == null || (width.Value != refBorders.width.Value)))

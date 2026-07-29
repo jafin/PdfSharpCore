@@ -1,4 +1,4 @@
-﻿#region MigraDoc - Creating Documents on the Fly
+#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Stefan Lange (mailto:Stefan.Lange@PdfSharpCore.com)
@@ -54,7 +54,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
 
   protected void FlattenParagraphFormat(ParagraphFormat format, ParagraphFormat refFormat)
   {
-    if (format.alignment.IsNull)
+    if (format.alignment == null)
       format.alignment = refFormat.alignment;
 
     if (format.firstLineIndent.IsNull)
@@ -72,7 +72,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     if (format.spaceAfter.IsNull)
       format.spaceAfter = refFormat.spaceAfter;
 
-    if (format.lineSpacingRule.IsNull)
+    if (format.lineSpacingRule == null)
       format.lineSpacingRule = refFormat.lineSpacingRule;
     if (format.lineSpacing.IsNull)
       format.lineSpacing = refFormat.lineSpacing;
@@ -89,7 +89,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     if (format.pageBreakBefore == null)
       format.pageBreakBefore = refFormat.pageBreakBefore;
 
-    if (format.outlineLevel.IsNull)
+    if (format.outlineLevel == null)
       format.outlineLevel = refFormat.outlineLevel;
 
     if (format.font == null)
@@ -137,7 +137,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
   {
     if (listInfo.continuePreviousList == null)
       listInfo.continuePreviousList = refListInfo.continuePreviousList;
-    if (listInfo.listType.IsNull)
+    if (listInfo.listType == null)
       listInfo.listType = refListInfo.listType;
     if (listInfo.numberPosition.IsNull)
       listInfo.numberPosition = refListInfo.numberPosition;
@@ -151,7 +151,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       font.size = refFont.size;
     if (font.color.IsNull)
       font.color = refFont.color;
-    if (font.underline.IsNull)
+    if (font.underline == null)
       font.underline = refFont.underline;
     if (font.bold == null)
       font.bold = refFont.bold;
@@ -180,7 +180,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     if (border.visible == null)
       border.visible = parentBorders.visible;
 
-    if (border.style.IsNull)
+    if (border.style == null)
       border.style = parentBorders.style;
 
     if (border.width.IsNull)
@@ -228,7 +228,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       borders.visible = refBorders.visible;
     if (borders.width.IsNull)
       borders.width = refBorders.width;
-    if (borders.style.IsNull)
+    if (borders.style == null)
       borders.style = refBorders.style;
     if (borders.color.IsNull)
       borders.color = refBorders.color;
@@ -270,7 +270,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       border.visible = refBorder.visible;
     if (border.width.IsNull)
       border.width = refBorder.width;
-    if (border.style.IsNull)
+    if (border.style == null)
       border.style = refBorder.style;
     if (border.color.IsNull)
       border.color = refBorder.color;
@@ -303,7 +303,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     Unit dummyUnit;
     if (pageSetup.pageWidth.IsNull && pageSetup.pageHeight.IsNull)
     {
-      if (pageSetup.pageFormat.IsNull)
+      if (pageSetup.pageFormat == null)
       {
         pageSetup.pageWidth = refPageSetup.pageWidth;
         pageSetup.pageHeight = refPageSetup.pageHeight;
@@ -316,14 +316,14 @@ public abstract class VisitorBase : DocumentObjectVisitor
     {
       if (pageSetup.pageWidth.IsNull)
       {
-        if (pageSetup.pageFormat.IsNull)
+        if (pageSetup.pageFormat == null)
           pageSetup.pageHeight = refPageSetup.pageHeight;
         else
           PageSetup.GetPageSize(pageSetup.PageFormat, out dummyUnit, out pageSetup.pageHeight);
       }
       else if (pageSetup.pageHeight.IsNull)
       {
-        if (pageSetup.pageFormat.IsNull)
+        if (pageSetup.pageFormat == null)
           pageSetup.pageWidth = refPageSetup.pageWidth;
         else
           PageSetup.GetPageSize(pageSetup.PageFormat, out pageSetup.pageWidth, out dummyUnit);
@@ -333,11 +333,11 @@ public abstract class VisitorBase : DocumentObjectVisitor
     //        pageSetup.pageWidth = refPageSetup.pageWidth;
     //      if (pageSetup.pageHeight.IsNull)
     //        pageSetup.pageHeight = refPageSetup.pageHeight;
-    //      if (pageSetup.pageFormat.IsNull)
+    //      if (pageSetup.pageFormat == null)
     //        pageSetup.pageFormat = refPageSetup.pageFormat;
-    if (pageSetup.sectionStart.IsNull)
+    if (pageSetup.sectionStart == null)
       pageSetup.sectionStart = refPageSetup.sectionStart;
-    if (pageSetup.orientation.IsNull)
+    if (pageSetup.orientation == null)
       pageSetup.orientation = refPageSetup.orientation;
     if (pageSetup.topMargin.IsNull)
       pageSetup.topMargin = refPageSetup.topMargin;
@@ -661,7 +661,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
   {
     foreach (Cell cell in row.Cells)
     {
-      if (cell.verticalAlignment.IsNull)
+      if (cell.verticalAlignment == null)
         cell.verticalAlignment = row.verticalAlignment;
     }
   }
@@ -672,9 +672,9 @@ public abstract class VisitorBase : DocumentObjectVisitor
     {
       if (row.height.IsNull)
         row.height = rows.height;
-      if (row.heightRule.IsNull)
+      if (row.heightRule == null)
         row.heightRule = rows.heightRule;
-      if (row.verticalAlignment.IsNull)
+      if (row.verticalAlignment == null)
         row.verticalAlignment = rows.verticalAlignment;
     }
   }

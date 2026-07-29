@@ -83,9 +83,7 @@ public class Character : DocumentObject
   Character(SymbolName name)
     : this()
   {
-    //DaSt: uint wird nicht akzeptiert, muss auf int casten
-    //SetValue("SymbolName", (int)(uint)name);
-    symbolName.Value = (int)name;
+    symbolName = name;
   }
 
   #region Properties
@@ -94,11 +92,15 @@ public class Character : DocumentObject
   /// </summary>
   public SymbolName SymbolName
   {
-    get => (SymbolName)symbolName.Value;
-    set => symbolName.Value = (int)value;
+    get => symbolName ?? default;
+    // No EnumGuard here, unlike every other enum property in the DOM. Char below writes arbitrary
+    // character values through this same field and separates them from symbol names by their top
+    // nibble, so most of what this field legitimately holds is not a defined SymbolName. NEnum
+    // carved SymbolName out of its own Enum.IsDefined check for exactly this reason.
+    set => symbolName = value;
   }
-  [DV(Type = typeof(SymbolName))]
-  internal NEnum symbolName = NEnum.NullValue(typeof(SymbolName));
+  [DV]
+  internal SymbolName? symbolName;
 
   /// <summary>
   /// Gets or sets the SymbolName as character. Returns 0 if the type is defined via an enum.
@@ -107,12 +109,10 @@ public class Character : DocumentObject
   {
     get
     {
-      if (((uint)symbolName.Value & 0xF0000000) == 0)
-        return (char)symbolName.Value;
-      else
-        return '\0';
+      uint raw = (uint)(symbolName ?? default);
+      return (raw & 0xF0000000) == 0 ? (char)raw : '\0';
     }
-    set => symbolName.Value = (int)value;
+    set => symbolName = (SymbolName)value;
   }
 
   /// <summary>
@@ -134,13 +134,15 @@ public class Character : DocumentObject
   internal override void Serialize(Serializer serializer)
   {
     string text = String.Empty;
+    // No SymbolName is defined as 0, so an unset symbolName matches none of these - which is what
+    // the old (SymbolName)symbolName.Value did too, NEnum having read back 0 when null.
     if (count == 1)
     {
-      if ((SymbolName)symbolName.Value == SymbolName.Tab)
+      if (symbolName == SymbolName.Tab)
         text = "\\tab ";
-      else if ((SymbolName)symbolName.Value == SymbolName.LineBreak)
+      else if (symbolName == SymbolName.LineBreak)
         text = "\\linebreak\x0D\x0A";
-      else if ((SymbolName)symbolName.Value == SymbolName.ParaBreak)
+      else if (symbolName == SymbolName.ParaBreak)
         text = "\x0D\x0A\x0D\x0A";
       //else if (symbolType == SymbolName.MarginBreak)
       //  text = "\\marginbreak ";
@@ -152,12 +154,13 @@ public class Character : DocumentObject
       }
     }
 
-    if (((uint)symbolName.Value & 0xF0000000) == 0xF0000000)
+    uint raw = (uint)(symbolName ?? default);
+    if ((raw & 0xF0000000) == 0xF0000000)
     {
       // SymbolName == SpaceType?
-      if (((uint)symbolName.Value & 0xF1000000) == 0xF1000000)
+      if ((raw & 0xF1000000) == 0xF1000000)
       {
-        if ((SymbolName)symbolName.Value == SymbolName.Blank)
+        if (symbolName == SymbolName.Blank)
         {
           //Note: Don't try to optimize it by leaving away the braces in case a single space is added.
           //This would lead to confusion with '(' in directly following text.
@@ -179,7 +182,7 @@ public class Character : DocumentObject
     else
     {
       // symbolType is a (unicode) character
-      text = " \\chr(0x" + ((int)symbolName.Value).ToString("X") + ")";
+      text = " \\chr(0x" + ((int)raw).ToString("X") + ")";
     }
 
     serializer.Write(text);

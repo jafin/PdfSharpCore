@@ -103,10 +103,10 @@ public sealed class Font : DocumentObject
         else if (font.superscript != null && (refFont == null || font.Superscript != refFont.Superscript))
             Superscript = font.Superscript;
 
-        if (!font.underline.IsNull && (refFont == null || font.Underline != refFont.Underline))
+        if (font.underline != null && (refFont == null || font.Underline != refFont.Underline))
             Underline = font.Underline;
 
-        if (!font.strikethrough.IsNull && (refFont == null || font.Strikethrough != refFont.Strikethrough))
+        if (font.strikethrough != null && (refFont == null || font.Strikethrough != refFont.Strikethrough))
             Strikethrough = font.Strikethrough;
 
         if (!font.color.IsNull && (refFont == null || font.Color.Argb != refFont.Color.Argb))
@@ -138,10 +138,10 @@ public sealed class Font : DocumentObject
         else if (font.superscript != null)
             Superscript = font.Superscript;
 
-        if (!font.underline.IsNull)
+        if (font.underline != null)
             Underline = font.Underline;
 
-        if (!font.strikethrough.IsNull)
+        if (font.strikethrough != null)
             Strikethrough = font.Strikethrough;
 
         if (!font.color.IsNull)
@@ -199,11 +199,11 @@ public sealed class Font : DocumentObject
     /// </summary>
     public Underline Underline
     {
-        get => (Underline)underline.Value;
-        set => underline.Value = (int)value;
+        get => underline ?? default;
+        set => underline = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(Underline))]
-    internal NEnum underline = NEnum.NullValue(typeof(Underline));
+    [DV]
+    internal Underline? underline;
 
     /// <summary>
     /// Gets or sets the color property.
@@ -246,15 +246,13 @@ public sealed class Font : DocumentObject
     [DV]
     internal bool? subscript;
 
-
     public Strikethrough Strikethrough
     {
-        get => (Strikethrough)strikethrough.Value;
-        set => strikethrough.Value = (int)value;
+        get => strikethrough ?? default;
+        set => strikethrough = EnumGuard.Checked(value);
     }
-    [DV(Type = typeof(Strikethrough))]
-    internal NEnum strikethrough = NEnum.NullValue(typeof(Strikethrough));
-
+    [DV]
+    internal Strikethrough? strikethrough;
     //  + .Name = "Verdana"
     //  + .Size = 8
     //  + .Bold = False
@@ -295,7 +293,7 @@ public sealed class Font : DocumentObject
             fp |= FontProperties.Bold;
         if (italic != null)
             fp |= FontProperties.Italic;
-        if (!underline.IsNull)
+        if (underline != null)
             fp |= FontProperties.Underline;
         if (!color.IsNull)
             fp |= FontProperties.Color;
@@ -370,10 +368,10 @@ public sealed class Font : DocumentObject
             if (italic != null)
                 serializer.WriteSimpleAttribute("Italic", Italic);
 
-            if (!underline.IsNull)
+            if (underline != null)
                 serializer.WriteSimpleAttribute("Underline", Underline);
 
-            if (!strikethrough.IsNull)
+            if (strikethrough != null)
                 serializer.WriteSimpleAttribute("Strikethrough", Strikethrough);
 
             if (superscript != null)
@@ -410,10 +408,10 @@ public sealed class Font : DocumentObject
             if (italic != null && (font == null || Italic != font.Italic || font.italic == null))
                 serializer.WriteSimpleAttribute("Italic", Italic);
 
-            if (!underline.IsNull && (font == null || Underline != font.Underline || font.underline.IsNull))
+            if (underline != null && (font == null || Underline != font.Underline || font.underline == null))
                 serializer.WriteSimpleAttribute("Underline", Underline);
 
-            if (!strikethrough.IsNull && (font == null || Strikethrough != font.Strikethrough || font.strikethrough.IsNull))
+            if (strikethrough != null && (font == null || Strikethrough != font.Strikethrough || font.strikethrough == null))
                 serializer.WriteSimpleAttribute("Strikethrough", Strikethrough);
 
             if (superscript != null && (font == null || Superscript != font.Superscript || font.superscript == null))
