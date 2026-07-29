@@ -52,7 +52,6 @@
 
 #endregion
 
-#define USE_GOTO
 using System;
 using System.Diagnostics;
 
@@ -302,7 +301,7 @@ namespace PdfSharpCore.Pdf.Advanced
             0x02, 7, /* 0000 010 */
         };
 
-        readonly static uint[] _zeroRuns =
+        private static readonly uint[] ZeroRuns =
         {
             8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, /* 0x00 - 0x0f */
             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, /* 0x10 - 0x1f */
@@ -322,7 +321,7 @@ namespace PdfSharpCore.Pdf.Advanced
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xf0 - 0xff */
         };
 
-        readonly static uint[] _oneRuns =
+        private static readonly uint[] OneRuns =
         {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x00 - 0x0f */
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x10 - 0x1f */
@@ -354,7 +353,7 @@ namespace PdfSharpCore.Pdf.Advanced
             {
                 uint bits;
                 int @byte = reader.PeekByte(out bits);
-                uint hits = _oneRuns[@byte];
+                uint hits = OneRuns[@byte];
                 if (hits < bits)
                 {
                     if (hits > 0)
@@ -382,7 +381,7 @@ namespace PdfSharpCore.Pdf.Advanced
             {
                 uint bits;
                 int @byte = reader.PeekByte(out bits);
-                uint hits = _zeroRuns[@byte];
+                uint hits = ZeroRuns[@byte];
                 if (hits < bits)
                 {
                     if (hits > 0)
@@ -592,9 +591,8 @@ namespace PdfSharpCore.Pdf.Advanced
                 writer.FlushBuffer();
                 return writer.BytesWritten();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                ex.GetType();
                 return 0;
             }
         }
@@ -679,8 +677,7 @@ namespace PdfSharpCore.Pdf.Advanced
             if (position >= _bitsTotal)
                 return false;
             SetPosition(position);
-            uint dummy;
-            return (PeekByte(out dummy) & 0x80) > 0;
+            return (PeekByte(out _) & 0x80) > 0;
         }
 
         /// <summary>
@@ -757,7 +754,7 @@ namespace PdfSharpCore.Pdf.Advanced
         /// <summary>
         /// Masks for n bits in a byte (with n = 0 through 8).
         /// </summary>
-        static readonly uint[] masks = { 0, 1, 3, 7, 15, 31, 63, 127, 255 };
+        private static readonly uint[] Masks = { 0, 1, 3, 7, 15, 31, 63, 127, 255 };
 
         /// <summary>
         /// Writes bits to the byte array.
@@ -769,27 +766,17 @@ namespace PdfSharpCore.Pdf.Advanced
             // TODO: Try to make this faster!
 
             // If we have to write more bits than fit into the buffer, we fill
-            // the buffer and call the same routine recursively for the rest.
-#if USE_GOTO
-            // Use GOTO instead of end recursion: (is this faster?)
-            SimulateRecursion:
-#endif
-            if (bits + _bitsInBuffer > 8)
+            // the buffer and continue with the remaining bits.
+            while (bits + _bitsInBuffer > 8)
             {
                 // We can't add all bits this time.
                 uint bitsNow = 8 - _bitsInBuffer;
                 uint bitsRemainder = bits - bitsNow;
                 WriteBits(value >> (int)(bitsRemainder), bitsNow); // that fits
-#if USE_GOTO
                 bits = bitsRemainder;
-                goto SimulateRecursion;
-#else
-        WriteBits(value, bitsRemainder);
-        return;
-#endif
             }
 
-            _buffer = (_buffer << (int)bits) + (value & masks[bits]);
+            _buffer = (_buffer << (int)bits) + (value & Masks[bits]);
             _bitsInBuffer += bits;
 
             if (_bitsInBuffer == 8)
@@ -810,13 +797,6 @@ namespace PdfSharpCore.Pdf.Advanced
             uint value = table[line * 2];
             uint bits = table[line * 2 + 1];
             WriteBits(value, bits);
-        }
-
-        [Obsolete]
-        internal void WriteEOL()
-        {
-            // Not needed for PDF.
-            WriteTableLine(PdfImage.WhiteMakeUpCodes, 40);
         }
 
         /// <summary>

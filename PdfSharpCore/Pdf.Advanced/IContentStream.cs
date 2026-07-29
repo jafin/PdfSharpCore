@@ -27,8 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-
-
 using PdfSharpCore.Drawing;
 
 namespace PdfSharpCore.Pdf.Advanced
