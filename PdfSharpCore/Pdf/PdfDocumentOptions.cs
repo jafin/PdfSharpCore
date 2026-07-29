@@ -87,18 +87,6 @@ public sealed class PdfDocumentOptions
     PdfFlateEncodeMode _flateEncodeMode = PdfFlateEncodeMode.Default;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to compress bilevel images using CCITT compression.
-    /// With true, PDFsharp will try FlateDecode CCITT and will use the smallest one or a combination of both.
-    /// With false, PDFsharp will always use FlateDecode only - files may be a few bytes larger, but file creation is faster.
-    /// </summary>
-    public bool EnableCcittCompressionForBilevelImages
-    {
-        get => _enableCcittCompressionForBilevelImages;
-        set => _enableCcittCompressionForBilevelImages = value;
-    }
-    bool _enableCcittCompressionForBilevelImages = false;
-
-    /// <summary>
     /// Gets or sets a value indicating whether to compress JPEG images with the FlateDecode filter.
     /// </summary>
     public PdfUseFlateDecoderForJpegImages UseFlateDecoderForJpegImages
