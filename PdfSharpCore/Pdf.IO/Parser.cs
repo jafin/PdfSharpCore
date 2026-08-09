@@ -263,12 +263,13 @@ internal sealed class Parser
             PdfDictionary dict = (PdfDictionary)pdfObject;
             Debug.Assert(checkForStream, "Unexpected stream...");
             var startOfStream = _lexer.Position;
-            int length = GetStreamLength(dict);
+            int length = LengthThatFitsInTheFile(GetStreamLength(dict), startOfStream);
             byte[] bytes = length < 0 ? null : _lexer.ReadStream(length);
 
             if (bytes == null)
             {
-                // The dictionary does not say how long its stream is.
+                // The dictionary does not say how long its stream is, or says something the
+                // file cannot hold.
                 if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
                     throw new InvalidOperationException("Cannot retrieve stream length.");
             }
@@ -308,7 +309,7 @@ internal sealed class Parser
         Debug.Assert(symbol == Symbol.BeginStream);
         Debug.Assert(dict.Stream == null, "Dictionary already has a stream.");
         var startOfStream = _lexer.Position;
-        int length = GetStreamLength(dict);
+        int length = LengthThatFitsInTheFile(GetStreamLength(dict), startOfStream);
         if (length < 0)
         {
             if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
@@ -319,8 +320,27 @@ internal sealed class Parser
 
         byte[] bytes = _lexer.ReadStream(length);
         dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
-        ReadSymbol(Symbol.EndStream);
+        try
+        {
+            ReadSymbol(Symbol.EndStream);
+        }
+        catch (PdfReaderException)
+        {
+            // The stream length is incorrect, look for the end of the stream instead.
+            if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
+                throw;
+        }
         ScanNextToken();
+    }
+
+    /// <summary>
+    /// The length given, or -1 when the stream it describes would reach past the end of the
+    /// file. Such a length describes no stream that is there, so the caller is better off
+    /// looking for the end of the stream than believing it.
+    /// </summary>
+    private int LengthThatFitsInTheFile(int length, long startOfStream)
+    {
+        return length >= 0 && startOfStream + length > _lexer.PdfLength ? -1 : length;
     }
 
     /// <summary>
@@ -332,15 +352,35 @@ internal sealed class Parser
     {
         _lexer.Position = startOfStream;
         _lexer.Position = _lexer.MoveToStartOfStream();
-        var bytes = _lexer.ScanUntilMarker(PdfEncoders.RawEncoding.GetBytes("\nendstream"), out var markerFound);
+        // The keyword alone is what is looked for. A document that gets the length of its
+        // streams wrong is not one to be trusted to put the end-of-line before the keyword
+        // there either, and a stream ending without one still ends.
+        var bytes = _lexer.ScanUntilMarker(PdfEncoders.RawEncoding.GetBytes("endstream"), out var markerFound);
         if (!markerFound)
             return false;
 
+        bytes = WithoutTheEndOfLineBeforeTheKeyword(bytes);
         dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
         // Record what was read. The dictionary has to describe its stream correctly once
         // the document is written again.
         dict.Elements.SetInteger(PdfDictionary.PdfStream.Keys.Length, bytes.Length);
         return true;
+    }
+
+    /// <summary>
+    /// The data of a stream without the end-of-line that separates it from the keyword ending
+    /// it. That end-of-line belongs to the file rather than to the stream, and a reader that
+    /// keeps it adds a byte to every stream it has to recover.
+    /// </summary>
+    private static byte[] WithoutTheEndOfLineBeforeTheKeyword(byte[] bytes)
+    {
+        int end = bytes.Length;
+        if (end > 0 && bytes[end - 1] == (byte)Chars.LF)
+            end--;
+        if (end > 0 && bytes[end - 1] == (byte)Chars.CR)
+            end--;
+
+        return end == bytes.Length ? bytes : bytes.AsSpan(0, end).ToArray();
     }
 
     // HACK: Solve problem more general.
@@ -702,17 +742,6 @@ internal sealed class Parser
     /// </summary>
     private Symbol ReadSymbol(Symbol symbol)
     {
-        if (symbol == Symbol.EndStream)
-        {
-            Skip:
-            char ch = _lexer.MoveToNonWhiteSpace();
-            if (ch != 'e' && ch != Chars.EOF)
-            {
-                _lexer.ScanNextChar(false);
-                goto Skip;
-            }
-        }
-
         Symbol current = _lexer.ScanNextToken();
         if (symbol != current && current != Symbol.Eof)
             ParserDiagnostics.HandleUnexpectedToken(_lexer.Token);

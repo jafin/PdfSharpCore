@@ -176,11 +176,16 @@ public class Lexer
         var pos = MoveToStartOfStream();
         _pdfSteam.Position = pos;
         byte[] bytes = new byte[length];
-        int read = _pdfSteam.Read(bytes, 0, length);
-        Debug.Assert(read == length);
+        // A stream whose dictionary declares more bytes than the file holds is read as the bytes
+        // that are there. What it is really as long as is then the caller's problem, which it
+        // was going to be anyway.
+        // Named in full: this namespace has a StreamHelper of its own, in Parser.cs.
+        int read = PdfSharpCore.Internal.StreamHelper.ReadUpTo(_pdfSteam, bytes, 0, length);
+        if (read < length)
+            Array.Resize(ref bytes, read);
 
         // Synchronize idxChar etc.
-        Position = pos + length;
+        Position = pos + read;
         return bytes;
     }
 
