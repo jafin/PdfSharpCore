@@ -837,6 +837,7 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     {
         PdfImage pdfImage = _document.ImageTable.GetImage(image);
         Debug.Assert(pdfImage != null);
+        NoteTransparencyOf(pdfImage);
         string name = Resources.AddImage(pdfImage);
         return name;
     }
@@ -856,6 +857,7 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     {
         PdfFormXObject pdfForm = _document.FormTable.GetForm(form);
         Debug.Assert(pdfForm != null);
+        NoteTransparencyOf(pdfForm);
         string name = Resources.AddForm(pdfForm);
         return name;
     }
@@ -875,11 +877,14 @@ public sealed class PdfPage : PdfDictionary, IContentStream
         if (MediaBoxIsTurnedWhenWritten)
             MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
 
-        // Add transparency group to prevent rendering problems of Adobe viewer.
-        // Update (PDFsharp 1.50 beta 3): Add transparency group only of ColorMode is defined.
-        // Rgb is the default for the ColorMode, but if user sets it to Undefined then
-        // we respect this and skip the transparency group.
-        TransparencyUsed = true; // TODO: check XObjects
+        // A page that paints with transparency is given a transparency group, without which
+        // Adobe's viewer renders it wrongly. A page that does not paint with any is left as it
+        // is: a group is not free, it tells a reader to composite the page as a unit against the
+        // backdrop, and stamping one onto a page that came in without it means a document that
+        // was only read and written back does not come out the way it went in.
+        //
+        // Rgb is the default for the ColorMode, but a caller who sets it to Undefined is asking
+        // for no colour space to be imposed, and that is respected by skipping the group.
         if (TransparencyUsed && !Elements.ContainsKey(Keys.Group) &&
             _document.Options.ColorMode != PdfColorMode.Undefined)
         {
@@ -900,9 +905,30 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     }
 
     /// <summary>
-    /// Hack to indicate that a page-level transparency group must be created.
+    /// Whether anything drawn on this page paints with transparency, and so whether the page has
+    /// to be given a transparency group when it is written.
+    /// <para>
+    /// Set from two places: the renderer, when it realizes a colour that is not fully opaque, and
+    /// <see cref="NoteTransparencyOf"/>, when an image or a form that paints with transparency is
+    /// drawn on the page. Content that was already on an imported page does not set it - what
+    /// that page needed, it already carries.
+    /// </para>
     /// </summary>
     internal bool TransparencyUsed;
+
+    /// <summary>
+    /// Notes that the page will need a transparency group if the XObject being drawn on it paints
+    /// with transparency.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is examined once the page is known to need a group. The answer cannot turn back,
+    /// and working it out means walking the resources of a form and of every form within it.
+    /// </remarks>
+    void NoteTransparencyOf(PdfDictionary xObject)
+    {
+        if (!TransparencyUsed && PdfTransparencyDetector.UsesTransparency(xObject))
+            TransparencyUsed = true;
+    }
 
     /// <summary>
     /// Inherit values from parent node.
