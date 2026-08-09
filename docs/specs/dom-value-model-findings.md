@@ -272,6 +272,10 @@ with the boxing and the absent type safety, but it is a large mechanical change 
 dedicated tests — the renderer especially. Worth doing as its own tracked piece of work, not folded
 into anything.
 
+Now specified in [`legacy-collections-migration.md`](legacy-collections-migration.md), which counts
+the sites exactly — 46 `ArrayList` references across 17 files, 12 `Hashtable` across 8 — and finds
+three that are public API and four places where the obvious edit changes behaviour.
+
 ---
 
 ## F6. Reflection's member order was never specified — resolved as a side effect
@@ -508,14 +512,14 @@ not just this one.
 
 ---
 
-## Still open in `dom-thread-safety.md`
+## Also closed in `dom-thread-safety.md`
 
-Three items from that document were not touched by this work and remain scheduled there:
+Three items from that document were not touched by the value model work itself:
 
 | item | what | severity | status |
 |---|---|---|---|
 | 1 | `Color.ToString` publishes its colour-name table before filling it | high | **done** |
-| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | open |
+| 4 | `DocumentInfo` decides what to write from emptiness, not from nullness | low | **done** |
 | 6 | `CS8073` is a warning, and it is the only guard against a silent bug | medium | **done** |
 
 **Item 1 is done.** The table is now a `static readonly Dictionary` built by a static initializer,
@@ -527,8 +531,11 @@ serialized to avoid. It also produced F8 above.
 **Item 6 is done**, and verified by making it fire rather than by assuming it would. It also
 produced F9 above: the guard cannot reach `Unit`, which is the struct it would most need to.
 
-**Item 4 is the only one still open there**, and it is the one that changes emitted DDL, so it wants
-a decision rather than a patch.
+**Item 4 is done too**, and was done on `master` in [#48](https://github.com/jafin/PdfSharpCore/pull/48)
+rather than here — this stack branched before that landed, which is why earlier drafts of this
+document listed it as open. `DocumentInfo.Serialize` now decides from nullness like the rest of the
+DOM, so a document that assigns `""` to `Title`, `Subject`, `Author` or `Keywords` gains a
+`Title = ""` line it did not emit before. **That document is closed; every item in it is fixed.**
 
 ---
 
@@ -584,10 +591,23 @@ is a deliberate cost and its size is unknown.
 4. ~~**F2** — one line plus a test update.~~ **Done.**
 5. ~~**Generator diagnostic tests**~~ **Done.**
 6. ~~**F7's evaluation**, then **F3** and **F4**~~ **All done.**
-7. **`dom-thread-safety.md` item 4**, and the wider `ArrayList`/`Hashtable` migration, as their own
-   pieces of work — both change emitted output or touch untested code.
+7. ~~**`dom-thread-safety.md` item 4**~~ **Done**, on `master` rather than here — see above.
+8. **MDG007**, the first step of [`generated-serialization.md`](generated-serialization.md): a
+   diagnostic for a `[DV]` member that no `Serialize` method writes. It deletes nothing, depends on
+   nothing, and is the only item in either new spec that finds bugs rather than removing code.
+9. **The `ArrayList`/`Hashtable` migration**, specified in
+   [`legacy-collections-migration.md`](legacy-collections-migration.md) — six pieces, sequenced so
+   the untested renderer comes last.
+10. **The rest of `generated-serialization.md`**, which needs the byte-comparison harness in place
+    before any type is switched over.
 
-Deliberately not listed: generating the 67 `Serialize` methods. It is the natural next use of the
-model now that it exists, and §8 of [`compile-time-dom-value-model.md`](compile-time-dom-value-model.md)
-explains why it needs its own spec rather than a line on a list — the irregular cases are the
-majority of the work, not the edge.
+Both of the remaining items were promised a spec rather than a line on a list, and now have one.
+The serialization spec's answer to §8 of
+[`compile-time-dom-value-model.md`](compile-time-dom-value-model.md) is *don't generate the method* —
+measured across all 74 `Serialize` methods, only 15 are pure value-model output, and three are so
+bespoke that generating them would mean writing a second DDL writer. What it generates instead is
+the flat run of attribute writes inside them, which half the methods are within two statements of
+being.
+
+Still not scheduled: isolated snapshot tests for `Emitter`, and measuring the generator's incremental
+caching. Both are recorded under **Gaps in what was built** above.
