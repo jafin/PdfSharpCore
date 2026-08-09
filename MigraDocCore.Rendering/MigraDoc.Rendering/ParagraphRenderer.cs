@@ -738,6 +738,13 @@ internal class ParagraphRenderer : Renderer
         bool origLastTabPassed = lastTabPassed;
         //------------------------------------------
         currentLeaf = lineInfo.startIter;
+        // The line being measured has to say where it starts as well as where it ends. Formatting
+        // a soft hyphen asks whether it is the first thing on the line, and whether the word
+        // before it is, and answers both by comparing against startLeaf. This runs on a renderer
+        // that has only ever rendered, so startLeaf is null until the first line is drawn and
+        // belongs to the line before this one after that: the first question threw and the rest
+        // were answered about the wrong line.
+        startLeaf = lineInfo.startIter;
         endLeaf = lineInfo.endIter;
         formattingArea = renderInfo.LayoutInfo.ContentArea;
         tabOffsets = new ArrayList();
@@ -757,7 +764,15 @@ internal class ParagraphRenderer : Renderer
                 if (currentLeaf.Current == lineInfo.lastTab)
                     lastTabPassed = true;
 
-                FormatElement(currentLeaf.Current);
+                FormatResult result = FormatElement(currentLeaf.Current);
+
+                // Where this line breaks was settled while the paragraph was formatted; this pass
+                // only measures it again, and must not break it a second time. An element that
+                // says it no longer fits moves currentLeaf back to the break it wants, and the
+                // step forward below moved it straight back to where it had just been, so a line
+                // ending in a soft hyphen was measured for ever and no document ever came out.
+                if (result != FormatResult.Continue && result != FormatResult.Ignore)
+                    break;
 
                 goOn = currentLeaf != null && currentLeaf.Current != endLeaf.Current;
                 if (goOn)
