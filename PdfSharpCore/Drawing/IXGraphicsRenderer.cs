@@ -109,9 +109,16 @@ public interface IXGraphicsRenderer
     void DrawPath(XPen pen, XBrush brush, XGraphicsPath path);
 
     /// <summary>
-    /// Draws a series of glyphs identified by the specified text and font.
+    /// Draws a series of glyphs identified by the specified text and font, filled with
+    /// <paramref name="brush"/> and outlined with <paramref name="pen"/>. Either may be null, but
+    /// not both.
     /// </summary>
-    void DrawString(string s, XFont font, XBrush brush, XRect layoutRectangle, XStringFormat format);
+    /// <remarks>
+    /// The pen was added when stroked text was; it takes the place the pen takes on every other
+    /// method here, rather than an overload, because there is one implementation of this interface
+    /// and two ways to say the same thing would be worse than a signature that changed once.
+    /// </remarks>
+    void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect layoutRectangle, XStringFormat format);
 
     /// <summary>
     /// Draws an image.

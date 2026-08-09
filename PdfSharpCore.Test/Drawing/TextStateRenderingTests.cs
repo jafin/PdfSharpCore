@@ -54,16 +54,7 @@ public class TextStateRenderingTests : IDisposable
         var images = PdfHelper.Rasterize(document).ImageCollection;
         _rasterized.Add(images);
 
-        using var pixels = images[0].GetPixels();
-        var inked = pixels
-            .Where(pixel =>
-            {
-                var colour = pixel.ToColor();
-                return colour != null && colour.R < 128 && colour.G < 128 && colour.B < 128;
-            })
-            .Select(pixel => (pixel.X, pixel.Y))
-            .ToList();
-
+        var inked = PageInk.DarkPixelsOf(images[0]);
         inked.Should().NotBeEmpty("the page should have text drawn on it");
         return inked;
     }

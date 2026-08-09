@@ -6,7 +6,7 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Section A and item D3 are built, on
+This is the gap analysis and the plan. Sections A and B are built, and item D3, on
 `feat/text-state-and-measurement`; everything else is still to do.
 
 ## Where parity has to land
@@ -61,8 +61,8 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 11 | `characterSpacing` | **done** — `XStringFormat.CharacterSpacing`, written as `Tc` | **missing**, marked unported at `Font.cs:276` |
 | 12 | `wordSpacing` | **done** — `XStringFormat.WordSpacing`, written as `Tw` or as a `TJ` array | **missing** |
 | 13 | `horizontalScaling` | **done** — `XStringFormat.HorizontalScaling`, written as `Tz` | **missing**, `Font.cs:277` |
-| 14 | `fill` | partial — always on, cannot be disabled | always on |
-| 15 | `stroke` | **missing** — no `DrawString` takes an `XPen`; `Tr` 1 throws (`PdfGraphicsState.cs:258`) | **missing**, `Font.cs:266` |
+| 14 | `fill` | **done** — pass no brush and the text is not filled | always on |
+| 15 | `stroke` | **done** — `DrawString` takes an `XPen`, written as `Tr` 1 or 2 | **missing**, `Font.cs:266` |
 | 16 | `oblique` | **done** — `XStringFormat.ObliqueAngle`, in degrees | **missing** |
 | 17 | `baseline` | partial — `XLineAlignment` has 4 of the 6 canvas values | n/a |
 | 18 | `underline` | partial — bound to `XFontStyle`, one style, font colour only | `Underline`, 7 styles (`enums/Underline.cs`) |
@@ -74,7 +74,7 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 24 | `continued` | partial — `XTextSegmentFormatter` takes mixed runs in one call, but there is no resumable cursor | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five were at parity when this was written; six are now, and `Ts` is emitted for a
+Two of twenty-five were at parity when this was written; eight are now, and `Ts` is emitted for a
 text rise PDFKit has no option for at all.
 
 ---
@@ -155,17 +155,36 @@ by later ones.
 
 ### B — fill and stroke
 
-- [ ] **B1. Widen the text rendering mode, and expose it.** `PdfGraphicsState.RealizeBrush` throws
-  for anything but 0 and 2 (`PdfGraphicsState.cs:258`). Support 0-3 at minimum (fill, stroke,
-  fill+stroke, invisible) so `fill: false` and `stroke: true` are both expressible. Modes 4-7 (clip)
-  are out of scope — PDFKit does not expose them either. This is where the `RenderingMode` property
-  held back from A1 lands.
-- [ ] **B2. Add `DrawString` overloads taking an `XPen`.** Every current overload takes an `XBrush`
-  only (`XGraphics.cs:1180-1242`), so stroked text is unreachable regardless of B1. Signature should
-  allow pen-only, brush-only, and both, mapping to `Tr` 1, 0 and 2.
-- [ ] **B3. Compose stroke with bold simulation.** Synthetic bold already claims `Tr 2` and sets a
-  stroke pen of width `fontEmSize * 0.02` (`PdfGraphicsState.cs:255`). A caller-supplied stroke has
-  to win, or bold-simulated stroked text silently gets the wrong pen.
+- [x] **B1. Widen the text rendering mode.** `RealizeBrush` threw for anything but 0 and 2. It now
+  fills for 0, strokes for 1 and does both for 2.
+
+  **Mode 3 is not implemented, and `RenderingMode` was not added as a property.** Both of those
+  were this item's original plan and both turn out to be wrong. PDFKit's own rule is
+  `fill && stroke ? 2 : stroke ? 1 : 0` — it never produces mode 3 either, so invisible text is not
+  a parity gap. And with the pen and brush deciding the mode between them there is nothing left for
+  a `RenderingMode` property to say that they do not, while there would be plenty for the two of
+  them to disagree about. Modes 4-7 stay out of scope, as planned.
+- [x] **B2. Add `DrawString` overloads taking an `XPen`.** Six of them, mirroring the six that take
+  a brush: a brush alone fills, a pen alone strokes, both do both, and neither is an
+  `ArgumentNullException` carrying `PSSR.NeedPenOrBrush` — which is the answer `DrawRectangle`,
+  `DrawEllipse` and the rest already give to the same question.
+
+  `IXGraphicsRenderer.DrawString` gained the pen, and that interface is **public**, so this is a
+  breaking change for anyone implementing it outside this repo. It was taken rather than avoided:
+  the alternative was a second method on the interface saying almost the same thing, or hanging a
+  pen off `XStringFormat`, which is not what that type is for. There is one implementation.
+- [x] **B3. Compose stroke with bold simulation.** A caller's pen wins outright over the one bold
+  simulation would have stroked with.
+
+  The other half of this was not in the original item and matters more. Bold simulation also
+  *widens* the glyphs, with a character spacing worked out from the em size, and that widening was
+  keyed on the rendering mode being 2. Mode 2 used to mean bold simulation and nothing else; now a
+  caller who strokes their own text reaches it too, and owes none of the widening. It is keyed on
+  the simulation itself — `StrokingTextDoesNotWidenItTheWayBoldSimulationDoes` is the test that
+  fails if that is ever undone.
+
+  The underline and strikeout rules are filled rectangles, so text drawn with a pen and no brush
+  has nothing to fill them with; they take the pen's colour.
 
 ### C — the formatter's layout options
 
@@ -290,8 +309,11 @@ when they differ from what a content stream starts with; the show-text operator 
 operand string without changing a character; and the only difference D3 leaves behind is a space
 where simulated-italic text used to have a newline between its `Td` and its `Tj`.
 
-**The branch can merge from here.** B and C are the next worthwhile stretch — B is small and its
-machinery is already present and artificially restricted, and C1-C4 are a few lines each.
+**B is done too**, and cost one deliberate breaking change: `IXGraphicsRenderer.DrawString` takes a
+pen. Nothing in the repo implements that interface but `XGraphicsPdfRenderer`.
+
+**C is the next worthwhile stretch.** C1-C4 are a few lines each in `XTextFormatter`; C6, the
+columns, is most of the section on its own.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 

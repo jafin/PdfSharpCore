@@ -379,7 +379,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     // ----- DrawString ---------------------------------------------------------------------------
 
-    public void DrawString(string s, XFont font, XBrush brush, XRect rect, XStringFormat format)
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect rect, XStringFormat format)
     {
         double x = rect.X;
         double y = rect.Y;
@@ -398,7 +398,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         bool strikeout = (font.Style & XFontStyle.Strikeout) != 0;
         bool underline = (font.Style & XFontStyle.Underline) != 0;
 
-        Realize(font, brush, boldSimulation ? 2 : 0, format);
+        Realize(font, brush, pen, boldSimulation, format);
 
         switch (format.Alignment)
         {
@@ -535,6 +535,10 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         // the page, which is towards smaller y only when y runs downwards.
         double rise = Gfx.PageDirection == XPageDirection.Downwards ? -format.TextRise : format.TextRise;
 
+        // They are filled rather than stroked, so text that is only outlined has no brush to give
+        // them. Its pen's colour is the nearest thing to the colour the reader sees.
+        XBrush ruleBrush = brush ?? new XSolidBrush(pen.Color);
+
         if (underline)
         {
             double underlinePosition = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlinePosition / font.CellSpace;
@@ -543,7 +547,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double underlineRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - underlinePosition
                 : y + underlinePosition - underlineThickness;
-            DrawRectangle(null, brush, x, underlineRectY + rise, width, underlineThickness);
+            DrawRectangle(null, ruleBrush, x, underlineRectY + rise, width, underlineThickness);
         }
 
         if (strikeout)
@@ -554,7 +558,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double strikeoutRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - strikeoutPosition
                 : y + strikeoutPosition - strikeoutSize;
-            DrawRectangle(null, brush, x, strikeoutRectY + rise, width, strikeoutSize);
+            DrawRectangle(null, ruleBrush, x, strikeoutRectY + rise, width, strikeoutSize);
         }
     }
 
@@ -1601,12 +1605,12 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Makes the specified font and brush to the current graphics objects.
     /// </summary>
-    void Realize(XFont font, XBrush brush, int renderingMode, XStringFormat format)
+    void Realize(XFont font, XBrush brush, XPen pen, bool boldSimulation, XStringFormat format)
     {
         BeginPage();
         RealizeTransform();
         BeginTextMode();
-        _gfxState.RealizeFont(font, brush, renderingMode, format);
+        _gfxState.RealizeFont(font, brush, pen, boldSimulation, format);
     }
 
     /// <summary>

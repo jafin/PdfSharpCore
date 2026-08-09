@@ -232,30 +232,48 @@ internal sealed class PdfGraphicsState : ICloneable
     XColor _realizedFillColor = XColor.Empty;
     bool _realizedNonStrokeOverPrint;
 
-    public void RealizeBrush(XBrush brush, PdfColorMode colorMode, int renderingMode, double fontEmSize, bool isForPen = false)
+    /// <summary>
+    /// Realizes the colours text or a path is painted with.
+    /// </summary>
+    /// <param name="textPen">
+    /// The pen a stroking text rendering mode strokes with. Null falls back to a pen made from the
+    /// brush's own colour, which is how bold simulation fattens a face that has no bold of its own.
+    /// Ignored outside the text modes.
+    /// </param>
+    public void RealizeBrush(XBrush brush, PdfColorMode colorMode, int renderingMode, double fontEmSize, bool isForPen = false, XPen textPen = null)
     {
-        // Rendering mode 2 is used for bold simulation.
+        // Mode 0 fills, 1 strokes, 2 does both. Mode 3 paints nothing and is not produced here -
+        // PDFKit does not produce it either, and nothing asks for invisible text.
         // Reference: TABLE 5.3  Text rendering modes / Page 402
+        bool fills = renderingMode == 0 || renderingMode == 2;
+        bool strokes = renderingMode == 1 || renderingMode == 2;
 
         XSolidBrush solidBrush = brush as XSolidBrush;
-        if (solidBrush != null)
-        {
-            XColor color = solidBrush.Color;
-            bool overPrint = solidBrush.Overprint;
 
-            if (renderingMode == 0)
+        // A stroking mode is answerable either by the caller's pen or, failing that, by a pen made
+        // from the brush's colour. A filling one always needs the brush.
+        bool haveStroke = strokes && (textPen != null || solidBrush != null);
+        bool haveFill = fills && solidBrush != null;
+
+        if (haveStroke || haveFill)
+        {
+            if (fills && solidBrush == null)
+                throw new InvalidOperationException("A filling text rendering mode needs a solid color brush to fill with.");
+
+            if (haveFill)
             {
-                RealizeFillColor(color, overPrint, colorMode);
+                // Overprint is dropped when the same glyphs are stroked over the fill, as it was
+                // when bold simulation was the only thing that ever stroked them.
+                RealizeFillColor(solidBrush.Color, strokes ? false : solidBrush.Overprint, colorMode);
             }
-            else if (renderingMode == 2)
+
+            if (haveStroke)
             {
-                // Come here in case of bold simulation.
-                RealizeFillColor(color, false, colorMode);
+                // Come here for a caller who asked to stroke the text, or for bold simulation,
+                // which fattens a face with no bold of its own by stroking it in its own colour.
                 //color = XColors.Green;
-                RealizePen(new XPen(color, fontEmSize * Const.BoldEmphasis), colorMode);
+                RealizePen(textPen ?? new XPen(solidBrush.Color, fontEmSize * Const.BoldEmphasis), colorMode);
             }
-            else
-                throw new InvalidOperationException("Only rendering modes 0 and 2 are currently supported.");
         }
         else
         {
@@ -360,12 +378,30 @@ internal sealed class PdfGraphicsState : ICloneable
     public static bool NeedsWordSpacingByHand(XFont font, XStringFormat format)
         => font.Unicode && format.WordSpacing != 0;
 
-    public void RealizeFont(XFont font, XBrush brush, int renderingMode, XStringFormat format)
+    /// <summary>
+    /// The text rendering mode that paints text with the brush and pen given: 0 fills, 1 strokes,
+    /// 2 does both. Bold simulation strokes whether or not the caller asked for it.
+    /// </summary>
+    /// <remarks>
+    /// This is PDFKit's rule, which never produces mode 3 - text painted no way at all - and so
+    /// neither does this. XGraphics.DrawString rejects a call with neither pen nor brush before it
+    /// gets this far, the same way DrawRectangle does.
+    /// </remarks>
+    public static int TextRenderingMode(XBrush brush, XPen pen, bool boldSimulation)
+    {
+        bool strokes = pen != null || boldSimulation;
+        if (brush == null)
+            return 1;
+        return strokes ? 2 : 0;
+    }
+
+    public void RealizeFont(XFont font, XBrush brush, XPen pen, bool boldSimulation, XStringFormat format)
     {
         const string numberFormat = Config.SignificantFigures3;
 
-        // So far rendering mode 0 (fill text) and 2 (fill, then stroke text) only.
-        RealizeBrush(brush, _renderer._colorMode, renderingMode, font.Size); // _renderer.page.document.Options.ColorMode);
+        int renderingMode = TextRenderingMode(brush, pen, boldSimulation);
+
+        RealizeBrush(brush, _renderer._colorMode, renderingMode, font.Size, false, pen); // _renderer.page.document.Options.ColorMode);
 
         // Realize rendering mode.
         if (_realizedRenderingMode != renderingMode)
@@ -377,8 +413,11 @@ internal sealed class PdfGraphicsState : ICloneable
         // Realize character spacing. Bold simulation widens every glyph with a spacing of its own,
         // and the caller's spacing is added to that rather than replaced by it - otherwise asking
         // for a spacing on a simulated-bold font would quietly un-bolden it.
+        //
+        // Keyed on the simulation rather than on the rendering mode: a caller who strokes their
+        // text is in mode 2 as well, and owes none of this widening.
         double charSpace = format.CharacterSpacing;
-        if (renderingMode == 2)
+        if (boldSimulation)
             charSpace += font.Size * Const.BoldEmphasis;
         if (_realizedCharSpace != charSpace)
         {

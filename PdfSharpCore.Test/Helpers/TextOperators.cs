@@ -31,6 +31,17 @@ internal static class TextOperators
     }
 
     /// <summary>
+    ///   Every operand list an operator was given, in the order they were written.
+    /// </summary>
+    internal static IReadOnlyList<double[]> OperandsGivenTo(PdfPage page, OpCodeName opCode)
+    {
+        return Operators(page)
+            .Where(op => op.OpCode.OpCodeName == opCode)
+            .Select(op => ItemsOf(op.Operands).Select(Number).ToArray())
+            .ToList();
+    }
+
+    /// <summary>
     ///   How far each Tm on the page leans - its M21 component - in the order they were written.
     ///   Zero for an upright text matrix.
     /// </summary>

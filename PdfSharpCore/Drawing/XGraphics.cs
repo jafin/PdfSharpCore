@@ -1221,12 +1221,75 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XStringFormat format)
     {
+        if (brush == null)
+            throw new ArgumentNullException("brush");
+
+        DrawString(text, font, null, brush, layoutRectangle, format);
+    }
+
+    // ----- outlined text ------------------------------------------------------------------------
+    //
+    // The overloads below take a pen as well as a brush, as every other Draw method here does.
+    // A brush alone fills the glyphs, a pen alone outlines them, and both does both; passing
+    // neither is an error, the same way it is for DrawRectangle.
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point)
+    {
+        DrawString(s, font, pen, brush, new XRect(point.X, point.Y, 0, 0), XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point, XStringFormat format)
+    {
+        DrawString(s, font, pen, brush, new XRect(point.X, point.Y, 0, 0), format);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y)
+    {
+        DrawString(s, font, pen, brush, new XRect(x, y, 0, 0), XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y, XStringFormat format)
+    {
+        DrawString(s, font, pen, brush, new XRect(x, y, 0, 0), format);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect layoutRectangle)
+    {
+        DrawString(s, font, pen, brush, layoutRectangle, XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string text, XFont font, XPen pen, XBrush brush, XRect layoutRectangle, XStringFormat format)
+    {
         if (text == null)
             throw new ArgumentNullException("text");
         if (font == null)
             throw new ArgumentNullException("font");
-        if (brush == null)
-            throw new ArgumentNullException("brush");
+        if (pen == null && brush == null)
+            throw new ArgumentNullException("pen and brush", PSSR.NeedPenOrBrush);
 
         if (format != null && format.LineAlignment == XLineAlignment.BaseLine && layoutRectangle.Height != 0)
             throw new InvalidOperationException("DrawString: With XLineAlignment.BaseLine the height of the layout rectangle must be 0.");
@@ -1238,7 +1301,7 @@ public sealed class XGraphics : IDisposable
             format = XStringFormats.Default;
 
         if (_renderer != null)
-            _renderer.DrawString(text, font, brush, layoutRectangle, format);
+            _renderer.DrawString(text, font, pen, brush, layoutRectangle, format);
     }
 
     // ----- MeasureString ------------------------------------------------------------------------
