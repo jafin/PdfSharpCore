@@ -65,11 +65,14 @@ public class TableKeepWithTests
         RowsOn(pages[1]).Should().Be(2);
     }
 
-    [Fact]
-    public void ARowKeptWithMoreRowsThanFollowItStillHoldsOnToTheOnesThatDo()
+    [Theory]
+    [InlineData(4)]
+    [InlineData(int.MaxValue)]
+    public void ARowKeptWithMoreRowsThanFollowItStillHoldsOnToTheOnesThatDo(int keepWith)
     {
-        // The same three rows, but the second asks for four more. Clamping the request to the
-        // rows that exist must not lose the one that does follow it.
+        // The same three rows, but the second asks for more than follow it. Clamping the request
+        // to the rows that exist must not lose the one that does follow it, however large the
+        // request — a row asking for int.MaxValue more is asking for all of them, not for none.
         var pages = Render(table =>
         {
             for (var index = 0; index < 3; index++)
@@ -79,7 +82,7 @@ public class TableKeepWithTests
                 row.HeightRule = RowHeightRule.Exactly;
                 row[0].AddParagraph($"Row {row.Index}");
             }
-            table.Rows[1].KeepWith = 4;
+            table.Rows[1].KeepWith = keepWith;
         });
 
         pages.Should().HaveCount(2);
@@ -87,12 +90,15 @@ public class TableKeepWithTests
         RowsOn(pages[1]).Should().Be(2);
     }
 
-    [Fact]
-    public void AColumnMayAskToBeKeptWithMoreColumnsThanStandToTheRightOfIt()
+    [Theory]
+    [InlineData(5)]
+    [InlineData(int.MaxValue)]
+    public void AColumnMayAskToBeKeptWithMoreColumnsThanStandToTheRightOfIt(int keepWith)
     {
         var pages = Render(table =>
         {
-            table.Columns[0].KeepWith = 5;
+            table.Columns[0].KeepWith = keepWith;
+            table.Columns[1].KeepWith = keepWith;
             table.AddRow()[0].AddParagraph("Only row");
         });
 
