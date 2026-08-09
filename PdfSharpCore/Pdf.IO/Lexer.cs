@@ -630,7 +630,14 @@ public class Lexer
         int count = chars.Length;
         if (count > 2 && chars[0] == (char)0xFE && chars[1] == (char)0xFF)
         {
-            Debug.Assert(count % 2 == 0);
+            // The last character of the string may be short of its low byte, which is a zero
+            // for the same reason the last byte is short of its low digit. Reading on for a
+            // byte that is not there walked off the end of the string.
+            if ((count & 1) == 1)
+            {
+                chars += '\0';
+                ++count;
+            }
             _token.Length = 0;
             for (int idx = 2; idx < count; idx += 2)
                 _token.Append((char)(chars[idx] * 256 + chars[idx + 1]));

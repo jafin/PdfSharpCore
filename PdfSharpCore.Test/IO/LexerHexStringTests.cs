@@ -75,6 +75,19 @@ public class LexerHexStringTests
         scanned.Token.Should().Be("HI");
     }
 
+    [Theory(Timeout = 5000)]
+    [InlineData("<FEFF0>")]          // closed, but a byte order mark and then a single digit
+    [InlineData("<FEFF0")]           // and the same never closed
+    public async Task AUnicodeHexStringMissingHalfOfItsLastCharacterEndsInAZero(string pdf)
+    {
+        // The digit alone is the byte 0x00, and the character it begins is short of its low
+        // byte, which is a zero as well. Reading on for that byte ran off the end of the string.
+        var scanned = await ScanFirstToken(pdf);
+
+        scanned.Symbol.Should().Be(Symbol.UnicodeHexString);
+        scanned.Token.Should().Be("\0");
+    }
+
     [Fact(Timeout = 5000)]
     public async Task ScanningStopsAtTheEndOfAnUnclosedHexStringRatherThanRunningOn()
     {
@@ -93,10 +106,12 @@ public class LexerHexStringTests
         var document = Encoding.Latin1.GetBytes("%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n" +
                                                 "trailer\n<</Size 2/Root 1 0 R>>\nstartxref\n<4865");
 
-        var open = await Task.Run(() => (Action)(() =>
-            Pdf.IO.PdfReader.Open(new MemoryStream(document), PdfDocumentOpenMode.Modify)));
+        // The reading itself on the worker thread, and not merely the making of the delegate
+        // that does it: what runs on the test thread cannot be interrupted by the Timeout.
+        Func<Task> open = () => Task.Run(() =>
+            Pdf.IO.PdfReader.Open(new MemoryStream(document), PdfDocumentOpenMode.Modify));
 
-        open.Should().Throw<PdfReaderException>();
+        await open.Should().ThrowAsync<PdfReaderException>();
     }
 
     record Scanned(Symbol Symbol, string Token);
