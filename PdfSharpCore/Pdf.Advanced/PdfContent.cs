@@ -156,9 +156,19 @@ public sealed class PdfContent : PdfDictionary
             //if (Owner.Options.CompressContentStreams)
             if (Owner.Options.CompressContentStreams && Elements.GetName("/Filter").Length == 0)
             {
-                Stream.Value = Filtering.FlateDecode.Encode(Stream.Value, _document.Options.FlateEncodeMode);
-                //Elements["/Filter"] = new PdfName("/FlateDecode");
-                Elements.SetName("/Filter", "/FlateDecode");
+                byte[] deflated = Filtering.FlateDecode.Encode(Stream.Value, _document.Options.FlateEncodeMode);
+
+                // Deflating content this short makes it longer rather than shorter: it costs a
+                // two byte zlib header and a four byte checksum before a single byte of content
+                // is saved, so an empty stream comes back as eight bytes of framing around
+                // nothing. Acrobat reports that particular stream as an error on the page.
+                // Keep the compressed form only where there is something to be gained by it.
+                if (deflated.Length < Stream.Value.Length)
+                {
+                    Stream.Value = deflated;
+                    //Elements["/Filter"] = new PdfName("/FlateDecode");
+                    Elements.SetName("/Filter", "/FlateDecode");
+                }
             }
             Elements.SetInteger("/Length", Stream.Length);
         }

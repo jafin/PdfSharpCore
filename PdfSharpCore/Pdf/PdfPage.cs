@@ -987,6 +987,14 @@ public sealed class PdfPage : PdfDictionary, IContentStream
 
     internal override void PrepareForSave()
     {
+        // An XGraphics that was never disposed still holds the content stream it has been
+        // appending to. Close it here rather than leaving it to the writer, so that whatever it
+        // wrote counts towards the decision below. This is the "close all open content streams"
+        // the page tree has wanted for a long time.
+        RenderContent?._pdfRenderer?.Close();
+
+        RemoveEmptyContentStreams();
+
         if (_trimMargins.AreSet)
         {
             // These are the values InDesign set for an A4 page with 3mm crop margin at each edge.
@@ -1008,6 +1016,32 @@ public sealed class PdfPage : PdfDictionary, IContentStream
                 width - _trimMargins.Right.Point, height - _trimMargins.Bottom.Point);
             TrimBox = rect;
             ArtBox = rect.Clone();
+        }
+    }
+
+    /// <summary>
+    /// Drops the content streams that hold nothing.
+    /// </summary>
+    /// <remarks>
+    /// An XGraphics appends a content stream to the page the moment it is created, before
+    /// anything has been asked of it, so one that is closed without a mark being made leaves that
+    /// stream behind empty. Written out it is worse than useless: an empty stream compresses to
+    /// eight bytes of zlib framing around nothing, and Acrobat reports that as an error on the
+    /// page. A stream with nothing in it draws nothing either way, so there is no reason to keep
+    /// one. The object itself is swept up by the unreachable-object pass that follows.
+    /// </remarks>
+    void RemoveEmptyContentStreams()
+    {
+        // Only a page whose contents have already been read. Reading them here would give a page
+        // that has no /Contents at all an empty array it never had.
+        if (_contents == null)
+            return;
+
+        for (int idx = _contents.Elements.Count - 1; idx >= 0; idx--)
+        {
+            PdfDictionary content = _contents.Elements.GetDictionary(idx);
+            if (content != null && (content.Stream == null || content.Stream.Length == 0))
+                _contents.Elements.RemoveAt(idx);
         }
     }
 
