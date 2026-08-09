@@ -328,13 +328,31 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         internal PdfDictionary Owner => _ownerDictionary;
 
         /// <summary>
+        ///   The entry under the given key, reading a null value as no entry at all. The
+        ///   specification says that giving an entry the null object as its value is the same
+        ///   as leaving the entry out, and that a reference to an object the file never defines
+        ///   is that null object, so a dangling reference reads here as an absent entry rather
+        ///   than as a value of the wrong type.
+        /// </summary>
+        /// <remarks>
+        ///   The item itself is returned rather than what it refers to, because every caller
+        ///   resolves the reference the way it needs to.
+        /// </remarks>
+        PdfItem ValueOf(string key)
+        {
+            PdfItem item = this[key];
+            PdfItem value = item is PdfReference reference ? reference.Value : item;
+            return value is PdfNull || value is PdfNullObject ? null : item;
+        }
+
+        /// <summary>
         /// Converts the specified value to boolean.
         /// If the value does not exist, the function returns false.
         /// If the value is not convertible, the function throws an InvalidCastException.
         /// </summary>
         public bool GetBoolean(string key, bool create)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -380,16 +398,13 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public int GetInteger(string key, bool create)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
                     this[key] = new PdfInteger();
                 return 0;
             }
-
-            if (obj is PdfNull)
-                return 0;
 
             PdfReference reference = obj as PdfReference;
             if (reference != null)
@@ -434,7 +449,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public double GetReal(string key, bool create)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -489,7 +504,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public string GetString(string key, bool create)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -535,7 +550,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public bool TryGetString(string key, out string value)
         {
             value = null;
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
                 return false;
 
@@ -598,7 +613,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public string GetName(string key)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 //if (create)
@@ -644,7 +659,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public PdfRectangle GetRectangle(string key, bool create)
         {
             PdfRectangle value = new PdfRectangle();
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -690,7 +705,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public XMatrix GetMatrix(string key, bool create)
         {
             XMatrix value = new XMatrix();
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -739,7 +754,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public DateTime GetDateTime(string key, DateTime defaultValue)
         {
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 return defaultValue;
@@ -792,7 +807,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             if (!(defaultValue is Enum))
                 throw new ArgumentException("defaultValue");
 
-            object obj = this[key];
+            object obj = ValueOf(key);
             if (obj == null)
             {
                 if (create)
@@ -826,7 +841,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             PdfDictionary dict;
             PdfArray array;
             PdfReference iref;
-            PdfItem value = this[key];
+            PdfItem value = ValueOf(key);
             if (value == null)
             {
                 if (options != VCF.None)
@@ -1095,7 +1110,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public PdfObject GetObject(string key)
         {
-            PdfItem item = this[key];
+            PdfItem item = ValueOf(key);
             PdfReference reference = item as PdfReference;
             if (reference != null)
                 return reference.Value;
@@ -1125,7 +1140,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public PdfReference GetReference(string key)
         {
-            PdfItem item = this[key];
+            PdfItem item = ValueOf(key);
             return item as PdfReference;
         }
 
