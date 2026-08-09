@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -289,5 +290,105 @@ public class PageResizeAnnotationTests
         rect.Y1.Should().BeApproximately(A4Width - 300, Tolerance);
         rect.X2.Should().BeApproximately(400, Tolerance);
         rect.Y2.Should().BeApproximately(A4Width - 100, Tolerance);
+    }
+
+    // ------------------------------------------------- geometry that is not plain numbers
+
+    [Fact]
+    public void ACoordinateHeldIndirectlyIsStillMoved()
+    {
+        // Any object in a PDF may be indirect, a coordinate included. Reading one with GetReal
+        // throws rather than following the reference, which used to abort the whole resize.
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        page.Size = PageSize.A4;
+        using (XGraphics gfx = XGraphics.FromPdfPage(page))
+            gfx.DrawRectangle(XBrushes.LightGray, new XRect(0, 0, page.Width, page.Height));
+
+        // Constructing with a document does not put the object in the cross reference table, so
+        // it has no reference to point at until it is added.
+        PdfRealObject indirect = new PdfRealObject(document, 300);
+        document.Internals.AddObject(indirect);
+
+        PdfDictionary annotation = AnnotationOfSubtype("/Polygon");
+        PdfArray vertices = new PdfArray(document);
+        vertices.Elements.Add(new PdfReal(100));
+        vertices.Elements.Add(indirect.Reference);
+        annotation.Elements["/Vertices"] = vertices;
+
+        document.Internals.AddObject(annotation);
+        PdfArray annotations = new PdfArray(document);
+        annotations.Elements.Add(annotation.Reference);
+        page.Elements["/Annots"] = annotations;
+
+        HalveThePage(page);
+
+        PdfArray moved = TheAnnotationOf(page).Elements.GetArray("/Vertices");
+        moved.Elements.GetReal(0).Should().BeApproximately(50, Tolerance);
+        moved.Elements.GetReal(1).Should().BeApproximately(150, Tolerance);
+    }
+
+    [Fact]
+    public void GeometryThatIsNotNumbersIsLeftWholeRatherThanHalfMoved()
+    {
+        // Writing point by point would leave a malformed array partly moved, and would do it
+        // after the content had been wrapped and the boxes set, with no way back. Nothing is
+        // written unless all of it can be read.
+        PdfDictionary annotation = AnnotationOfSubtype("/Polygon");
+        PdfArray vertices = new PdfArray();
+        vertices.Elements.Add(new PdfReal(100));
+        vertices.Elements.Add(new PdfReal(200));
+        vertices.Elements.Add(new PdfReal(300));
+        vertices.Elements.Add(new PdfName("/NotANumber"));
+        annotation.Elements["/Vertices"] = vertices;
+
+        PdfDocument document = DocumentWithAnAnnotation(annotation);
+
+        Action act = () => HalveThePage(document.Pages[0]);
+
+        act.Should().NotThrow();
+
+        PdfArray after = TheAnnotationOf(document.Pages[0]).Elements.GetArray("/Vertices");
+        after.Elements.GetReal(0).Should().Be(100, "not one point may be moved if they cannot all be");
+        after.Elements.GetReal(1).Should().Be(200);
+        after.Elements.GetReal(2).Should().Be(300);
+        after.Elements[3].Should().BeOfType<PdfName>();
+
+        // The rectangle is a separate entry and does move, which is what the fallback for an
+        // unmodelled subtype does too.
+        TheAnnotationOf(document.Pages[0]).Elements.GetRectangle("/Rect")
+            .X1.Should().BeApproximately(50, Tolerance);
+    }
+
+    [Fact]
+    public void ARectangleHeldAsIndirectNumbersIsStillMoved()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        page.Size = PageSize.A4;
+        using (XGraphics gfx = XGraphics.FromPdfPage(page))
+            gfx.DrawRectangle(XBrushes.LightGray, new XRect(0, 0, page.Width, page.Height));
+
+        PdfDictionary annotation = new PdfDictionary(document);
+        annotation.Elements.SetName("/Type", "/Annot");
+        annotation.Elements.SetName("/Subtype", "/Link");
+
+        PdfArray rect = new PdfArray(document);
+        PdfRealObject indirectLeft = new PdfRealObject(document, 100);
+        document.Internals.AddObject(indirectLeft);
+        rect.Elements.Add(indirectLeft.Reference);
+        rect.Elements.Add(new PdfReal(200));
+        rect.Elements.Add(new PdfReal(300));
+        rect.Elements.Add(new PdfReal(400));
+        annotation.Elements["/Rect"] = rect;
+
+        document.Internals.AddObject(annotation);
+        PdfArray annotations = new PdfArray(document);
+        annotations.Elements.Add(annotation.Reference);
+        page.Elements["/Annots"] = annotations;
+
+        HalveThePage(page);
+
+        TheAnnotationOf(page).Elements.GetRectangle("/Rect").X1.Should().BeApproximately(50, Tolerance);
     }
 }

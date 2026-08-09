@@ -1,3 +1,4 @@
+using System;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -395,5 +396,42 @@ public class PageResizeDestinationTests
         toFirst.Elements.GetReal(3).Should().BeApproximately(350, Tolerance);
         toSecond.Elements.GetReal(2).Should().BeApproximately(100, Tolerance);
         toSecond.Elements.GetReal(3).Should().BeApproximately(300, Tolerance);
+    }
+
+    [Fact]
+    public void ADestinationCoordinateHeldIndirectlyIsStillMoved()
+    {
+        // A destination coordinate is as entitled to be an indirect object as anything else.
+        // Reading one with GetReal throws instead of following the reference, which used to
+        // abort the resize after the content had already been wrapped.
+        Fixture fixture = TwoPages();
+
+        PdfRealObject indirect = new PdfRealObject(fixture.Document, 700);
+        fixture.Document.Internals.AddObject(indirect);
+
+        PdfArray destination = Destination(fixture.Target,
+            new PdfName("/XYZ"), new PdfReal(100), indirect.Reference,
+            new PdfSharpCore.Pdf.PdfInteger(0));
+        LinkOn(fixture.Source, "/Dest", destination);
+
+        HalveThePage(fixture.Target);
+
+        destination.Elements.GetReal(2).Should().BeApproximately(50, Tolerance);
+        destination.Elements.GetReal(3).Should().BeApproximately(350, Tolerance);
+    }
+
+    [Fact]
+    public void ADestinationWhoseCoordinatesAreNotNumbersIsLeftAlone()
+    {
+        Fixture fixture = TwoPages();
+        PdfArray destination = Destination(fixture.Target, new PdfName("/FitR"),
+            new PdfReal(100), new PdfReal(200), new PdfName("/Nonsense"), new PdfReal(400));
+        LinkOn(fixture.Source, "/Dest", destination);
+
+        Action act = () => HalveThePage(fixture.Target);
+
+        act.Should().NotThrow();
+        destination.Elements.GetReal(2).Should().Be(100, "none of it moves if not all of it can");
+        destination.Elements.GetReal(3).Should().Be(200);
     }
 }

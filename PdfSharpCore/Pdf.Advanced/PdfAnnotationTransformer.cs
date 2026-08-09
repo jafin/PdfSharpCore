@@ -172,10 +172,20 @@ static class PdfAnnotationTransformer
         if (count == 0 || count % 2 != 0)
             return;
 
+        // Read the whole array before writing any of it. Writing as it goes would leave a
+        // malformed array half moved and half not - worse than either - and would do it after
+        // the content had already been wrapped and the boxes set, so there would be no going
+        // back. Anything that is not a number leaves the array exactly as it was found.
+        double[] numbers = new double[count];
+        for (int index = 0; index < count; index++)
+        {
+            if (!PdfPageResizer.TryNumber(array.Elements[index], out numbers[index]))
+                return;
+        }
+
         for (int index = 0; index < count; index += 2)
         {
-            XPoint moved = matrix.Transform(
-                new XPoint(array.Elements.GetReal(index), array.Elements.GetReal(index + 1)));
+            XPoint moved = matrix.Transform(new XPoint(numbers[index], numbers[index + 1]));
 
             array.Elements[index] = new PdfReal(moved.X);
             array.Elements[index + 1] = new PdfReal(moved.Y);
@@ -234,7 +244,9 @@ static class PdfAnnotationTransformer
     }
 
     /// <summary>
-    /// The numbers of an array, or null where the item is not an array of numbers.
+    /// The numbers of an array, or null where the item is not an array of numbers. A number held
+    /// indirectly is followed; anything that is not a number at all makes the whole array
+    /// unreadable rather than throwing, so the caller leaves it alone.
     /// </summary>
     static double[] NumbersOf(PdfItem item)
     {
@@ -246,7 +258,10 @@ static class PdfAnnotationTransformer
 
         double[] numbers = new double[array.Elements.Count];
         for (int index = 0; index < numbers.Length; index++)
-            numbers[index] = array.Elements.GetReal(index);
+        {
+            if (!PdfPageResizer.TryNumber(array.Elements[index], out numbers[index]))
+                return null;
+        }
 
         return numbers;
     }

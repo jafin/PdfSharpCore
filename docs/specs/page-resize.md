@@ -295,6 +295,18 @@ here were restored to the fuller coverage they had been cut back to fit under th
 `GhostscriptSetup.Probe` and `PostscriptOutlineEmbeddingTest` already disposed what they
 rasterized, so the pattern was known — it just was not applied anywhere else.
 
+**`GetReal` does not follow a reference — it throws on one.** Any object in a PDF may be indirect,
+a coordinate in an array included, and `PdfArray.ArrayElements.GetReal` handles `PdfReal`,
+`PdfRealObject`, `PdfInteger` and `PdfIntegerObject` but not a `PdfReference` to any of them: it
+falls through to an `InvalidCastException`. So reading coordinates with it turns a legal if unusual
+file into a failed resize — and, because the transform writes as it reads, one that fails *after*
+the content has been wrapped and the boxes moved, leaving the page half done with no way back.
+
+Everything here reads coordinates through `PdfPageResizer.TryNumber`, which follows the reference
+and answers false rather than throwing. The readers also take the whole array before writing any of
+it, so an array that cannot be read entirely is left exactly as it was found. Worth knowing beyond
+this feature: the same `GetReal` sits under a good deal of the library.
+
 `PdfDictionary.GetMatrix` cannot read back what `SetMatrix` writes. `SetMatrix` stores a
 `PdfLiteral` and `GetMatrix` throws `NotImplementedException("Parsing matrix from literal")` on it.
 Not fixed here — nothing in the resize path needs it — but a test that reads an annotation's

@@ -714,4 +714,48 @@ public class PageResizeTests
 
         return (PdfDictionary)item;
     }
+
+    [Fact]
+    public void TheWrapperContentIsFarShorterThanTheCapThatSkipsDecodingIt()
+    {
+        // Finding out whether a page is already a wrapper must not decode a whole content
+        // stream, so the resizer measures the stored bytes first and gives up on anything too
+        // long to be one. That cap is only safe while the content it writes stays short. If the
+        // format ever grows past it, wrapper detection stops working - silently, because the
+        // fallback is to wrap again, which is correct and merely wasteful.
+        PdfDocument document = DocumentWithAFilledPage();
+        PdfPage page = document.Pages[0];
+
+        page.Resize(PageSize.A5);
+
+        int written = TheSingleContentStreamOf(page).Stream.Value.Length;
+
+        written.Should().BeLessThan(512,
+            "the resizer skips decoding any content stream longer than 1024 bytes, so a wrapper " +
+            "has to stay well inside that");
+    }
+
+    [Fact]
+    public void APageWithALongContentStreamIsStillResizedCorrectly()
+    {
+        // The other side of the cap: ordinary content is longer than any wrapper and must be
+        // wrapped rather than mistaken for one.
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        page.Size = PageSize.A4;
+
+        using (XGraphics gfx = XGraphics.FromPdfPage(page))
+        {
+            for (int index = 0; index < 200; index++)
+                gfx.DrawRectangle(XBrushes.LightGray, new XRect(index, index, 10, 10));
+        }
+
+        TheSingleContentStreamOf(page).Stream.Value.Length.Should().BeGreaterThan(1024);
+
+        page.Resize(PageSize.A5, PageOrientation.Portrait,
+            new PageResizeOptions { Fit = PageFitMode.Stretch });
+
+        page.Width.Point.Should().BeApproximately(A5Width, Tolerance);
+        ResizedContentProbe.FormCount(page).Should().Be(1);
+    }
 }

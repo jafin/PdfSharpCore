@@ -269,13 +269,12 @@ static class PdfDestinationScaler
             if (destination.Elements.Count < 4)
                 return;
 
-            bool hasLeft = IsNumber(destination.Elements[2]);
-            bool hasTop = IsNumber(destination.Elements[3]);
+            bool hasLeft = PdfPageResizer.TryNumber(destination.Elements[2], out double left);
+            bool hasTop = PdfPageResizer.TryNumber(destination.Elements[3], out double top);
 
             if (hasLeft && hasTop)
             {
-                XPoint moved = matrix.Transform(new XPoint(
-                    destination.Elements.GetReal(2), destination.Elements.GetReal(3)));
+                XPoint moved = matrix.Transform(new XPoint(left, top));
                 destination.Elements[2] = new PdfReal(moved.X);
                 destination.Elements[3] = new PdfReal(moved.Y);
                 return;
@@ -285,10 +284,10 @@ static class PdfDestinationScaler
             // One on its own can only be moved when the axes have not been swapped around, which
             // is to say when the other coordinate makes no difference to it.
             if (hasLeft && IsAxisAligned(matrix))
-                destination.Elements[2] = new PdfReal(TransformX(destination.Elements.GetReal(2), matrix));
+                destination.Elements[2] = new PdfReal(TransformX(left, matrix));
 
             if (hasTop && IsAxisAligned(matrix))
-                destination.Elements[3] = new PdfReal(TransformY(destination.Elements.GetReal(3), matrix));
+                destination.Elements[3] = new PdfReal(TransformY(top, matrix));
         }
 
         /// <summary>
@@ -299,16 +298,17 @@ static class PdfDestinationScaler
             if (destination.Elements.Count < 6)
                 return;
 
-            for (int index = 2; index <= 5; index++)
+            double[] corners = new double[4];
+            for (int index = 0; index < 4; index++)
             {
-                if (!IsNumber(destination.Elements[index]))
+                if (!PdfPageResizer.TryNumber(destination.Elements[index + 2], out corners[index]))
                     return;
             }
 
-            double left = destination.Elements.GetReal(2);
-            double bottom = destination.Elements.GetReal(3);
-            double right = destination.Elements.GetReal(4);
-            double top = destination.Elements.GetReal(5);
+            double left = corners[0];
+            double bottom = corners[1];
+            double right = corners[2];
+            double top = corners[3];
 
             XRect moved = PdfPageResizer.Transformed(
                 new XRect(Math.Min(left, right), Math.Min(bottom, top),
@@ -327,10 +327,9 @@ static class PdfDestinationScaler
         /// </summary>
         static void MoveHorizontalLine(PdfArray destination, XMatrix matrix)
         {
-            if (destination.Elements.Count < 3 || !IsNumber(destination.Elements[2]))
+            if (destination.Elements.Count < 3 ||
+                !PdfPageResizer.TryNumber(destination.Elements[2], out double value))
                 return;
-
-            double value = destination.Elements.GetReal(2);
 
             if (IsAxisAligned(matrix))
             {
@@ -349,10 +348,9 @@ static class PdfDestinationScaler
         /// </summary>
         static void MoveVerticalLine(PdfArray destination, XMatrix matrix)
         {
-            if (destination.Elements.Count < 3 || !IsNumber(destination.Elements[2]))
+            if (destination.Elements.Count < 3 ||
+                !PdfPageResizer.TryNumber(destination.Elements[2], out double value))
                 return;
-
-            double value = destination.Elements.GetReal(2);
 
             if (IsAxisAligned(matrix))
             {
@@ -396,16 +394,6 @@ static class PdfDestinationScaler
         static double TransformY(double y, XMatrix matrix)
         {
             return y * matrix.M22 + matrix.OffsetY;
-        }
-
-        /// <summary>
-        /// Whether the item is a number. A destination is allowed a null where a coordinate
-        /// would go, meaning that the reader keeps what it already has.
-        /// </summary>
-        static bool IsNumber(PdfItem item)
-        {
-            item = Resolve(item);
-            return item is PdfInteger or PdfReal or PdfIntegerObject or PdfRealObject;
         }
 
         static PdfItem Resolve(PdfItem item)

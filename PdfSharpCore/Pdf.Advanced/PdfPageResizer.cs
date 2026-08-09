@@ -273,6 +273,14 @@ static class PdfPageResizer
         if (content?.Stream == null)
             return false;
 
+        // Measure before decoding. UnfilteredValue runs the filters and hands back a whole copy
+        // of the content, and on an ordinary page that is megabytes of work to discover that the
+        // page is not a wrapper. A wrapper is a couple of hundred bytes at the outside, so
+        // anything larger cannot be one and need not be decoded to prove it. Stream.Value is the
+        // bytes as stored, which costs nothing to measure.
+        if (content.Stream.Value == null || content.Stream.Value.Length > LongestWrapper)
+            return false;
+
         if (!TryReadWrapperName(content.Stream.UnfilteredValue, out name, out already))
             return false;
 
@@ -329,12 +337,30 @@ static class PdfPageResizer
 
         if (item is PdfArray array && array.Elements.Count == 4)
         {
-            return new PdfRectangle(array.Elements.GetReal(0), array.Elements.GetReal(1),
-                array.Elements.GetReal(2), array.Elements.GetReal(3));
+            double[] corners = new double[4];
+            for (int index = 0; index < 4; index++)
+            {
+                if (!TryNumber(array.Elements[index], out corners[index]))
+                    return null;
+            }
+
+            return new PdfRectangle(corners[0], corners[1], corners[2], corners[3]);
         }
 
         return null;
     }
+
+    /// <summary>
+    /// The most a wrapper's content stream can run to, as stored.
+    /// <para>
+    /// What is written is "q" and six numbers and "cm" and a name and "Do" and "Q" - a couple of
+    /// hundred bytes with the numbers at their longest and the name generously long, and a
+    /// compressed copy of something that short is no smaller. The cap is well above that, and
+    /// costs nothing to be wrong about in the safe direction: a wrapper mistaken for ordinary
+    /// content is wrapped a second time, which is wasteful and correct.
+    /// </para>
+    /// </summary>
+    const int LongestWrapper = 1024;
 
     /// <summary>
     /// The one content stream of the page, or null where it has none or has more than one.
@@ -420,6 +446,45 @@ static class PdfPageResizer
 
         page.ApplyResizedBox(new PdfRectangle(target.X, target.Y,
             target.X + target.Width, target.Y + target.Height), size);
+    }
+
+    /// <summary>
+    /// Reads a number out of an item, following a reference to get at it.
+    /// <para>
+    /// Any object in a PDF is allowed to be indirect, a number in an array of coordinates
+    /// included. <c>GetReal</c> does not follow the reference - it throws
+    /// <see cref="InvalidCastException"/> on one - so reading coordinates with it turns a legal
+    /// if unusual file into a failed resize. Everything that reads a coordinate goes through
+    /// here instead, and answers false rather than throwing when the item is not a number at all.
+    /// </para>
+    /// </summary>
+    internal static bool TryNumber(PdfItem item, out double value)
+    {
+        if (item is PdfReference reference)
+            item = reference.Value;
+
+        switch (item)
+        {
+            case PdfReal real:
+                value = real.Value;
+                return true;
+
+            case PdfRealObject realObject:
+                value = realObject.Value;
+                return true;
+
+            case PdfInteger integer:
+                value = integer.Value;
+                return true;
+
+            case PdfIntegerObject integerObject:
+                value = integerObject.Value;
+                return true;
+
+            default:
+                value = 0;
+                return false;
+        }
     }
 
     /// <summary>
