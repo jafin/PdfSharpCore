@@ -67,7 +67,7 @@ public class EmptyContentStreamTests
     }
 
     [Fact]
-    public void TheContentThatWasAlreadyOnThePageIsUntouched()
+    public void TheContentThatWasAlreadyOnThePageKeepsEveryMarkAndGainsOnlyItsQAndQ()
     {
         using var input = new MemoryStream(BuildDocumentWithThreeContentStreams());
         var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
@@ -76,9 +76,15 @@ public class EmptyContentStreamTests
 
         var streams = ContentStreamsOf(Save(document));
 
-        streams[0].Should().Contain("10 10 100 100 re");
-        streams[1].Should().Contain("20 20 100 100 re");
-        streams[2].Should().Contain("30 30 100 100 re");
+        // Byte for byte what BuildDocumentWithThreeContentStreams put there, in the same order,
+        // save for the "q" and " Q\n" that PdfContents.SetModified wraps the whole run in so that
+        // anything drawn after it starts from the graphics state the page started from. Asserted
+        // whole rather than by the operators looked for, so that dropping the empty stream cannot
+        // quietly take a mark with it.
+        streams.Should().Equal(
+            "q\n0 0 1 RG 10 10 100 100 re S",
+            "0 1 0 RG 20 20 100 100 re S",
+            "1 0 0 RG 30 30 100 100 re S Q\n");
     }
 
     [Fact]
