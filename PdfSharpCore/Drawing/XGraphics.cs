@@ -1255,7 +1255,7 @@ public sealed class XGraphics : IDisposable
         if (stringFormat == null)
             throw new ArgumentNullException("stringFormat");
 
-        XSize size = FontHelper.MeasureString(text, font, XStringFormats.Default);
+        XSize size = FontHelper.MeasureString(text, font, stringFormat);
         return size;
     }
 

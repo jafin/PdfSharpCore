@@ -387,7 +387,9 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         double lineSpace = font.GetHeight();
         double cyAscent = lineSpace * font.CellAscent / font.CellSpace;
         double cyDescent = lineSpace * font.CellDescent / font.CellSpace;
-        double width = _gfx.MeasureString(s, font).Width;
+        // Measured through the same format the text is drawn with: alignment and the underline and
+        // strikeout rules below are all placed from this width.
+        double width = _gfx.MeasureString(s, font, format).Width;
 
         //bool bold = (font.Style & XFontStyle.Bold) != 0;
         //bool italic = (font.Style & XFontStyle.Italic) != 0;
