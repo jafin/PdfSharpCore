@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using PdfSharpCore.Pdf;
@@ -22,7 +22,16 @@ internal static class TextBaselines
     /// </summary>
     internal static IReadOnlyList<double> Of(PdfPage page)
     {
-        var baselines = new List<double>();
+        return PositionsOf(page).Select(position => position.Y).ToList();
+    }
+
+    /// <summary>
+    ///   Where every run of text on the page starts, in the order it is drawn. Positions are in
+    ///   points from the bottom left of the page, as PDF measures them.
+    /// </summary>
+    internal static IReadOnlyList<(double X, double Y)> PositionsOf(PdfPage page)
+    {
+        var baselines = new List<(double X, double Y)>();
 
         // The text line matrix, which Td moves and every run of text is drawn against. Only
         // the translation is tracked: nothing here draws text turned or scaled.
@@ -75,14 +84,14 @@ internal static class TextBaselines
 
                 case OpCodeName.Tj:
                 case OpCodeName.TJ:
-                    baselines.Add(y);
+                    baselines.Add((x, y));
                     break;
 
                 case OpCodeName.QuoteSingle:
                 case OpCodeName.QuoteDbl:
                     // Both move down a line before showing the text, as T* does.
                     y -= leading;
-                    baselines.Add(y);
+                    baselines.Add((x, y));
                     break;
             }
         }
