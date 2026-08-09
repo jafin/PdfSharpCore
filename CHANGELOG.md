@@ -50,6 +50,39 @@ This file starts at the entry below. Changes before that point are recorded only
   crops from the **top left** instead, which is almost certainly what was wanted. To reproduce the
   old anchoring exactly, ask for `PageAlignment.BottomLeft`.
 
+### Fixed
+
+- A page-level transparency group (`/Group << /S /Transparency /CS /DeviceRGB >>`) was written onto
+  every page of every saved document, whether or not anything on the page painted with transparency
+  and whether or not the page arrived with one. Opening a document and saving it again was enough to
+  add one to all of its pages.
+
+  A transparency group is not inert: it tells a reader to composite the page as a unit against the
+  backdrop, which can change how overprint and non-RGB content render, and `/CS /DeviceRGB` was
+  imposed on pages whose content is not RGB.
+
+  A page is now given a group only where it needs one: where something drawn on it uses an alpha
+  below 1, or where an image or form placed on it paints with transparency of its own — a soft mask,
+  a blend mode that reads what is underneath, or a transparency group of its own. A page whose
+  content is opaque throughout, and an imported page that came in without a group, are written
+  without one. A page that came in **with** a group keeps the one it had, as before.
+
+  Documents that PdfSharpCore produced before this change are unaffected on the way in; they keep
+  the group they were written with. The one visible difference is on the way out: opaque pages get
+  smaller and no longer claim a colour space they do not use.
+
+- Drawing a page of another document with `XPdfForm` dropped that page's transparency group. A group
+  describes the content it wraps, and the content was being moved into a form XObject while the
+  group was left behind in the document it came from, so the imported page arrived composited
+  against the wrong backdrop. It is now imported with the rest of the page. The equivalent path for
+  a page of the *same* document, which a page resize uses, already moved the group across.
+
+- A PDF null was read as though it were the thing it stands in for. `/SMask null` in a graphics state
+  or an image counted as a soft mask, which put a transparency group back onto pages whose content is
+  opaque; `/Group null` on an imported page was cast to a dictionary, which threw rather than drew;
+  and an indirect null anywhere in an imported page — `/SMask 6 0 R` with `null` in object six — hit
+  a debug assertion while the page was being imported. A null now reads as the absent entry it is.
+
 ### Removed
 
 - **BREAKING:** `PdfDocumentOptions.EnableCcittCompressionForBilevelImages`. The CCITT encoder this
