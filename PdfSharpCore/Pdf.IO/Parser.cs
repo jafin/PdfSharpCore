@@ -257,6 +257,7 @@ internal sealed class Parser
                 break;
         }
 
+        var endOfObject = _lexer.Position;
         symbol = ScanNextToken();
         if (symbol == Symbol.BeginStream)
         {
@@ -287,6 +288,7 @@ internal sealed class Parser
                 }
             }
 
+            endOfObject = _lexer.Position;
             symbol = ScanNextToken();
             if (symbol == Symbol.Eof)
             {
@@ -295,7 +297,7 @@ internal sealed class Parser
         }
 
         if (!fromObjecStream && symbol != Symbol.EndObj)
-            EndObject(symbol);
+            EndObject(symbol, endOfObject);
         return pdfObject;
     }
 
@@ -304,9 +306,10 @@ internal sealed class Parser
     /// </summary>
     private void ReadEndObject()
     {
+        var endOfObject = _lexer.Position;
         Symbol symbol = _lexer.ScanNextToken();
         if (symbol != Symbol.EndObj)
-            EndObject(symbol);
+            EndObject(symbol, endOfObject);
     }
 
     /// <summary>
@@ -314,32 +317,75 @@ internal sealed class Parser
     /// </summary>
     /// <remarks>
     ///   A file that leaves the keyword out is corrupt, but the object before it is whole and
-    ///   every reader in common use goes on to read the file. Nothing is lost by doing the same:
-    ///   objects are found through the cross-reference table rather than by reading on from
-    ///   where the last one ended, so the position this leaves behind is not used.
+    ///   every reader in common use goes on to read the file. Nothing is lost by doing the same.
     ///   The object only ends here if what follows begins the next one or ends the file. Anything
     ///   else means the object itself did not parse, and is still reported.
     ///   See https://github.com/empira/PDFsharp/issues/211.
     /// </remarks>
-    private void EndObject(Symbol symbol)
+    /// <param name="symbol">The symbol found where "endobj" should have been.</param>
+    /// <param name="endOfObject">Where the object ended, which is where that symbol was read from.</param>
+    private void EndObject(Symbol symbol, long endOfObject)
+    {
+        // Reading the token back is what clears it, so take a copy for the message first.
+        var token = _lexer.Token;
+
+        if (!EndsAnObject(symbol))
+            ParserDiagnostics.ThrowParserException(PSSR.UnexpectedToken(token));
+
+        // The token belongs to whatever comes next rather than to the object that just ended,
+        // so put it back for whoever reads on from here.
+        _lexer.Position = endOfObject;
+    }
+
+    /// <summary>
+    ///   Tells whether the symbol read where "endobj" should have been marks the end of the object
+    ///   anyway, by beginning the object that follows or ending the body of the file.
+    /// </summary>
+    private bool EndsAnObject(Symbol symbol)
     {
         switch (symbol)
         {
-            // The object number of the object that follows.
+            // The object number of the object that follows — but only if it really is one, so
+            // that a stray number left after an object is still reported.
             case Symbol.Integer:
             case Symbol.UInteger:
             case Symbol.Long:
+                return BeginsAnIndirectObject();
 
             // Or the end of the body of the file.
             case Symbol.XRef:
             case Symbol.Trailer:
             case Symbol.StartXRef:
             case Symbol.Eof:
-                return;
+                return true;
 
             default:
-                ParserDiagnostics.ThrowParserException(PSSR.UnexpectedToken(_lexer.Token));
-                return;
+                return false;
+        }
+    }
+
+    /// <summary>
+    ///   Tells whether the number just read opens an indirect object, "&lt;number&gt; &lt;generation&gt; obj",
+    ///   without moving the lexer off it.
+    /// </summary>
+    private bool BeginsAnIndirectObject()
+    {
+        // Object numbers count from one; zero is the head of the list of free objects.
+        if (_lexer.TokenToLong <= 0)
+            return false;
+
+        var state = SaveState();
+        try
+        {
+            Symbol generationNumber = _lexer.ScanNextToken();
+            if (generationNumber != Symbol.Integer && generationNumber != Symbol.UInteger)
+                return false;
+
+            return _lexer.ScanNextToken() == Symbol.Obj;
+        }
+        finally
+        {
+            RestoreState(state);
         }
     }
 
