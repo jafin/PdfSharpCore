@@ -73,7 +73,11 @@ public class SoftHyphenInJustifiedListTests
         foreach (var (x, _) in TextBaselines.PositionsOf(document.Pages[0]))
         {
             x.Should().BeGreaterThanOrEqualTo(LeftEdge - 0.001);
-            x.Should().BeLessThanOrEqualTo(right + 0.001);
+
+            // Where a run starts, not where it ends: a run beginning on the right edge itself has
+            // nowhere left to draw, so it is already outside. Half a point is narrower than
+            // anything the text has in it, the hyphen that ends a broken word included.
+            x.Should().BeLessThanOrEqualTo(right - 0.5);
         }
     }
 
@@ -123,6 +127,20 @@ public class SoftHyphenInJustifiedListTests
     }
 
     [Fact(Timeout = 60000)]
+    public async Task AnElementThatMeasuresAsNothingDoesNotCutTheLineShort()
+    {
+        // A bookmark takes no room and asks to be ignored rather than counted. Stopping the
+        // measurement there would leave the rest of the line uncounted, and the gaps worked out
+        // from what little was counted would push the words off the edge.
+        var withBookmark = LinesOf(await Render(rightIndentMillimeters: 2, bookmarkAfterWords: 6));
+        var withoutBookmark = LinesOf(await Render(rightIndentMillimeters: 2));
+
+        withBookmark[0].Should().HaveCount(withoutBookmark[0].Count);
+        for (var idx = 0; idx < withBookmark[0].Count; idx++)
+            withBookmark[0][idx].Should().BeApproximately(withoutBookmark[0][idx], 0.01);
+    }
+
+    [Fact(Timeout = 60000)]
     public async Task AJustifiedParagraphThatIsNotAListIsDrawnAsItAlwaysWas()
     {
         // No list means no automatic tab stop, so no second measuring pass. This is the control:
@@ -153,7 +171,8 @@ public class SoftHyphenInJustifiedListTests
             .ToList();
     }
 
-    static async Task<PdfDocument> Render(int rightIndentMillimeters, bool asList = true)
+    static async Task<PdfDocument> Render(int rightIndentMillimeters, bool asList = true,
+        int bookmarkAfterWords = -1)
     {
         return await Task.Run(() =>
         {
@@ -173,7 +192,17 @@ public class SoftHyphenInJustifiedListTests
             paragraph.Format.LeftIndent = Unit.FromMillimeter(10);
             paragraph.Format.RightIndent = Unit.FromMillimeter(rightIndentMillimeters);
             paragraph.Format.Alignment = ParagraphAlignment.Justify;
-            paragraph.AddText(HyphenatedText);
+
+            if (bookmarkAfterWords < 0)
+                paragraph.AddText(HyphenatedText);
+            else
+            {
+                // Split the text so that a bookmark sits in the middle of the first line.
+                var words = HyphenatedText.Split(' ');
+                paragraph.AddText(string.Join(" ", words.Take(bookmarkAfterWords)) + " ");
+                paragraph.AddBookmark("mark");
+                paragraph.AddText(string.Join(" ", words.Skip(bookmarkAfterWords)));
+            }
 
             var renderer = new PdfDocumentRenderer(true) { Document = document };
             renderer.RenderDocument();

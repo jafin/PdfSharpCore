@@ -73,6 +73,35 @@ breaks was settled while the paragraph was formatted; this pass only measures it
 business breaking it a second time. Stopping also makes the loop terminate by construction: every
 iteration either breaks out or steps forward.
 
+`Ignore` has to be let through rather than lumped in with the breaks. A bookmark takes no room and
+answers `Ignore`, as does a blank that does not count, and both turn up in the middle of ordinary
+lines. Stopping on one would leave the rest of the line uncounted, and the gaps worked out from
+what little had been counted would push the words off the edge — about 64pt of it for a bookmark
+six words into the first line. `AnElementThatMeasuresAsNothingDoesNotCutTheLineShort` holds that
+in place.
+
+### Why the loop stops rather than restoring what it measured
+
+The obvious alternative is to save the accumulated widths before each element and put them back
+when the element reports a break, so that a measurement abandoned half way leaves nothing behind.
+That is wrong, and measurably so.
+
+`FormatSoftHyphen` subtracts the width of the word it is pushing to the next line, and the blank
+in front of it, *before* it answers `NewLine`. Those subtractions are not bookkeeping to be undone
+— they are what makes room on the line for the hyphen that is about to be drawn in the word's
+place. Measured both ways, with the first line's last run being that hyphen:
+
+| right indent | stopping (as built) | restoring first |
+|---|---|---|
+| 0mm | hyphen starts 3.33pt before the edge | hyphen starts *on* the edge |
+| 1mm | 3.34pt before | on the edge |
+| 2mm | 3.33pt before | on the edge |
+
+A hyphen is about 3.33pt wide at this size, so stopping puts it flush against the right edge and
+restoring puts the whole of it outside the content area. `NothingIsDrawnOutsideTheContentArea`
+pins this down: it requires a run to start at least half a point inside the edge, because a run
+starting *on* the edge has nowhere left to draw and is already outside.
+
 ### Why the right indent decides whether it hangs
 
 The second pass measures a justified line with the blank width the render phase uses, which is
