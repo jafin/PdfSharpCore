@@ -38,11 +38,9 @@ public class TextStateRenderingTests : IDisposable
     static XFont UnicodeFont => new XFont("Arial", FontSize, XFontStyle.Regular, XPdfFontOptions.UnicodeDefault);
 
     /// <summary>
-    ///   How wide the inked part of the page is, in points. Not the measured width of the string:
-    ///   the trailing spacing after the last glyph moves the pen without marking the page, so this
-    ///   is one gap short of what MeasureString answers, by design.
+    ///   Every inked pixel of the page, as (x, y) in pixels from the top left.
     /// </summary>
-    double InkedWidthOf(string text, XFont font, XStringFormat format)
+    List<(int X, int Y)> InkOf(string text, XFont font, XStringFormat format, double size = FontSize)
     {
         var document = new PdfDocument();
         var page = document.AddPage();
@@ -50,7 +48,8 @@ public class TextStateRenderingTests : IDisposable
         page.Height = PageHeight;
 
         using (var gfx = XGraphics.FromPdfPage(page))
-            gfx.DrawString(text, font, XBrushes.Black, 20, 50, format);
+            gfx.DrawString(text, new XFont(font.Name, size, font.Style, font.PdfOptions),
+                XBrushes.Black, 20, 55, format);
 
         var images = PdfHelper.Rasterize(document).ImageCollection;
         _rasterized.Add(images);
@@ -62,11 +61,49 @@ public class TextStateRenderingTests : IDisposable
                 var colour = pixel.ToColor();
                 return colour != null && colour.R < 128 && colour.G < 128 && colour.B < 128;
             })
-            .Select(pixel => pixel.X)
+            .Select(pixel => (pixel.X, pixel.Y))
             .ToList();
 
         inked.Should().NotBeEmpty("the page should have text drawn on it");
-        return (inked.Max() - inked.Min()) / PixelsPerPoint;
+        return inked;
+    }
+
+    /// <summary>
+    ///   How wide the inked part of the page is, in points. Not the measured width of the string:
+    ///   the trailing spacing after the last glyph moves the pen without marking the page, so this
+    ///   is one gap short of what MeasureString answers, by design.
+    /// </summary>
+    double InkedWidthOf(string text, XFont font, XStringFormat format)
+    {
+        var inked = InkOf(text, font, format);
+        return (inked.Max(p => p.X) - inked.Min(p => p.X)) / PixelsPerPoint;
+    }
+
+    /// <summary>
+    ///   How far up the page the highest ink sits, in points from the bottom of the page. Larger
+    ///   is higher, whatever the image's own y direction happens to be.
+    /// </summary>
+    double InkedTopOf(string text, XFont font, XStringFormat format)
+    {
+        // Image y runs down from the top, so the smallest y is the highest ink.
+        return PageHeight - InkOf(text, font, format).Min(p => p.Y) / PixelsPerPoint;
+    }
+
+    /// <summary>
+    ///   How far the ink leans, in points: how much further right the top of the glyphs sits than
+    ///   the bottom. Positive leans right, as an italic does.
+    /// </summary>
+    double LeanOf(string text, XFont font, XStringFormat format)
+    {
+        // A tall glyph at a large size, so that top and bottom are far enough apart to measure.
+        var inked = InkOf(text, font, format, 48);
+
+        int top = inked.Min(p => p.Y), bottom = inked.Max(p => p.Y);
+        int band = Math.Max(1, (bottom - top) / 6);
+
+        double meanTop = inked.Where(p => p.Y <= top + band).Average(p => (double)p.X);
+        double meanBottom = inked.Where(p => p.Y >= bottom - band).Average(p => (double)p.X);
+        return (meanTop - meanBottom) / PixelsPerPoint;
     }
 
     [GoldenImageFact]
@@ -139,6 +176,70 @@ public class TextStateRenderingTests : IDisposable
         var squashed = InkedWidthOf("abcdef", WinAnsiFont, format);
 
         squashed.Should().BeApproximately(plain / 2, 1.5);
+    }
+
+    [GoldenImageFact]
+    public void TextRiseLiftsTheTextUpThePage()
+    {
+        const double rise = 10;
+
+        var level = InkedTopOf("Hxy", WinAnsiFont, XStringFormats.Default);
+
+        var format = XStringFormats.Default;
+        format.TextRise = rise;
+        var raised = InkedTopOf("Hxy", WinAnsiFont, format);
+
+        // Up, not down. The rest of the library measures y downwards, so the sign this needs
+        // depends on a page direction, and getting it backwards would read just as plausibly.
+        (raised - level).Should().BeApproximately(rise, 1.5);
+    }
+
+    [GoldenImageFact]
+    public void ANegativeTextRiseDropsTheTextDownThePage()
+    {
+        var level = InkedTopOf("Hxy", WinAnsiFont, XStringFormats.Default);
+
+        var format = XStringFormats.Default;
+        format.TextRise = -10;
+        var lowered = InkedTopOf("Hxy", WinAnsiFont, format);
+
+        (lowered - level).Should().BeApproximately(-10, 1.5);
+    }
+
+    [GoldenImageFact]
+    public void AnObliqueAngleLeansTheTextToTheRight()
+    {
+        var upright = LeanOf("H", WinAnsiFont, XStringFormats.Default);
+        upright.Should().BeApproximately(0, 1);
+
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = 20;
+        var leaning = LeanOf("H", WinAnsiFont, format);
+
+        // Right, the way an italic leans. A skew of the wrong sign leans the text backwards and
+        // looks like nothing else in typography.
+        leaning.Should().BeGreaterThan(upright + 5);
+    }
+
+    [GoldenImageFact]
+    public void ANegativeObliqueAngleLeansTheTextToTheLeft()
+    {
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = -20;
+
+        LeanOf("H", WinAnsiFont, format).Should().BeLessThan(-5);
+    }
+
+    [GoldenImageFact]
+    public void ASteeperObliqueAngleLeansFurther()
+    {
+        var gentle = XStringFormats.Default;
+        gentle.ObliqueAngle = 10;
+
+        var steep = XStringFormats.Default;
+        steep.ObliqueAngle = 30;
+
+        LeanOf("H", WinAnsiFont, steep).Should().BeGreaterThan(LeanOf("H", WinAnsiFont, gentle));
     }
 
     public void Dispose()

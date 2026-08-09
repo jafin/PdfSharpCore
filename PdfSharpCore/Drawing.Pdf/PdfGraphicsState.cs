@@ -341,6 +341,7 @@ internal sealed class PdfGraphicsState : ICloneable
     int _realizedRenderingMode;  // Reference: TABLE 5.2  Text state operators / Page 398
     double _realizedCharSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
     double _realizedWordSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
+    double _realizedTextRise;  // Reference: TABLE 5.2  Text state operators / Page 398
 
     // Not 0: a content stream starts with a horizontal scaling of 100 percent, and a state that
     // thought otherwise would write a redundant Tz in front of the first string on every page.
@@ -401,6 +402,14 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedHorizontalScaling = format.HorizontalScaling;
         }
 
+        // Realize text rise. Ts sits in the text rendering matrix rather than the text matrix, so
+        // it lifts the glyphs off the baseline without disturbing where Td puts the next one.
+        if (_realizedTextRise != format.TextRise)
+        {
+            _renderer.AppendFormatDouble("{0:" + numberFormat + "} Ts\n", format.TextRise);
+            _realizedTextRise = format.TextRise;
+        }
+
         _realizedFont = null;
         string fontName = _renderer.GetFontName(font, out _realizedFont);
         if (fontName != _realizedFontName || _realizedFontSize != font.Size)
@@ -417,9 +426,15 @@ internal sealed class PdfGraphicsState : ICloneable
     public XPoint RealizedTextPosition;
 
     /// <summary>
-    /// Indicates that the text transformation matrix currently skews 20° to the right.
+    /// How far the text transformation matrix currently skews to the right, as the tangent of the
+    /// angle - the M21 component the last Tm set. Zero for upright text.
     /// </summary>
-    public bool ItalicSimulationOn;
+    /// <remarks>
+    /// This was a bool while a 20° italic simulation was the only thing that ever skewed text.
+    /// It is a number now because a caller can ask for an oblique angle of their own, and because
+    /// two skews compose by adding their tangents, so simulation and request are one value here.
+    /// </remarks>
+    public double RealizedTextSkew;
 
     #endregion
 

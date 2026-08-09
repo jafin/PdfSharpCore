@@ -31,6 +31,37 @@ internal static class TextOperators
     }
 
     /// <summary>
+    ///   How far each Tm on the page leans - its M21 component - in the order they were written.
+    ///   Zero for an upright text matrix.
+    /// </summary>
+    internal static IReadOnlyList<double> TextMatrixSkews(PdfPage page)
+    {
+        return Operators(page)
+            .Where(op => op.OpCode.OpCodeName == OpCodeName.Tm && op.Operands.Count == 6)
+            .Select(op => Number(op.Operands[2]))
+            .ToList();
+    }
+
+    /// <summary>
+    ///   The offset each Td on the page was given, in order.
+    /// </summary>
+    internal static IReadOnlyList<(double X, double Y)> TdOffsets(PdfPage page)
+    {
+        return Operators(page)
+            .Where(op => op.OpCode.OpCodeName == OpCodeName.Td && op.Operands.Count == 2)
+            .Select(op => (Number(op.Operands[0]), Number(op.Operands[1])))
+            .ToList();
+    }
+
+    /// <summary>
+    ///   How many times an operator appears on the page.
+    /// </summary>
+    internal static int CountOf(PdfPage page, OpCodeName opCode)
+    {
+        return Operators(page).Count(op => op.OpCode.OpCodeName == opCode);
+    }
+
+    /// <summary>
     ///   The show-text operators used, in order: Tj for a run drawn in one go, TJ for one whose
     ///   parts are moved apart individually.
     /// </summary>

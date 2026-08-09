@@ -21,6 +21,13 @@ public class TextStateOperatorTests
 {
     const double FontSize = 12;
 
+    /// <summary>
+    ///   How close a number read back out of the content stream can be to the one that went in.
+    ///   Text matrices are written to four decimal places, so tan(20°) comes back as 0.3639 and
+    ///   nothing finer than this can be asserted about it.
+    /// </summary>
+    const double StreamPrecision = 1e-4;
+
     /// <summary>Liberation Sans, encoded as WinAnsi - the default, and what Tw can speak for.</summary>
     static XFont WinAnsiFont => new XFont("Arial", FontSize, XFontStyle.Regular, XPdfFontOptions.WinAnsiDefault);
 
@@ -205,6 +212,169 @@ public class TextStateOperatorTests
 
         TextOperators.NumbersGivenTo(PageShowing("Hello", WinAnsiFont, format), OpCodeName.Tz)
             .Should().BeEmpty();
+    }
+
+    // ----- text rise, A6 ------------------------------------------------------------------------
+
+    [Fact]
+    public void TextRiseIsWrittenAsTs()
+    {
+        var format = XStringFormats.Default;
+        format.TextRise = 5;
+
+        TextOperators.NumbersGivenTo(PageShowing("Hello", WinAnsiFont, format), OpCodeName.Ts)
+            .Should().Equal(5);
+    }
+
+    [Fact]
+    public void ANegativeTextRiseLowersTheTextAndIsWrittenAsItIs()
+    {
+        var format = XStringFormats.Default;
+        format.TextRise = -3;
+
+        TextOperators.NumbersGivenTo(PageShowing("Hello", WinAnsiFont, format), OpCodeName.Ts)
+            .Should().Equal(-3);
+    }
+
+    [Fact]
+    public void ARiseOfNothingIsNotWritten()
+    {
+        TextOperators.NumbersGivenTo(PageShowing("Hello", WinAnsiFont, XStringFormats.Default), OpCodeName.Ts)
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TextRiseDoesNotDisturbWhereTheNextStringGoes()
+    {
+        var raised = XStringFormats.Default;
+        raised.TextRise = 8;
+
+        var page = PageShowing(gfx =>
+        {
+            gfx.DrawString("raised", WinAnsiFont, XBrushes.Black, 20, 40, raised);
+            gfx.DrawString("level", WinAnsiFont, XBrushes.Black, 20, 40, XStringFormats.Default);
+        });
+
+        // Ts belongs to the text rendering matrix, not the text matrix, so both strings are
+        // positioned to the same baseline and only the glyphs of the first are lifted off it.
+        var positions = TextBaselines.PositionsOf(page);
+        positions.Should().HaveCount(2);
+        positions[1].Y.Should().BeApproximately(positions[0].Y, 1e-6);
+    }
+
+    // ----- oblique angle, D3 --------------------------------------------------------------------
+
+    [Fact]
+    public void AnUprightStringNeedsNoTextMatrixAtAll()
+    {
+        var page = PageShowing("Hello", WinAnsiFont, XStringFormats.Default);
+
+        TextOperators.CountOf(page, OpCodeName.Tm).Should().Be(0);
+        TextOperators.CountOf(page, OpCodeName.Td).Should().Be(1);
+    }
+
+    [Fact]
+    public void AnObliqueAngleLeansTheTextMatrixByItsTangent()
+    {
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = 20;
+
+        // Only Tm can lean the text, so asking for an angle costs a text matrix.
+        TextOperators.TextMatrixSkews(PageShowing("Hello", WinAnsiFont, format))
+            .Should().ContainSingle()
+            .Which.Should().BeApproximately(Math.Tan(20 * Math.PI / 180), StreamPrecision);
+    }
+
+    [Fact]
+    public void ANegativeObliqueAngleLeansTheOtherWay()
+    {
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = -15;
+
+        TextOperators.TextMatrixSkews(PageShowing("Hello", WinAnsiFont, format))
+            .Should().ContainSingle()
+            .Which.Should().BeApproximately(Math.Tan(-15 * Math.PI / 180), StreamPrecision);
+    }
+
+    [Fact]
+    public void AnObliqueAngleAddsToTheLeanItalicSimulationAlreadyGives()
+    {
+        // Source Code Pro has no italic face either, so asking for one skews the regular.
+        var italicSimulated = new XFont(PinnedFontResolver.CffFamilyName, FontSize, XFontStyle.Italic,
+            XPdfFontOptions.WinAnsiDefault);
+
+        var simulatedOnly = TextOperators.TextMatrixSkews(
+            PageShowing("Hello", italicSimulated, XStringFormats.Default));
+        simulatedOnly.Should().ContainSingle().Which.Should().BeGreaterThan(0);
+
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = 10;
+        var withBoth = TextOperators.TextMatrixSkews(PageShowing("Hello", italicSimulated, format));
+
+        // Shearing by one amount and then another is shearing by the sum, so the two compose by
+        // adding rather than one winning.
+        withBoth.Should().ContainSingle()
+            .Which.Should().BeApproximately(simulatedOnly[0] + Math.Tan(10 * Math.PI / 180), StreamPrecision);
+    }
+
+    [Fact]
+    public void TheLeanIsSetOnceForTwoStringsThatShareIt()
+    {
+        var format = XStringFormats.Default;
+        format.ObliqueAngle = 20;
+
+        var page = PageShowing(gfx =>
+        {
+            gfx.DrawString("first", WinAnsiFont, XBrushes.Black, 20, 40, format);
+            gfx.DrawString("second", WinAnsiFont, XBrushes.Black, 20, 60, format);
+        });
+
+        // The second string moves with Td, which is shorter than a second Tm - and which is why
+        // the offset it is given has to be corrected for the lean it travels through.
+        TextOperators.CountOf(page, OpCodeName.Tm).Should().Be(1);
+        TextOperators.CountOf(page, OpCodeName.Td).Should().Be(1);
+    }
+
+    [Fact]
+    public void GoingBackToUprightSetsTheTextMatrixStraightAgain()
+    {
+        var leaning = XStringFormats.Default;
+        leaning.ObliqueAngle = 20;
+
+        var page = PageShowing(gfx =>
+        {
+            gfx.DrawString("leaning", WinAnsiFont, XBrushes.Black, 20, 40, leaning);
+            gfx.DrawString("upright", WinAnsiFont, XBrushes.Black, 20, 60, XStringFormats.Default);
+        });
+
+        // Standing the text back up needs saying, or the second string keeps the first's lean.
+        TextOperators.TextMatrixSkews(page).Should().HaveCount(2);
+        TextOperators.TextMatrixSkews(page)[1].Should().Be(0);
+    }
+
+    [Fact]
+    public void ATdThroughALeaningMatrixIsCorrectedForTheLean()
+    {
+        var leaning = XStringFormats.Default;
+        leaning.ObliqueAngle = 20;
+
+        var page = PageShowing(gfx =>
+        {
+            // Same x, thirty points apart down the page.
+            gfx.DrawString("first", WinAnsiFont, XBrushes.Black, 20, 40, leaning);
+            gfx.DrawString("second", WinAnsiFont, XBrushes.Black, 20, 70, leaning);
+        });
+
+        var offsets = TextOperators.TdOffsets(page);
+        offsets.Should().ContainSingle();
+        Math.Abs(offsets[0].Y).Should().BeApproximately(30, StreamPrecision);
+
+        // A leaning text matrix carries a Td offset sideways by the height it moves through. The
+        // two strings were asked for at the same x, so the offset that gets them there is not
+        // zero but exactly minus that carry - and without the correction they would step sideways
+        // by eleven points a line.
+        offsets[0].X.Should().BeApproximately(-Math.Tan(20 * Math.PI / 180) * offsets[0].Y, StreamPrecision);
+        offsets[0].X.Should().NotBe(0);
     }
 
     // ----- the state is state -------------------------------------------------------------------

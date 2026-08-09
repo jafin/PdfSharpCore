@@ -6,7 +6,7 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Items A1 to A5 are built, on
+This is the gap analysis and the plan. Section A and item D3 are built, on
 `feat/text-state-and-measurement`; everything else is still to do.
 
 ## Where parity has to land
@@ -63,7 +63,7 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 13 | `horizontalScaling` | **done** — `XStringFormat.HorizontalScaling`, written as `Tz` | **missing**, `Font.cs:277` |
 | 14 | `fill` | partial — always on, cannot be disabled | always on |
 | 15 | `stroke` | **missing** — no `DrawString` takes an `XPen`; `Tr` 1 throws (`PdfGraphicsState.cs:258`) | **missing**, `Font.cs:266` |
-| 16 | `oblique` | partial — a fixed 20° skew, reachable only as italic simulation (`Configuration.cs:57`) | **missing** |
+| 16 | `oblique` | **done** — `XStringFormat.ObliqueAngle`, in degrees | **missing** |
 | 17 | `baseline` | partial — `XLineAlignment` has 4 of the 6 canvas values | n/a |
 | 18 | `underline` | partial — bound to `XFontStyle`, one style, font colour only | `Underline`, 7 styles (`enums/Underline.cs`) |
 | 19 | `strike` | partial — same | `Strikethrough`, 7 styles |
@@ -74,7 +74,8 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 24 | `continued` | partial — `XTextSegmentFormatter` takes mixed runs in one call, but there is no resumable cursor | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five were at parity when this was written; five are now.
+Two of twenty-five were at parity when this was written; six are now, and `Ts` is emitted for a
+text rise PDFKit has no option for at all.
 
 ---
 
@@ -142,11 +143,15 @@ by later ones.
   that a page whose text is unscaled does not open with a redundant `Tz`. The stray literal
   `100 Tz` in the image path (`XGraphicsPdfRenderer.cs:641`) is inside a `q`/`Q` pair and does not
   disturb the tracked value.
-- [ ] **A6. Emit `Ts` for text rise.** Not in PDFKit's list, but it is the mechanism super/subscript
+- [x] **A6. Emit `Ts` for text rise.** Not in PDFKit's list, but it is the mechanism super/subscript
   should use, and MigraDoc currently fakes both by shifting the baseline and shrinking the font
-  (`ParagraphRenderer.cs:1199-1207`). `XStringFormat.TextRise` exists and is read by nothing; the
-  emission is the same shape as A3's, a realized field and a compare. Cheap, and the last thing
-  keeping a property on the type from meaning something.
+  (`ParagraphRenderer.cs:1199-1207`). A realized field and a compare, the same shape as A3's.
+
+  One thing it is not: `Ts` lives in the text *rendering* matrix, not the text matrix, so it lifts
+  the glyphs without moving where `Td` puts the next string —
+  `TextRiseDoesNotDisturbWhereTheNextStringGoes`. The underline and strikeout rules do have to be
+  moved by hand, because they are rectangles drawn in graphics mode and never see the text matrix
+  at all.
 
 ### B — fill and stroke
 
@@ -208,11 +213,25 @@ list at lines 443-456.
   strikethrough styles (`enums/Underline.cs`, `enums/Strikethrough.cs`) and the core offers one.
   Bringing the core up to that set is optional for PDFKit parity — PDFKit's `underline` is a plain
   boolean — but it is what closes the gap between the two layers of this library.
-- [ ] **D3. `Oblique` at an arbitrary angle.** The skew already exists but is hardcoded to
-  `sin(20°)` (`!internal/Configuration.cs:57`) and reachable only through italic simulation
-  (`XGraphicsPdfRenderer.cs:517`). Take the angle from the text state, defaulting to the current
-  constant when italic is simulated. Note `AdjustTdOffset` (`:1603`) corrects x by that same sinus
-  and must use the same value.
+- [x] **D3. `Oblique` at an arbitrary angle.** `XStringFormat.ObliqueAngle`, in degrees, leaning
+  right for a positive angle.
+
+  The skew already existed but was hardcoded to `sin(20°)` and reachable only through italic
+  simulation, and the state that tracked it was a `bool` — `ItalicSimulationOn` — because a fixed
+  lean is either on or off. It is now `RealizedTextSkew`, a `double` holding the tangent the last
+  `Tm` set, which collapses the four-branch decision in `DrawString` to two: the matrix already
+  leans right, or it does not and a `Tm` says so.
+
+  **Italic simulation keeps `sin(20°)`, not `tan(20°)`.** The tangent is what the angle actually
+  means, and what a caller's angle is converted with, but sin is what PDFsharp has always skewed
+  simulated italics by and what every document built with it looks like. Changing it would move
+  every italic glyph in the library for no defect. The two compose by adding, which is exact
+  rather than a convenience: shearing by *a* and then by *b* is shearing by *a + b*.
+
+  `AdjustTdOffset` took a `bool adjustSkew` and corrected x by the same hardcoded sinus. It takes
+  the skew itself now, or the correction would be wrong for every angle but 20°.
+  `ATdThroughALeaningMatrixIsCorrectedForTheLean` holds it down: two strings asked for at the same
+  x are eleven points apart per line without it.
 - [ ] **D4. Fill out `baseline`.** `XLineAlignment` (`Drawing/enums/XLineAlignment.cs`) has
   `Near, Center, Far, BaseLine` — roughly canvas `top`, `middle`, `bottom`, `alphabetic`. Missing
   are `hanging`, `ideographic`, and PDFKit's `svg-middle`. Adding them needs `CapHeight` and
@@ -261,15 +280,18 @@ list at lines 443-456.
 B1-B3, C5 and D3 have nowhere to read their input from, and any wrapping computed on top of them
 disagrees with what is drawn. Both are done.
 
-**A6 should land before this branch merges.** A1 to A5 close the loop for the three properties that
-change how wide text is: they are measured, they are drawn, and the two agree. `TextRise` and
-`ObliqueAngle` are the two left over — neither changes a width, so nothing disagrees, but both are
-properties a caller can set today and get nothing for. A6 emits `Ts` for the first; D3 takes the
-skew that italic simulation already performs and lets the angle be asked for.
+**Section A is done, and so is D3.** Every property on `XStringFormat` now means something: the
+three that change a width are measured and drawn and the two agree, and the two that do not —
+`TextRise` and `ObliqueAngle` — are drawn as well. Nothing on the type is inert, which is what the
+branch was waiting for.
 
-At the defaults the content stream is byte for byte what it was: `Tc`, `Tw` and `Tz` are written
-only when they differ from what a content stream starts with, and the show-text operator moved into
-the operand string without changing a character of the output.
+At the defaults the content stream is what it always was. `Tc`, `Tw`, `Tz` and `Ts` are written only
+when they differ from what a content stream starts with; the show-text operator moved into the
+operand string without changing a character; and the only difference D3 leaves behind is a space
+where simulated-italic text used to have a newline between its `Td` and its `Tj`.
+
+**The branch can merge from here.** B and C are the next worthwhile stretch — B is small and its
+machinery is already present and artificially restricted, and C1-C4 are a few lines each.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 

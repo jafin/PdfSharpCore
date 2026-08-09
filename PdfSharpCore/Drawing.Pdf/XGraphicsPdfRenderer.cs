@@ -508,39 +508,32 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             //verticalOffset = font.Size * Const.BoldEmphasis / 2;
         }
 
-        if (italicSimulation)
+        // How far the glyphs lean, as the tangent of the angle. Italic simulation contributes a
+        // fixed lean and the caller may ask for one of their own; two shears compose by adding
+        // their tangents, so the two are one number from here on.
+        double skew = SkewOf(italicSimulation, format.ObliqueAngle);
+
+        if (skew == _gfxState.RealizedTextSkew)
         {
-            if (_gfxState.ItalicSimulationOn)
-            {
-                AdjustTdOffset(ref pos, verticalOffset, true);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td\n{2}\n", pos.X, pos.Y, text);
-            }
-            else
-            {
-                // Italic simulation is done by skewing characters 20° to the right.
-                XMatrix m = new XMatrix(1, 0, Const.ItalicSkewAngleSinus, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
-                    m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
-                _gfxState.ItalicSimulationOn = true;
-                AdjustTdOffset(ref pos, verticalOffset, false);
-            }
+            // The text matrix already leans the right amount, so moving to the next position is
+            // all that is needed - and Td is shorter than Tm.
+            AdjustTdOffset(ref pos, verticalOffset, _gfxState.RealizedTextSkew);
+            AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2}\n", pos.X, pos.Y, text);
         }
         else
         {
-            if (_gfxState.ItalicSimulationOn)
-            {
-                XMatrix m = new XMatrix(1, 0, 0, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
-                    m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
-                _gfxState.ItalicSimulationOn = false;
-                AdjustTdOffset(ref pos, verticalOffset, false);
-            }
-            else
-            {
-                AdjustTdOffset(ref pos, verticalOffset, false);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2}\n", pos.X, pos.Y, text);
-            }
+            // Only Tm can set the lean, and it sets the position absolutely while it is there.
+            XMatrix m = new XMatrix(1, 0, skew, 1, pos.X, pos.Y);
+            AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
+                m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
+            _gfxState.RealizedTextSkew = skew;
+            AdjustTdOffset(ref pos, verticalOffset, 0);
         }
+
+        // The rules below are rectangles drawn in graphics mode, so they do not go through the
+        // text matrix and have to be moved by the text rise themselves. Raising text moves it up
+        // the page, which is towards smaller y only when y runs downwards.
+        double rise = Gfx.PageDirection == XPageDirection.Downwards ? -format.TextRise : format.TextRise;
 
         if (underline)
         {
@@ -550,7 +543,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double underlineRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - underlinePosition
                 : y + underlinePosition - underlineThickness;
-            DrawRectangle(null, brush, x, underlineRectY, width, underlineThickness);
+            DrawRectangle(null, brush, x, underlineRectY + rise, width, underlineThickness);
         }
 
         if (strikeout)
@@ -561,8 +554,27 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double strikeoutRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - strikeoutPosition
                 : y + strikeoutPosition - strikeoutSize;
-            DrawRectangle(null, brush, x, strikeoutRectY, width, strikeoutSize);
+            DrawRectangle(null, brush, x, strikeoutRectY + rise, width, strikeoutSize);
         }
+    }
+
+    /// <summary>
+    /// How far text leans to the right, as the tangent of the angle, given whether the font is
+    /// having its italic drawn on for it and what the caller asked for on top of that.
+    /// </summary>
+    /// <remarks>
+    /// Italic simulation contributes sin(20°) rather than tan(20°). That is what PDFsharp has
+    /// always skewed by and what every document built with it looks like, so it is left alone; a
+    /// caller asking for an angle gets its tangent, which is the skew that angle actually means
+    /// and what PDFKit's oblique produces. The two add because shearing by a and then by b is
+    /// shearing by a + b.
+    /// </remarks>
+    static double SkewOf(bool italicSimulation, double obliqueAngle)
+    {
+        double skew = italicSimulation ? Const.ItalicSkewAngleSinus : 0;
+        if (obliqueAngle != 0)
+            skew += Math.Tan(obliqueAngle * Math.PI / 180);
+        return skew;
     }
 
     // ----- DrawImage ----------------------------------------------------------------------------
@@ -1545,7 +1557,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             _content.Append("BT\n");
             // Text matrix is empty after BT
             _gfxState.RealizedTextPosition = new XPoint();
-            _gfxState.ItalicSimulationOn = false;
+            _gfxState.RealizedTextSkew = 0;
         }
     }
 
@@ -1663,18 +1675,22 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// </summary>
     /// <param name="pos">The absolute text position.</param>
     /// <param name="dy">The dy.</param>
-    /// <param name="adjustSkew">true if skewing for italic simulation is currently on.</param>
-    void AdjustTdOffset(ref XPoint pos, double dy, bool adjustSkew)
+    /// <param name="skew">
+    /// How far the text matrix currently leans, as the tangent of the angle, or 0 for upright
+    /// text. Td's offset is taken through that lean, so it has to be corrected for it.
+    /// </param>
+    void AdjustTdOffset(ref XPoint pos, double dy, double skew)
     {
         pos.Y += dy;
         // Reference: TABLE 5.5  Text-positioning operators / Page 406
         XPoint posSave = pos;
         // Map from absolute to relative position.
         pos = pos - new XVector(_gfxState.RealizedTextPosition.X, _gfxState.RealizedTextPosition.Y);
-        if (adjustSkew)
+        if (skew != 0)
         {
-            // In case that italic simulation is on X must be adjusted according to Y offset. Weird but works :-)
-            pos.X -= Const.ItalicSkewAngleSinus * pos.Y;
+            // A leaning text matrix carries the Td offset sideways by the height it moves through,
+            // so that much has to come off the offset for the text to land where it was asked for.
+            pos.X -= skew * pos.Y;
         }
         _gfxState.RealizedTextPosition = posSave;
     }
