@@ -40,7 +40,9 @@ internal static class StrokedLines
 
         /// <summary>
         ///   The stroking colour in force when the segment was drawn, as "r,g,b" with each
-        ///   component between 0 and 1. A page that never names one strokes in black.
+        ///   component between 0 and 1. A page that never names one strokes in black. A colour
+        ///   named in grey or in CMYK is reported converted, so that one form of assertion reads
+        ///   every page whichever space it was written in.
         /// </summary>
         internal string Colour { get; }
 
@@ -72,10 +74,17 @@ internal static class StrokedLines
         // how, so they are held here and kept only if that operator strokes.
         var path = new List<Line>();
 
-        // The current point, the point the subpath began at, and the current line width.
-        double x = 0, y = 0, startX = 0, startY = 0, width = 1;
-        var colour = Black;
+        // The current point and the point the subpath began at.
+        double x = 0, y = 0, startX = 0, startY = 0;
         var inSubpath = false;
+
+        // The graphics state a stroked segment is drawn under. A q puts a copy of it away and the
+        // matching Q brings that copy back, so anything named inside the pair stops applying at
+        // the end of it. Reading a page without following that reports the colour and the width of
+        // an inner scope for every segment drawn after it.
+        double width = 1;
+        var colour = Black;
+        var saved = new Stack<(double Width, string Colour)>();
 
         // Closing a subpath draws the segment back to where it began.
         void CloseSubpath()
@@ -99,10 +108,34 @@ internal static class StrokedLines
                         width = Number(op.Operands[0]);
                     break;
 
+                case OpCodeName.q:
+                    saved.Push((width, colour));
+                    break;
+
+                case OpCodeName.Q:
+                    // A Q with nothing put away is malformed content; read on rather than throw.
+                    if (saved.Count > 0)
+                        (width, colour) = saved.Pop();
+                    break;
+
+                // The stroking colour, in whichever of the three device spaces it is named.
                 case OpCodeName.RG:
                     if (op.Operands.Count >= 3)
-                        colour = string.Join(",", Number(op.Operands[0]).ToString(Invariant),
-                            Number(op.Operands[1]).ToString(Invariant), Number(op.Operands[2]).ToString(Invariant));
+                        colour = Rgb(Number(op.Operands[0]), Number(op.Operands[1]), Number(op.Operands[2]));
+                    break;
+
+                case OpCodeName.G:
+                    if (op.Operands.Count >= 1)
+                    {
+                        var grey = Number(op.Operands[0]);
+                        colour = Rgb(grey, grey, grey);
+                    }
+                    break;
+
+                case OpCodeName.K:
+                    if (op.Operands.Count >= 4)
+                        colour = Cmyk(Number(op.Operands[0]), Number(op.Operands[1]),
+                            Number(op.Operands[2]), Number(op.Operands[3]));
                     break;
 
                 case OpCodeName.m:
@@ -178,6 +211,26 @@ internal static class StrokedLines
         }
 
         return ((PdfDictionary)item).Stream.UnfilteredValue;
+    }
+
+    /// <summary>A colour as this reports one: the three components, comma separated.</summary>
+    static string Rgb(double red, double green, double blue)
+    {
+        // Four places is finer than anything a colour is written to and coarse enough that the
+        // arithmetic below does not leave a component reading 0.30000000000000004.
+        return string.Join(",",
+            Math.Round(red, 4).ToString(Invariant),
+            Math.Round(green, 4).ToString(Invariant),
+            Math.Round(blue, 4).ToString(Invariant));
+    }
+
+    /// <summary>
+    ///   A CMYK colour as the plain conversion gives it, which is what a reader with no colour
+    ///   profile to go by does. It is exact for the primaries a test asks a border to be drawn in.
+    /// </summary>
+    static string Cmyk(double cyan, double magenta, double yellow, double black)
+    {
+        return Rgb((1 - cyan) * (1 - black), (1 - magenta) * (1 - black), (1 - yellow) * (1 - black));
     }
 
     static double Number(CObject operand)

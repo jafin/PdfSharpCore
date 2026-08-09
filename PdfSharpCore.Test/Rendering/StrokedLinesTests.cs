@@ -96,6 +96,61 @@ public class StrokedLinesTests
         lines.Select(line => line.X1).Should().Equal(10, 30);
     }
 
+    [Fact]
+    public void APageThatNamesNoColourStrokesInBlack()
+    {
+        var lines = StrokedLines.Of(PageShowing("10 10 m 20 10 l S"));
+
+        lines[0].Colour.Should().Be(StrokedLines.Black);
+    }
+
+    [Theory]
+    [InlineData("0 1 0 RG")]        // green, in RGB
+    [InlineData("1 0 1 0 K")]       // green, in CMYK
+    public void TheColourASegmentIsStrokedInIsReportedWhicheverSpaceNamesIt(string colour)
+    {
+        var lines = StrokedLines.Of(PageShowing(colour + " 10 10 m 20 10 l S"));
+
+        lines[0].Colour.Should().Be("0,1,0");
+    }
+
+    [Fact]
+    public void AGreyStrokeIsReportedAsTheGreyInEachOfTheThreeComponents()
+    {
+        var lines = StrokedLines.Of(PageShowing("0.5 G 10 10 m 20 10 l S"));
+
+        lines[0].Colour.Should().Be("0.5,0.5,0.5");
+    }
+
+    [Fact]
+    public void AColourNamedInsideASavedStateStopsApplyingAtTheEndOfIt()
+    {
+        // The renderer wraps a good deal of its drawing in q/Q, and a segment drawn after one of
+        // those used to be reported in the colour the scope inside it had named.
+        var lines = StrokedLines.Of(PageShowing(
+            "0 1 0 RG q 1 0 0 RG 10 10 m 20 10 l S Q 30 30 m 40 30 l S"));
+
+        lines.Select(line => line.Colour).Should().Equal("1,0,0", "0,1,0");
+    }
+
+    [Fact]
+    public void AWidthNamedInsideASavedStateStopsApplyingAtTheEndOfIt()
+    {
+        var lines = StrokedLines.Of(PageShowing(
+            "2 w q 7 w 10 10 m 20 10 l S Q 30 30 m 40 30 l S"));
+
+        lines.Select(line => line.Width).Should().Equal(7, 2);
+    }
+
+    [Fact]
+    public void RestoringAStateThatWasNeverSavedIsReadPastRatherThanThrown()
+    {
+        var lines = StrokedLines.Of(PageShowing("Q 3 w 10 10 m 20 10 l S"));
+
+        lines.Should().ContainSingle();
+        lines[0].Width.Should().Be(3);
+    }
+
     /// <summary>A page whose content stream is exactly the given operators.</summary>
     static PdfPage PageShowing(string content)
     {
