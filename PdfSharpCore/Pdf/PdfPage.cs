@@ -601,8 +601,13 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     #region Annotations
 
     /// <summary>
-    /// Gets the annotations array of this page.
+    /// Gets a value indicating whether this page has an annotations array.
     /// </summary>
+    /// <remarks>
+    ///   Asking does not give the page one, so a page with no annotations is left without the
+    ///   empty array that reading <see cref="Annotations"/> would add. A page whose annotations
+    ///   are a reference to an object the file never defines has none either.
+    /// </remarks>
     public bool HasAnnotations
     {
         get
@@ -610,8 +615,9 @@ public sealed class PdfPage : PdfDictionary, IContentStream
             if (_annotations == null)
             {
                 // Get annotations array if exists.
-                _annotations = (PdfAnnotations)Elements.GetValue(Keys.Annots);
-                _annotations.Page = this;
+                _annotations = Elements.GetValue(Keys.Annots) as PdfAnnotations;
+                if (_annotations != null)
+                    _annotations.Page = this;
             }
             return _annotations != null;
         }
