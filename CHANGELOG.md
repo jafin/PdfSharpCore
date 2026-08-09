@@ -71,6 +71,12 @@ This file starts at the entry below. Changes before that point are recorded only
   the group they were written with. The one visible difference is on the way out: opaque pages get
   smaller and no longer claim a colour space they do not use.
 
+- Drawing a page of another document with `XPdfForm` dropped that page's transparency group. A group
+  describes the content it wraps, and the content was being moved into a form XObject while the
+  group was left behind in the document it came from, so the imported page arrived composited
+  against the wrong backdrop. It is now imported with the rest of the page. The equivalent path for
+  a page of the *same* document, which a page resize uses, already moved the group across.
+
 ### Removed
 
 - **BREAKING:** `PdfDocumentOptions.EnableCcittCompressionForBilevelImages`. The CCITT encoder this

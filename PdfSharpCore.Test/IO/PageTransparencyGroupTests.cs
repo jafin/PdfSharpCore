@@ -394,6 +394,51 @@ public class PageTransparencyGroupTests
             .Should().BeFalse();
     }
 
+    [Fact]
+    public void AnImportedPageBringsItsTransparencyGroupWithItsContent()
+    {
+        // A group describes the content it wraps. Drawing the page into a form moves the content
+        // and has to move the group with it, or the content arrives composited against a backdrop
+        // that is not the one it was written for.
+        byte[] source = RawPdf.Build(new List<string>
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]" +
+            "/Group<</S/Transparency/CS/DeviceGray>>/Contents 4 0 R>>",
+            RawPdf.Stream("", "0 0 200 200 re f"),
+        });
+
+        MemoryStream stream = new MemoryStream(source);
+        XPdfForm form = XPdfForm.FromStream(stream);
+
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        using (XGraphics gfx = XGraphics.FromPdfPage(page))
+            gfx.DrawImage(form, new XRect(0, 0, 200, 200));
+
+        PdfPage written = RoundTripped(document).Pages[0];
+        PdfDictionary group = FormOn(written).Elements.GetDictionary(GroupKey);
+
+        group.Should().NotBeNull("the group belongs to the content, which is now inside the form");
+        group.Elements.GetName("/S").Should().Be("/Transparency");
+        group.Elements.GetName("/CS").Should().Be("/DeviceGray",
+            "the group is imported as it was written, not made afresh");
+
+        GroupOf(written).Should().NotBeNull(
+            "a form that composites as a group is transparent content on the page holding it");
+    }
+
+    /// <summary>The single XObject named by the page's resources.</summary>
+    static PdfDictionary FormOn(PdfPage page)
+    {
+        PdfDictionary xObjects = page.Elements.GetDictionary("/Resources")
+            .Elements.GetDictionary("/XObject");
+
+        return xObjects.Elements.GetDictionary(xObjects.Elements.KeyNames[0].Value);
+    }
+
     static string Image(string entries)
     {
         return RawPdf.Stream("/Type/XObject/Subtype/Image/Width 4/Height 4" + entries,

@@ -1,4 +1,4 @@
-﻿#region PDFsharp - A .NET library for processing PDF
+#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -245,6 +245,26 @@ public sealed class PdfFormXObject : PdfXObject, IContentStream
 
             Debug.Assert(root.Reference != null);
             Elements["/Resources"] = root.Reference;
+        }
+
+        // A transparency group belongs to the content it wraps, and the content is being moved
+        // into this form. Leaving it behind on the page in the other document would mean the
+        // content arrives composited against the wrong backdrop - which is the whole of what a
+        // group says - so it is imported along with everything else.
+        PdfItem group = importPage.Elements[PdfPage.Keys.Group];
+        if (group != null)
+        {
+            PdfObject root = group is PdfReference reference
+                ? reference.Value
+                : (PdfDictionary)group;
+
+            root = ImportClosure(importedObjectTable, thisDocument, root);
+            // A group written straight into the page dictionary comes across as a direct object.
+            if (root.Reference == null)
+                thisDocument._irefTable.Add(root);
+
+            Debug.Assert(root.Reference != null);
+            Elements["/Group"] = root.Reference;
         }
 
         // Take /Rotate into account
