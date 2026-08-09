@@ -28,6 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
 using PdfSharpCore.Drawing;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
@@ -50,6 +51,12 @@ internal class ImageFormatInfo : ShapeFormatInfo
         get;
         set;
     }
+
+    /// <summary>
+    /// The exception that stopped the image being read, kept from the point it was caught so that
+    /// the placeholder drawn for it can still say what went wrong. Null when nothing was thrown.
+    /// </summary>
+    internal Exception FailureException { get; set; }
 
     internal IImageSource ImageSource { get; set; }
 }
