@@ -54,12 +54,17 @@ public class PruneUnusedResourcesRenderingTests
     private static PdfDocument Open(string asset)
     {
         var path = PathHelper.GetInstance().GetAssetPath(asset);
-        return Pdf.IO.PdfReader.Open(File.OpenRead(path), PdfDocumentOpenMode.Modify);
+
+        // PdfReader.Open reads the whole document in and does not keep the stream - its own
+        // path overload closes the file the moment Open returns - so the handle can go now.
+        // Left open, one leaks per call and the tests here call this several times each.
+        using var stream = File.OpenRead(path);
+        return Pdf.IO.PdfReader.Open(stream, PdfDocumentOpenMode.Modify);
     }
 
     private static string[] Render(PdfDocument document, string prefix)
     {
-        var rasterized = PdfHelper.Rasterize(document);
+        using var rasterized = PdfHelper.Rasterize(document);
         return PdfHelper.WriteImageCollection(rasterized.ImageCollection, OutDir, prefix).ToArray();
     }
 }
