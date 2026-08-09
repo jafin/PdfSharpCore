@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using MigraDocCore.DocumentObjectModel.Shapes;
 
@@ -13,7 +15,7 @@ namespace MigraDocCore.Rendering;
 /// </remarks>
 public sealed class ImageFailedEventArgs : EventArgs
 {
-    internal ImageFailedEventArgs(Image image, ImageFailure failure, Exception exception)
+    internal ImageFailedEventArgs(Image image, ImageFailure failure, Exception? exception)
     {
         Image = image;
         Failure = failure;
@@ -34,5 +36,5 @@ public sealed class ImageFailedEventArgs : EventArgs
     /// The exception that stopped the image being read, or null when nothing was thrown —
     /// an image whose size works out empty fails without an exception.
     /// </summary>
-    public Exception Exception { get; }
+    public Exception? Exception { get; }
 }

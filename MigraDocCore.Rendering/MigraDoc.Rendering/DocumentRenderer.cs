@@ -114,13 +114,15 @@ public class DocumentRenderer
     /// </remarks>
     public event EventHandler<ImageFailedEventArgs> ImageFailed;
 
+#nullable enable
     /// <summary>
     /// Reports an image that was replaced by a placeholder.
     /// </summary>
-    internal virtual void OnImageFailed(Image image, ImageFailure failure, Exception exception)
+    internal virtual void OnImageFailed(Image image, ImageFailure failure, Exception? exception)
     {
         ImageFailed?.Invoke(this, new ImageFailedEventArgs(image, failure, exception));
     }
+#nullable restore
 
     /// <summary>
     /// Gets the formatted document of this instance.

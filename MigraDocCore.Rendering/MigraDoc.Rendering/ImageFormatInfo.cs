@@ -56,7 +56,9 @@ internal class ImageFormatInfo : ShapeFormatInfo
     /// The exception that stopped the image being read, kept from the point it was caught so that
     /// the placeholder drawn for it can still say what went wrong. Null when nothing was thrown.
     /// </summary>
-    internal Exception FailureException { get; set; }
+#nullable enable
+    internal Exception? FailureException { get; set; }
+#nullable restore
 
     internal IImageSource ImageSource { get; set; }
 }
