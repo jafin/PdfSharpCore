@@ -324,51 +324,21 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
         // Style directly works on dictionary element.
 
+        // An outline entry says where it goes either outright, in /Dest, or by performing an
+        // action. A document holding both is malformed, and /Dest is what this reads, because
+        // it is the entry the specification says the other one replaces.
         PdfItem dest = Elements.GetValue(Keys.Dest);
         PdfItem a = Elements.GetValue(Keys.A);
-        Debug.Assert(dest == null || a == null, "Either destination or goto action.");
 
         if (dest != null)
         {
-            if (dest is PdfArray destArray)
-            {
-                SplitDestinationPage(destArray);
-            }
-            else
-            {
-                Debug.Assert(false, "See what to do when this happened.");
-            }
+            PdfArray destination = ResolveDestination(dest);
+            if (destination != null)
+                SplitDestinationPage(destination);
         }
         else if (a != null)
         {
-            // The dictionary should be a GoTo action.
-            PdfDictionary action = a as PdfDictionary;
-            if (action != null && action.Elements.GetName(PdfAction.Keys.S) == "/GoTo")
-            {
-                dest = action.Elements[PdfGoToAction.Keys.D];
-                if (dest is PdfArray destArray)
-                {
-                    // Replace Action with /Dest entry.
-                    Elements.Remove(Keys.A);
-                    Elements.Add(Keys.Dest, destArray);
-                    SplitDestinationPage(destArray);
-                }
-                else if (dest is PdfReference detRef)
-                {
-                    // Replace Action with /Dest entry.
-                    Elements.Remove(Keys.A);
-                    Elements.Add(Keys.Dest, detRef.Value);
-                    SplitDestinationPage((PdfArray)detRef.Value);
-                }
-                else
-                {
-                    throw new Exception("Destination Array expected.");
-                }
-            }
-            else
-            {
-                Debug.Assert(false, "See what to do when this happened.");
-            }
+            InitializeFromAction(a);
         }
         else
         {
@@ -378,31 +348,75 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
         InitializeChildren();
     }
 
+    /// <summary>
+    /// Takes the destination of this outline from the action it performs, for the entries that
+    /// go somewhere by performing one.
+    /// </summary>
+    void InitializeFromAction(PdfItem a)
+    {
+        // Only a GoTo action leads somewhere inside this document. Every other kind - a URI, a
+        // file to launch, a page of another document - is left exactly as it stands: it has no
+        // destination page to hand out, and an outline entry that opens a web page is a
+        // perfectly ordinary thing for a document to hold.
+        PdfDictionary action = a as PdfDictionary;
+        if (action == null || action.Elements.GetName(PdfAction.Keys.S) != "/GoTo")
+            return;
+
+        PdfArray destination = ResolveDestination(action.Elements[PdfGoToAction.Keys.D]);
+        if (destination == null)
+            return;
+
+        // Replace Action with /Dest entry.
+        Elements.Remove(Keys.A);
+        Elements.Add(Keys.Dest, destination);
+        SplitDestinationPage(destination);
+    }
+
+    /// <summary>
+    /// The destination an entry stands for, or null when it names nothing this document holds.
+    /// </summary>
+    /// <remarks>
+    /// A destination is written either as an array or as the name of one the catalog holds, and
+    /// the documents LaTeX writes name theirs. A name the document has no destination under is
+    /// not an error worth refusing to read the outline over: the entry simply goes nowhere,
+    /// which is what a reader shows.
+    /// </remarks>
+    PdfArray ResolveDestination(PdfItem dest)
+    {
+        if (dest is PdfReference iref)
+            dest = iref.Value;
+
+        return dest as PdfArray ?? PdfNamedDestinations.Lookup(Owner, dest);
+    }
+
     void SplitDestinationPage(PdfArray destination)  // Reference: 8.2 Destination syntax / Page 582
     {
         // ReSharper disable HeuristicUnreachableCode
 #pragma warning disable 162
 
         // The destination page may not yet transformed to PdfPage.
-        PdfDictionary destPage = (destination.Elements[0] is PdfInteger) ? 
-            destination.Owner.Pages[((PdfInteger)destination.Elements[0]).Value] : 
-            (PdfDictionary)((PdfReference)destination.Elements[0]).Value;
+        PdfDictionary destPage = DestinationPageOf(destination);
+        if (destPage == null)
+            return;
+
         PdfPage page = destPage as PdfPage;
         if (page == null)
             page = new PdfPage(destPage);
 
         DestinationPage = page;
-        PdfName type = destination.Elements[1] as PdfName;
-        if (type != null)
+        PdfName type = destination.Elements.Count > 1 ? destination.Elements[1] as PdfName : null;
+        // A destination whose type is one this library does not know leaves the page it goes to
+        // and nothing more, which is still more than refusing to read the outline at all.
+        if (type != null && Enum.TryParse(type.Value.Substring(1), true, out PdfPageDestinationType destinationType))
         {
-            PageDestinationType = (PdfPageDestinationType)Enum.Parse(typeof(PdfPageDestinationType), type.Value.Substring(1), true);
+            PageDestinationType = destinationType;
             switch (PageDestinationType)
             {
                 // [page /XYZ left top zoom]
                 case PdfPageDestinationType.Xyz:
-                    Left = destination.Elements.GetReal(2);
-                    Top = destination.Elements.GetReal(3);
-                    Zoom = destination.Elements.GetReal(4);
+                    Left = RealAt(destination, 2);
+                    Top = RealAt(destination, 3);
+                    Zoom = RealAt(destination, 4);
                     break;
 
                 // [page /Fit]
@@ -412,20 +426,20 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
                 // [page /FitH top]
                 case PdfPageDestinationType.FitH:
-                    Top = destination.Elements.GetReal(2);
+                    Top = RealAt(destination, 2);
                     break;
 
                 // [page /FitV left]
                 case PdfPageDestinationType.FitV:
-                    Left = destination.Elements.GetReal(2);
+                    Left = RealAt(destination, 2);
                     break;
 
                 // [page /FitR left bottom right top]
                 case PdfPageDestinationType.FitR:
-                    Left = destination.Elements.GetReal(2);
-                    Bottom = destination.Elements.GetReal(3);
-                    Right = destination.Elements.GetReal(4);
-                    Top = destination.Elements.GetReal(5);
+                    Left = RealAt(destination, 2);
+                    Bottom = RealAt(destination, 3);
+                    Right = RealAt(destination, 4);
+                    Top = RealAt(destination, 5);
                     break;
 
                 // [page /FitB]
@@ -435,12 +449,12 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
                 // [page /FitBH top]
                 case PdfPageDestinationType.FitBH:
-                    Top = destination.Elements.GetReal(2);
+                    Top = RealAt(destination, 2);
                     break;
 
                 // [page /FitBV left]
                 case PdfPageDestinationType.FitBV:
-                    Left = destination.Elements.GetReal(2);
+                    Left = RealAt(destination, 2);
                     break;
 
                 default:
@@ -450,6 +464,43 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
 #pragma warning restore 162
         // ReSharper restore HeuristicUnreachableCode
+    }
+
+    /// <summary>
+    /// The page a destination goes to, or null when the destination does not name one this
+    /// document holds. A destination written into the document itself refers to its page, and
+    /// one that came from elsewhere - a remote destination - gives the number of a page instead.
+    /// </summary>
+    static PdfDictionary DestinationPageOf(PdfArray destination)
+    {
+        if (destination.Elements.Count == 0)
+            return null;
+
+        PdfItem first = destination.Elements[0];
+        if (first is PdfInteger number)
+        {
+            PdfDocument owner = destination.Owner;
+            if (owner == null || number.Value < 0 || number.Value >= owner.PageCount)
+                return null;
+
+            return owner.Pages[number.Value];
+        }
+
+        if (first is PdfReference iref)
+            return iref.Value as PdfDictionary;
+
+        return null;
+    }
+
+    /// <summary>
+    /// The number a destination holds at the position given, or NaN when it holds none there.
+    /// A destination that stops short of the parameters its type takes leaves them unset, which
+    /// is written back out as the null the specification gives for a parameter left to the
+    /// reader.
+    /// </summary>
+    static double RealAt(PdfArray destination, int index)
+    {
+        return index < destination.Elements.Count ? destination.Elements.GetReal(index) : double.NaN;
     }
 
     void InitializeChildren()
