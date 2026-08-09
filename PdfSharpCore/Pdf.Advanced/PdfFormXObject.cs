@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+﻿#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -252,13 +252,14 @@ public sealed class PdfFormXObject : PdfXObject, IContentStream
         // content arrives composited against the wrong backdrop - which is the whole of what a
         // group says - so it is imported along with everything else.
         PdfItem group = importPage.Elements[PdfPage.Keys.Group];
-        if (group != null)
-        {
-            PdfObject root = group is PdfReference reference
-                ? reference.Value
-                : (PdfDictionary)group;
+        if (group is PdfReference reference)
+            group = reference.Value;
 
-            root = ImportClosure(importedObjectTable, thisDocument, root);
+        // A /Group entry that is not a dictionary describes no group. A PDF null is the way a
+        // writer says a key is not there, and a page that says nothing has nothing to bring.
+        if (group is PdfDictionary groupDictionary)
+        {
+            PdfObject root = ImportClosure(importedObjectTable, thisDocument, groupDictionary);
             // A group written straight into the page dictionary comes across as a direct object.
             if (root.Reference == null)
                 thisDocument._irefTable.Add(root);

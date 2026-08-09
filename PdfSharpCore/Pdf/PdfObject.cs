@@ -451,7 +451,10 @@ public abstract class PdfObject : PdfItem
             // Indirect integers, booleans, etc. are allowed, but PDFsharp do not create them.
             // If such objects occur in imported PDF files from other producers, nothing more is to do.
             // The owner was already set, which is double checked by the assertions below.
-            if (value is PdfNameObject || value is PdfStringObject || value is PdfBooleanObject || value is PdfIntegerObject || value is PdfNumberObject)
+            // An indirect null is one of them: a writer that puts /SMask 6 0 R in a graphics
+            // state and null in object six has said the key holds nothing, in a roundabout but
+            // perfectly legal way, and there is nothing under it to fix up.
+            if (value is PdfNameObject || value is PdfStringObject || value is PdfBooleanObject || value is PdfIntegerObject || value is PdfNumberObject || value is PdfNullObject)
             {
                 Debug.Assert(value.IsIndirect);
                 Debug.Assert(value.Owner == owner);

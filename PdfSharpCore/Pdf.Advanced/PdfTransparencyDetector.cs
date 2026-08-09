@@ -190,7 +190,9 @@ static class PdfTransparencyDetector
         if (item is PdfReference reference)
             item = reference.Value;
 
-        if (item == null)
+        // A PDF null is how a writer says a key holds nothing, whether it is written into the
+        // dictionary itself or reached through a reference, and it reads as an absent key does.
+        if (item == null || item is PdfNull || item is PdfNullObject)
             return false;
 
         return !(item is PdfName name && name.Value == "/None");

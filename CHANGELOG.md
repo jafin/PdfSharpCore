@@ -77,6 +77,12 @@ This file starts at the entry below. Changes before that point are recorded only
   against the wrong backdrop. It is now imported with the rest of the page. The equivalent path for
   a page of the *same* document, which a page resize uses, already moved the group across.
 
+- A PDF null was read as though it were the thing it stands in for. `/SMask null` in a graphics state
+  or an image counted as a soft mask, which put a transparency group back onto pages whose content is
+  opaque; `/Group null` on an imported page was cast to a dictionary, which threw rather than drew;
+  and an indirect null anywhere in an imported page — `/SMask 6 0 R` with `null` in object six — hit
+  a debug assertion while the page was being imported. A null now reads as the absent entry it is.
+
 ### Removed
 
 - **BREAKING:** `PdfDocumentOptions.EnableCcittCompressionForBilevelImages`. The CCITT encoder this

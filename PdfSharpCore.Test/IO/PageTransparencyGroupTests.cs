@@ -45,7 +45,7 @@ public class PageTransparencyGroupTests
     /// </summary>
     static XImage SquareWithAlpha(byte alpha)
     {
-        SKBitmap bitmap = new SKBitmap(new SKImageInfo(8, 8, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        using SKBitmap bitmap = new SKBitmap(new SKImageInfo(8, 8, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         bitmap.Erase(new SKColor(0, 128, 255, alpha));
 
         using SKImage image = SKImage.FromBitmap(bitmap);
@@ -223,7 +223,10 @@ public class PageTransparencyGroupTests
         using (XGraphics gfx = XGraphics.FromPdfPage(page))
             gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(128, 255, 0, 0)), new XRect(10, 10, 100, 100));
 
-        GroupOf(RoundTripped(document).Pages[0]).Elements.GetName("/CS").Should().Be("/DeviceCMYK");
+        PdfDictionary group = GroupOf(RoundTripped(document).Pages[0]);
+
+        group.Should().NotBeNull();
+        group.Elements.GetName("/CS").Should().Be("/DeviceCMYK");
     }
 
     [Fact]
@@ -243,15 +246,15 @@ public class PageTransparencyGroupTests
     // ------------------------------------------------ reading a page somebody else's tool wrote
 
     /// <summary>
-    ///   Draws a page of a hand written document onto a page of a new one, and answers whether
-    ///   the new page came out with a transparency group.
+    ///   Draws a page of a hand written document onto a page of a new one, and answers that page
+    ///   as it was written.
     /// <para>
     ///   This is how the resources of an arbitrary page reach the code being tested: an imported
     ///   page becomes a form XObject carrying the whole resource dictionary it had, and the page
     ///   it is drawn on has to work out from that whether it needs a group.
     /// </para>
     /// </summary>
-    static bool PlacingIsTransparent(byte[] source)
+    static PdfPage PageDrawnOnWith(byte[] source)
     {
         // Not disposed until the drawing is done: the form reads the document out of the stream.
         MemoryStream stream = new MemoryStream(source);
@@ -263,7 +266,34 @@ public class PageTransparencyGroupTests
         using (XGraphics gfx = XGraphics.FromPdfPage(page))
             gfx.DrawImage(form, new XRect(0, 0, 200, 200));
 
-        return GroupOf(RoundTripped(document).Pages[0]) != null;
+        return RoundTripped(document).Pages[0];
+    }
+
+    /// <summary>
+    ///   Whether drawing a page of the hand written document given leaves the page it was drawn
+    ///   on with a transparency group.
+    /// </summary>
+    static bool PlacingIsTransparent(byte[] source)
+    {
+        return GroupOf(PageDrawnOnWith(source)) != null;
+    }
+
+    /// <summary>
+    ///   A one page document whose page carries the entries given beside its media box and draws
+    ///   a filled square. Objects after the content stream are numbered from five.
+    /// </summary>
+    static byte[] PageWithEntries(string entries, params string[] rest)
+    {
+        List<string> objects = new List<string>
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]" + entries + "/Contents 4 0 R>>",
+            RawPdf.Stream("", "0 0 200 200 re f"),
+        };
+        objects.AddRange(rest);
+
+        return RawPdf.Build(objects);
     }
 
     /// <summary>
@@ -339,6 +369,20 @@ public class PageTransparencyGroupTests
     }
 
     [Fact]
+    public void AGraphicsStateWhoseSoftMaskIsNullDoesNotCountAsTransparency()
+    {
+        // A PDF null is how a writer says a key holds nothing. Reading it as a mask would put a
+        // group back on pages whose content is opaque throughout.
+        PlacingIsTransparent(PageWithGraphicsState("/SMask null")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void AGraphicsStateWhoseSoftMaskIsAReferenceToNullDoesNotCountAsTransparency()
+    {
+        PlacingIsTransparent(PageWithGraphicsState("/SMask 6 0 R", "null")).Should().BeFalse();
+    }
+
+    [Fact]
     public void AGraphicsStateSettingASoftMaskCountsAsTransparency()
     {
         PlacingIsTransparent(PageWithGraphicsState("/SMask<</Type/Mask/S/Luminosity/G 6 0 R>>",
@@ -353,6 +397,13 @@ public class PageTransparencyGroupTests
                 Image("/SMask 6 0 R"),
                 Image("/ColorSpace/DeviceGray")))
             .Should().BeTrue();
+    }
+
+    [Fact]
+    public void AnImageWhoseSoftMaskIsNullDoesNotCountAsTransparency()
+    {
+        PlacingIsTransparent(PageWithResources("/XObject<</Im0 5 0 R>>", Image("/SMask null")))
+            .Should().BeFalse();
     }
 
     [Fact]
@@ -400,25 +451,8 @@ public class PageTransparencyGroupTests
         // A group describes the content it wraps. Drawing the page into a form moves the content
         // and has to move the group with it, or the content arrives composited against a backdrop
         // that is not the one it was written for.
-        byte[] source = RawPdf.Build(new List<string>
-        {
-            "<</Type/Catalog/Pages 2 0 R>>",
-            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
-            "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]" +
-            "/Group<</S/Transparency/CS/DeviceGray>>/Contents 4 0 R>>",
-            RawPdf.Stream("", "0 0 200 200 re f"),
-        });
-
-        MemoryStream stream = new MemoryStream(source);
-        XPdfForm form = XPdfForm.FromStream(stream);
-
-        PdfDocument document = new PdfDocument();
-        PdfPage page = document.AddPage();
-
-        using (XGraphics gfx = XGraphics.FromPdfPage(page))
-            gfx.DrawImage(form, new XRect(0, 0, 200, 200));
-
-        PdfPage written = RoundTripped(document).Pages[0];
+        PdfPage written = PageDrawnOnWith(
+            PageWithEntries("/Group<</S/Transparency/CS/DeviceGray>>"));
         PdfDictionary group = FormOn(written).Elements.GetDictionary(GroupKey);
 
         group.Should().NotBeNull("the group belongs to the content, which is now inside the form");
@@ -428,6 +462,24 @@ public class PageTransparencyGroupTests
 
         GroupOf(written).Should().NotBeNull(
             "a form that composites as a group is transparent content on the page holding it");
+    }
+
+    [Fact]
+    public void AnImportedPageWhoseGroupIsNullIsDrawnWithoutOne()
+    {
+        // /Group null says the page has no group. Reading it as one would throw on the way in
+        // rather than draw the page at all.
+        FormOn(PageDrawnOnWith(PageWithEntries("/Group null")))
+            .Elements.ContainsKey(GroupKey).Should().BeFalse();
+    }
+
+    [Fact]
+    public void AnImportedPageWhoseGroupIsAReferenceToNullIsDrawnWithoutOne()
+    {
+        // The same thing said the long way round, which would otherwise be imported as a group
+        // that is a null - written out, carried about, and describing nothing.
+        FormOn(PageDrawnOnWith(PageWithEntries("/Group 5 0 R", "null")))
+            .Elements.ContainsKey(GroupKey).Should().BeFalse();
     }
 
     /// <summary>The single XObject named by the page's resources.</summary>
