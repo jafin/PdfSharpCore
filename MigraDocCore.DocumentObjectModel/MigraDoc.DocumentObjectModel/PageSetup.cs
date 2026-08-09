@@ -64,70 +64,122 @@ public partial class PageSetup : DocumentObject
   /// <summary>
   /// Gets the page's size and height for the given PageFormat.
   /// </summary>
+  /// <remarks>
+  /// Each sheet is built from the unit that defines it: the ISO and DIN formats from whole
+  /// millimetres, the North American and traditional formats from whole inches, at 72 points to
+  /// the inch. Rounding either one into the other would move a page by a fraction of a millimetre
+  /// and buy nothing.
+  /// </remarks>
   public static void GetPageSize(PageFormat pageFormat, out Unit pageWidth, out Unit pageHeight)
   {
-    //Sizes in mm:
-    pageWidth = 0;
-    pageHeight = 0;
-    int A0Height = 1189;
-    int A0Width = 841;
-    int height = 0;
-    int width = 0;
     switch (pageFormat)
     {
-      case PageFormat.A0:
-        height = A0Height;
-        width = A0Width;
-        break;
-      case PageFormat.A1:
-        height = A0Width;
-        width = A0Height / 2;
-        break;
-      case PageFormat.A2:
-        height = A0Height / 2;
-        width = A0Width / 2;
-        break;
-      case PageFormat.A3:
-        height = A0Width / 2;
-        width = A0Height / 4;
-        break;
-      case PageFormat.A4:
-        height = A0Height / 4;
-        width = A0Width / 4;
-        break;
-      case PageFormat.A5:
-        height = A0Width / 4;
-        width = A0Height / 8;
-        break;
-      case PageFormat.A6:
-        height = A0Height / 8;
-        width = A0Width / 8;
-        break;
-      case PageFormat.B5:
-        height = 257;
-        width = 182;
-        break;
-      case PageFormat.Letter:
-        pageWidth = Unit.FromPoint(612);
-        pageHeight = Unit.FromPoint(792);
-        break;
-      case PageFormat.Legal:
-        pageWidth = Unit.FromPoint(612);
-        pageHeight = Unit.FromPoint(1008);
-        break;
-      case PageFormat.Ledger:
-        pageWidth = Unit.FromPoint(1224);
-        pageHeight = Unit.FromPoint(792);
-        break;
-      case PageFormat.P11x17:
-        pageWidth = Unit.FromPoint(792);
-        pageHeight = Unit.FromPoint(1224);
-        break;
+      // ISO 216 A series.
+      case PageFormat.A0: Millimeter(841, 1189, out pageWidth, out pageHeight); return;
+      case PageFormat.A1: Millimeter(594, 841, out pageWidth, out pageHeight); return;
+      case PageFormat.A2: Millimeter(420, 594, out pageWidth, out pageHeight); return;
+      case PageFormat.A3: Millimeter(297, 420, out pageWidth, out pageHeight); return;
+      case PageFormat.A4: Millimeter(210, 297, out pageWidth, out pageHeight); return;
+      case PageFormat.A5: Millimeter(148, 210, out pageWidth, out pageHeight); return;
+      case PageFormat.A6: Millimeter(105, 148, out pageWidth, out pageHeight); return;
+      case PageFormat.A7: Millimeter(74, 105, out pageWidth, out pageHeight); return;
+      case PageFormat.A8: Millimeter(52, 74, out pageWidth, out pageHeight); return;
+      case PageFormat.A9: Millimeter(37, 52, out pageWidth, out pageHeight); return;
+      case PageFormat.A10: Millimeter(26, 37, out pageWidth, out pageHeight); return;
+
+      // DIN 476 oversizes.
+      case PageFormat.TwoA0: Millimeter(1189, 1682, out pageWidth, out pageHeight); return;
+      case PageFormat.FourA0: Millimeter(1682, 2378, out pageWidth, out pageHeight); return;
+
+      // ISO 216 B series.
+      case PageFormat.B0: Millimeter(1000, 1414, out pageWidth, out pageHeight); return;
+      case PageFormat.B1: Millimeter(707, 1000, out pageWidth, out pageHeight); return;
+      case PageFormat.B2: Millimeter(500, 707, out pageWidth, out pageHeight); return;
+      case PageFormat.B3: Millimeter(353, 500, out pageWidth, out pageHeight); return;
+      case PageFormat.B4: Millimeter(250, 353, out pageWidth, out pageHeight); return;
+      case PageFormat.B5: Millimeter(176, 250, out pageWidth, out pageHeight); return;
+      case PageFormat.B6: Millimeter(125, 176, out pageWidth, out pageHeight); return;
+      case PageFormat.B7: Millimeter(88, 125, out pageWidth, out pageHeight); return;
+      case PageFormat.B8: Millimeter(62, 88, out pageWidth, out pageHeight); return;
+      case PageFormat.B9: Millimeter(44, 62, out pageWidth, out pageHeight); return;
+      case PageFormat.B10: Millimeter(31, 44, out pageWidth, out pageHeight); return;
+      case PageFormat.JISB5: Millimeter(182, 257, out pageWidth, out pageHeight); return;
+
+      // ISO 269 C series, the envelopes.
+      case PageFormat.C0: Millimeter(917, 1297, out pageWidth, out pageHeight); return;
+      case PageFormat.C1: Millimeter(648, 917, out pageWidth, out pageHeight); return;
+      case PageFormat.C2: Millimeter(458, 648, out pageWidth, out pageHeight); return;
+      case PageFormat.C3: Millimeter(324, 458, out pageWidth, out pageHeight); return;
+      case PageFormat.C4: Millimeter(229, 324, out pageWidth, out pageHeight); return;
+      case PageFormat.C5: Millimeter(162, 229, out pageWidth, out pageHeight); return;
+      case PageFormat.C6: Millimeter(114, 162, out pageWidth, out pageHeight); return;
+      case PageFormat.C7: Millimeter(81, 114, out pageWidth, out pageHeight); return;
+      case PageFormat.C8: Millimeter(57, 81, out pageWidth, out pageHeight); return;
+      case PageFormat.C9: Millimeter(40, 57, out pageWidth, out pageHeight); return;
+      case PageFormat.C10: Millimeter(28, 40, out pageWidth, out pageHeight); return;
+
+      // ISO 217 untrimmed stock.
+      case PageFormat.RA0: Millimeter(860, 1220, out pageWidth, out pageHeight); return;
+      case PageFormat.RA1: Millimeter(610, 860, out pageWidth, out pageHeight); return;
+      case PageFormat.RA2: Millimeter(430, 610, out pageWidth, out pageHeight); return;
+      case PageFormat.RA3: Millimeter(305, 430, out pageWidth, out pageHeight); return;
+      case PageFormat.RA4: Millimeter(215, 305, out pageWidth, out pageHeight); return;
+      case PageFormat.RA5: Millimeter(153, 215, out pageWidth, out pageHeight); return;
+      case PageFormat.SRA0: Millimeter(900, 1280, out pageWidth, out pageHeight); return;
+      case PageFormat.SRA1: Millimeter(640, 900, out pageWidth, out pageHeight); return;
+      case PageFormat.SRA2: Millimeter(450, 640, out pageWidth, out pageHeight); return;
+      case PageFormat.SRA3: Millimeter(320, 450, out pageWidth, out pageHeight); return;
+      case PageFormat.SRA4: Millimeter(225, 320, out pageWidth, out pageHeight); return;
+
+      // North American sizes.
+      case PageFormat.Letter: Inch(8.5, 11, out pageWidth, out pageHeight); return;
+      case PageFormat.Legal: Inch(8.5, 14, out pageWidth, out pageHeight); return;
+      case PageFormat.Ledger: Inch(17, 11, out pageWidth, out pageHeight); return;
+      case PageFormat.Tabloid:
+      case PageFormat.P11x17: Inch(11, 17, out pageWidth, out pageHeight); return;
+      case PageFormat.Executive: Inch(7.25, 10.5, out pageWidth, out pageHeight); return;
+      case PageFormat.GovernmentLetter: Inch(8, 10.5, out pageWidth, out pageHeight); return;
+      case PageFormat.Statement:
+      case PageFormat.STMT: Inch(5.5, 8.5, out pageWidth, out pageHeight); return;
+      case PageFormat.Folio: Inch(8.5, 13, out pageWidth, out pageHeight); return;
+      case PageFormat.Size10x14: Inch(10, 14, out pageWidth, out pageHeight); return;
+
+      // Traditional British sizes.
+      case PageFormat.Quarto: Inch(8, 10, out pageWidth, out pageHeight); return;
+      case PageFormat.Foolscap: Inch(8, 13, out pageWidth, out pageHeight); return;
+      case PageFormat.Post: Inch(15.5, 19.25, out pageWidth, out pageHeight); return;
+      case PageFormat.Crown: Inch(20, 15, out pageWidth, out pageHeight); return;
+      case PageFormat.LargePost: Inch(16.5, 21, out pageWidth, out pageHeight); return;
+      case PageFormat.Demy: Inch(17.5, 22, out pageWidth, out pageHeight); return;
+      case PageFormat.Medium: Inch(18, 23, out pageWidth, out pageHeight); return;
+      case PageFormat.Royal: Inch(20, 25, out pageWidth, out pageHeight); return;
+      case PageFormat.Elephant: Inch(23, 28, out pageWidth, out pageHeight); return;
+      case PageFormat.DoubleDemy: Inch(23.5, 35, out pageWidth, out pageHeight); return;
+      case PageFormat.QuadDemy: Inch(35, 45, out pageWidth, out pageHeight); return;
     }
-    if (height > 0)
-      pageHeight = Unit.FromMillimeter(height);
-    if (width > 0)
-      pageWidth = Unit.FromMillimeter(width);
+
+    // A value that names no format has no size. PageSetup.PageFormat refuses one, so this is
+    // reachable only by calling here with an integer cast to the enumeration, and it answers what
+    // it has always answered: zero by zero.
+    pageWidth = 0;
+    pageHeight = 0;
+  }
+
+  static void Millimeter(int width, int height, out Unit pageWidth, out Unit pageHeight)
+  {
+    pageWidth = Unit.FromMillimeter(width);
+    pageHeight = Unit.FromMillimeter(height);
+  }
+
+  /// <summary>
+  /// Takes inches and returns points, at 72 to the inch. A Unit remembers the unit it was made
+  /// from and writes it out as a suffix, so building these with Unit.FromInch would turn the 612
+  /// that a serialized Letter page has always carried into 8.5in.
+  /// </summary>
+  static void Inch(double width, double height, out Unit pageWidth, out Unit pageHeight)
+  {
+    pageWidth = Unit.FromPoint(width * 72);
+    pageHeight = Unit.FromPoint(height * 72);
   }
   #endregion
 

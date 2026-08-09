@@ -47,7 +47,32 @@ This file starts at the entry below. Changes before that point are recorded only
   [pdfkit paper-size table](https://pdfkit.org/docs/paper_sizes.html), which it previously met only
   in part. Each is rounded to whole points as the existing entries are.
 
+- 57 page formats that MigraDoc's `PageFormat` did not name. It knew twelve — A0–A6, B5, Letter,
+  Legal, Ledger and P11x17 — and everything else had to be set as a `PageWidth` and a `PageHeight`.
+  It now names every size `PdfSharpCore.PageSize` does: `A7`–`A10`, `TwoA0` and `FourA0`, the rest
+  of the B series, the `C0`–`C10` envelopes, `RA0`–`RA5`, `SRA0`–`SRA4`, `JISB5`, and the North
+  American and traditional sheets from `Tabloid` and `Executive` through to `QuadDemy`.
+
+  ```csharp
+  section.PageSetup.PageFormat = PageFormat.C5;
+  ```
+
+  The two enumerations stay separate types — MigraDoc records the format by name in MDDDL, and its
+  sizes are held in the unit that defines them, whole millimetres for the ISO and DIN sheets, rather
+  than rounded to whole points. The names now agree, which is what made them confusable.
+
+  `P11x17` is kept alongside the `Tabloid` that names the same sheet, because MDDDL files hold it.
+
 ### Changed
+
+- **BREAKING:** MigraDoc's `PageFormat.B5` measured 182 mm × 257 mm, which is the **JIS** B5 sheet,
+  not the ISO one. It was the only B format the enumeration had, so nothing sat beside it to
+  contradict it; now that `B0`–`B4` and `B6`–`B10` are named, a JIS sheet in the middle of an ISO
+  series would be a sheet that is not half of the one above it. `B5` is now ISO B5, 176 mm × 250 mm.
+
+  A section set to `PageFormat.B5` therefore reflows: it loses 6 mm of width and 7 mm of height, and
+  text that fitted a line may no longer. To keep the sheet you had, use the new `PageFormat.JISB5`,
+  which measures exactly what `B5` used to.
 
 - **BREAKING:** the `PdfPage.Size`, `PdfPage.Width` and `PdfPage.Height` setters now throw
   `InvalidOperationException` when the page already has content on it. Before this change they
