@@ -176,6 +176,54 @@ public class ImportedOutlineTests
         destination.Elements.GetInteger(2).Should().Be(1);
     }
 
+    [Fact]
+    public void AnEntryWhoseActionLeadsOnToAnotherStillGoesToThePageItNames()
+    {
+        var outline = FirstOutlineOf(ImportedOutlineFixtures.WithChainedGoToAction());
+
+        outline.DestinationPage.Should().BeSameAs(PageTwoOf(outline));
+        outline.Top.Should().Be(22);
+    }
+
+    [Fact]
+    public void AnEntryWhoseActionLeadsOnToAnotherKeepsBothOfThemWhenItIsSaved()
+    {
+        using var input = new MemoryStream(ImportedOutlineFixtures.WithChainedGoToAction());
+        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        document.Outlines.Count.Should().Be(1);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+
+        // Writing the entry as a plain /Dest says where it goes and drops what it goes on to do,
+        // which is half of what the document asked for.
+        output.Position = 0;
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Modify);
+        var action = reopened.Outlines[0].Elements.GetDictionary("/A");
+        action.Should().NotBeNull();
+        action.Elements.GetDictionary("/Next").Elements.GetString("/URI").Should().Be("https://example.com");
+        // The specification has one of /A and /Dest, not both.
+        reopened.Outlines[0].Elements.ContainsKey("/Dest").Should().BeFalse();
+    }
+
+    [Fact]
+    public void AnEntryGivenADestinationGoesThereRatherThanWhereItsActionLed()
+    {
+        using var input = new MemoryStream(ImportedOutlineFixtures.WithChainedGoToAction());
+        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        document.Outlines[0].DestinationPage = document.Pages[0];
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+
+        // The entry is no longer the one the document was read with, so it is written from the
+        // properties - and an entry says where it goes in one of the two ways, not in both.
+        output.Position = 0;
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Modify);
+        reopened.Outlines[0].DestinationPage.Should().BeSameAs(reopened.Pages[0]);
+        reopened.Outlines[0].Elements.ContainsKey("/A").Should().BeFalse();
+    }
+
     private static PdfOutline FirstOutlineOf(byte[] document)
     {
         using var input = new MemoryStream(document);

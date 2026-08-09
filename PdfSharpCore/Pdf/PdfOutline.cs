@@ -282,8 +282,9 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
     PdfPageDestinationType _pageDestinationType = PdfPageDestinationType.Xyz;
 
     /// <summary>
-    /// Whether the destination this entry was read with is one this library cannot describe, and
-    /// so must be written back out as it was found rather than from the properties above.
+    /// Whether where this entry goes is something this library cannot describe - a destination of
+    /// a type it does not know, or an action that leads on to another - and so must be written
+    /// back out as it was found rather than from the properties above.
     /// </summary>
     bool _keepDestinationAsFound;
 
@@ -382,10 +383,22 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
         if (destination == null)
             return;
 
+        SplitDestinationPage(destination);
+
+        // An action can lead on to another once it has done what it does, and going somewhere is
+        // then only the first thing the entry asks for. Such an entry keeps the action it was
+        // found with, since a /Dest says where it goes and nothing about what follows. Note the
+        // order: reading the destination above sets the properties, and setting them says the
+        // entry is one this library describes.
+        if (action.Elements.ContainsKey(PdfAction.Keys.Next))
+        {
+            _keepDestinationAsFound = true;
+            return;
+        }
+
         // Replace Action with /Dest entry.
         Elements.Remove(Keys.A);
         Elements.Add(Keys.Dest, destination);
-        SplitDestinationPage(destination);
     }
 
     /// <summary>
@@ -572,12 +585,17 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 int index = _parent._outlines.IndexOf(this);
                 Debug.Assert(index != -1);
 
-                // Has destination? A destination this library cannot describe keeps the entry the
-                // document was read with, which still says where it goes; describing it from the
-                // properties above would turn it into a different destination.
+                // Has destination? Where an entry goes that this library cannot describe keeps
+                // what the document was read with, which still says it; describing it from the
+                // properties above would turn it into something else.
                 if (DestinationPage != null && !_keepDestinationAsFound)
+                {
                     //Elements[Keys.Dest] = new PdfArray(Owner, DestinationPage.Reference, new PdfLiteral("/XYZ null null 0"));
                     Elements[Keys.Dest] = CreateDestArray();
+                    // An entry given a destination goes there rather than wherever its action led,
+                    // and the specification has one of the two entries, not both.
+                    Elements.Remove(Keys.A);
+                }
 
                 // Not the first element?
                 if (index > 0)

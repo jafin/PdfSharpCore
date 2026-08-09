@@ -102,6 +102,15 @@ internal static class ImportedOutlineFixtures
     }
 
     /// <summary>
+    ///   An entry whose action leads on to another once it has gone where it goes, which is what
+    ///   /Next is for. The entry does two things, and only one of them is a destination.
+    /// </summary>
+    internal static byte[] WithChainedGoToAction()
+    {
+        return Document("/A<</S/GoTo/D" + Destination + "/Next<</S/URI/URI(https://example.com)>> >>");
+    }
+
+    /// <summary>
     ///   An entry whose destination goes to a page by number rather than by reference, which is
     ///   how a destination reaching into another document is written.
     /// </summary>

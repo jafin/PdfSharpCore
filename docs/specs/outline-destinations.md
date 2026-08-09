@@ -14,6 +14,7 @@ What follows is the design as built, on `fix/outline-named-destinations`.
 | 2 | An entry performing any action but a GoTo trips an assertion | done |
 | 3 | A destination that does not describe a page of this document throws | done |
 | 4 | A destination of an unknown type is rewritten as an `/XYZ` when saved | done |
+| 5 | A GoTo action leading on to another loses what follows it when saved | done |
 
 ---
 
@@ -124,12 +125,33 @@ The same holds for the two shapes item 1 added: a `/Dest` naming a destination o
 keeps the name, and a GoTo action resolved to one keeps the array the name stood for, which
 `InitializeFromAction` had already put in `/Dest`.
 
+## Item 5 — an action can lead on to another one
+
+Replacing a GoTo action with the `/Dest` it amounts to is a fair trade only when the action does
+nothing else. `/Next` (§12.6.3) is the action or actions performed after this one, so an entry
+written
+
+```
+/A << /S /GoTo /D [4 0 R /XYZ 11 22 0] /Next << /S /URI /URI (https://example.com) >> >>
+```
+
+goes to page 2 **and** opens a web page. `Elements.Remove(Keys.A)` dropped the second half of that
+without a word, and the entry came back from a save saying only where it goes. The behaviour is
+older than item 1 — `master` does the same — but it is the same mistake as item 4, made about the
+action rather than about the destination.
+
+An action carrying a `/Next` is now kept where it was found, and the destination is read out of it
+as before, so the entry hands out its page and still does both things when the document is saved.
+`PrepareForSave` writes no `/Dest` beside it, because §12.3.3 has one of the two entries and not
+both — and for the same reason, an entry the caller gives a `DestinationPage` now loses its `/A`,
+since it goes where the caller said rather than where the action led.
+
 ---
 
 ## Verification
 
-`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 18 tests over fixtures shaped like the
-documents in the issue — 14 of them fail on `master`:
+`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 21 tests over fixtures shaped like the
+documents in the issue — 16 of them fail on `master`:
 
 - a destination named through a GoTo action, resolved through a name tree with `/Kids` and
   `/Limits` so the search has to walk it;
@@ -141,13 +163,16 @@ documents in the issue — 14 of them fail on `master`:
 - destinations that are empty, name no page, stop short of their parameters, or give a type name
   that is not one of the eight — all read without throwing;
 - a destination taken from a name survives being saved and read again, and one of a type this
-  library does not know is saved as it was found rather than as an `/XYZ`.
+  library does not know is saved as it was found rather than as an `/XYZ`;
+- an action with a `/Next`: the destination is read out of it, the action and what follows it
+  survive a save, and giving the entry a destination page replaces the action rather than
+  standing beside it.
 
 The reporter's own document was read alongside, outside the suite, since it is not ours to check
 in: two entries, *1st section* on page 1 at 529.041 and *2nd section* on page 2 at 667.198, where
 `master` throws on the first of them.
 
-Whole suite green on net8.0 and net10.0, 1058 passed on each, one pre-existing skip
+Whole suite green on net8.0 and net10.0, 1061 passed on each, one pre-existing skip
 (`CanCreatePdfOver2gb`).
 
 ## Not in scope
