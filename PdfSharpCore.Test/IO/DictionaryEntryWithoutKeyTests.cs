@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -12,6 +13,8 @@ namespace PdfSharpCore.Test.IO;
 ///   value, so the strings are not conforming, but every other reader steps over them and reads
 ///   the rest of the document. Refusing the whole file over them makes a large body of TeX output
 ///   unreadable.
+///   The timeouts turn a pairing loop that stops advancing into a failure rather than into a
+///   hung test host.
 ///   See https://github.com/empira/PDFsharp/issues/376.
 /// </summary>
 public class DictionaryEntryWithoutKeyTests
@@ -20,51 +23,44 @@ public class DictionaryEntryWithoutKeyTests
         "<</Creator (LaTeX with hyperref)/CreationDate (D:20260101120000Z) (PTEX.FullBanner)" +
         "(This is pdfTeX, Version 3.141592653-2.6-1.40.29 \\(TeX Live 2026\\))>>";
 
-    [Theory]
+    [Theory(Timeout = 5000)]
     [InlineData(PdfDocumentOpenMode.Import)]
     [InlineData(PdfDocumentOpenMode.Modify)]
     [InlineData(PdfDocumentOpenMode.ReadOnly)]
-    public void ADocumentWhoseInformationDictionaryHoldsBareStringsCanBeRead(PdfDocumentOpenMode openMode)
+    public async Task ADocumentWhoseInformationDictionaryHoldsBareStringsCanBeRead(PdfDocumentOpenMode openMode)
     {
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
-
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, openMode);
+        var document = await Read(PdfTeXInfoDictionary, openMode);
 
         document.PageCount.Should().Be(1);
     }
 
-    [Fact]
-    public void TheEntriesThatDoHaveAKeyAreStillRead()
+    [Fact(Timeout = 5000)]
+    public async Task TheEntriesThatDoHaveAKeyAreStillRead()
     {
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
-
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var document = await Read(PdfTeXInfoDictionary, PdfDocumentOpenMode.Modify);
 
         document.Info.Creator.Should().Be("LaTeX with hyperref");
     }
 
-    [Fact]
-    public void TheValuesWithNoKeyAreDropped()
+    [Fact(Timeout = 5000)]
+    public async Task TheValuesWithNoKeyAreDropped()
     {
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
-
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var document = await Read(PdfTeXInfoDictionary, PdfDocumentOpenMode.Modify);
 
         // There is nothing to key the two banner strings under, so the two entries that were
         // written properly are the only ones the dictionary can hold.
         document.Info.Elements.Count.Should().Be(2);
     }
 
-    [Fact]
-    public void AValueWithNoKeyDoesNotPairTheEntriesAfterItUpWrongly()
+    [Fact(Timeout = 5000)]
+    public async Task AValueWithNoKeyDoesNotPairTheEntriesAfterItUpWrongly()
     {
         // A single stray value leaves an odd number of items, so a reader that walks the
         // dictionary two at a time reads /Author as the value of the stray string and (Ada) as
         // the key of the next entry.
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary(
-            "<</Creator (LaTeX)(PTEX.FullBanner)/Author (Ada)/Subject (Poetry)>>"));
-
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var document = await Read(
+            "<</Creator (LaTeX)(PTEX.FullBanner)/Author (Ada)/Subject (Poetry)>>",
+            PdfDocumentOpenMode.Modify);
 
         document.Info.Creator.Should().Be("LaTeX");
         document.Info.Author.Should().Be("Ada");
@@ -72,28 +68,43 @@ public class DictionaryEntryWithoutKeyTests
         document.Info.Elements.Count.Should().Be(3);
     }
 
-    [Fact]
-    public void ADictionaryThatIsNothingButValuesIsReadAsAnEmptyOne()
+    [Fact(Timeout = 5000)]
+    public async Task ADictionaryThatIsNothingButValuesIsReadAsAnEmptyOne()
     {
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary("<<(one)(two)(three)>>"));
-
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var document = await Read("<<(one)(two)(three)>>", PdfDocumentOpenMode.Modify);
 
         document.Info.Elements.Count.Should().Be(0);
     }
 
-    [Fact]
-    public void ADocumentWhoseInformationDictionaryHoldsBareStringsCanBeSaved()
+    [Fact(Timeout = 5000)]
+    public async Task ADocumentWhoseInformationDictionaryHoldsBareStringsCanBeSaved()
     {
-        using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
-        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var creator = await Task.Run(() =>
+        {
+            using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
+            var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
 
-        using var output = new MemoryStream();
-        document.Save(output, false);
+            using var output = new MemoryStream();
+            document.Save(output, false);
 
-        output.Position = 0;
-        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Import);
-        reopened.Info.Creator.Should().Be("LaTeX with hyperref");
+            output.Position = 0;
+            return PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Import).Info.Creator;
+        });
+
+        creator.Should().Be("LaTeX with hyperref");
+    }
+
+    /// <summary>
+    ///   Reads the document on a worker thread, so that the Timeout on these tests can fail a
+    ///   parse that does not terminate rather than wait on it.
+    /// </summary>
+    private static Task<PdfDocument> Read(string informationDictionary, PdfDocumentOpenMode openMode)
+    {
+        return Task.Run(() =>
+        {
+            using var input = new MemoryStream(BuildDocumentWithInformationDictionary(informationDictionary));
+            return PdfSharpCore.Pdf.IO.PdfReader.Open(input, openMode);
+        });
     }
 
     /// <summary>

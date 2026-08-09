@@ -12,8 +12,9 @@ internal static class RawPdf
     /// <summary>
     ///   Wraps the objects given in a header, a cross reference table and a trailer. The first
     ///   object is the catalog, and objects are numbered from one in the order they are given.
-    ///   Anything in <paramref name="extraTrailerEntries" /> is written into the trailer beside
-    ///   the size and the root.
+    ///   <paramref name="extraTrailerEntries" /> is copied into the trailer dictionary verbatim,
+    ///   straight after the root, so it has to begin with a delimiter of its own: "/Info 5 0 R"
+    ///   rather than "Info 5 0 R".
     /// </summary>
     internal static byte[] Build(IReadOnlyList<string> objects, string extraTrailerEntries = "")
     {
