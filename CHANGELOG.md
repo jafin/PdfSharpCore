@@ -34,6 +34,19 @@ This file starts at the entry below. Changes before that point are recorded only
   `PdfPage.Rotate` is unchanged and is still the free, lossless way to turn a page over without
   touching its content. See `docs/specs/page-resize.md`.
 
+- 27 predefined page sizes that `PageSize` did not name: `A7`–`A10`, `TwoA0` and `FourA0` (the
+  DIN 476 oversizes 2A0 and 4A0, spelled out because a C# identifier cannot begin with a digit),
+  `B6`–`B10`, the whole ISO 269 `C0`–`C10` envelope series, and the untrimmed `SRA0`–`SRA4` stock.
+
+  ```csharp
+  page.Size = PageSize.C5;    // the envelope an A5 sheet goes into unfolded
+  page.Size = PageSize.A7;
+  ```
+
+  With these, `PageSize` covers every size in the
+  [pdfkit paper-size table](https://pdfkit.org/docs/paper_sizes.html), which it previously met only
+  in part. Each is rounded to whole points as the existing entries are.
+
 ### Changed
 
 - **BREAKING:** the `PdfPage.Size`, `PdfPage.Width` and `PdfPage.Height` setters now throw
@@ -51,6 +64,12 @@ This file starts at the entry below. Changes before that point are recorded only
   old anchoring exactly, ask for `PageAlignment.BottomLeft`.
 
 ### Fixed
+
+- `PageSize.Executive` measured 540 × 720 points (7.5 × 10 inch), which is not the Executive sheet.
+  It is 7.25 × 10.5 inch and now converts to 522 × 756 points — the size its own documentation
+  always claimed, and the one ISO, `System.Drawing.Printing.PaperKind.Executive` and every other
+  library give. A page asking for `PageSize.Executive` changes size as a result; a page whose width
+  and height were set in points does not.
 
 - A page-level transparency group (`/Group << /S /Transparency /CS /DeviceRGB >>`) was written onto
   every page of every saved document, whether or not anything on the page painted with transparency

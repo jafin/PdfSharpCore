@@ -69,6 +69,24 @@ public static class PageSizeConverter
             case PageSize.A6:
                 return new XSize(298, 420);
 
+            case PageSize.A7:
+                return new XSize(210, 298);
+
+            case PageSize.A8:
+                return new XSize(147, 210);
+
+            case PageSize.A9:
+                return new XSize(105, 147);
+
+            case PageSize.A10:
+                return new XSize(74, 105);
+
+            case PageSize.TwoA0:        // 2A0
+                return new XSize(3370, 4768);
+
+            case PageSize.FourA0:       // 4A0
+                return new XSize(4768, 6741);
+
             case PageSize.RA0:
                 return new XSize(2438, 3458);
 
@@ -86,6 +104,21 @@ public static class PageSizeConverter
 
             case PageSize.RA5:
                 return new XSize(433, 609);
+
+            case PageSize.SRA0:
+                return new XSize(2551, 3628);
+
+            case PageSize.SRA1:
+                return new XSize(1814, 2551);
+
+            case PageSize.SRA2:
+                return new XSize(1276, 1814);
+
+            case PageSize.SRA3:
+                return new XSize(907, 1276);
+
+            case PageSize.SRA4:
+                return new XSize(638, 907);
 
 
             case PageSize.B0:
@@ -106,6 +139,56 @@ public static class PageSizeConverter
             case PageSize.B5:
                 return new XSize(499, 709);
 
+            case PageSize.B6:
+                return new XSize(354, 499);
+
+            case PageSize.B7:
+                return new XSize(249, 354);
+
+            case PageSize.B8:
+                return new XSize(176, 249);
+
+            case PageSize.B9:
+                return new XSize(125, 176);
+
+            case PageSize.B10:
+                return new XSize(88, 125);
+
+            // The C series, for envelopes ...
+
+            case PageSize.C0:
+                return new XSize(2599, 3677);
+
+            case PageSize.C1:
+                return new XSize(1837, 2599);
+
+            case PageSize.C2:
+                return new XSize(1298, 1837);
+
+            case PageSize.C3:
+                return new XSize(918, 1298);
+
+            case PageSize.C4:
+                return new XSize(649, 918);
+
+            case PageSize.C5:
+                return new XSize(459, 649);
+
+            case PageSize.C6:
+                return new XSize(323, 459);
+
+            case PageSize.C7:
+                return new XSize(230, 323);
+
+            case PageSize.C8:
+                return new XSize(162, 230);
+
+            case PageSize.C9:
+                return new XSize(113, 162);
+
+            case PageSize.C10:
+                return new XSize(79, 113);
+
             // The non-ISO sizes ...
 
             case PageSize.Quarto:           // 8 x 10 inch²
@@ -114,8 +197,8 @@ public static class PageSizeConverter
             case PageSize.Foolscap:         // 8 x 13 inch²
                 return new XSize(576, 936);
 
-            case PageSize.Executive:        // 7.5 x 10 inch²
-                return new XSize(540, 720);
+            case PageSize.Executive:        // 7.25 x 10.5 inch²
+                return new XSize(522, 756);
 
             case PageSize.GovernmentLetter: // 8 x 10.5 inch²
                 return new XSize(576, 756);
