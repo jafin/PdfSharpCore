@@ -63,6 +63,15 @@ public class ImportedOutlineTests
     }
 
     [Fact]
+    public void AnEntryWhoseActionIsHeldInAnObjectOfItsOwnStillGoesToThePageItNames()
+    {
+        var outline = FirstOutlineOf(ImportedOutlineFixtures.WithIndirectGoToAction());
+
+        outline.DestinationPage.Should().BeSameAs(PageTwoOf(outline));
+        outline.Top.Should().Be(22);
+    }
+
+    [Fact]
     public void AnEntryGoingToAPageByNumberGoesToThatPage()
     {
         var outline = FirstOutlineOf(ImportedOutlineFixtures.WithPageNumberDestination(1));
@@ -146,6 +155,25 @@ public class ImportedOutlineTests
         var outline = reopened.Outlines[0];
         outline.DestinationPage.Should().BeSameAs(reopened.Pages[1]);
         outline.Top.Should().Be(22);
+    }
+
+    [Fact]
+    public void ADestinationOfATypeThisLibraryDoesNotKnowIsSavedAsItWasFound()
+    {
+        using var input = new MemoryStream(ImportedOutlineFixtures.WithDestinationArray("[4 0 R/FitNothing 1]"));
+        var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        document.Outlines.Count.Should().Be(1);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+
+        // Writing the destination from what was read of it would make it an /XYZ with no position,
+        // which is not where the entry went.
+        output.Position = 0;
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Modify);
+        var destination = reopened.Outlines[0].Elements.GetArray("/Dest");
+        destination.Elements.GetName(1).Should().Be("/FitNothing");
+        destination.Elements.GetInteger(2).Should().Be(1);
     }
 
     private static PdfOutline FirstOutlineOf(byte[] document)

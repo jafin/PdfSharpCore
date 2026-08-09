@@ -95,6 +95,12 @@ internal static class ImportedOutlineFixtures
         return Document("/A<</S/GoTo/D 9 0 R>>", "", Destination);
     }
 
+    /// <summary>An entry whose action is held in an object of its own rather than written out.</summary>
+    internal static byte[] WithIndirectGoToAction()
+    {
+        return Document("/A 9 0 R", "", "<</S/GoTo/D" + Destination + ">>");
+    }
+
     /// <summary>
     ///   An entry whose destination goes to a page by number rather than by reference, which is
     ///   how a destination reaching into another document is written.

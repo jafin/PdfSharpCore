@@ -183,7 +183,13 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
     public PdfPage DestinationPage
     {
         get => _destinationPage;
-        set => _destinationPage = value;
+        set
+        {
+            _destinationPage = value;
+            // Being given a destination page makes the entry one this library describes, whatever
+            // the document it came from said.
+            _keepDestinationAsFound = false;
+        }
     }
     PdfPage _destinationPage;
 
@@ -267,9 +273,19 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
     public PdfPageDestinationType PageDestinationType
     {
         get => _pageDestinationType;
-        set => _pageDestinationType = value;
+        set
+        {
+            _pageDestinationType = value;
+            _keepDestinationAsFound = false;
+        }
     }
     PdfPageDestinationType _pageDestinationType = PdfPageDestinationType.Xyz;
+
+    /// <summary>
+    /// Whether the destination this entry was read with is one this library cannot describe, and
+    /// so must be written back out as it was found rather than from the properties above.
+    /// </summary>
+    bool _keepDestinationAsFound;
 
     /// <summary>
     /// Gets or sets the color of the text.
@@ -406,7 +422,9 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
         DestinationPage = page;
         PdfName type = destination.Elements.Count > 1 ? destination.Elements[1] as PdfName : null;
         // A destination whose type is one this library does not know leaves the page it goes to
-        // and nothing more, which is still more than refusing to read the outline at all.
+        // and nothing more, which is still more than refusing to read the outline at all. What it
+        // does say is kept, though: the entry is written back out as it was found rather than as
+        // the /XYZ with no position the properties below would otherwise amount to.
         if (type != null && Enum.TryParse(type.Value.Substring(1), true, out PdfPageDestinationType destinationType))
         {
             PageDestinationType = destinationType;
@@ -460,6 +478,10 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+        else if (type != null)
+        {
+            _keepDestinationAsFound = true;
         }
 
 #pragma warning restore 162
@@ -550,8 +572,10 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 int index = _parent._outlines.IndexOf(this);
                 Debug.Assert(index != -1);
 
-                // Has destination?
-                if (DestinationPage != null)
+                // Has destination? A destination this library cannot describe keeps the entry the
+                // document was read with, which still says where it goes; describing it from the
+                // properties above would turn it into a different destination.
+                if (DestinationPage != null && !_keepDestinationAsFound)
                     //Elements[Keys.Dest] = new PdfArray(Owner, DestinationPage.Reference, new PdfLiteral("/XYZ null null 0"));
                     Elements[Keys.Dest] = CreateDestArray();
 

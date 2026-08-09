@@ -13,6 +13,7 @@ What follows is the design as built, on `fix/outline-named-destinations`.
 | 1 | An entry naming its destination throws instead of going there | done |
 | 2 | An entry performing any action but a GoTo trips an assertion | done |
 | 3 | A destination that does not describe a page of this document throws | done |
+| 4 | A destination of an unknown type is rewritten as an `/XYZ` when saved | done |
 
 ---
 
@@ -105,28 +106,48 @@ name leaves the entry pointing at its page and nothing more, rather than throwin
 None of this makes a well-formed destination read differently. `[4 0 R /XYZ 11 22 0]` still gives
 page, left, top and zoom.
 
+## Item 4 — reading a destination one cannot describe is not licence to rewrite it
+
+Item 3 leaves an entry whose type name is not one of the eight pointing at its page and nothing
+more. That is the right thing to read, but `PrepareForSave` writes `/Dest` from `DestinationPage`
+and `PageDestinationType` whenever there is a destination page, and `PageDestinationType` defaults
+to `Xyz` with no position. So `[4 0 R /FitNothing 1]` — read for the page it names, as it should be
+— was saved as `[4 0 R /XYZ null null null]`, quietly replacing a destination the library did not
+understand with a different one it does.
+
+An entry read that way is now written back out as it was found. It still says where it goes, and
+what it says is what the document said, which is more than this library can express. Setting
+`DestinationPage` or `PageDestinationType` gives the entry back to the library, so an outline the
+caller changes is written from those properties as it always was.
+
+The same holds for the two shapes item 1 added: a `/Dest` naming a destination of an unknown type
+keeps the name, and a GoTo action resolved to one keeps the array the name stood for, which
+`InitializeFromAction` had already put in `/Dest`.
+
 ---
 
 ## Verification
 
-`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 16 tests over fixtures shaped like the
-documents in the issue — 13 of them fail on `master`:
+`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 18 tests over fixtures shaped like the
+documents in the issue — 14 of them fail on `master`:
 
 - a destination named through a GoTo action, resolved through a name tree with `/Kids` and
   `/Limits` so the search has to walk it;
 - the same name in a `/Dest` entry, and the same held as a name in a PDF 1.1 `/Dests` dictionary;
 - a name the catalog holds nothing under: no destination, action kept;
 - a `/URI` action and a `/GoToR` action: read, no destination, action kept;
-- destinations written out, held indirectly, and given as a page number, in and out of range;
+- destinations written out, held indirectly, and given as a page number, in and out of range, and
+  an action held in an object of its own;
 - destinations that are empty, name no page, stop short of their parameters, or give a type name
   that is not one of the eight — all read without throwing;
-- a destination taken from a name survives being saved and read again.
+- a destination taken from a name survives being saved and read again, and one of a type this
+  library does not know is saved as it was found rather than as an `/XYZ`.
 
 The reporter's own document was read alongside, outside the suite, since it is not ours to check
 in: two entries, *1st section* on page 1 at 529.041 and *2nd section* on page 2 at 667.198, where
 `master` throws on the first of them.
 
-Whole suite green on net8.0 and net10.0, 1056 passed on each, one pre-existing skip
+Whole suite green on net8.0 and net10.0, 1058 passed on each, one pre-existing skip
 (`CanCreatePdfOver2gb`).
 
 ## Not in scope
