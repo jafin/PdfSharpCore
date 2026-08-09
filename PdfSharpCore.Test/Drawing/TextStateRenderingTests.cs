@@ -23,7 +23,7 @@ namespace PdfSharpCore.Test.Drawing;
 ///   </para>
 /// </summary>
 [Collection(RasterizingCollection.Name)]
-public class TextStateRenderingTests : IDisposable
+public class TextStateRenderingTests
 {
     const double FontSize = 24;
     const double PageWidth = 400;
@@ -31,8 +31,6 @@ public class TextStateRenderingTests : IDisposable
 
     /// <summary>Rasterization is at 300 dpi, and PDF measures in 72nds of an inch.</summary>
     const double PixelsPerPoint = 300.0 / 72.0;
-
-    readonly List<MagickImageCollection> _rasterized = new();
 
     static XFont WinAnsiFont => new XFont("Arial", FontSize, XFontStyle.Regular, XPdfFontOptions.WinAnsiDefault);
     static XFont UnicodeFont => new XFont("Arial", FontSize, XFontStyle.Regular, XPdfFontOptions.UnicodeDefault);
@@ -51,10 +49,11 @@ public class TextStateRenderingTests : IDisposable
             gfx.DrawString(text, new XFont(font.Name, size, font.Style, font.PdfOptions),
                 XBrushes.Black, 20, 55, format);
 
-        var images = PdfHelper.Rasterize(document).ImageCollection;
-        _rasterized.Add(images);
+        // Freed as soon as the pixels have been read out of it. A rasterized page holds unmanaged
+        // memory, and these tests make more of them than anything else in the suite.
+        using var output = PdfHelper.Rasterize(document);
 
-        var inked = PageInk.DarkPixelsOf(images[0]);
+        var inked = PageInk.DarkPixelsOf(output.ImageCollection[0]);
         inked.Should().NotBeEmpty("the page should have text drawn on it");
         return inked;
     }
@@ -231,11 +230,5 @@ public class TextStateRenderingTests : IDisposable
         steep.ObliqueAngle = 30;
 
         LeanOf("H", WinAnsiFont, steep).Should().BeGreaterThan(LeanOf("H", WinAnsiFont, gentle));
-    }
-
-    public void Dispose()
-    {
-        foreach (var images in _rasterized)
-            images.Dispose();
     }
 }

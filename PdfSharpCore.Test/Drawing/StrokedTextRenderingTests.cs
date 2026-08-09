@@ -16,17 +16,15 @@ namespace PdfSharpCore.Test.Drawing;
 ///   filled text is solid, and a thick pen is visibly thicker than a thin one.
 /// </summary>
 [Collection(RasterizingCollection.Name)]
-public class StrokedTextRenderingTests : IDisposable
+public class StrokedTextRenderingTests
 {
     const double FontSize = 60;
     const double PageWidth = 300;
     const double PageHeight = 100;
 
-    readonly List<MagickImageCollection> _rasterized = new();
-
     static XFont Font => new XFont("Arial", FontSize, XFontStyle.Regular, XPdfFontOptions.WinAnsiDefault);
 
-    List<(int X, int Y)> InkOf(XPen pen, XBrush brush)
+    static PdfDocument PageShowing(XPen pen, XBrush brush)
     {
         var document = new PdfDocument();
         var page = document.AddPage();
@@ -36,10 +34,16 @@ public class StrokedTextRenderingTests : IDisposable
         using (var gfx = XGraphics.FromPdfPage(page))
             gfx.DrawString("OO", Font, pen, brush, 20, 75);
 
-        var images = PdfHelper.Rasterize(document).ImageCollection;
-        _rasterized.Add(images);
+        return document;
+    }
 
-        var inked = PageInk.DarkPixelsOf(images[0]);
+    static List<(int X, int Y)> InkOf(XPen pen, XBrush brush)
+    {
+        // Freed as soon as the pixels have been read out of it. A rasterized page holds unmanaged
+        // memory, and these tests make more of them than anything else in the suite.
+        using var output = PdfHelper.Rasterize(PageShowing(pen, brush));
+
+        var inked = PageInk.DarkPixelsOf(output.ImageCollection[0]);
         inked.Should().NotBeEmpty("the page should have text drawn on it");
         return inked;
     }
@@ -88,18 +92,9 @@ public class StrokedTextRenderingTests : IDisposable
     [GoldenImageFact]
     public void AStrokeIsDrawnInThePensOwnColour()
     {
-        var document = new PdfDocument();
-        var page = document.AddPage();
-        page.Width = PageWidth;
-        page.Height = PageHeight;
+        using var output = PdfHelper.Rasterize(PageShowing(new XPen(XColors.Red, 3), null));
 
-        using (var gfx = XGraphics.FromPdfPage(page))
-            gfx.DrawString("OO", Font, new XPen(XColors.Red, 3), null, 20, 75);
-
-        var images = PdfHelper.Rasterize(document).ImageCollection;
-        _rasterized.Add(images);
-
-        using var pixels = images[0].GetPixels();
+        using var pixels = output.ImageCollection[0].GetPixels();
         var red = pixels.Count(pixel =>
         {
             var colour = pixel.ToColor();
@@ -109,11 +104,5 @@ public class StrokedTextRenderingTests : IDisposable
         // The pen carries its own colour rather than borrowing the brush's - which is just as
         // well, because outlined text has no brush to borrow from.
         red.Should().BeGreaterThan(500);
-    }
-
-    public void Dispose()
-    {
-        foreach (var images in _rasterized)
-            images.Dispose();
     }
 }
