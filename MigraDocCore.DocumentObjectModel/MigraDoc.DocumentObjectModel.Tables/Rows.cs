@@ -74,6 +74,42 @@ public partial class Rows : DocumentObjectCollection, IVisitable
     Add(row);
     return row;
   }
+
+  /// <summary>
+  /// Adds a row to the collection and gives it a cell for every column of the table.
+  /// </summary>
+  public override void Add(DocumentObject value)
+  {
+    base.Add(value);
+    GiveItACellPerColumn(value as Row);
+  }
+
+  /// <summary>
+  /// Inserts a row into the collection and gives it a cell for every column of the table.
+  /// </summary>
+  public override void InsertObject(int index, DocumentObject val)
+  {
+    base.InsertObject(index, val);
+    GiveItACellPerColumn(val as Row);
+  }
+
+  /// <summary>
+  ///   A row of a table has as many cells as the table has columns. The cells used to be made
+  ///   only as they were asked for by index, so a row reported however many of them something
+  ///   had happened to touch: enumerating one reached no further than that, and a loop over
+  ///   every cell of every row quietly passed some of them by.
+  /// </summary>
+  /// <remarks>
+  ///   Done as the row is added, which is the first moment it knows its table. Columns cannot
+  ///   be added to a table that already has rows, so the count cannot change afterwards.
+  ///   Asking for the last cell makes the ones before it.
+  /// </remarks>
+  void GiveItACellPerColumn(Row row)
+  {
+    int columns = Table?.Columns.Count ?? 0;
+    if (row != null && columns > 0)
+      _ = row.Cells[columns - 1];
+  }
   #endregion
 
   #region Properties
