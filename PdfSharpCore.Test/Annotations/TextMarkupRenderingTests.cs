@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
 using ImageMagick;
@@ -18,9 +19,30 @@ namespace PdfSharpCore.Test.Annotations;
 ///   no quadrilaterals rasterizes to no coloured pixels at all, which is what these count.
 /// </summary>
 [Collection(RasterizingCollection.Name)]
-public class TextMarkupRenderingTests
+public class TextMarkupRenderingTests : IDisposable
 {
     private const string OutDir = "Out/TextMarkupAnnotations";
+
+    /// <summary>
+    ///   Everything rasterized by one test, kept until the test is over.
+    /// </summary>
+    /// <remarks>
+    ///   The pages are handed out for counting pixels, so they cannot be disposed of where they
+    ///   are made. They cannot be left to the collector either: the bitmap behind one is
+    ///   unmanaged and the collector cannot see how big it is, so a run of these tests exhausts
+    ///   the process rather than provoking a collection - and the test host is killed with no
+    ///   test having failed. xUnit builds a new instance of this class per test, so disposing
+    ///   here frees them between tests.
+    /// </remarks>
+    private readonly List<MagickImageCollection> _rasterized = new List<MagickImageCollection>();
+
+    public void Dispose()
+    {
+        foreach (var collection in _rasterized)
+            collection.Dispose();
+
+        _rasterized.Clear();
+    }
 
     /// <summary>
     ///   The line of text, and the band around it to mark up, in the space the drawing uses.
@@ -135,7 +157,7 @@ public class TextMarkupRenderingTests
         Count(faint, IsYellow).Should().Be(0);
     }
 
-    static IMagickImage<byte> Rasterize(PdfTextMarkupAnnotation annotation, string name)
+    IMagickImage<byte> Rasterize(PdfTextMarkupAnnotation annotation, string name)
     {
         return Rasterize(annotation, name, (markup, page) => markup.AddQuad(page(Line)));
     }
@@ -145,7 +167,7 @@ public class TextMarkupRenderingTests
     ///   converter into the space annotations are placed in, which is measured from the bottom
     ///   left of the page rather than from the top left the drawing uses.
     /// </summary>
-    static IMagickImage<byte> Rasterize(PdfTextMarkupAnnotation annotation, string name,
+    IMagickImage<byte> Rasterize(PdfTextMarkupAnnotation annotation, string name,
         Action<PdfTextMarkupAnnotation, Func<XRect, XRect>> arrange)
     {
         GlobalFontSettings.FontResolver ??= new PinnedFontResolver();
@@ -163,6 +185,7 @@ public class TextMarkupRenderingTests
         }
 
         var images = PdfHelper.Rasterize(document).ImageCollection;
+        _rasterized.Add(images);
         PdfHelper.WriteImageCollection(images, OutDir, name);
         return images[0];
     }

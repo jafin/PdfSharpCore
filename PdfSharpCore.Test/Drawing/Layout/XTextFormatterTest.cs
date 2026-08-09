@@ -282,7 +282,7 @@ public class XTextFormatterTest
 
     private static DiffOutput DiffPage(PdfDocument document, string filePrefix, int pageNum)
     {
-        var rasterized = PdfHelper.Rasterize(document);
+        using var rasterized = PdfHelper.Rasterize(document);
         var rasterizedFiles = PdfHelper.WriteImageCollection(rasterized.ImageCollection, _outDir, filePrefix);
         var expectedImagePath = PathHelper.GetInstance().GetAssetPath(_expectedImagesPath, $"{filePrefix}_{pageNum}.png");
         return PdfHelper.Diff(rasterizedFiles[pageNum-1], expectedImagePath, _outDir, filePrefix);

@@ -87,15 +87,18 @@ public class PdfHelper
     //   For instance, actual and expected must both be sourced from .png files
     public static DiffOutput Diff(string actualImagePath, string expectedImagePath, string outputPath = null, string filePrefix = null)
     {
-        var actual = new MagickImage(actualImagePath);
-        var expected = new MagickImage(expectedImagePath);
+        // Every one of these three holds a bitmap in unmanaged memory that the garbage collector
+        // cannot see the size of. Left to a finalizer they pile up until the test host is killed
+        // outright - see the remarks on RasterizeOutput.
+        using var actual = new MagickImage(actualImagePath);
+        using var expected = new MagickImage(expectedImagePath);
 
         actual.Resize(new Percentage(ComparedAtPercent));
         expected.Resize(new Percentage(ComparedAtPercent));
 
         // Root mean squared rather than a count, so the answer is a share of how far a page
         // can differ at all, and does not grow with the size of the page.
-        var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
+        using var diffImg = actual.Compare(expected, ErrorMetric.RootMeanSquared, out var diffVal);
 
         if (diffVal > 0 && outputPath != null && filePrefix != null)
         {
@@ -104,8 +107,7 @@ public class PdfHelper
 
         return new DiffOutput
         {
-            DiffValue = diffVal,
-            DiffImage = diffImg
+            DiffValue = diffVal
         };
     }
         
@@ -117,16 +119,31 @@ public class PdfHelper
     }
 }
 
-public class RasterizeOutput
+/// <summary>
+/// The rasterized pages of a document. <b>Dispose it.</b>
+/// </summary>
+/// <remarks>
+/// A page rasterized at 300 dpi is some tens of megabytes of bitmap, and that bitmap lives in
+/// unmanaged memory. The garbage collector sees only the small managed wrapper, so nothing about
+/// the pressure of holding a dozen of them makes a collection happen any sooner - the process
+/// simply runs out of memory and dies. In a test run that shows up as
+/// <c>Test host process crashed</c> and <c>Test Run Aborted</c> with <b>no failing test</b> and a
+/// passing count quietly short of the total, which reads like flakiness and is not.
+/// </remarks>
+public class RasterizeOutput : IDisposable
 {
     public List<string> OutputPaths;
     public MagickImageCollection ImageCollection;
+
+    public void Dispose()
+    {
+        ImageCollection?.Dispose();
+        ImageCollection = null;
+    }
 }
 
 public class DiffOutput
 {
-    public IMagickImage DiffImage;
-
     /// <summary>
     /// How far the two images stand apart, from 0 for a pair that matches to 1 for black
     /// against white. Text that moved shows up here in the percents, while the edges of glyphs
