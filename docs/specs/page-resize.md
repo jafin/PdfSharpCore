@@ -22,7 +22,7 @@ Worse than merely wrong: the crop was anchored at the **origin**, and the origin
 its bottom-left corner. So the part that survived was the foot of the page and the part thrown away
 was the heading.
 
-```
+```text
       A4 page              what page.Size = A5 kept
       ┌─────────────┐      ┌─────────────┐
       │ Heading     │      │░░░░░░░░░░░░░│  ← cropped away
@@ -46,7 +46,7 @@ work in the document already in hand.
 The content is not rewritten. It is moved whole into a form XObject and the page is given a single
 content stream that draws that form under a transform.
 
-```
+```text
 BEFORE                                    AFTER
 ┌─ page ───────────────┐                 ┌─ page ───────────────────────────────┐
 │ /MediaBox [0 0 595 842]                │ /MediaBox [0 0 420 595]              │
@@ -79,6 +79,14 @@ Three reasons for a form rather than a `cm` in front of the content that is alre
 
 `CropBox ?? MediaBox` — a reader is shown the crop box, so on a page that has one that *is* the
 page, and resizing relative to the media box gives a visibly wrong answer.
+
+A crop box is not allowed to reach outside the media box, and where one does a reader takes the
+part that lies within (ISO 32000 §14.11.2). So does this: without the intersection, a page whose
+crop box is larger than its media box would be resized from a rectangle bigger than the page and
+everything would come out too small. The same rule applies on the way out — `/CropBox`,
+`/BleedBox`, `/TrimBox` and `/ArtBox` all travel with the content and are then clipped to the new
+media box, because `Fill` and `None` both let the content overflow the page on purpose and a box
+that overflowed with it would leave a page that is not well formed.
 
 Two traps, both of which read as correct and are not:
 
@@ -118,7 +126,7 @@ side with the *smaller* y — the bottom, in PDF. Only `X`, `Y`, `Width` and `He
 The expensive half, and the reason a resize is a document-wide operation wearing a page-scope name.
 A page carries no list of what points at it, so all of this has to be looked at:
 
-```
+```text
 every page's /Annots  ──► /Dest, or /A << /S /GoTo /D >>
 /Outlines tree        ──► /Dest, or /A
 catalog /Names /Dests name tree, and the legacy /Dests dictionary
@@ -206,7 +214,14 @@ transform of something that is not a wrapper loses the page.
 Checked once, up front, before anything is mutated — `ResizePages` must not leave a document half
 resized.
 
-- **Encrypted.** Rewriting content streams needs the security handler in the loop.
+- **Encrypted** — meaning a document that came *out of* an encrypted file, whose streams were
+  decrypted on the way in and have to be encrypted again on the way out. Rewriting content streams
+  needs the security handler in the loop.
+  A document built in memory with a password set on it is deliberately **not** refused: nothing is
+  encrypted yet and the password is an instruction for the save. The two cannot be told apart from
+  the trailer — setting a password reaches `SecurityHandler`, whose getter resolves `/Encrypt` with
+  `VCF.CreateIndirect` and creates the entry there and then — so what distinguishes them is
+  `PdfDocument.IsImported`.
 - **Signed** (`/Sig` field in `/AcroForm`, following `/Kids`, depth-capped). The signature would no
   longer verify.
 - **Tagged** (`/StructTreeRoot` on the catalog). This one is refused rather than merely documented
@@ -256,8 +271,9 @@ resized.
   `PdfPage.cs` and unused. But it is PDF 1.6 where `PdfDocument._version` is `14`, support outside
   Acrobat and Ghostscript is patchy, it cannot change an aspect ratio or an orientation, and
   anything reading `/MediaBox` to choose paper still sees A4. A mechanism that is perfect sometimes
-  and silently degrades otherwise is worse than one that always works. It remains available as an
-  opt-in fast path for the pure uniform case.
+  and silently degrades otherwise is worse than one that always works. Nothing was built for it and
+  there is no way to ask for it today; it is recorded here as a route that stays open should the
+  pure uniform case ever want a fast path.
 
 ---
 

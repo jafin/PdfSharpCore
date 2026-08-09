@@ -172,7 +172,9 @@ static class PdfPageResizer
     {
         // Not page.CropBox: its getter passes create: true, so merely asking whether there is a
         // crop box would give the page one.
-        PdfRectangle box = RectangleOf(page, PdfPage.Keys.CropBox) ?? RectangleOf(page, PdfPage.Keys.MediaBox);
+        PdfRectangle media = RectangleOf(page, PdfPage.Keys.MediaBox);
+        PdfRectangle crop = RectangleOf(page, PdfPage.Keys.CropBox);
+        PdfRectangle box = crop ?? media;
 
         if (box == null || box.Width <= 0 || box.Height <= 0)
         {
@@ -181,6 +183,22 @@ static class PdfPageResizer
         }
 
         XRect rect = Normalized(box);
+
+        // A crop box is not allowed to reach outside the media box; where one does, a reader
+        // takes the part of it that lies within, and so does this. Without that a page whose
+        // crop box is larger than its media box would be resized from a rectangle bigger than
+        // the page, and everything would come out too small.
+        if (crop != null && media != null && media.Width > 0 && media.Height > 0)
+        {
+            rect.Intersect(Normalized(media));
+
+            if (rect.IsEmpty || rect.Width <= 0 || rect.Height <= 0)
+            {
+                throw new InvalidOperationException(
+                    "The crop box of this page lies outside its media box, so there is nothing of " +
+                    "the page left to resize.");
+            }
+        }
 
         // A page that PdfSharpCore is holding as landscape keeps its media box the other way
         // round in memory and turns it over as it writes it, so the box in hand is not the box
@@ -440,6 +458,20 @@ static class PdfPageResizer
                 continue;
 
             XRect moved = Transformed(Normalized(box), matrix);
+
+            // None of these is allowed to reach outside the media box. Fill and None both let
+            // the content overflow the new page on purpose, and a box that travelled with it
+            // would overflow too, leaving a page that is malformed even though most readers
+            // would quietly clamp it for themselves.
+            moved.Intersect(target);
+            if (moved.IsEmpty || moved.Width <= 0 || moved.Height <= 0)
+            {
+                // Nothing of it is on the page any more. Leaving the old rectangle would be
+                // worse than having none: it describes a region of a page that no longer exists.
+                page.Elements.Remove(key);
+                continue;
+            }
+
             page.Elements.SetRectangle(key,
                 new PdfRectangle(moved.X, moved.Y, moved.X + moved.Width, moved.Y + moved.Height));
         }
@@ -525,10 +557,19 @@ static class PdfPageResizer
                 "A page can only be resized in a document opened with PdfDocumentOpenMode.Modify.");
         }
 
-        // Not SecuritySettings.SecurityHandler: its getter creates the /Encrypt entry it looks
-        // for, so asking whether the document is encrypted would encrypt it.
-        if (document.SecuritySettings.DocumentSecurityLevel != PdfDocumentSecurityLevel.None ||
-            document._trailer?.Elements[PdfTrailer.Keys.Encrypt] != null)
+        // What is being refused here is a document that came *out of* an encrypted file, whose
+        // streams were decrypted on the way in and have to be encrypted again on the way out.
+        // A document built in memory with a password set on it is a different thing: nothing is
+        // encrypted yet, the password is an instruction for the save, and resizing it is fine.
+        //
+        // Both look alike from the trailer, because setting a password reaches SecurityHandler,
+        // whose getter resolves /Encrypt with VCF.CreateIndirect and so creates the entry there
+        // and then. What tells them apart is where the document came from.
+        //
+        // Note neither DocumentSecurityLevel nor SecuritySettings.SecurityHandler can be asked
+        // instead: the first is the caller's setting rather than a fact about the document, and
+        // reading the second would create the very /Encrypt entry it is looking for.
+        if (document.IsImported && document._trailer?.Elements[PdfTrailer.Keys.Encrypt] != null)
         {
             throw new InvalidOperationException(
                 "This document is encrypted. Resizing a page rewrites its content stream, which " +

@@ -23,28 +23,39 @@ public class PdfHelper
             BackgroundColor = MagickColors.White
         };
         var images = new MagickImageCollection();
-            
-        // Add all pages to the collection
-        using var ms = new MemoryStream();
-        document.Save(ms);
 
+        // Nothing owns the collection until it is handed back inside a RasterizeOutput, so
+        // anything that throws on the way there has to free it first. On a machine with no
+        // Ghostscript that is every rasterizing test in the run.
         try
         {
-            images.Read(ms, readerSettings);
+            // Add all pages to the collection
+            using var ms = new MemoryStream();
+            document.Save(ms);
+
+            try
+            {
+                images.Read(ms, readerSettings);
+            }
+            catch (MagickDelegateErrorException ex)
+            {
+                throw new Exception("Ghostscript is not installed or is an incompatible version, unable to rasterize PDF", ex);
+            }
+
+            // Composite onto white, to guarantee a standard background. Remove rather than
+            // Deactivate: Deactivate merely drops the alpha channel and leaves whatever colour was
+            // underneath it, so every pixel of a transparency group that was never painted comes
+            // out black. A page carrying an annotation drawn under a blend mode is such a page.
+            foreach (var img in images)
+            {
+                img.BackgroundColor = MagickColors.White;
+                img.Alpha(AlphaOption.Remove);
+            }
         }
-        catch (MagickDelegateErrorException ex)
+        catch
         {
-            throw new Exception("Ghostscript is not installed or is an incompatible version, unable to rasterize PDF", ex);
-        }
-            
-        // Composite onto white, to guarantee a standard background. Remove rather than
-        // Deactivate: Deactivate merely drops the alpha channel and leaves whatever colour was
-        // underneath it, so every pixel of a transparency group that was never painted comes
-        // out black. A page carrying an annotation drawn under a blend mode is such a page.
-        foreach (var img in images)
-        {
-            img.BackgroundColor = MagickColors.White;
-            img.Alpha(AlphaOption.Remove);
+            images.Dispose();
+            throw;
         }
 
         return new RasterizeOutput

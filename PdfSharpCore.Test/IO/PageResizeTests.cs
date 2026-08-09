@@ -601,17 +601,6 @@ public class PageResizeTests
     }
 
     [Fact]
-    public void AnEncryptedDocumentIsRefused()
-    {
-        PdfDocument document = DocumentWithAFilledPage();
-        document.SecuritySettings.UserPassword = "secret";
-
-        Action act = () => document.Pages[0].Resize(PageSize.A5);
-
-        act.Should().Throw<InvalidOperationException>().WithMessage("*encrypted*");
-    }
-
-    [Fact]
     public void ARefusedResizePagesLeavesEveryPageUntouched()
     {
         PdfDocument document = DocumentWithAFilledPage();
@@ -757,5 +746,123 @@ public class PageResizeTests
 
         page.Width.Point.Should().BeApproximately(A5Width, Tolerance);
         ResizedContentProbe.FormCount(page).Should().Be(1);
+    }
+
+    // --------------------------------------------- what counts as a page having content
+
+    [Fact]
+    public void APageOpenedForDrawingButNeverDrawnOnCanStillHaveItsSizeSet()
+    {
+        // XGraphics appends a content stream before anything is drawn, so the /Contents array is
+        // not empty even though the page is. Counting the entries rather than looking in them
+        // would refuse a page that is blank.
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        using (XGraphics unused = XGraphics.FromPdfPage(page))
+        {
+            // Nothing drawn.
+        }
+
+        page.Size = PageSize.A5;
+
+        page.Width.Point.Should().BeApproximately(A5Width, Tolerance);
+    }
+
+    [Fact]
+    public void ASizeSetterIsRefusedOnceSomethingHasBeenDrawn()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        using (XGraphics gfx = XGraphics.FromPdfPage(page))
+            gfx.DrawRectangle(XBrushes.LightGray, new XRect(0, 0, 10, 10));
+
+        ((Action)(() => page.Size = PageSize.A5)).Should().Throw<InvalidOperationException>();
+    }
+
+    // ------------------------------------------------------------------- page boxes
+
+    [Fact]
+    public void ACropBoxReachingOutsideTheMediaBoxIsTakenAsThePartInside()
+    {
+        // A crop box is not allowed outside the media box, and a reader takes the intersection.
+        // Resizing from the whole of an oversized crop box would make everything come out small.
+        PdfDocument document = DocumentWithAFilledPage();
+        PdfPage page = document.Pages[0];
+        page.CropBox = new PdfRectangle(new XPoint(0, 0), new XPoint(A4Width * 2, A4Height * 2));
+
+        PageResizeOptions options = PageResizeOptions.Default;
+        options.Fit = PageFitMode.Stretch;
+        page.Resize(PageSize.A5, PageOrientation.Portrait, options);
+
+        // Intersected back to the media box, so the whole A4 page stretches onto the A5 one.
+        ShouldBeAbout(ResizedContentProbe.DrawnBounds(page), 0, 0, A5Width, A5Height);
+    }
+
+    [Fact]
+    public void TheOtherBoxesAreKeptInsideTheNewMediaBox()
+    {
+        PdfDocument document = DocumentWithAFilledPage();
+        PdfPage page = document.Pages[0];
+        page.CropBox = new PdfRectangle(new XPoint(0, 0), new XPoint(A4Width, A4Height));
+
+        // Fill overflows the new page on purpose, and a crop box that travelled with the content
+        // would overflow with it, leaving a page that is not well formed.
+        PageResizeOptions options = PageResizeOptions.Default;
+        options.Fit = PageFitMode.Fill;
+        page.Resize(PageSize.A5, PageOrientation.Portrait, options);
+
+        PdfRectangle media = page.MediaBox;
+        PdfRectangle crop = page.CropBox;
+
+        crop.X1.Should().BeGreaterThanOrEqualTo(media.X1 - Tolerance);
+        crop.Y1.Should().BeGreaterThanOrEqualTo(media.Y1 - Tolerance);
+        crop.X2.Should().BeLessThanOrEqualTo(media.X2 + Tolerance);
+        crop.Y2.Should().BeLessThanOrEqualTo(media.Y2 + Tolerance);
+    }
+
+    // ------------------------------------------------------------------- argument checking
+
+    [Fact]
+    public void AnOrientationThatIsNotOneIsRefusedRatherThanTakenForPortrait()
+    {
+        PdfDocument document = DocumentWithAFilledPage();
+
+        Action act = () => document.Pages[0].Resize(PageSize.A5, (PageOrientation)42);
+
+        act.Should().Throw<System.ComponentModel.InvalidEnumArgumentException>();
+    }
+
+    [Fact]
+    public void AnEncryptedDocumentIsOnlyRefusedOnceItIsActuallyEncrypted()
+    {
+        // A password set on a document that has not been saved yet is a setting for the save,
+        // not a statement that the document is encrypted now. Refusing it would block a perfectly
+        // ordinary "build it, resize it, save it encrypted" sequence.
+        PdfDocument document = DocumentWithAFilledPage();
+        document.SecuritySettings.UserPassword = "secret";
+
+        Action act = () => document.Pages[0].Resize(PageSize.A5);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ADocumentReadBackFromAnEncryptedFileIsRefused()
+    {
+        PdfDocument document = DocumentWithAFilledPage();
+        document.SecuritySettings.UserPassword = "secret";
+
+        using MemoryStream stream = new MemoryStream();
+        document.Save(stream, false);
+        stream.Position = 0;
+
+        PdfDocument encrypted = PdfSharpCore.Pdf.IO.PdfReader.Open(
+            stream, "secret", PdfDocumentOpenMode.Modify);
+
+        Action act = () => encrypted.Pages[0].Resize(PageSize.A5);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*encrypted*");
     }
 }

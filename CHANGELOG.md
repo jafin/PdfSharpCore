@@ -37,10 +37,10 @@ This file starts at the entry below. Changes before that point are recorded only
 ### Changed
 
 - **BREAKING:** the `PdfPage.Size`, `PdfPage.Width` and `PdfPage.Height` setters now throw
-  `InvalidOperationException` when the page already has content on it. They write a new media box
-  and nothing else, which crops the page rather than resizing it — silently, with no exception and
-  no warning. Setting them on a page with no content, which is the usual
-  `document.AddPage(); page.Size = PageSize.A4;`, is unchanged.
+  `InvalidOperationException` when the page already has content on it. Before this change they
+  wrote a new media box and nothing else, which cropped the page rather than resizing it —
+  silently, with no exception and no warning. Setting them on a page with no content, which is the
+  usual `document.AddPage(); page.Size = PageSize.A4;`, is unchanged.
 
   Migration is `page.Size = X` → `page.Resize(X)`.
 

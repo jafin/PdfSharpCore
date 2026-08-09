@@ -82,15 +82,22 @@ public static class PageFit
     {
         options ??= PageResizeOptions.Default;
 
-        if (source.Width <= 0 || source.Height <= 0)
+        // A rectangle carrying a NaN passes every comparison below - NaN is neither greater than
+        // nor less than anything - and comes out the far end as a transform made of NaNs, which
+        // draws a page holding nothing at all and says nothing about why. Refuse it here, where
+        // there is still something to say.
+        if (!IsFinite(source.X) || !IsFinite(source.Y) || !IsFinite(source.Width) ||
+            !IsFinite(source.Height) || source.Width <= 0 || source.Height <= 0)
             throw new ArgumentException("The source rectangle has no area to scale from.", nameof(source));
-        if (target.Width <= 0 || target.Height <= 0)
+
+        if (!IsFinite(target.X) || !IsFinite(target.Y) || !IsFinite(target.Width) ||
+            !IsFinite(target.Height) || target.Width <= 0 || target.Height <= 0)
             throw new ArgumentException("The target rectangle has no area to scale into.", nameof(target));
 
         // Take the margin off the target first: everything below fits into what is left of it.
         double margin = options.Margin.Point;
-        if (margin < 0)
-            throw new ArgumentException("The margin is negative.", nameof(options));
+        if (!IsFinite(margin) || margin < 0)
+            throw new ArgumentException("The margin is not a length.", nameof(options));
 
         double boxWidth = target.Width - 2 * margin;
         double boxHeight = target.Height - 2 * margin;
@@ -151,6 +158,14 @@ public static class PageFit
             scaleX, 0,
             placedX - scaleX * source.Y,
             placedY + scaleY * (source.Width + source.X));
+    }
+
+    /// <summary>
+    /// Whether the value is a real length rather than a NaN or an infinity.
+    /// </summary>
+    static bool IsFinite(double value)
+    {
+        return !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     /// <summary>

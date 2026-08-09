@@ -28,14 +28,16 @@ import-mode document SHALL throw `InvalidOperationException`.
 - **WHEN** a page whose media box is A4 and which draws a mark at each of its four corners is
   resized to `PageSize.A5`
 - **THEN** the page's media box is A5
-- **AND** all four marks are still drawn, at the corners of the A5 page
+- **AND** all four marks are still drawn, at the corners of the fitted content, which is centred
+  within the A5 page — `Fit` scales uniformly, so a change of proportions leaves slack on one pair
+  of sides rather than putting the corners on the corners
 - **AND** the document has the same page count it had before
 
 #### Scenario: A5 grown to A4 keeps its whole drawing
 
 - **WHEN** an A5 page is resized to `PageSize.A4`
-- **THEN** the media box is A4 and the drawing fills it, having been scaled up rather than
-  positioned in a corner
+- **THEN** the media box is A4 and the drawing has been scaled up to fill it as far as a uniform
+  scale allows, centred, rather than left at its old size in a corner
 
 #### Scenario: The resized page belongs to the same document
 
@@ -380,8 +382,12 @@ Each refusal SHALL say which of the three conditions it found.
 
 Moving a page's content into a form XObject SHALL preserve the drawing exactly. Content whose
 `q`/`Q` pairs are unbalanced SHALL NOT allow the resize transform to leak or to be torn down. The
-page's transparency group SHALL travel with the content. The content stream's filter SHALL be
-preserved and the bytes SHALL NOT be recompressed.
+page's transparency group SHALL travel with the content.
+
+Where the page has a single content stream — which is nearly every page — its bytes SHALL be moved
+exactly as they are, with their filter, and SHALL NOT be decoded or re-encoded. A page with several
+content streams has to have them run together, which cannot be done without decoding them; the
+result SHALL then be compressed again only if the document is set to compress content.
 
 #### Scenario: Unbalanced q does not break the resize
 
@@ -398,10 +404,17 @@ preserved and the bytes SHALL NOT be recompressed.
 - **WHEN** a page carrying a `/Group` entry is resized
 - **THEN** the form XObject holding the content carries that group
 
-#### Scenario: Compressed content is not recompressed
+#### Scenario: Compressed content of a single-stream page is not recompressed
 
-- **WHEN** a page whose content stream is flate-encoded is resized
+- **WHEN** a page whose one content stream is flate-encoded is resized
 - **THEN** the wrapper's stream holds the same bytes behind the same filter
+
+#### Scenario: Several content streams are joined, which costs their encoding
+
+- **WHEN** a page with more than one content stream is resized
+- **THEN** everything the page drew is still drawn, in the same order
+- **AND** the wrapper's stream is encoded afresh rather than byte-for-byte, because the streams
+  had to be decoded to be joined
 
 #### Scenario: Resources shared with another page are not disturbed
 

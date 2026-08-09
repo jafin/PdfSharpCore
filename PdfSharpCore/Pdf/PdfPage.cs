@@ -212,13 +212,43 @@ public sealed class PdfPage : PdfDictionary, IContentStream
             return item switch
             {
                 null => false,
-                // An array of content streams holds nothing when it is empty.
-                PdfArray array => array.Elements.Count > 0,
+                // An array of content streams holds nothing when none of the streams in it do.
+                // Counting the entries would not answer the question: XGraphics appends a stream
+                // to the array before anything is drawn, so a page that was opened for drawing
+                // and then left alone has an entry that holds no bytes.
+                PdfArray array => HoldsBytes(array),
                 // A single content stream holds nothing when it has no bytes.
                 PdfDictionary dictionary => dictionary.Stream != null && dictionary.Stream.Length > 0,
                 _ => true,
             };
         }
+    }
+
+    /// <summary>
+    /// Whether any stream of a content array has bytes in it. An entry that cannot be resolved
+    /// to a stream dictionary is counted as content: it is not understood, and treating what is
+    /// not understood as empty is the answer that loses a page.
+    /// </summary>
+    static bool HoldsBytes(PdfArray array)
+    {
+        foreach (PdfItem element in array.Elements)
+        {
+            PdfItem item = element;
+            if (item is PdfReference reference)
+                item = reference.Value;
+
+            if (item is PdfDictionary dictionary)
+            {
+                if (dictionary.Stream != null && dictionary.Stream.Length > 0)
+                    return true;
+            }
+            else if (item != null && item is not PdfNull)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -292,6 +322,15 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     /// </summary>
     internal static XSize SizeInPoints(PageSize size, PageOrientation orientation)
     {
+        // Anything other than landscape would otherwise be taken for portrait, so a value that
+        // is not an orientation at all would quietly produce a portrait page rather than say
+        // that it was not understood.
+        if (!Enum.IsDefined(typeof(PageOrientation), orientation))
+        {
+            throw new InvalidEnumArgumentException(nameof(orientation), (int)orientation,
+                typeof(PageOrientation));
+        }
+
         XSize points = PageSizeConverter.ToSize(size);
         return orientation == PageOrientation.Landscape
             ? new XSize(points.Height, points.Width)
