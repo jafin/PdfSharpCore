@@ -105,6 +105,26 @@ public class DocumentRenderer
     public bool HasPrepareDocumentProgress => PrepareDocumentProgress != null;
 
     /// <summary>
+    /// Occurs when an image is replaced by a placeholder because it could not be measured or drawn.
+    /// </summary>
+    /// <remarks>
+    /// Rendering carries on regardless, so that one unreadable image does not cost a whole
+    /// document. This is where the reason it failed can be seen: without a handler the exception
+    /// that stopped the image is dropped, and the only thing left of it is a grey box on the page.
+    /// </remarks>
+    public event EventHandler<ImageFailedEventArgs> ImageFailed;
+
+#nullable enable
+    /// <summary>
+    /// Reports an image that was replaced by a placeholder.
+    /// </summary>
+    internal virtual void OnImageFailed(Image image, ImageFailure failure, Exception? exception)
+    {
+        ImageFailed?.Invoke(this, new ImageFailedEventArgs(image, failure, exception));
+    }
+#nullable restore
+
+    /// <summary>
     /// Gets the formatted document of this instance.
     /// </summary>
     public FormattedDocument FormattedDocument => formattedDocument;

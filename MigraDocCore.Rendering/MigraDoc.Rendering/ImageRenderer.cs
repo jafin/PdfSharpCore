@@ -61,7 +61,8 @@ internal class ImageRenderer : ShapeRenderer
     {
         ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
         formatInfo.ImageSource = image.Source;
-        formatInfo.Failure = failure;
+        formatInfo.Failure = ImageFailure.None;
+        formatInfo.FailureException = null;
         CalculateImageDimensions();
         base.Format(area, previousFormatInfo);
     }
@@ -100,8 +101,11 @@ internal class ImageRenderer : ShapeRenderer
                 using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
                     gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
             }
-            catch (Exception)
+            catch (Exception ex) when (!IsUnrecoverable(ex))
             {
+                Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source, ex.Message));
+                formatInfo.Failure = ImageFailure.NotRead;
+                formatInfo.FailureException = ex;
                 RenderFailureImage(destRect);
             }
         }
@@ -111,11 +115,26 @@ internal class ImageRenderer : ShapeRenderer
         RenderLine();
     }
 
+    /// <summary>
+    ///   Whether an exception is one there is no carrying on from. Drawing a placeholder in place
+    ///   of an image that would not load keeps a document with one bad image renderable, but an
+    ///   OutOfMemoryException says nothing about the image and everything about the process it is
+    ///   being rendered in. Swallowing it turns a memory problem into a page of grey boxes and
+    ///   leaves the process to fail somewhere else, with nothing in the log pointing back here.
+    /// </summary>
+    static bool IsUnrecoverable(Exception ex)
+    {
+        // InsufficientMemoryException derives from OutOfMemoryException, so it is covered too.
+        return ex is OutOfMemoryException;
+    }
+
     void RenderFailureImage(XRect destRect)
     {
         gfx.DrawRectangle(XBrushes.LightGray, destRect);
         string failureString;
         ImageFormatInfo formatInfo = (ImageFormatInfo)RenderInfo.FormatInfo;
+
+        documentRenderer?.OnImageFailed(image, formatInfo.Failure, formatInfo.FailureException);
 
         switch (formatInfo.Failure)
         {
@@ -157,6 +176,11 @@ internal class ImageRenderer : ShapeRenderer
             {
                 Debug.WriteLine(string.Format(AppResources.InvalidImageType, ex.Message));
                 formatInfo.Failure = ImageFailure.InvalidType;
+                formatInfo.FailureException = ex;
+                // Measuring an image there is none of would throw on the very first line below,
+                // and the NotRead that came of that used to bury the reason worked out here.
+                SetFallbackDimensions(formatInfo);
+                return;
             }
 
             try
@@ -266,10 +290,10 @@ internal class ImageRenderer : ShapeRenderer
                 }
                 if (resultHeight <= 0 || resultWidth <= 0)
                 {
-                    formatInfo.Width = XUnit.FromCentimeter(2.5);
-                    formatInfo.Height = XUnit.FromCentimeter(2.5);
                     Debug.WriteLine(AppResources.EmptyImageSize);
-                    failure = ImageFailure.EmptySize;
+                    // The field this used to be assigned to had already been copied into the
+                    // format info by Format, so the placeholder this asks for was never drawn.
+                    formatInfo.Failure = ImageFailure.EmptySize;
                 }
                 else
                 {
@@ -277,10 +301,11 @@ internal class ImageRenderer : ShapeRenderer
                     formatInfo.Height = resultHeight;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!IsUnrecoverable(ex))
             {
                 Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source.ToString(), ex.Message));
                 formatInfo.Failure = ImageFailure.NotRead;
+                formatInfo.FailureException = ex;
             }
             finally
             {
@@ -289,20 +314,25 @@ internal class ImageRenderer : ShapeRenderer
             }
         }
         if (formatInfo.Failure != ImageFailure.None)
-        {
-            if (!image.IsNull("Width"))
-                formatInfo.Width = image.Width.Point;
-            else
-                formatInfo.Width = XUnit.FromCentimeter(2.5);
+            SetFallbackDimensions(formatInfo);
+    }
 
-            if (!image.IsNull("Height"))
-                formatInfo.Height = image.Height.Point;
-            else
-                formatInfo.Height = XUnit.FromCentimeter(2.5);
-            return;
+    /// <summary>
+    ///   Sizes the placeholder that stands in for an image that could not be drawn: what the
+    ///   document asked for where it asked for anything, and a square inch or so where it did not.
+    /// </summary>
+    private void SetFallbackDimensions(ImageFormatInfo formatInfo)
+    {
+        // A size of nothing would hide the placeholder, which defeats the point of drawing one,
+        // so anything the document does not give a positive size for falls back to an inch or so.
+        formatInfo.Width = Positive(image.IsNull("Width") ? 0 : image.Width.Point);
+        formatInfo.Height = Positive(image.IsNull("Height") ? 0 : image.Height.Point);
+
+        static XUnit Positive(double points)
+        {
+            return points > 0 ? XUnit.FromPoint(points) : XUnit.FromCentimeter(2.5);
         }
     }
 
     Image image;
-    ImageFailure failure;
 }

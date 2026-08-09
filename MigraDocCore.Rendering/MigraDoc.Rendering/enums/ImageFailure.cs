@@ -30,11 +30,36 @@
 
 namespace MigraDocCore.Rendering;
 
-internal enum ImageFailure
+/// <summary>
+/// Why an image was replaced by a placeholder instead of being drawn.
+/// Reported by <see cref="DocumentRenderer.ImageFailed" />.
+/// </summary>
+public enum ImageFailure
 {
+  /// <summary>
+  /// The image was drawn.
+  /// </summary>
   None = 0,
+
+  /// <summary>
+  /// The file the image was to be read from does not exist.
+  /// </summary>
   FileNotFound,
+
+  /// <summary>
+  /// The image source could not be turned into an image, because no backend is registered
+  /// or because the backend does not support the format.
+  /// </summary>
   InvalidType,
+
+  /// <summary>
+  /// The image could not be measured or drawn. The exception that says why is on the
+  /// event arguments.
+  /// </summary>
   NotRead,
+
+  /// <summary>
+  /// The size worked out for the image has no area.
+  /// </summary>
   EmptySize
 }
