@@ -168,89 +168,62 @@ public partial class Table : DocumentObject, IVisitable
     /// <summary>
     /// Sets the borders surrounding the specified range of the table.
     /// </summary>
+    /// <remarks>
+    ///   An interior edge lies between two cells and both of them describe it: the renderer draws
+    ///   the thicker of the two facing borders, so the edge is only as this call asks for it to be
+    ///   once both sides say so. Writing one side alone leaves the other inheriting whatever the
+    ///   table, row or column says, which is how a cleared interior border used to survive.
+    /// </remarks>
     public void SetEdge(int clm, int row, int clms, int rows,
         Edge edge, BorderStyle style, Unit width, Color clr)
     {
         var maxRow = row + rows - 1;
         var maxClm = clm + clms - 1;
+
+        void Apply(Border border)
+        {
+            border.Style = style;
+            border.Width = width;
+            if (clr != Color.Empty)
+                border.Color = clr;
+        }
+
         for (var r = row; r <= maxRow; r++)
         {
             var currentRow = this.rows[r];
             for (var c = clm; c <= maxClm; c++)
             {
                 var currentCell = currentRow[c];
-                Border border;
                 if ((edge & Edge.Top) == Edge.Top && r == row)
-                {
-                    border = currentCell.Borders.Top;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.Top);
 
                 if ((edge & Edge.Left) == Edge.Left && c == clm)
-                {
-                    border = currentCell.Borders.Left;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.Left);
 
                 if ((edge & Edge.Bottom) == Edge.Bottom && r == maxRow)
-                {
-                    border = currentCell.Borders.Bottom;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.Bottom);
 
                 if ((edge & Edge.Right) == Edge.Right && c == maxClm)
-                {
-                    border = currentCell.Borders.Right;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.Right);
 
+                // The row below is inside the range because this edge is an interior one.
                 if ((edge & Edge.Horizontal) == Edge.Horizontal && r < maxRow)
                 {
-                    border = currentCell.Borders.Bottom;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
+                    Apply(currentCell.Borders.Bottom);
+                    Apply(this.rows[r + 1][c].Borders.Top);
                 }
 
                 if ((edge & Edge.Vertical) == Edge.Vertical && c < maxClm)
                 {
-                    border = currentCell.Borders.Right;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
+                    Apply(currentCell.Borders.Right);
+                    Apply(currentRow[c + 1].Borders.Left);
                 }
 
                 if ((edge & Edge.DiagonalDown) == Edge.DiagonalDown)
-                {
-                    border = currentCell.Borders.DiagonalDown;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.DiagonalDown);
 
                 if ((edge & Edge.DiagonalUp) == Edge.DiagonalUp)
-                {
-                    border = currentCell.Borders.DiagonalUp;
-                    border.Style = style;
-                    border.Width = width;
-                    if (clr != Color.Empty)
-                        border.Color = clr;
-                }
+                    Apply(currentCell.Borders.DiagonalUp);
             }
         }
     }

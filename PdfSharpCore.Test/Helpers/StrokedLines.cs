@@ -14,15 +14,22 @@ namespace PdfSharpCore.Test.Helpers;
 /// </summary>
 internal static class StrokedLines
 {
+    /// <summary>The colour a page strokes in until it names another one.</summary>
+    internal const string Black = "0,0,0";
+
+    static readonly System.Globalization.CultureInfo Invariant =
+        System.Globalization.CultureInfo.InvariantCulture;
+
     internal readonly struct Line
     {
-        internal Line(double x1, double y1, double x2, double y2, double width)
+        internal Line(double x1, double y1, double x2, double y2, double width, string colour)
         {
             X1 = x1;
             Y1 = y1;
             X2 = x2;
             Y2 = y2;
             Width = width;
+            Colour = colour;
         }
 
         internal double X1 { get; }
@@ -30,6 +37,12 @@ internal static class StrokedLines
         internal double X2 { get; }
         internal double Y2 { get; }
         internal double Width { get; }
+
+        /// <summary>
+        ///   The stroking colour in force when the segment was drawn, as "r,g,b" with each
+        ///   component between 0 and 1. A page that never names one strokes in black.
+        /// </summary>
+        internal string Colour { get; }
 
         internal bool IsVertical => Math.Abs(X1 - X2) < 0.001;
         internal bool IsHorizontal => Math.Abs(Y1 - Y2) < 0.001;
@@ -43,7 +56,7 @@ internal static class StrokedLines
         public override string ToString()
         {
             var kind = IsVertical ? "V" : IsHorizontal ? "H" : "?";
-            return $"{kind} ({X1:F2},{Y1:F2})-({X2:F2},{Y2:F2}) w={Width:F2}";
+            return $"{kind} ({X1:F2},{Y1:F2})-({X2:F2},{Y2:F2}) w={Width:F2} rgb={Colour}";
         }
     }
 
@@ -61,13 +74,14 @@ internal static class StrokedLines
 
         // The current point, the point the subpath began at, and the current line width.
         double x = 0, y = 0, startX = 0, startY = 0, width = 1;
+        var colour = Black;
         var inSubpath = false;
 
         // Closing a subpath draws the segment back to where it began.
         void CloseSubpath()
         {
             if (inSubpath && (x != startX || y != startY))
-                path.Add(new Line(x, y, startX, startY, width));
+                path.Add(new Line(x, y, startX, startY, width, colour));
 
             x = startX;
             y = startY;
@@ -85,6 +99,12 @@ internal static class StrokedLines
                         width = Number(op.Operands[0]);
                     break;
 
+                case OpCodeName.RG:
+                    if (op.Operands.Count >= 3)
+                        colour = string.Join(",", Number(op.Operands[0]).ToString(Invariant),
+                            Number(op.Operands[1]).ToString(Invariant), Number(op.Operands[2]).ToString(Invariant));
+                    break;
+
                 case OpCodeName.m:
                     if (op.Operands.Count >= 2)
                     {
@@ -99,7 +119,7 @@ internal static class StrokedLines
                     {
                         var toX = Number(op.Operands[0]);
                         var toY = Number(op.Operands[1]);
-                        path.Add(new Line(x, y, toX, toY, width));
+                        path.Add(new Line(x, y, toX, toY, width, colour));
                         x = toX;
                         y = toY;
                     }
