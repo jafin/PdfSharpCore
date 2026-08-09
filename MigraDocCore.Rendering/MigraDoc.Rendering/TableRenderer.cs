@@ -710,9 +710,15 @@ internal class TableRenderer : Renderer
   /// </summary>
   /// <param name="row">The row that is probed for downward connection.</param>
   /// <returns>The last row that is connected with the given row.</returns>
+  /// <remarks>
+  ///   A row can ask to be kept with more rows than follow it: a table built a row at a time
+  ///   does not know, while it is being built, how many more rows there are going to be. There
+  ///   is nothing below the last row to keep it with, so the answer stops there.
+  /// </remarks>
   int CalcLastConnectedRow(int row)
   {
     int lastConnectedRow = row;
+    int lastRow = table.Rows.Count - 1;
     foreach (Cell cell in mergedCells)
     {
       var index = cell.Row.Index; // Note: Caching index here for speedup for large tables.
@@ -720,7 +726,7 @@ internal class TableRenderer : Renderer
       {
         int downConnection = Math.Max(cell.Row.KeepWith, cell.MergeDown);
         if (lastConnectedRow < index + downConnection)
-          lastConnectedRow = index + downConnection;
+          lastConnectedRow = Math.Min(index + downConnection, lastRow);
       }
     }
     return lastConnectedRow;
@@ -731,16 +737,21 @@ internal class TableRenderer : Renderer
   /// </summary>
   /// <param name="column">The column that is probed for downward connection.</param>
   /// <returns>The last column that is connected with the given column.</returns>
+  /// <remarks>
+  ///   As with <see cref="CalcLastConnectedRow"/>, a column can ask to be kept with more columns
+  ///   than stand to the right of it, and there is nothing beyond the last one to keep it with.
+  /// </remarks>
   int CalcLastConnectedColumn(int column)
   {
     int lastConnectedColumn = column;
+    int lastColumn = table.Columns.Count - 1;
     foreach (Cell cell in mergedCells)
     {
       if (cell.Column.Index <= lastConnectedColumn)
       {
         int rightConnection = Math.Max(cell.Column.KeepWith, cell.MergeRight);
         if (lastConnectedColumn < cell.Column.Index + rightConnection)
-          lastConnectedColumn = cell.Column.Index + rightConnection;
+          lastConnectedColumn = Math.Min(cell.Column.Index + rightConnection, lastColumn);
       }
     }
     return lastConnectedColumn;
