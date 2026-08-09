@@ -86,6 +86,14 @@ The parser now treats a length reaching past the end of the file as no length at
 same recovery it takes for a missing one. `ReadStream` reads through `StreamHelper.ReadUpTo` and
 hands back what it got.
 
+That leaves the parser to notice when what it got is short. The position it notes as the start of
+the stream is where the lexer stands, which is the end-of-line behind the `stream` keyword and not
+the first byte of the data — so a length reaching to exactly the last byte of the file fits the
+file by a byte it cannot use, and comes back one byte short. Reading on from there finds the end of
+the file, and `ReadSymbol` lets an unexpected end of file pass, so the truncated stream would be
+accepted without the keyword that ends one and without a word — item 1 again, by another road. A
+short read is therefore a length that did not describe the stream, and takes the recovery.
+
 ---
 
 ## What this changes for documents that read today
@@ -101,11 +109,11 @@ than dropping bytes from it, which is the trade this makes deliberately.
 
 ## Verification
 
-`PdfSharpCore.Test/IO/WrongStreamLengthTests.cs`, 16 tests: lengths short by 1, 5 and everything,
+`PdfSharpCore.Test/IO/WrongStreamLengthTests.cs`, 17 tests: lengths short by 1, 5 and everything,
 long by 5 and by more than the stream, a compressed stream short by 5, all four ways a stream can
-end without a line feed, a wrong length given indirectly, a length longer than the file, the
-recovered length being recorded, and a stream that never ends still being reported as unreadable.
-On `master`, 9 of them fail. Two of those are the silent truncation: a content stream one byte
+end without a line feed, a wrong length given indirectly, a length longer than the file, one
+reaching to exactly the end of it, the recovered length being recorded, and a stream that never
+ends still being reported as unreadable. On `master`, 10 of them fail. Two of those are the silent truncation: a content stream one byte
 short reads one byte short, and a compressed stream one byte short fails to inflate at all
 ("Unexpected EOF" out of SharpZipLib), which is what that dropped byte costs a document that is
 not plain text.

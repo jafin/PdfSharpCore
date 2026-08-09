@@ -263,8 +263,7 @@ internal sealed class Parser
             PdfDictionary dict = (PdfDictionary)pdfObject;
             Debug.Assert(checkForStream, "Unexpected stream...");
             var startOfStream = _lexer.Position;
-            int length = LengthThatFitsInTheFile(GetStreamLength(dict), startOfStream);
-            byte[] bytes = length < 0 ? null : _lexer.ReadStream(length);
+            byte[] bytes = TheStreamTheDictionaryDescribes(dict, startOfStream);
 
             if (bytes == null)
             {
@@ -309,8 +308,8 @@ internal sealed class Parser
         Debug.Assert(symbol == Symbol.BeginStream);
         Debug.Assert(dict.Stream == null, "Dictionary already has a stream.");
         var startOfStream = _lexer.Position;
-        int length = LengthThatFitsInTheFile(GetStreamLength(dict), startOfStream);
-        if (length < 0)
+        byte[] bytes = TheStreamTheDictionaryDescribes(dict, startOfStream);
+        if (bytes == null)
         {
             if (!TryReadStreamUpToEndOfStream(dict, startOfStream))
                 throw new InvalidOperationException("Cannot retrieve stream length.");
@@ -318,7 +317,6 @@ internal sealed class Parser
             return;
         }
 
-        byte[] bytes = _lexer.ReadStream(length);
         dict.Stream = new PdfDictionary.PdfStream(bytes, dict);
         try
         {
@@ -334,13 +332,24 @@ internal sealed class Parser
     }
 
     /// <summary>
-    /// The length given, or -1 when the stream it describes would reach past the end of the
-    /// file. Such a length describes no stream that is there, so the caller is better off
-    /// looking for the end of the stream than believing it.
+    /// The bytes the dictionary says its stream holds, or null when it does not say how long the
+    /// stream is or the file cannot deliver what it says. A length reaching past the end of the
+    /// file describes no stream that is there, so the caller is better off looking for the end of
+    /// the stream than believing it.
     /// </summary>
-    private int LengthThatFitsInTheFile(int length, long startOfStream)
+    private byte[] TheStreamTheDictionaryDescribes(PdfDictionary dict, long startOfStream)
     {
-        return length >= 0 && startOfStream + length > _lexer.PdfLength ? -1 : length;
+        int length = GetStreamLength(dict);
+        if (length < 0 || startOfStream + length > _lexer.PdfLength)
+            return null;
+
+        byte[] bytes = _lexer.ReadStream(length);
+        // The end-of-line behind the "stream" keyword is not part of the data and is not counted
+        // in startOfStream, so a length can clear the check above and still run the file out of
+        // bytes. What came back short is not the stream the dictionary described, and taking it
+        // would end the object at the end of the file with no keyword to say the stream ended -
+        // which ReadSymbol accepts, since it lets an unexpected end of file pass.
+        return bytes.Length == length ? bytes : null;
     }
 
     /// <summary>

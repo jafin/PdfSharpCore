@@ -102,6 +102,19 @@ public class WrongStreamLengthTests
     }
 
     [Fact]
+    public void AStreamDeclaredToReachTheVeryEndOfTheFileIsReadAsTheStreamItIs()
+    {
+        // The end-of-line behind "stream" is where the reader stands when it notes the start of
+        // the stream, and it is not part of the data. A length that reaches from there to the last
+        // byte of the file therefore fits the file by a byte it cannot use, and reading it hands
+        // back one byte less than was asked for. That short read has to be taken for the wrong
+        // length it is: what follows it is the end of the file, and a stream is not ended by one.
+        var document = Read(DocumentWhoseContentDeclaresItReachesTheEndOfTheFile(), PdfReadAccuracy.Strict);
+
+        ContentOf(document).Should().Be(Content);
+    }
+
+    [Fact]
     public void AStreamThatNeverEndsIsStillReportedAsUnreadable()
     {
         // Nothing can be recovered from a document that does not hold the keyword at all, and
@@ -132,6 +145,24 @@ public class WrongStreamLengthTests
     private static byte[] DocumentWhoseContentDeclares(int length)
     {
         return DocumentWhoseContentIs("<</Length " + length + ">>stream\n" + Content + "\nendstream");
+    }
+
+    /// <summary>
+    ///   A document whose content stream declares exactly the number of bytes between the
+    ///   end-of-line behind its "stream" keyword and the end of the file. The length is written as
+    ///   a fixed six digits and then patched in place, so that settling on it does not move the
+    ///   cross reference table out from under the offsets that were written for it.
+    /// </summary>
+    private static byte[] DocumentWhoseContentDeclaresItReachesTheEndOfTheFile()
+    {
+        var document = DocumentWhoseContentIs("<</Length 000000>>stream\n" + Content + "\nendstream");
+        var declaration = Encoding.Latin1.GetString(document).IndexOf("<</Length ", StringComparison.Ordinal);
+        var startOfStream = Encoding.Latin1.GetString(document).IndexOf(">>stream\n", StringComparison.Ordinal)
+                            + ">>stream".Length;
+
+        var length = Encoding.Latin1.GetBytes((document.Length - startOfStream).ToString("D6"));
+        Array.Copy(length, 0, document, declaration + "<</Length ".Length, length.Length);
+        return document;
     }
 
     private static byte[] DocumentWhoseContentIs(string content)
