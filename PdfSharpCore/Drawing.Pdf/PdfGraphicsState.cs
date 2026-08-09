@@ -340,10 +340,28 @@ internal sealed class PdfGraphicsState : ICloneable
     double _realizedFontSize;
     int _realizedRenderingMode;  // Reference: TABLE 5.2  Text state operators / Page 398
     double _realizedCharSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
+    double _realizedWordSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
 
-    public void RealizeFont(XFont font, XBrush brush, int renderingMode)
+    // Not 0: a content stream starts with a horizontal scaling of 100 percent, and a state that
+    // thought otherwise would write a redundant Tz in front of the first string on every page.
+    double _realizedHorizontalScaling = 100;  // Reference: TABLE 5.2  Text state operators / Page 398
+
+    /// <summary>
+    /// Returns true if the word spacing asked for has to be drawn by spacing the words out
+    /// individually, because Tw cannot express it for this font.
+    /// </summary>
+    /// <remarks>
+    /// Tw applies to every occurrence of the <em>single-byte</em> character code 32, and expressly
+    /// not to the byte 32 inside a multiple-byte code (PDF 32000-1 section 9.3.3). A font embedded
+    /// as Identity-H writes two-byte codes, so Tw is silently inert for it - which is most fonts
+    /// here, since Unicode is the encoding anything outside WinAnsi gets.
+    /// </remarks>
+    public static bool NeedsWordSpacingByHand(XFont font, XStringFormat format)
+        => font.Unicode && format.WordSpacing != 0;
+
+    public void RealizeFont(XFont font, XBrush brush, int renderingMode, XStringFormat format)
     {
-        const string format = Config.SignificantFigures3;
+        const string numberFormat = Config.SignificantFigures3;
 
         // So far rendering mode 0 (fill text) and 2 (fill, then stroke text) only.
         RealizeBrush(brush, _renderer._colorMode, renderingMode, font.Size); // _renderer.page.document.Options.ColorMode);
@@ -355,23 +373,32 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedRenderingMode = renderingMode;
         }
 
-        // Realize character spacing.
-        if (_realizedRenderingMode == 0)
+        // Realize character spacing. Bold simulation widens every glyph with a spacing of its own,
+        // and the caller's spacing is added to that rather than replaced by it - otherwise asking
+        // for a spacing on a simulated-bold font would quietly un-bolden it.
+        double charSpace = format.CharacterSpacing;
+        if (renderingMode == 2)
+            charSpace += font.Size * Const.BoldEmphasis;
+        if (_realizedCharSpace != charSpace)
         {
-            if (_realizedCharSpace != 0)
-            {
-                _renderer.Append("0 Tc\n");
-                _realizedCharSpace = 0;
-            }
+            _renderer.AppendFormatDouble("{0:" + numberFormat + "} Tc\n", charSpace);
+            _realizedCharSpace = charSpace;
         }
-        else  // _realizedRenderingMode is 2.
+
+        // Realize word spacing. Held at zero for the fonts Tw cannot speak for, rather than
+        // written and silently ignored; DrawString spaces those out with a TJ array instead.
+        double wordSpace = NeedsWordSpacingByHand(font, format) ? 0 : format.WordSpacing;
+        if (_realizedWordSpace != wordSpace)
         {
-            double charSpace = font.Size * Const.BoldEmphasis;
-            if (_realizedCharSpace != charSpace)
-            {
-                _renderer.AppendFormatDouble("{0:" + format + "} Tc\n", charSpace);
-                _realizedCharSpace = charSpace;
-            }
+            _renderer.AppendFormatDouble("{0:" + numberFormat + "} Tw\n", wordSpace);
+            _realizedWordSpace = wordSpace;
+        }
+
+        // Realize horizontal scaling.
+        if (_realizedHorizontalScaling != format.HorizontalScaling)
+        {
+            _renderer.AppendFormatDouble("{0:" + numberFormat + "} Tz\n", format.HorizontalScaling);
+            _realizedHorizontalScaling = format.HorizontalScaling;
         }
 
         _realizedFont = null;
@@ -379,9 +406,9 @@ internal sealed class PdfGraphicsState : ICloneable
         if (fontName != _realizedFontName || _realizedFontSize != font.Size)
         {
             if (_renderer.Gfx.PageDirection == XPageDirection.Downwards)
-                _renderer.AppendFormatFont("{0} {1:" + format + "} Tf\n", fontName, font.Size);
+                _renderer.AppendFormatFont("{0} {1:" + numberFormat + "} Tf\n", fontName, font.Size);
             else
-                _renderer.AppendFormatFont("{0} {1:" + format + "} Tf\n", fontName, font.Size);
+                _renderer.AppendFormatFont("{0} {1:" + numberFormat + "} Tf\n", fontName, font.Size);
             _realizedFontName = fontName;
             _realizedFontSize = font.Size;
         }

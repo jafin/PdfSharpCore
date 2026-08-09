@@ -6,7 +6,7 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Items A1 and A2 are built, on
+This is the gap analysis and the plan. Items A1 to A5 are built, on
 `feat/text-state-and-measurement`; everything else is still to do.
 
 ## Where parity has to land
@@ -58,9 +58,9 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 8 | `ellipsis` | **missing** — overflow is a hard cut, no glyph | **missing** |
 | 9 | `columns` | **missing** | **missing** — `PageSetup` has no column properties |
 | 10 | `columnGap` | **missing** | **missing** |
-| 11 | `characterSpacing` | **missing** as API — `Tc` is emitted only to fake bold (`PdfGraphicsState.cs:363,372`) | **missing**, marked unported at `Font.cs:276` |
-| 12 | `wordSpacing` | **missing** — `Tw` appears nowhere in the repo | **missing** |
-| 13 | `horizontalScaling` | **missing** — the only `Tz` written is a literal `100 Tz` in the *image* path (`XGraphicsPdfRenderer.cs:641`) | **missing**, `Font.cs:277` |
+| 11 | `characterSpacing` | **done** — `XStringFormat.CharacterSpacing`, written as `Tc` | **missing**, marked unported at `Font.cs:276` |
+| 12 | `wordSpacing` | **done** — `XStringFormat.WordSpacing`, written as `Tw` or as a `TJ` array | **missing** |
+| 13 | `horizontalScaling` | **done** — `XStringFormat.HorizontalScaling`, written as `Tz` | **missing**, `Font.cs:277` |
 | 14 | `fill` | partial — always on, cannot be disabled | always on |
 | 15 | `stroke` | **missing** — no `DrawString` takes an `XPen`; `Tr` 1 throws (`PdfGraphicsState.cs:258`) | **missing**, `Font.cs:266` |
 | 16 | `oblique` | partial — a fixed 20° skew, reachable only as italic simulation (`Configuration.cs:57`) | **missing** |
@@ -74,7 +74,7 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 24 | `continued` | partial — `XTextSegmentFormatter` takes mixed runs in one call, but there is no resumable cursor | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five are at parity.
+Two of twenty-five were at parity when this was written; five are now.
 
 ---
 
@@ -117,23 +117,36 @@ by later ones.
     a simulated-bold multi-line string measured too wide. `SpacingIsCountedPerLineAndTheWidestLine`
     `DecidesTheWidth` covers the shape of it.
   - A line feed decremented that same count, so it was paid a character spacing it never drew.
-- [ ] **A3. Track and emit `Tc` for `characterSpacing`.**
-  `PdfGraphicsState` already has `_realizedCharSpace` (`PdfGraphicsState.cs:342`) and writes `Tc` at
-  `:363`/`:372`. The value is currently derived solely from bold simulation; it must become
-  `boldSimulationSpacing + state.CharacterSpacing` so the two compose rather than one overwriting
-  the other.
-- [ ] **A4. Emit `Tw` for `wordSpacing`.** New realized field alongside `_realizedCharSpace`.
-  Note the PDF restriction PDFKit works around — `Tw` applies only to single-byte code 32, so it is
-  inert on the Unicode/`Identity-H` path, which is the default for embedded TrueType here. Either
-  restrict `Tw` to the WinAnsi path and position words individually on the Unicode path (PDFKit's
-  approach), or always position individually. Decide before A5, because justification depends on it.
-- [ ] **A5. Emit `Tz` for `horizontalScaling`.** New realized field. Beware the stray literal
-  `100 Tz` inside the image format string at `XGraphicsPdfRenderer.cs:641` — it is inside a
-  `q`/`Q` pair so it does not leak today, but a `Tz` that is now graphics-state-tracked must not be
-  confused by it.
+- [x] **A3. Track and emit `Tc` for `characterSpacing`.**
+  The two branches that set `Tc` from the rendering mode alone are now one line —
+  `format.CharacterSpacing`, plus the bold-simulation spacing when the mode is 2. The two compose
+  rather than one overwriting the other, so asking for a spacing on a simulated-bold font no longer
+  quietly un-boldens it.
+- [x] **A4. Emit `Tw` for `wordSpacing`, and space the words by hand where `Tw` cannot.**
+  Both, as it turned out — the choice this item left open is not really a choice. `Tw` applies to
+  the single-byte code 32 and expressly not to the byte 32 inside a multiple-byte code
+  (PDF 32000-1 section 9.3.3), so for a font embedded as `Identity-H` a `Tw` is accepted and
+  silently ignored. `PdfGraphicsState.NeedsWordSpacingByHand` decides which case a font is in:
+  WinAnsi gets `Tw`, Unicode gets a `TJ` array with `-wordSpacing * 1000 / size` between the runs,
+  and `Tw` is held at zero for it rather than written and ignored.
+
+  This is the first `TJ` the renderer has ever emitted. All four show-text sites now carry their
+  operator in the operand string rather than in the format, which is what lets one of them be `TJ`.
+
+  The sign is the part worth having a test for: a number in a `TJ` array is *subtracted* from the
+  horizontal position, so the number that opens a gap is a negative one, and a test that only
+  checked the number it wrote would agree with itself whichever way round it was.
+  `TextStateRenderingTests` rasterizes instead and measures the ink —
+  `TheTwoEncodingsSpaceTheirWordsOutTheSameAmount` is the one that would catch it.
+- [x] **A5. Emit `Tz` for `horizontalScaling`.** New realized field, seeded to 100 rather than 0 so
+  that a page whose text is unscaled does not open with a redundant `Tz`. The stray literal
+  `100 Tz` in the image path (`XGraphicsPdfRenderer.cs:641`) is inside a `q`/`Q` pair and does not
+  disturb the tracked value.
 - [ ] **A6. Emit `Ts` for text rise.** Not in PDFKit's list, but it is the mechanism super/subscript
   should use, and MigraDoc currently fakes both by shifting the baseline and shrinking the font
-  (`ParagraphRenderer.cs:1199-1207`). Cheap once A1 exists.
+  (`ParagraphRenderer.cs:1199-1207`). `XStringFormat.TextRise` exists and is read by nothing; the
+  emission is the same shape as A3's, a realized field and a compare. Cheap, and the last thing
+  keeping a property on the type from meaning something.
 
 ### B — fill and stroke
 
@@ -248,10 +261,15 @@ list at lines 443-456.
 B1-B3, C5 and D3 have nowhere to read their input from, and any wrapping computed on top of them
 disagrees with what is drawn. Both are done.
 
-**A3-A6 should land before this branch merges.** A1 and A2 give a caller properties to set and a
-measurement that answers through them, while the renderer still writes no `Tc`, `Tw`, `Tz` or `Ts`.
-At the defaults nothing changes and the whole suite is green either way, but a caller who sets a
-spacing today gets a width that counts it and glyphs that do not.
+**A6 should land before this branch merges.** A1 to A5 close the loop for the three properties that
+change how wide text is: they are measured, they are drawn, and the two agree. `TextRise` and
+`ObliqueAngle` are the two left over — neither changes a width, so nothing disagrees, but both are
+properties a caller can set today and get nothing for. A6 emits `Ts` for the first; D3 takes the
+skew that italic simulation already performs and lets the angle be asked for.
+
+At the defaults the content stream is byte for byte what it was: `Tc`, `Tw` and `Tz` are written
+only when they differ from what a content stream starts with, and the show-text operator moved into
+the operand string without changing a character of the output.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 
@@ -277,3 +295,10 @@ or as a case for taking a dependency rather than writing one.
 - MigraDoc gaps that PDFKit has no counterpart for — multi-column *sections*, linked text frames,
   automatic hyphenation, RTL and bidi — are out of scope here even though several sit close to
   items above.
+- `CSequence` is left as it is. It declares `IList<CObject>` and then throws
+  `NotImplementedException` from its explicit `IEnumerable<CObject>.GetEnumerator`
+  (`Pdf.Content.Objects/CObjects.cs:408-411`), along with `ICollection`'s `Count`, `IsReadOnly` and
+  `Remove`. `foreach` binds to the public `GetEnumerator` and works, which is why nothing had
+  noticed; LINQ asks for the interface one and does not. The tests reading `TJ` arrays back out
+  copy each sequence into a list first (`TextOperators.ItemsOf`). Fixing the type is a change to
+  the content object model, not to text, and belongs with whatever next has business there.

@@ -398,7 +398,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         bool strikeout = (font.Style & XFontStyle.Strikeout) != 0;
         bool underline = (font.Style & XFontStyle.Underline) != 0;
 
-        Realize(font, brush, boldSimulation ? 2 : 0);
+        Realize(font, brush, boldSimulation ? 2 : 0, format);
 
         switch (format.Alignment)
         {
@@ -466,6 +466,8 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         const string format2 = Config.SignificantFigures4;
         OpenTypeDescriptor descriptor = realizedFont.FontDescriptor._descriptor;
 
+        // The whole show-text operation, its operator included: usually a Tj, but a TJ array when
+        // the words have to be spaced out by hand. See PdfGraphicsState.NeedsWordSpacingByHand.
         string text = null;
         if (font.Unicode)
         {
@@ -482,16 +484,16 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 int glyphID = descriptor.CharCodeToGlyphIndex(ch);
                 sb.Append((char)glyphID);
             }
-            s = sb.ToString();
+            string glyphs = sb.ToString();
 
-            byte[] bytes = PdfEncoders.RawUnicodeEncoding.GetBytes(s);
-            bytes = PdfEncoders.FormatStringLiteral(bytes, true, false, true, null);
-            text = PdfEncoders.RawEncoding.GetString(bytes, 0, bytes.Length);
+            text = PdfGraphicsState.NeedsWordSpacingByHand(font, format)
+                ? WordSpacedGlyphRun(s, glyphs, font.Size, format.WordSpacing)
+                : GlyphRunToHexString(glyphs) + " Tj";
         }
         else
         {
             byte[] bytes = PdfEncoders.WinAnsiEncoding.GetBytes(s);
-            text = PdfEncoders.ToStringLiteral(bytes, false, null);
+            text = PdfEncoders.ToStringLiteral(bytes, false, null) + " Tj";
         }
 
         // Map absolute position to PDF world space.
@@ -511,13 +513,13 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             if (_gfxState.ItalicSimulationOn)
             {
                 AdjustTdOffset(ref pos, verticalOffset, true);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td\n{2} Tj\n", pos.X, pos.Y, text);
+                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td\n{2}\n", pos.X, pos.Y, text);
             }
             else
             {
                 // Italic simulation is done by skewing characters 20° to the right.
                 XMatrix m = new XMatrix(1, 0, Const.ItalicSkewAngleSinus, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6} Tj\n",
+                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
                     m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
                 _gfxState.ItalicSimulationOn = true;
                 AdjustTdOffset(ref pos, verticalOffset, false);
@@ -528,7 +530,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             if (_gfxState.ItalicSimulationOn)
             {
                 XMatrix m = new XMatrix(1, 0, 0, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6} Tj\n",
+                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
                     m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
                 _gfxState.ItalicSimulationOn = false;
                 AdjustTdOffset(ref pos, verticalOffset, false);
@@ -536,7 +538,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             else
             {
                 AdjustTdOffset(ref pos, verticalOffset, false);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2} Tj\n", pos.X, pos.Y, text);
+                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2}\n", pos.X, pos.Y, text);
             }
         }
 
@@ -1587,13 +1589,73 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Makes the specified font and brush to the current graphics objects.
     /// </summary>
-    void Realize(XFont font, XBrush brush, int renderingMode)
+    void Realize(XFont font, XBrush brush, int renderingMode, XStringFormat format)
     {
         BeginPage();
         RealizeTransform();
         BeginTextMode();
-        _gfxState.RealizeFont(font, brush, renderingMode);
+        _gfxState.RealizeFont(font, brush, renderingMode, format);
     }
+
+    /// <summary>
+    /// Encodes a run of glyph identifiers as the hexadecimal string a Tj or a TJ array takes.
+    /// </summary>
+    static string GlyphRunToHexString(string glyphs)
+    {
+        byte[] bytes = PdfEncoders.RawUnicodeEncoding.GetBytes(glyphs);
+        bytes = PdfEncoders.FormatStringLiteral(bytes, true, false, true, null);
+        return PdfEncoders.RawEncoding.GetString(bytes, 0, bytes.Length);
+    }
+
+    /// <summary>
+    /// Builds a TJ array that draws <paramref name="glyphs"/> with <paramref name="wordSpacing"/>
+    /// points of extra room after every space, for the fonts whose Tw cannot say so.
+    /// </summary>
+    /// <remarks>
+    /// A number in a TJ array moves the pen back by n/1000 of the font size, so the number that
+    /// buys one word spacing is -wordSpacing * 1000 / size. The horizontal scaling multiplies that
+    /// displacement and the one Tw produces alike, so it cancels and is not compensated for here.
+    /// <para>
+    /// <paramref name="text"/> is the string as the caller wrote it and <paramref name="glyphs"/>
+    /// the glyph identifiers it was mapped to, one per character, so an index into one is an index
+    /// into the other.
+    /// </para>
+    /// </remarks>
+    static string WordSpacedGlyphRun(string text, string glyphs, double fontSize, double wordSpacing)
+    {
+        Debug.Assert(text.Length == glyphs.Length, "One glyph per character, or the split lands in the wrong place.");
+
+        // A font of no size has no displacement to divide into, and nothing to show either.
+        if (fontSize <= 0)
+            return GlyphRunToHexString(glyphs) + " Tj";
+
+        double adjustment = -wordSpacing * 1000 / fontSize;
+
+        StringBuilder tj = new StringBuilder("[");
+        int start = 0;
+        for (int idx = 0; idx < text.Length; idx++)
+        {
+            if (!IsWordSpace(text[idx]))
+                continue;
+
+            // The run up to and including the space, then the room that follows it.
+            tj.Append(GlyphRunToHexString(glyphs.Substring(start, idx - start + 1)));
+            tj.Append(' ');
+            tj.Append(adjustment.ToString(Config.SignificantFigures3, CultureInfo.InvariantCulture));
+            tj.Append(' ');
+            start = idx + 1;
+        }
+        if (start < glyphs.Length)
+            tj.Append(GlyphRunToHexString(glyphs.Substring(start)));
+        tj.Append("] TJ");
+        return tj.ToString();
+    }
+
+    /// <summary>
+    /// True for the characters a word spacing is paid out for. Kept in step with
+    /// FontHelper.MeasureString, which maps a tab to a space before it counts one.
+    /// </summary>
+    static bool IsWordSpace(char ch) => ch == ' ' || ch == '\t';
 
     /// <summary>
     /// PDFsharp uses the Td operator to set the text position. Td just sets the offset of the text matrix
