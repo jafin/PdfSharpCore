@@ -143,9 +143,16 @@ public class TableRowCellsTests
         return indices;
     }
 
+    /// <summary>
+    ///   Read without creating what is not there: a cell the loop never reached has no borders,
+    ///   and asking for them the ordinary way would make some and hide that.
+    /// </summary>
     static Color ColourOf(Cell cell)
     {
-        return ((Borders)cell.GetValue("Borders", GV.GetNull)).Color;
+        var borders = (Borders)cell.GetValue("Borders", GV.GetNull);
+        borders.Should().NotBeNull(
+            "the cell at row {0}, column {1} should have been reached", cell.Row.Index, cell.Column.Index);
+        return borders.Color;
     }
 
     static Table ATableOf(int columns, int rows)
