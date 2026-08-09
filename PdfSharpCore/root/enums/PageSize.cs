@@ -137,7 +137,148 @@ public enum PageSize
     /// </summary>
     A6 = 19,
 
-    // Current U.S. loose paper sizes 
+    /// <summary>
+    /// Identifies a paper sheet size of 74 mm times 105 mm or 2.91 inch times 4.13 inch.
+    /// </summary>
+    A7 = 20,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 52 mm times 74 mm or 2.05 inch times 2.91 inch.
+    /// </summary>
+    A8 = 21,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 37 mm times 52 mm or 1.46 inch times 2.05 inch.
+    /// </summary>
+    A9 = 22,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 26 mm times 37 mm or 1.02 inch times 1.46 inch.
+    /// </summary>
+    A10 = 23,
+
+    /// <summary>
+    /// Identifies the DIN 476 oversize 2A0, a paper sheet size of 1189 mm times 1682 mm or
+    /// 46.81 inch times 66.22 inch. Named TwoA0 because an identifier cannot start with a digit.
+    /// </summary>
+    TwoA0 = 24,
+
+    /// <summary>
+    /// Identifies the DIN 476 oversize 4A0, a paper sheet size of 1682 mm times 2378 mm or
+    /// 66.22 inch times 93.62 inch. Named FourA0 because an identifier cannot start with a digit.
+    /// </summary>
+    FourA0 = 25,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 125 mm times 176 mm or 4.92 inch times 6.93 inch.
+    /// </summary>
+    B6 = 26,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 88 mm times 125 mm or 3.46 inch times 4.92 inch.
+    /// </summary>
+    B7 = 27,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 62 mm times 88 mm or 2.44 inch times 3.46 inch.
+    /// </summary>
+    B8 = 28,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 44 mm times 62 mm or 1.73 inch times 2.44 inch.
+    /// </summary>
+    B9 = 29,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 31 mm times 44 mm or 1.22 inch times 1.73 inch.
+    /// </summary>
+    B10 = 30,
+
+    // The C series holds envelopes, sized so that a C(n) envelope takes an A(n) sheet unfolded.
+
+    /// <summary>
+    /// Identifies an envelope size of 917 mm times 1297 mm or 36.10 inch times 51.06 inch.
+    /// </summary>
+    C0 = 31,
+
+    /// <summary>
+    /// Identifies an envelope size of 648 mm times 917 mm or 25.51 inch times 36.10 inch.
+    /// </summary>
+    C1 = 32,
+
+    /// <summary>
+    /// Identifies an envelope size of 458 mm times 648 mm or 18.03 inch times 25.51 inch.
+    /// </summary>
+    C2 = 33,
+
+    /// <summary>
+    /// Identifies an envelope size of 324 mm times 458 mm or 12.76 inch times 18.03 inch.
+    /// </summary>
+    C3 = 34,
+
+    /// <summary>
+    /// Identifies an envelope size of 229 mm times 324 mm or 9.02 inch times 12.76 inch.
+    /// </summary>
+    C4 = 35,
+
+    /// <summary>
+    /// Identifies an envelope size of 162 mm times 229 mm or 6.38 inch times 9.02 inch.
+    /// </summary>
+    C5 = 36,
+
+    /// <summary>
+    /// Identifies an envelope size of 114 mm times 162 mm or 4.49 inch times 6.38 inch.
+    /// </summary>
+    C6 = 37,
+
+    /// <summary>
+    /// Identifies an envelope size of 81 mm times 114 mm or 3.19 inch times 4.49 inch.
+    /// </summary>
+    C7 = 38,
+
+    /// <summary>
+    /// Identifies an envelope size of 57 mm times 81 mm or 2.24 inch times 3.19 inch.
+    /// </summary>
+    C8 = 39,
+
+    /// <summary>
+    /// Identifies an envelope size of 40 mm times 57 mm or 1.57 inch times 2.24 inch.
+    /// </summary>
+    C9 = 40,
+
+    /// <summary>
+    /// Identifies an envelope size of 28 mm times 40 mm or 1.10 inch times 1.57 inch.
+    /// </summary>
+    C10 = 41,
+
+    // The SRA series is untrimmed stock, larger again than the RA series above it.
+
+    /// <summary>
+    /// Identifies a paper sheet size of 900 mm times 1280 mm or 35.43 inch times 50.39 inch.
+    /// </summary>
+    SRA0 = 42,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 640 mm times 900 mm or 25.20 inch times 35.43 inch.
+    /// </summary>
+    SRA1 = 43,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 450 mm times 640 mm or 17.72 inch times 25.20 inch.
+    /// </summary>
+    SRA2 = 44,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 320 mm times 450 mm or 12.60 inch times 17.72 inch.
+    /// </summary>
+    SRA3 = 45,
+
+    /// <summary>
+    /// Identifies a paper sheet size of 225 mm times 320 mm or 8.86 inch times 12.60 inch.
+    /// </summary>
+    SRA4 = 46,
+
+    // Current U.S. loose paper sizes
     // see http://www.reference.com/browse/wiki/Paper_size
 
     /// <summary>
@@ -151,7 +292,7 @@ public enum PageSize
     Foolscap = 101,
 
     /// <summary>
-    ///  Identifies a paper sheet size of 10.5 inch times 7.25 inch or 267 mm times 184 mm.
+    ///  Identifies a paper sheet size of 7.25 inch times 10.5 inch or 184 mm times 267 mm.
     /// </summary>
     Executive = 102,
 
