@@ -589,30 +589,55 @@ public class Lexer
         while (true)
         {
             MoveToNonWhiteSpace();
+            // A truncated hex string never sees its closing '>', so give up at the end of
+            // the file rather than spinning on Chars.EOF.
+            if (_currChar == Chars.EOF)
+                break;
+
             if (_currChar == '>')
             {
                 ScanNextChar(true);
                 break;
             }
+            if (!IsHexChar(_currChar))
+            {
+                // Neither '>' nor a hex digit: step over it rather than never advancing.
+                ScanNextChar(true);
+                continue;
+            }
+
+            hex[0] = _currChar;
+            ScanNextChar(true);
+            // What may come between the two digits of a byte is what may come before one:
+            // white space, and anything else that is not a digit. Only the end of the
+            // string decides that the second digit is missing rather than merely late.
+            while (!IsHexChar(_currChar) && _currChar != '>' && _currChar != Chars.EOF)
+                ScanNextChar(true);
+
             if (IsHexChar(_currChar))
             {
-                hex[0] = _currChar;
-                hex[1] = IsHexChar(_nextChar) ? _nextChar : ' ';
-                int ch = int.Parse(new string(hex), NumberStyles.HexNumber);
-                _token.Append(Convert.ToChar(ch));
+                hex[1] = _currChar;
                 ScanNextChar(true);
-                if (_currChar != '>')
-                    ScanNextChar(true);
             }
             else
-                // prevent endless loop in case _currChar is neither '>' nor a hex-char nor whitespace
-                ScanNextChar(true);
+            {
+                // A hex string with an odd number of digits ends in a zero.
+                hex[1] = '0';
+            }
+            _token.Append((char)int.Parse(new string(hex), NumberStyles.AllowHexSpecifier));
         }
         string chars = _token.ToString();
         int count = chars.Length;
         if (count > 2 && chars[0] == (char)0xFE && chars[1] == (char)0xFF)
         {
-            Debug.Assert(count % 2 == 0);
+            // The last character of the string may be short of its low byte, which is a zero
+            // for the same reason the last byte is short of its low digit. Reading on for a
+            // byte that is not there walked off the end of the string.
+            if ((count & 1) == 1)
+            {
+                chars += '\0';
+                ++count;
+            }
             _token.Length = 0;
             for (int idx = 2; idx < count; idx += 2)
                 _token.Append((char)(chars[idx] * 256 + chars[idx + 1]));
