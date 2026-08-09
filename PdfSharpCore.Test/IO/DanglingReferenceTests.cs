@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Annotations;
@@ -113,33 +111,12 @@ public class DanglingReferenceTests
 
     /// <summary>
     ///   A one page document carrying the given extra entry in its page dictionary. Object 9,
-    ///   which the entries below refer to, is deliberately never written.
+    ///   which the entries above refer to, is deliberately never written.
     /// </summary>
-    static byte[] DocumentWith(string pageEntry)
+    static byte[] DocumentWith(string pageEntry) => RawPdf.Build(new[]
     {
-        var pdf = new MemoryStream();
-        var offsets = new Dictionary<int, long>();
-
-        void Write(string text) => pdf.Write(Encoding.Latin1.GetBytes(text));
-
-        void WriteObject(int number, string body)
-        {
-            offsets[number] = pdf.Position;
-            Write(number + " 0 obj\n" + body + "\nendobj\n");
-        }
-
-        Write("%PDF-1.4\n");
-        WriteObject(1, "<</Type/Catalog/Pages 2 0 R>>");
-        WriteObject(2, "<</Type/Pages/Kids[3 0 R]/Count 1>>");
-        WriteObject(3, "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]" + pageEntry + ">>");
-
-        var startOfCrossReferenceTable = pdf.Position;
-        Write("xref\n0 4\n0000000000 65535 f \n");
-        for (var number = 1; number <= 3; number++)
-            Write(offsets[number].ToString("0000000000") + " 00000 n \n");
-        Write("trailer\n<</Size 4/Root 1 0 R>>\n");
-        Write("startxref\n" + startOfCrossReferenceTable + "\n%%EOF\n");
-
-        return pdf.ToArray();
-    }
+        "<</Type/Catalog/Pages 2 0 R>>",
+        "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+        "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]" + pageEntry + ">>"
+    });
 }

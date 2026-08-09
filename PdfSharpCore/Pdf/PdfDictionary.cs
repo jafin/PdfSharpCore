@@ -406,9 +406,6 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 return 0;
             }
 
-            if (obj is PdfNull)
-                return 0;
-
             PdfReference reference = obj as PdfReference;
             if (reference != null)
                 obj = reference.Value;
