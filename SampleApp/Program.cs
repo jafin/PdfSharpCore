@@ -1,4 +1,5 @@
-﻿using PdfSharpCore.Drawing;
+﻿using PdfSharpCore;
+using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Drawing.Layout.enums;
 using PdfSharpCore.Pdf;
@@ -97,6 +98,47 @@ public static class Program
 
         SaveDocument(document, outName);
 
+        ResizeAnA4DocumentWithLinksToA5();
+
         System.Console.WriteLine("Done!");
+    }
+
+    /// <summary>
+    /// Builds a two page A4 document whose first page links to a spot on the second, then shrinks
+    /// the whole thing to A5.
+    /// <para>
+    /// The point of the example is what does <b>not</b> have to be done. The content is scaled
+    /// rather than cropped, and the link goes on pointing at the same words - the destination is
+    /// found and moved even though it is held on a different page from the one being resized.
+    /// </para>
+    /// </summary>
+    private static void ResizeAnA4DocumentWithLinksToA5()
+    {
+        var document = new PdfDocument();
+        var font = new XFont("Arial", 14);
+
+        var first = document.AddPage();
+        first.Size = PageSize.A4;
+        var second = document.AddPage();
+        second.Size = PageSize.A4;
+
+        using (var gfx = XGraphics.FromPdfPage(first))
+            gfx.DrawString("Go to chapter two", font, XBrushes.Blue, new XPoint(60, 100));
+
+        using (var gfx = XGraphics.FromPdfPage(second))
+            gfx.DrawString("Chapter two", font, XBrushes.Black, new XPoint(60, 100));
+
+        // A link on page one, pointing a third of the way down page two.
+        first.AddDocumentLink(
+            new PdfRectangle(new XPoint(60, first.Height - 115), new XPoint(220, first.Height - 95)),
+            destinationPage: 2,
+            destinationTop: second.Height - 90);
+
+        // One call. The drawing on both pages is scaled to 70.7%, the link rectangle shrinks with
+        // the words underneath it, and the destination it points at moves to where those words
+        // ended up. Setting page.Size instead would crop both pages and leave the link behind.
+        document.ResizePages(PageSize.A5);
+
+        SaveDocument(document, "resized-a5.pdf");
     }
 }

@@ -29,11 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
+using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
 using PdfSharpCore.Pdf.IO;
@@ -955,6 +957,43 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         foreach (PdfPage page in Pages)
             PdfResourcePruner.Prune(page);
+    }
+
+    /// <summary>
+    /// Changes every page of this document to the size given, moving what is drawn on each page
+    /// into the new size rather than cropping it, and moving the annotations and the destinations
+    /// that point at each page along with the content.
+    /// </summary>
+    /// <param name="size">The size the pages are to become.</param>
+    /// <param name="orientation">Which way round that size goes.</param>
+    /// <param name="options">
+    /// How the content is to be fitted into the new size. Null fits each page in whole, centred.
+    /// Turn on <see cref="PageResizeOptions.AutoRotate"/> to normalise a document of mixed
+    /// orientation without shrinking the pages that are the other way round.
+    /// </param>
+    /// <remarks>
+    /// Prefer this to calling <see cref="PdfPage.Resize(PageSize, PageOrientation, PageResizeOptions)"/>
+    /// on each page in turn. Finding the destinations that point at a page means walking the whole
+    /// document, and this walks it once for all the pages rather than once for each of them.
+    /// </remarks>
+    public void ResizePages(PageSize size, PageOrientation orientation = PageOrientation.Portrait,
+        PageResizeOptions options = null)
+    {
+        if (!Enum.IsDefined(typeof(PageSize), size))
+            throw new InvalidEnumArgumentException(nameof(size), (int)size, typeof(PageSize));
+
+        PdfPageResizer.ResizeAll(this, PdfPage.SizeInPoints(size, orientation), size, options);
+    }
+
+    /// <summary>
+    /// Changes every page of this document to a size in points, moving what is drawn on each page
+    /// into the new size rather than cropping it.
+    /// </summary>
+    /// <param name="size">The size the pages are to become, in points, as the reader will see it.</param>
+    /// <param name="options">How the content is to be fitted into the new size.</param>
+    public void ResizePages(XSize size, PageResizeOptions options = null)
+    {
+        PdfPageResizer.ResizeAll(this, size, PageSize.Undefined, options);
     }
 
     public void ConsolidateImages()

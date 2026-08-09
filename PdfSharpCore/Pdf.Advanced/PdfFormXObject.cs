@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf.Filters;
 
 namespace PdfSharpCore.Pdf.Advanced;
 
@@ -51,6 +52,143 @@ public sealed class PdfFormXObject : PdfXObject, IContentStream
         // BUG: form is not used
         Elements.SetName(Keys.Type, "/XObject");
         Elements.SetName(Keys.Subtype, "/Form");
+    }
+
+    /// <summary>
+    /// The key marking a form as one a page resize wrapped a page's content in. Private to
+    /// PdfSharpCore; a reader that does not know it ignores it, as PDF requires of any key it
+    /// does not recognise.
+    /// <para>
+    /// The rectangle the content occupied when it was wrapped is not recorded separately: it is
+    /// the /BBox, by construction. A second resize of the same page reads it from there and works
+    /// out a fresh transform against it, rather than compounding one transform onto another.
+    /// </para>
+    /// </summary>
+    internal const string ResizeWrapperKey = "/PdfSharpCoreResizeWrapper";
+
+    /// <summary>
+    /// Initializes a form holding the content of a page of the <b>same</b> document, which is how
+    /// a page resize gets a transform in front of everything the page draws.
+    /// <para>
+    /// Nothing is imported and nothing is copied. The page's resources are handed straight over -
+    /// they may be shared with other pages, and moving the reference leaves what is shared
+    /// untouched - and the content stream is moved as it stands, filter and all, so that a
+    /// compressed page is not decompressed and recompressed just to be moved.
+    /// </para>
+    /// <para>
+    /// The caller is expected to give the page a resource dictionary naming this form, and a
+    /// content stream that draws it, immediately afterwards. Until it does, the page has content
+    /// that is no longer reachable from it.
+    /// </para>
+    /// </summary>
+    /// <param name="thisDocument">The document that owns both the page and this form.</param>
+    /// <param name="page">The page whose content is to be moved into this form.</param>
+    /// <param name="boundingBox">
+    /// The rectangle the content occupies, which becomes the form's /BBox. A form clips to its
+    /// bounding box, so this is also what keeps a page that drew outside its own box from
+    /// suddenly showing that content once the page around it changes size.
+    /// </param>
+    internal PdfFormXObject(PdfDocument thisDocument, PdfPage page, PdfRectangle boundingBox)
+        : base(thisDocument)
+    {
+        Debug.Assert(page != null);
+        Debug.Assert(ReferenceEquals(thisDocument, page.Owner));
+
+        Elements.SetName(Keys.Type, "/XObject");
+        Elements.SetName(Keys.Subtype, "/Form");
+        Elements.SetRectangle("/BBox", boundingBox);
+        Elements[ResizeWrapperKey] = new PdfBoolean(true);
+
+        // The same document, so the resources need no importing. Handing the reference over
+        // leaves a dictionary shared with other pages exactly as it was.
+        PdfItem resources = page.Elements[PdfPage.Keys.Resources];
+        if (resources != null)
+            Elements[Keys.Resources] = resources;
+
+        // A transparency group left behind on the page would no longer wrap the content that
+        // needed it, so it travels with the content.
+        PdfItem group = page.Elements[PdfPage.Keys.Group];
+        if (group != null)
+            Elements["/Group"] = group;
+
+        TakeContentOf(page);
+    }
+
+    /// <summary>
+    /// Moves the content of the page into this form.
+    /// <para>
+    /// A page with one content stream - which is nearly every page - hands its bytes over exactly
+    /// as they are, filter included, so nothing is decoded and nothing is re-encoded. A page with
+    /// several has to have them run together, and that cannot be done without decoding them, so
+    /// the result is compressed again only if the document is set to compress content.
+    /// </para>
+    /// </summary>
+    void TakeContentOf(PdfPage page)
+    {
+        PdfItem item = page.Elements[PdfPage.Keys.Contents];
+        if (item is PdfReference reference)
+            item = reference.Value;
+
+        PdfDictionary single = item as PdfDictionary;
+        if (item is PdfArray array)
+        {
+            if (array.Elements.Count == 1)
+            {
+                PdfItem only = array.Elements[0];
+                if (only is PdfReference onlyReference)
+                    only = onlyReference.Value;
+                single = only as PdfDictionary;
+            }
+            else if (array.Elements.Count == 0)
+            {
+                single = null;
+            }
+            else
+            {
+                TakeRunTogetherContentOf(page);
+                return;
+            }
+        }
+
+        if (single?.Stream == null)
+        {
+            // A page with nothing on it. The form is empty rather than absent, so that the page
+            // still draws something well formed.
+            Stream = new PdfStream(new byte[0], this);
+            Elements.SetInteger("/Length", 0);
+            return;
+        }
+
+        // Verbatim: the bytes as they are held, with whatever filter is undoing them.
+        PdfItem filter = single.Elements["/Filter"];
+        if (filter != null)
+            Elements["/Filter"] = filter.Clone();
+
+        PdfItem decodeParms = single.Elements["/DecodeParms"];
+        if (decodeParms != null)
+            Elements["/DecodeParms"] = decodeParms.Clone();
+
+        Stream = new PdfStream(single.Stream.Value, this);
+        Elements.SetInteger("/Length", single.Stream.Value.Length);
+    }
+
+    /// <summary>
+    /// Runs the several content streams of a page together into this form's single stream.
+    /// </summary>
+    void TakeRunTogetherContentOf(PdfPage page)
+    {
+        // CreateSingleContent decodes as it concatenates, so what comes back is unfiltered.
+        PdfContent joined = page.Contents.CreateSingleContent();
+        byte[] bytes = joined.Stream.Value;
+
+        if (Owner.Options.CompressContentStreams)
+        {
+            bytes = Filtering.FlateDecode.Encode(bytes, Owner.Options.FlateEncodeMode);
+            Elements.SetName("/Filter", "/FlateDecode");
+        }
+
+        Stream = new PdfStream(bytes, this);
+        Elements.SetInteger("/Length", bytes.Length);
     }
 
     internal double DpiX

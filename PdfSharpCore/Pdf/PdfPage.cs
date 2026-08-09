@@ -183,6 +183,8 @@ public sealed class PdfPage : PdfDictionary, IContentStream
             if (!Enum.IsDefined(typeof(PageSize), value))
                 throw new InvalidEnumArgumentException(nameof(value), (int)value, typeof(PageSize));
 
+            RefuseToResizeByReboxing(nameof(Size));
+
             XSize size = PageSizeConverter.ToSize(value);
             // MediaBox is always in Portrait mode (see Height, Width).
             // So take Orientation NOT into account.
@@ -191,6 +193,110 @@ public sealed class PdfPage : PdfDictionary, IContentStream
         }
     }
     PageSize _pageSize;
+
+    /// <summary>
+    /// Gets a value indicating whether the page holds any content, without disturbing it.
+    /// <para>
+    /// Reading <see cref="Contents"/> to find out would not do: its getter rewrites /Contents into
+    /// an array as a side effect of being read, so asking the question would change the answer.
+    /// </para>
+    /// </summary>
+    internal bool HasContent
+    {
+        get
+        {
+            PdfItem item = Elements[Keys.Contents];
+            if (item is PdfReference reference)
+                item = reference.Value;
+
+            return item switch
+            {
+                null => false,
+                // An array of content streams holds nothing when it is empty.
+                PdfArray array => array.Elements.Count > 0,
+                // A single content stream holds nothing when it has no bytes.
+                PdfDictionary dictionary => dictionary.Stream != null && dictionary.Stream.Length > 0,
+                _ => true,
+            };
+        }
+    }
+
+    /// <summary>
+    /// Throws when the page has content, because setting its size writes a new media box and
+    /// nothing else, which crops the content rather than resizing it.
+    /// </summary>
+    void RefuseToResizeByReboxing(string property)
+    {
+        if (!HasContent)
+            return;
+
+        throw new InvalidOperationException(
+            $"{property} cannot be set on a page that already has content on it: it writes a new " +
+            "media box and leaves the content where it was, which crops the page rather than " +
+            "resizing it. Use PdfPage.Resize to scale the content into the new size, or " +
+            "PdfPage.Resize with PageResizeOptions.Crop to crop it on purpose.");
+    }
+
+    /// <summary>
+    /// Changes the size of this page, moving what is drawn on it into the new size rather than
+    /// cropping it, and moving the annotations of the page and the destinations that point at it
+    /// along with the content.
+    /// </summary>
+    /// <param name="size">The size the page is to become.</param>
+    /// <param name="orientation">Which way round that size goes.</param>
+    /// <param name="options">
+    /// How the content is to be fitted into the new size. Null fits the whole page in, centred,
+    /// which loses nothing and distorts nothing.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// A destination is held wherever somebody linked from - the annotations of any page, the
+    /// outline tree, the name tree of the catalog - and a page carries no list of what points at
+    /// it, so this walks the whole document to find them. Resizing every page one at a time
+    /// therefore walks the document once per page: use
+    /// <see cref="PdfDocument.ResizePages(PageSize, PageOrientation, PageResizeOptions)"/>, which
+    /// walks it once altogether.
+    /// </para>
+    /// <para>
+    /// Refused on a document that is encrypted, signed, tagged, or not open for modification.
+    /// </para>
+    /// </remarks>
+    public void Resize(PageSize size, PageOrientation orientation = PageOrientation.Portrait,
+        PageResizeOptions options = null)
+    {
+        if (!Enum.IsDefined(typeof(PageSize), size))
+            throw new InvalidEnumArgumentException(nameof(size), (int)size, typeof(PageSize));
+
+        PdfPageResizer.Resize(this, SizeInPoints(size, orientation), size, options);
+    }
+
+    /// <summary>
+    /// Changes the size of this page to a size in points, moving what is drawn on it into the
+    /// new size rather than cropping it.
+    /// </summary>
+    /// <param name="size">The size the page is to become, in points, as the reader will see it.</param>
+    /// <param name="options">
+    /// How the content is to be fitted into the new size. Null fits the whole page in, centred.
+    /// </param>
+    /// <remarks>
+    /// See <see cref="Resize(PageSize, PageOrientation, PageResizeOptions)"/> for what this costs
+    /// and when it is refused.
+    /// </remarks>
+    public void Resize(XSize size, PageResizeOptions options = null)
+    {
+        PdfPageResizer.Resize(this, size, PageSize.Undefined, options);
+    }
+
+    /// <summary>
+    /// The size in points that a page size and an orientation come to, as the reader sees it.
+    /// </summary>
+    internal static XSize SizeInPoints(PageSize size, PageOrientation orientation)
+    {
+        XSize points = PageSizeConverter.ToSize(size);
+        return orientation == PageOrientation.Landscape
+            ? new XSize(points.Height, points.Width)
+            : points;
+    }
 
     /// <summary>
     /// Gets or sets the trim margins.
@@ -279,6 +385,8 @@ public sealed class PdfPage : PdfDictionary, IContentStream
         }
         set
         {
+            RefuseToResizeByReboxing(nameof(Height));
+
             PdfRectangle rect = MediaBox;
             if (VisibleSizeIsTurned)
                 MediaBox = new PdfRectangle(0, rect.Y1, value, rect.Y2);
@@ -301,6 +409,8 @@ public sealed class PdfPage : PdfDictionary, IContentStream
         }
         set
         {
+            RefuseToResizeByReboxing(nameof(Width));
+
             PdfRectangle rect = MediaBox;
             if (VisibleSizeIsTurned)
                 MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value);
@@ -332,14 +442,14 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     /// Gets a value indicating whether the /Rotate entry turns the page by a quarter, which
     /// makes the viewer show the width of the page where its height is stored.
     /// </summary>
-    bool IsTurnedByAQuarter => Math.Abs(Rotate / 90) % 2 == 1;
+    internal bool IsTurnedByAQuarter => Math.Abs(Rotate / 90) % 2 == 1;
 
     /// <summary>
     /// Gets a value indicating whether the media box is turned when the page is written. It is
     /// always held in portrait, so a landscape page is turned on the way out - unless the
     /// /Rotate entry already turns it, which the viewer does on its own.
     /// </summary>
-    bool MediaBoxIsTurnedWhenWritten => _orientation == PageOrientation.Landscape && !IsTurnedByAQuarter;
+    internal bool MediaBoxIsTurnedWhenWritten => _orientation == PageOrientation.Landscape && !IsTurnedByAQuarter;
 
     /// <summary>
     /// Gets a value indicating whether the page the viewer shows is as wide as the media box
@@ -360,6 +470,26 @@ public sealed class PdfPage : PdfDictionary, IContentStream
                 ? new XSize(rect.Height, rect.Width)
                 : new XSize(rect.Width, rect.Height);
         }
+    }
+
+    /// <summary>
+    /// Gives the page the media box a resize has worked out for it, and forgets the authoring
+    /// orientation while doing so.
+    /// <para>
+    /// A page marked <see cref="PageOrientation.Landscape"/> keeps its media box the other way
+    /// round in memory and turns it over on the way out (see <c>WriteObject</c>). A resize has
+    /// just written the content into a box of a known shape, so the box it hands over here is the
+    /// one that belongs in the file, and any further turning would undo the work. The orientation
+    /// therefore goes back to <see cref="PageOrientation.Portrait"/>, which is the setting that
+    /// means "the media box is already right". Any /Rotate entry is left alone: that turn belongs
+    /// to the viewer and the resize took it into account.
+    /// </para>
+    /// </summary>
+    internal void ApplyResizedBox(PdfRectangle box, PageSize size)
+    {
+        _orientation = PageOrientation.Portrait;
+        MediaBox = box;
+        _pageSize = size;
     }
 
     // TODO: PdfAnnotations
@@ -563,6 +693,26 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     {
         Elements[Keys.Resources] = resources;
         _resources = null;
+    }
+
+    /// <summary>
+    /// Gives the page a single content stream in place of whatever it had. The page keeps the
+    /// content it was first asked for, in the same way it keeps its resources, so the two have to
+    /// be replaced together or the page goes on handing out the streams it no longer holds.
+    /// </summary>
+    internal void ReplaceContents(PdfContent content)
+    {
+        Debug.Assert(content.Reference != null, "The content has to be indirect to be referred to.");
+
+        // The array itself stays direct, which is how the Contents property builds one and what
+        // the writer expects: PdfArray.WriteObject writes no brackets round an indirect array, so
+        // making this one indirect writes a page whose /Contents is a bare reference and an
+        // object that is not an object, and the file will not open again.
+        PdfContents contents = new PdfContents(Owner);
+        contents.Elements.Add(content.Reference);
+
+        Elements[Keys.Contents] = contents;
+        _contents = contents;
     }
 
     /// <summary>
