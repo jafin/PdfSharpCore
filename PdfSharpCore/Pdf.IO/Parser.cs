@@ -448,22 +448,29 @@ internal sealed class Parser
         int sp = _stack.SP;
         ParseObject(Symbol.EndDictionary);
         int count = _stack.SP - sp;
-        // A truncated dictionary can leave a key without its value. Keep the pairs it does
-        // have and drop the dangling key rather than reading past the end of the items.
-        Debug.Assert(count % 2 == 0 || _lexer.Symbol == Symbol.EndObj);
         PdfItem[] items = _stack.ToArray(sp, count);
         _stack.Reduce(count);
-        for (int idx = 0; idx + 1 < count; idx += 2)
+        // An entry is a name followed by a value, but writers do produce dictionaries that do not
+        // hold to that: pdfTeX writes its PTEX.FullBanner as two strings with no key in front of
+        // them, and a truncated dictionary leaves a key with no value behind it. Keep the pairs
+        // that are there, and drop what cannot be paired up rather than refusing the document.
+        for (int idx = 0; idx + 1 < count;)
         {
             PdfItem val = items[idx];
             if (!(val is PdfName))
-                ParserDiagnostics.ThrowParserException("name expected");
+            {
+                // A value with nothing to key it under. Step over it alone, so that the entries
+                // after it are still read as the pairs they are.
+                idx++;
+                continue;
+            }
 
             string key = val.ToString();
             val = items[idx + 1];
             if (includeReferences && val is PdfReference)
                 val = ReadReference((PdfReference)val, true);
             dict.Elements[key] = val;
+            idx += 2;
         }
 
         return dict;

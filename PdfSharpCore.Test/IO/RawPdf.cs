@@ -12,8 +12,10 @@ internal static class RawPdf
     /// <summary>
     ///   Wraps the objects given in a header, a cross reference table and a trailer. The first
     ///   object is the catalog, and objects are numbered from one in the order they are given.
+    ///   Anything in <paramref name="extraTrailerEntries" /> is written into the trailer beside
+    ///   the size and the root.
     /// </summary>
-    internal static byte[] Build(IReadOnlyList<string> objects)
+    internal static byte[] Build(IReadOnlyList<string> objects, string extraTrailerEntries = "")
     {
         var pdf = new StringBuilder("%PDF-1.7\n");
         var offsets = new List<int>();
@@ -28,7 +30,8 @@ internal static class RawPdf
         pdf.Append("0000000000 65535 f \n");
         foreach (var offset in offsets)
             pdf.Append(offset.ToString("D10")).Append(" 00000 n \n");
-        pdf.Append("trailer\n<</Size ").Append(objects.Count + 1).Append("/Root 1 0 R>>\n");
+        pdf.Append("trailer\n<</Size ").Append(objects.Count + 1).Append("/Root 1 0 R")
+            .Append(extraTrailerEntries).Append(">>\n");
         pdf.Append("startxref\n").Append(startOfCrossReferenceTable).Append("\n%%EOF\n");
 
         // The document is plain ASCII, so a byte is a character and the offsets above hold.
