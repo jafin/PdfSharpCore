@@ -438,7 +438,7 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
         // and nothing more, which is still more than refusing to read the outline at all. What it
         // does say is kept, though: the entry is written back out as it was found rather than as
         // the /XYZ with no position the properties below would otherwise amount to.
-        if (type != null && Enum.TryParse(type.Value.Substring(1), true, out PdfPageDestinationType destinationType))
+        if (type != null && TryParseDestinationType(type.Value.Substring(1), out PdfPageDestinationType destinationType))
         {
             PageDestinationType = destinationType;
             switch (PageDestinationType)
@@ -499,6 +499,24 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
 #pragma warning restore 162
         // ReSharper restore HeuristicUnreachableCode
+    }
+
+    /// <summary>
+    /// The destination type a name stands for, for the eight names there is one for.
+    /// </summary>
+    /// <remarks>
+    /// Enum.TryParse reads a name that is a number as the value the number stands for, which is
+    /// not what a destination type is. "/999" parsed to a type there is none of and went on into
+    /// the ArgumentOutOfRangeException the switch above ends with, and "/3" parsed to a type whose
+    /// name the destination never gave, so a document saying it went one way was written back
+    /// saying it went another.
+    /// </remarks>
+    static bool TryParseDestinationType(string name, out PdfPageDestinationType type)
+    {
+        type = default;
+        return name.Length > 0 && !char.IsDigit(name[0]) && name[0] != '-' && name[0] != '+'
+               && Enum.TryParse(name, true, out type)
+               && Enum.IsDefined(typeof(PdfPageDestinationType), type);
     }
 
     /// <summary>

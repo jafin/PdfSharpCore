@@ -121,6 +121,9 @@ public class ImportedOutlineTests
     [InlineData("[4 0 R/FitR 1 2]")]
     // A destination whose type is not one of those the specification gives.
     [InlineData("[4 0 R/FitNothing 1]")]
+    // A name that reads as a number is still not one of the eight names.
+    [InlineData("[4 0 R/999 1]")]
+    [InlineData("[4 0 R/3 1]")]
     public void AnEntryWhoseDestinationIsMalformedStillGoesToThePageItNames(string destination)
     {
         var outline = FirstOutlineOf(ImportedOutlineFixtures.WithDestinationArray(destination));
@@ -157,10 +160,15 @@ public class ImportedOutlineTests
         outline.Top.Should().Be(22);
     }
 
-    [Fact]
-    public void ADestinationOfATypeThisLibraryDoesNotKnowIsSavedAsItWasFound()
+    [Theory]
+    [InlineData("/FitNothing")]
+    // A name reading as a number past the types there are, and one reading as a number that lands
+    // on a type - which is a type the destination never named either.
+    [InlineData("/999")]
+    [InlineData("/3")]
+    public void ADestinationOfATypeThisLibraryDoesNotKnowIsSavedAsItWasFound(string type)
     {
-        using var input = new MemoryStream(ImportedOutlineFixtures.WithDestinationArray("[4 0 R/FitNothing 1]"));
+        using var input = new MemoryStream(ImportedOutlineFixtures.WithDestinationArray("[4 0 R" + type + " 1]"));
         var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
         document.Outlines.Count.Should().Be(1);
 
@@ -172,7 +180,7 @@ public class ImportedOutlineTests
         output.Position = 0;
         var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(output, PdfDocumentOpenMode.Modify);
         var destination = reopened.Outlines[0].Elements.GetArray("/Dest");
-        destination.Elements.GetName(1).Should().Be("/FitNothing");
+        destination.Elements.GetName(1).Should().Be(type);
         destination.Elements.GetInteger(2).Should().Be(1);
     }
 

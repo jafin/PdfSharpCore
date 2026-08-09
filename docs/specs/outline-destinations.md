@@ -104,6 +104,14 @@ neither) and *where on it* (`RealAt`, which gives NaN past the end of the array 
 set" the properties already default to and the writer already writes as `null`). An unknown type
 name leaves the entry pointing at its page and nothing more, rather than throwing.
 
+Reading the type name is its own trap. `Enum.TryParse` takes a name that is a number for the value
+that number stands for, so `/999` parsed to a type there is none of and went straight on into the
+`ArgumentOutOfRangeException` the switch ends with — the throw this item exists to remove, reached
+by the check meant to prevent it. `/3` was worse for being quiet: it parsed to `FitV`, and a
+document saying it went one way was written back saying it went another. `TryParseDestinationType`
+answers only for the eight names, so a name that reads as a number is an unknown type like any
+other.
+
 None of this makes a well-formed destination read differently. `[4 0 R /XYZ 11 22 0]` still gives
 page, left, top and zoom.
 
@@ -150,8 +158,8 @@ since it goes where the caller said rather than where the action led.
 
 ## Verification
 
-`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 21 tests over fixtures shaped like the
-documents in the issue — 16 of them fail on `master`:
+`PdfSharpCore.Test/Outlines/ImportedOutlineTests.cs`, 25 tests over fixtures shaped like the
+documents in the issue — 19 of them fail on `master`:
 
 - a destination named through a GoTo action, resolved through a name tree with `/Kids` and
   `/Limits` so the search has to walk it;
@@ -161,7 +169,8 @@ documents in the issue — 16 of them fail on `master`:
 - destinations written out, held indirectly, and given as a page number, in and out of range, and
   an action held in an object of its own;
 - destinations that are empty, name no page, stop short of their parameters, or give a type name
-  that is not one of the eight — all read without throwing;
+  that is not one of the eight — including `/999` and `/3`, which `Enum.TryParse` reads as numbers
+  — all read without throwing, and the type kept as it was found;
 - a destination taken from a name survives being saved and read again, and one of a type this
   library does not know is saved as it was found rather than as an `/XYZ`;
 - an action with a `/Next`: the destination is read out of it, the action and what follows it
@@ -172,7 +181,7 @@ The reporter's own document was read alongside, outside the suite, since it is n
 in: two entries, *1st section* on page 1 at 529.041 and *2nd section* on page 2 at 667.198, where
 `master` throws on the first of them.
 
-Whole suite green on net8.0 and net10.0, 1061 passed on each, one pre-existing skip
+Whole suite green on net8.0 and net10.0, 1065 passed on each, one pre-existing skip
 (`CanCreatePdfOver2gb`).
 
 ## Not in scope
