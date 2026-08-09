@@ -185,7 +185,7 @@ internal sealed class Parser
                 pdfObject = new PdfNullObject(_document);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Boolean:
@@ -193,35 +193,35 @@ internal sealed class Parser
                     String.Compare(_lexer.Token, Boolean.TrueString, StringComparison.OrdinalIgnoreCase) == 0);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Integer:
                 pdfObject = new PdfIntegerObject(_document, _lexer.TokenToInteger);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.UInteger:
                 pdfObject = new PdfUIntegerObject(_document, _lexer.TokenToUInteger);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Long:
                 pdfObject = new PdfLongObject(_document, _lexer.TokenToLong);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Real:
                 pdfObject = new PdfRealObject(_document, _lexer.TokenToReal);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.String:
@@ -231,14 +231,14 @@ internal sealed class Parser
                 pdfObject = new PdfStringObject(_document, _lexer.Token);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Name:
                 pdfObject = new PdfNameObject(_document, _lexer.Token);
                 pdfObject.SetObjectID(objectNumber, generationNumber);
                 if (!fromObjecStream)
-                    ReadSymbol(Symbol.EndObj);
+                    ReadEndObject();
                 return pdfObject;
 
             case Symbol.Keyword:
@@ -295,8 +295,52 @@ internal sealed class Parser
         }
 
         if (!fromObjecStream && symbol != Symbol.EndObj)
-            ParserDiagnostics.ThrowParserException(PSSR.UnexpectedToken(_lexer.Token));
+            EndObject(symbol);
         return pdfObject;
+    }
+
+    /// <summary>
+    ///   Reads the end of an indirect object, tolerating a file that leaves "endobj" out.
+    /// </summary>
+    private void ReadEndObject()
+    {
+        Symbol symbol = _lexer.ScanNextToken();
+        if (symbol != Symbol.EndObj)
+            EndObject(symbol);
+    }
+
+    /// <summary>
+    ///   Accepts the end of an indirect object that does not say "endobj".
+    /// </summary>
+    /// <remarks>
+    ///   A file that leaves the keyword out is corrupt, but the object before it is whole and
+    ///   every reader in common use goes on to read the file. Nothing is lost by doing the same:
+    ///   objects are found through the cross-reference table rather than by reading on from
+    ///   where the last one ended, so the position this leaves behind is not used.
+    ///   The object only ends here if what follows begins the next one or ends the file. Anything
+    ///   else means the object itself did not parse, and is still reported.
+    ///   See https://github.com/empira/PDFsharp/issues/211.
+    /// </remarks>
+    private void EndObject(Symbol symbol)
+    {
+        switch (symbol)
+        {
+            // The object number of the object that follows.
+            case Symbol.Integer:
+            case Symbol.UInteger:
+            case Symbol.Long:
+
+            // Or the end of the body of the file.
+            case Symbol.XRef:
+            case Symbol.Trailer:
+            case Symbol.StartXRef:
+            case Symbol.Eof:
+                return;
+
+            default:
+                ParserDiagnostics.ThrowParserException(PSSR.UnexpectedToken(_lexer.Token));
+                return;
+        }
     }
 
     /// <summary>
