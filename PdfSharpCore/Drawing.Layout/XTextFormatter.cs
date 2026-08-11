@@ -126,6 +126,68 @@ public class XTextFormatter
         Alignment = alignments.Horizontal;
         VerticalAlignment = alignments.Vertical;
     }
+
+    // ----- paragraph shape ----------------------------------------------------------------------
+
+    /// <summary>
+    /// Gets or sets whether a line too long for the layout rectangle is broken into more lines.
+    /// True by default. Set it to false and the text runs on past the right edge; the line breaks
+    /// written into the text are still obeyed.
+    /// </summary>
+    public bool LineBreak { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets how far, in points, the first line of each paragraph is indented.
+    /// The default is 0.
+    /// </summary>
+    public double Indent { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether <see cref="Indent"/> applies to every line rather than to the first
+    /// line of each paragraph. False by default.
+    /// </summary>
+    public bool IndentAllLines { get; set; }
+
+    /// <summary>
+    /// Gets or sets the space, in points, left between one paragraph and the next - that is, at
+    /// each line break written into the text. The default is 0.
+    /// </summary>
+    public double ParagraphGap { get; set; }
+
+    /// <summary>
+    /// Gets or sets the space, in points, added between one line and the next. The default is 0.
+    /// </summary>
+    /// <remarks>
+    /// This is added to the line height, where the <c>lineHeight</c> argument of
+    /// <see cref="DrawString(string, XFont, XBrush, XRect, XUnit?)"/> replaces it. Both can be used
+    /// at once: one says how tall a line is, the other how much room to leave after it.
+    /// </remarks>
+    public double LineGap { get; set; }
+
+    /// <summary>
+    /// Gets or sets the string put at the end of text that did not fit the layout rectangle.
+    /// Null or empty, the default, cuts the text off without a mark.
+    /// </summary>
+    /// <remarks>
+    /// A string rather than a flag, because the ellipsis character is not in every font, and
+    /// three full stops are the usual answer when it is not. <see cref="DefaultEllipsis"/> is the
+    /// character itself.
+    /// <para>
+    /// Ignored when <see cref="AllowVerticalOverflow"/> is set, since then nothing is cut off.
+    /// </para>
+    /// </remarks>
+    public string Ellipsis { get; set; }
+
+    /// <summary>
+    /// The horizontal ellipsis, U+2026 - what <see cref="Ellipsis"/> is usually set to.
+    /// </summary>
+    public const string DefaultEllipsis = "…";
+
+    /// <summary>
+    /// Gets or sets the angle, in degrees, the text is turned through about the top left corner of
+    /// the layout rectangle. Positive turns it anticlockwise on the page. The default is 0.
+    /// </summary>
+    public double Rotation { get; set; }
         
         
     /// <summary>
@@ -220,33 +282,52 @@ public class XTextFormatter
             dy = layoutRectangle.Location.Y + layoutRectangle.Height - _layoutRectangle.Height;
         }
 
+        // Turning the text turns the whole block of it about the corner it starts from, so the
+        // lines stay in the same order and the same distance apart whatever the angle.
+        XGraphicsState state = null;
+        if (Rotation != 0)
+        {
+            state = _gfx.Save();
+            _gfx.RotateAtTransform(-Rotation, new XPoint(layoutRectangle.X, layoutRectangle.Y));
+        }
+
         foreach (var line in lines)
         {
             var lineBlocks = line as Block[] ?? line.ToArray();
+            var lineY = dy + lineBlocks.First().Location.Y;
+            var indent = lineBlocks.First().LineIndent;
+
             // The last line of a paragraph keeps its natural width. Stretching it over the
             // full width of the layout rectangle would tear the few words it holds apart.
             if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
             {
-                var locationX = dx;
+                var locationX = dx + indent;
                 var gaps = lineBlocks.Length - 1;
-                var gapSize = gaps > 0 ? (layoutRectangle.Width - lineBlocks.Select(l => l.Width).Sum()) / gaps : 0;
+                var gapSize = gaps > 0
+                    ? (layoutRectangle.Width - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
+                    : 0;
                 foreach (var block in lineBlocks)
                 {
-                    _gfx.DrawString(block.Text.Trim(), font, brush, locationX, dy + lineBlocks.First().Location.Y, XStringFormats.TopLeft);
+                    _gfx.DrawString(block.Text.Trim(), font, brush, locationX, lineY, XStringFormats.TopLeft);
                     locationX += block.Width + gapSize;
                 }
             }
             else
             {
                 var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
-                var locationX = dx;
+                // An indent takes room off the left, so what is left to centre in - or to push a
+                // line to the right end of - is that much narrower.
+                var locationX = dx + indent;
                 if (Alignment == XParagraphAlignment.Center)
-                    locationX = dx + layoutRectangle.Width / 2;
+                    locationX = dx + indent + (layoutRectangle.Width - indent) / 2;
                 if (Alignment == XParagraphAlignment.Right)
-                    locationX += layoutRectangle.Width;
-                _gfx.DrawString(lineText, font, brush, locationX, dy + lineBlocks.First().Location.Y, GetXStringFormat());
+                    locationX = dx + layoutRectangle.Width;
+                _gfx.DrawString(lineText, font, brush, locationX, lineY, GetXStringFormat());
             }
         }
+
+        if (state != null)
+            _gfx.Restore(state);
     }
 
     private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
@@ -322,12 +403,21 @@ public class XTextFormatter
         }
     }
 
+    /// <summary>
+    /// How far the left edge of a line sits from the left edge of the layout rectangle.
+    /// </summary>
+    double IndentOf(bool firstLineOfParagraph)
+    {
+        return IndentAllLines || firstLineOfParagraph ? Indent : 0;
+    }
+
     void CreateLayout()
     {
         double rectWidth = _layoutRectangle.Width;
         double rectHeight = _layoutRectangle.Height - _cyAscent - _cyDescent;
         int firstIndex = 0;
-        double x = 0, y = 0;
+        double lineStart = IndentOf(true);
+        double x = lineStart, y = 0;
         int count = _blocks.Count;
         for (int idx = 0; idx < count; idx++)
         {
@@ -340,8 +430,11 @@ public class XTextFormatter
                     _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
                 HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
                 firstIndex = idx + 1;
-                x = 0;
-                y += _lineHeight;
+                // A written line break ends a paragraph, so the next line is indented again and
+                // the gap between paragraphs falls here.
+                lineStart = IndentOf(true);
+                x = lineStart;
+                y += _lineHeight + LineGap + ParagraphGap;
                 if (!AllowVerticalOverflow && y > rectHeight)
                 {
                     block.Stop = true;
@@ -351,9 +444,12 @@ public class XTextFormatter
             else
             {
                 double width = block.Width;
-                if ((x + width <= rectWidth || x == 0) && block.Type != BlockType.LineBreak)
+                // A block that starts a line is placed whether it fits or not, since moving it to
+                // a line of its own would not make it any narrower.
+                if (!LineBreak || x + width <= rectWidth || x == lineStart)
                 {
                     block.Location = new XPoint(x, y);
+                    block.LineIndent = lineStart;
                     x += width + _spaceWidth;
                 }
                 else
@@ -362,20 +458,24 @@ public class XTextFormatter
 
                     // Begin implicit line break
                     firstIndex = idx;
-                    y += _lineHeight;
+                    lineStart = IndentOf(false);
+                    y += _lineHeight + LineGap;
                     if (!AllowVerticalOverflow && y > rectHeight)
                     {
                         block.Stop = true;
                         break;
                     }
-                    block.Location = new XPoint(0, y);
-                    x = width + _spaceWidth;
+                    block.Location = new XPoint(lineStart, y);
+                    block.LineIndent = lineStart;
+                    x = lineStart + width + _spaceWidth;
                 }
             }
         }
         if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
             HorizontalAlignLine(firstIndex, count - 1, rectWidth);
-            
+
+        ApplyEllipsis(rectWidth);
+
         var laidOutBlocks = GetLaidOutBlocks(_blocks).ToArray();
         if (laidOutBlocks.Length == 0)
         {
@@ -399,6 +499,39 @@ public class XTextFormatter
     }
 
     /// <summary>
+    /// Puts the ellipsis on the end of the last line that fitted, when there was text after it
+    /// that did not.
+    /// </summary>
+    /// <remarks>
+    /// The text is trimmed a character at a time until it and the ellipsis together fit the room
+    /// left on that line. Trimming rather than measuring once, because how much has to come off
+    /// depends on how wide the characters that come off are.
+    /// </remarks>
+    void ApplyEllipsis(double rectWidth)
+    {
+        if (string.IsNullOrEmpty(Ellipsis) || AllowVerticalOverflow)
+            return;
+
+        // Nothing was dropped, so nothing is being stood in for.
+        if (!_blocks.Any(block => block.Stop))
+            return;
+
+        var laidOut = GetLaidOutBlocks(_blocks).ToArray();
+        if (laidOut.Length == 0)
+            return;
+
+        Block last = laidOut[laidOut.Length - 1];
+        double available = rectWidth - last.Location.X;
+
+        string text = last.Text;
+        while (text.Length > 0 && _gfx.MeasureString(text + Ellipsis, _font).Width > available)
+            text = text.Substring(0, text.Length - 1);
+
+        last.Text = text + Ellipsis;
+        last.Width = _gfx.MeasureString(last.Text, _font).Width;
+    }
+
+    /// <summary>
     /// Align center, right, or justify.
     /// </summary>
     void HorizontalAlignLine(int firstIndex, int lastIndex, double layoutWidth)
@@ -415,7 +548,8 @@ public class XTextFormatter
         for (int idx = firstIndex; idx <= lastIndex; idx++)
             totalWidth += _blocks[idx].Width + _spaceWidth;
 
-        double dx = Math.Max(layoutWidth - totalWidth, 0);
+        // An indented line has that much less room to be centred, pushed right or stretched in.
+        double dx = Math.Max(layoutWidth - _blocks[firstIndex].LineIndent - totalWidth, 0);
         //Debug.Assert(dx >= 0);
         if (Alignment != XParagraphAlignment.Justify)
         {

@@ -31,6 +31,25 @@ internal static class TextOperators
     }
 
     /// <summary>
+    ///   The strings shown on the page, in the order they were drawn.
+    /// </summary>
+    /// <remarks>
+    ///   Readable only for a font encoded as WinAnsi, which writes its text as a string literal.
+    ///   A font embedded as Identity-H writes glyph identifiers instead, and what comes back is
+    ///   the numbers of the glyphs rather than the characters they stand for.
+    /// </remarks>
+    internal static IReadOnlyList<string> ShownStrings(PdfPage page)
+    {
+        return Operators(page)
+            .Where(op => op.OpCode.OpCodeName is OpCodeName.Tj or OpCodeName.TJ)
+            .SelectMany(op => ItemsOf(op.Operands)
+                .SelectMany(operand => operand is CArray array ? ItemsOf(array) : new[] { operand })
+                .OfType<CString>())
+            .Select(text => text.Value)
+            .ToList();
+    }
+
+    /// <summary>
     ///   Every operand list an operator was given, in the order they were written.
     /// </summary>
     internal static IReadOnlyList<double[]> OperandsGivenTo(PdfPage page, OpCodeName opCode)

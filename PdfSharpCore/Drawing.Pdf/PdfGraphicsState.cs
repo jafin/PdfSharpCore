@@ -372,8 +372,11 @@ internal sealed class PdfGraphicsState : ICloneable
     /// <remarks>
     /// Tw applies to every occurrence of the <em>single-byte</em> character code 32, and expressly
     /// not to the byte 32 inside a multiple-byte code (PDF 32000-1 section 9.3.3). A font embedded
-    /// as Identity-H writes two-byte codes, so Tw is silently inert for it - which is most fonts
-    /// here, since Unicode is the encoding anything outside WinAnsi gets.
+    /// as Identity-H writes two-byte codes, so Tw is silently inert for it.
+    /// <para>
+    /// That is the usual case rather than the odd one: GlobalFontSettings.DefaultFontEncoding is
+    /// Unicode, so every XFont built without options of its own is a font Tw cannot speak for.
+    /// </para>
     /// </remarks>
     public static bool NeedsWordSpacingByHand(XFont font, XStringFormat format)
         => font.Unicode && format.WordSpacing != 0;
