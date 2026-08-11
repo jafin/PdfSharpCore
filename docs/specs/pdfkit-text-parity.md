@@ -6,8 +6,8 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Sections A, B, C and D are built, on
-`feat/text-state-and-measurement`. What is left is section E's annotations and section F.
+This is the gap analysis and the plan. Sections A to E are built, on
+`feat/text-state-and-measurement`. Section F is not, and is deliberately left: see the end.
 
 ## Where parity has to land
 
@@ -68,15 +68,15 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 18 | `underline` | **done** — `XStringFormat.Underline`, 7 styles, own colour | `Underline`, 7 styles (`enums/Underline.cs`) |
 | 19 | `strike` | **done** — `XStringFormat.Strikeout`, the same seven | `Strikethrough`, 7 styles |
 | 20 | `rotation` | **done** — `XTextFormatter.Rotation`, degrees anticlockwise | `TextFrame.Orientation`, 90° steps only |
-| 21 | `link` | partial — `PdfPage.AddWebLink` takes a page-space rect; no text-level shortcut | `Hyperlink`, `HyperlinkType.Web` |
-| 22 | `goTo` | **missing** — no way to link to a name | `HyperlinkType.Local` + `BookmarkField` |
-| 23 | `destination` | **missing** — `PdfNamedDestinations` is `internal` and read-only (`Pdf.Advanced/PdfNamedDestinations.cs:41`) | `BookmarkField` |
+| 21 | `link` | **done** — `XGraphics.AddWebLink` takes world coordinates | `Hyperlink`, `HyperlinkType.Web` |
+| 22 | `goTo` | **done** — `XGraphics.AddNamedLink` | `HyperlinkType.Local` + `BookmarkField` |
+| 23 | `destination` | **done** — `PdfDocument.NamedDestinations` | `BookmarkField` |
 | 24 | `continued` | **done** — `XTextSegmentFormatter` takes the runs together | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five were at parity when this was written; twenty-one are now, and `Ts` is emitted
-for a text rise PDFKit has no option for at all. Four are left: `link`, which works but has no
-text-level shortcut, and `goTo`, `destination` and `features`, which are not started.
+Two of twenty-five were at parity when this was written; twenty-four are now, and `Ts` is emitted
+for a text rise PDFKit has no option for at all. One is left: `features`, which is section F and is
+a shaping engine rather than an option.
 
 ---
 
@@ -288,19 +288,34 @@ list at lines 443-456.
 
 ### E — annotations
 
-- [ ] **E1. `Link` as a text option.** `PdfPage.AddWebLink` (`Pdf/PdfPage.cs:677`) takes a
-  `PdfRectangle` in page space; nothing converts a drawing rectangle into one. Needs a helper that
-  measures the drawn text, maps through `WorldToView`, and adds the annotation — and it must handle
-  a link that wraps across lines by emitting one annotation per line, as MigraDoc's
-  `RealizeHyperlink` already does (`ParagraphRenderer.cs:1123-1188`).
-- [ ] **E2. `Destination` — create named destinations.** `PdfNamedDestinations`
-  (`Pdf.Advanced/PdfNamedDestinations.cs:41`) resolves `/Names/Dests` name trees on import and is
-  `internal` with no writer. Needs a public API to register a name against a page and position, and
-  a name tree written into the catalog on save.
-- [ ] **E3. `GoTo` — link to a named destination.** `PdfLinkAnnotation` writes
-  `/Dest [n 0 R /XYZ ...]` for document links (`Pdf.Annotations/PdfLinkAnnotation.cs:163-166`) —
-  a direct page reference, never a name. Add a `CreateNamedLink` alongside the existing four
-  factories. Depends on E2.
+- [x] **E1. `Link` as a text option.** `XGraphics` gained `AddWebLink`, `AddDocumentLink`,
+  `AddNamedLink` and `AddNamedDestination`, all taking world coordinates.
+
+  The conversion was the whole of it. An annotation is placed in default page space, measured from
+  the bottom left; everything drawn is placed in world space, measured from the top left and
+  possibly turned or scaled since. `Transformer.WorldToDefaultPage` could already do the sum and
+  nothing called it from a place a caller could reach.
+
+  **One annotation per line is not built.** `XGraphics` draws one line at a time and links what it
+  is given, which is right for it. Wrapping belongs to `XTextFormatter`, and a link that follows
+  wrapped text is a property on the formatter rather than an argument to a draw - left for whenever
+  someone wants it.
+- [x] **E2. `Destination` — create named destinations.** `PdfDocument.NamedDestinations`, written
+  into the catalog as a `/Names /Dests` name tree while the document is saved, because a
+  destination points at a page and a page has no object number to point at before then.
+
+  One leaf node holding every name, sorted by bytes as a name tree must be. Balancing would earn
+  nothing here - a reader finds a name in one node or in twenty.
+
+  `Resolve` was added on the way and is not in the item. The reader existed and was `internal`, so
+  a document opened from a file could be searched by the import machinery and by nobody else. A
+  half of a feature that can write names and not read them back is not worth shipping.
+- [x] **E3. `GoTo` — link to a named destination.** `CreateNamedLink` alongside the four factories,
+  and `PdfPage.AddNamedLink` alongside its three.
+
+  The destination is written as a **string**, which is what sends a reader to the `/Names /Dests`
+  tree of PDF 1.2 onwards. Writing it as a name would send it to the `/Dests` dictionary of PDF
+  1.1, which is not where E2 puts them.
 
 ### F — OpenType features
 
@@ -348,8 +363,14 @@ pen. Nothing in the repo implements that interface but `XGraphicsPdfRenderer`.
 quarters of the ascent in for half the cap height, because correcting it would move every centred
 string this library has ever drawn.
 
-**E and F are what is left.** E needs a name tree writer, which does not exist anywhere in the
-repo. F is a shaping engine and is not comparable to any of the rest of this.
+**E is done**, name tree and all.
+
+**F is what is left, and it is not another item on this list.** Everything above was plumbing
+through machinery that already half existed. F is a text shaping engine: GSUB is an empty `try`
+block, GPOS and `kern` are tag constants, `TJ` would have to carry kerned positions, and every text
+loop counts UTF-16 code units, so non-BMP text is broken before shaping is even reached. PDFKit
+does not implement any of this either - it takes fontkit. The decision to make first is whether to
+write one or depend on one, and that is not a decision a checklist should make quietly.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 

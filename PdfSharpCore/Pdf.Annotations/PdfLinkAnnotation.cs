@@ -41,7 +41,7 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
     // Just a hack to make MigraDoc work with this code.
     enum LinkType
     {
-        None, Document, Web, File
+        None, Document, Web, File, Named
     }
 
     /// <summary>
@@ -113,6 +113,28 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
     }
 
     /// <summary>
+    /// Creates a link to a named destination of the current document.
+    /// </summary>
+    /// <param name="rect">The link area in default page coordinates.</param>
+    /// <param name="destinationName">
+    /// The name, as given to <see cref="PdfDocument.NamedDestinations"/>. A link to a name that
+    /// the document never names is written all the same and does nothing when followed - which is
+    /// what a reader does with a broken link, and better than refusing to write the document.
+    /// </param>
+    public static PdfLinkAnnotation CreateNamedLink(PdfRectangle rect, string destinationName)
+    {
+        if (string.IsNullOrEmpty(destinationName))
+            throw new ArgumentException("A named link must name something.", nameof(destinationName));
+
+        PdfLinkAnnotation link = new PdfLinkAnnotation();
+        link._linkType = LinkType.Named;
+        link.Rectangle = rect;
+        link._destName = destinationName;
+        return link;
+    }
+    string _destName;
+
+    /// <summary>
     /// Creates a link to a file.
     /// </summary>
     public static PdfLinkAnnotation CreateFileLink(PdfRectangle rect, string fileName)
@@ -164,6 +186,14 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
                     ? new PdfLiteral("[{0} 0 R/XYZ null null 0]", dest.ObjectNumber)
                     : new PdfLiteral("[{0} 0 R/XYZ null {1} 0]", dest.ObjectNumber,
                         PdfEncoders.Format("{0:0.###}", _destTop));
+                break;
+
+            case LinkType.Named:
+                // A destination written as a string is looked up in the /Names /Dests name tree,
+                // which is where PDF 1.2 onwards puts them. Writing it as a name instead would
+                // send the reader to the /Dests dictionary of PDF 1.1.
+                Elements[Keys.Dest] = new PdfLiteral("{0}",
+                    PdfEncoders.ToStringLiteral(_destName, PdfStringEncoding.WinAnsiEncoding, writer.SecurityHandler));
                 break;
 
             case LinkType.Web:
