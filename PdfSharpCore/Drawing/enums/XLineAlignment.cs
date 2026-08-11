@@ -58,4 +58,28 @@ public enum XLineAlignment  // same values as System.Drawing.StringAlignment (ex
     /// With this option the layout rectangle must have a height of 0.
     /// </summary>
     BaseLine = 3,
+
+    // The three below are the values the HTML canvas textBaseline has and the four above do not.
+    // They place the text against its own metrics and take no notice of the height of the layout
+    // rectangle, which is what makes them different from Near and Far rather than spellings of
+    // them: Near and Far are the top and bottom of the rectangle, these are the top and bottom of
+    // the text. For a rectangle of no height the two amount to the same thing.
+
+    /// <summary>
+    /// Specifies that text hangs below its position, as canvas <c>hanging</c> does - the top of
+    /// the ascent sits on the line.
+    /// </summary>
+    Hanging = 4,
+
+    /// <summary>
+    /// Specifies that text sits above its position, as canvas <c>ideographic</c> does - the bottom
+    /// of the descent sits on the line.
+    /// </summary>
+    Ideographic = 5,
+
+    /// <summary>
+    /// Specifies that text is centred on its x-height, as canvas <c>svg-middle</c> does - half the
+    /// height of a lowercase x sits above the line.
+    /// </summary>
+    SvgMiddle = 6,
 }

@@ -434,6 +434,11 @@ public sealed class PdfDocument : PdfObject, IDisposable
         if (_fontTable != null)
             _fontTable.PrepareForSave();
 
+        // Written now rather than as they were named, because a destination points at a page and
+        // a page has no object number to point at until the document is being saved.
+        if (_namedDestinations != null)
+            _namedDestinations.PrepareForSave();
+
         // Let catalog do the rest.
         Catalog.PrepareForSave();
 
@@ -771,6 +776,16 @@ public sealed class PdfDocument : PdfObject, IDisposable
         get { return _catalog ?? (_catalog = _trailer.Root); }
     }
     PdfCatalog _catalog;  // never changes if once created
+
+    /// <summary>
+    /// Gets the named destinations of this document - places in it that can be linked to by name
+    /// rather than by page number.
+    /// </summary>
+    public PdfNamedDestinationTable NamedDestinations
+    {
+        get { return _namedDestinations ?? (_namedDestinations = new PdfNamedDestinationTable(this)); }
+    }
+    PdfNamedDestinationTable _namedDestinations;
 
     /// <summary>
     /// Gets the PdfInternals object of this document, that grants access to some internal structures

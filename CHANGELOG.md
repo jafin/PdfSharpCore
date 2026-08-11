@@ -63,7 +63,88 @@ This file starts at the entry below. Changes before that point are recorded only
 
   `P11x17` is kept alongside the `Tabloid` that names the same sheet, because MDDDL files hold it.
 
+- Text state on `XStringFormat`, honoured by both drawing and measurement: `CharacterSpacing`,
+  `WordSpacing`, `HorizontalScaling`, `TextRise` and `ObliqueAngle`, written as the PDF `Tc`, `Tw`,
+  `Tz` and `Ts` operators and as a skewed text matrix.
+
+  ```csharp
+  var format = XStringFormats.Default;
+  format.CharacterSpacing = 2;      // points after every glyph
+  format.WordSpacing = 4;           // points after every space, on top of that
+  format.HorizontalScaling = 80;    // percent
+  format.ObliqueAngle = 12;         // degrees, leaning right
+  gfx.DrawString("spaced out", font, XBrushes.Black, 20, 40, format);
+  ```
+
+  `Tw` counts the single-byte code 32 and is inert for a font embedded as Identity-H, which is what
+  `GlobalFontSettings.DefaultFontEncoding` gives every `XFont` built without options of its own.
+  Those have their words spaced out with a `TJ` array instead, so the same setting produces the same
+  page whichever encoding the font uses.
+
+- Stroked text. `DrawString` takes an `XPen` beside its `XBrush`, in the six shapes the brush-only
+  overloads already came in. A brush alone fills the glyphs, a pen alone outlines them, both does
+  both, and neither throws — as `DrawRectangle` has always answered the same question.
+
+  ```csharp
+  gfx.DrawString("outlined", font, new XPen(XColors.Black, 0.6), null, 20, 40);
+  ```
+
+- `XStringFormat.Underline` and `.Strikeout`, in the six shapes MigraDoc has always had —
+  `Single`, `Words`, `Dotted`, `Dash`, `DotDash`, `DotDotDash` — plus `DecorationColor`, which draws
+  the rule in a colour of its own. Setting them on the font through `XFontStyle` still works and
+  still means one solid rule.
+
+- `XLineAlignment.Hanging`, `.Ideographic` and `.SvgMiddle`, the three baselines the HTML canvas has
+  and this did not. They are measured against the text rather than against the layout rectangle,
+  which is what distinguishes them from `Near` and `Far`.
+
+- `XTextFormatter` grew the paragraph options its own TODO list had named for years: `LineBreak`,
+  `Indent`, `IndentAllLines`, `ParagraphGap`, `LineGap`, `Ellipsis`, `Rotation`, and `Columns` with
+  `ColumnGap` for text that flows down one column and on into the next.
+
+  ```csharp
+  var formatter = new XTextFormatter(gfx)
+  {
+      Columns = 2, ColumnGap = 18,
+      Indent = 12, ParagraphGap = 6,
+      Ellipsis = XTextFormatter.DefaultEllipsis,
+  };
+  formatter.DrawString(text, font, XBrushes.Black, new XRect(40, 40, 500, 300));
+  ```
+
+- Named destinations. `PdfDocument.NamedDestinations` names pages and places on them, written into
+  the catalog as a `/Names /Dests` name tree; `Resolve` reads one back out of a document, which
+  until now only the import machinery could do. `PdfPage.AddNamedLink` and
+  `PdfLinkAnnotation.CreateNamedLink` follow a name.
+
+  ```csharp
+  document.NamedDestinations.Add("chapter-3", document.Pages[7], top: 500);
+  page.AddNamedLink(rect, "chapter-3");
+  ```
+
+  A name outlives the page it stands for. Insert a page in front of page 7 and every link to page 7
+  is wrong; every link to `chapter-3` is still right.
+
+- `XGraphics.AddWebLink`, `AddDocumentLink`, `AddNamedLink` and `AddNamedDestination`, which take
+  the coordinates the drawing methods take. An annotation is placed in default page space, measured
+  up from the bottom left, and everything drawn is placed in world space, measured down from the top
+  left — the conversion was the whole of what stood between drawing a piece of text and linking it.
+
 ### Changed
+
+- **BREAKING:** `IXGraphicsRenderer.DrawString` takes an `XPen` before its `XBrush`, so that text
+  can be outlined as well as filled. The interface is public; anything implementing it outside this
+  repository has to add the parameter. `XGraphicsPdfRenderer` is the only implementation here.
+
+  Migration is `DrawString(s, font, brush, rect, format)` →
+  `DrawString(s, font, null, brush, rect, format)`.
+
+- `XGraphics.MeasureString(text, font, stringFormat)` now answers through the format it is given.
+  It took one and passed `XStringFormats.Default` on instead, which nothing noticed while a format
+  held only alignment — where a string sits does not change how wide it is. Every text state
+  property added above does change how wide it is, and a width measured without them is what decides
+  where a line wraps.
+
 
 - **BREAKING:** MigraDoc's `PageFormat.B5` measured 182 mm × 257 mm, which is the **JIS** B5 sheet,
   not the ISO one. It was the only B format the enumeration had, so nothing sat beside it to
@@ -89,6 +170,12 @@ This file starts at the entry below. Changes before that point are recorded only
   old anchoring exactly, ask for `PageAlignment.BottomLeft`.
 
 ### Fixed
+
+- Bold simulation measured multi-line text too wide. The widening it adds was counted over the whole
+  string and charged to the widest line, so a simulated-bold string of three lines measured as
+  though every character of all three sat on one of them.
+
+- A line feed was charged a character spacing for a glyph it never drew.
 
 - `PageSize.Executive` measured 540 × 720 points (7.5 × 10 inch), which is not the Executive sheet.
   It is 7.25 × 10.5 inch and now converts to 522 × 756 points — the size its own documentation

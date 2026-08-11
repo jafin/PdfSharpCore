@@ -379,7 +379,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     // ----- DrawString ---------------------------------------------------------------------------
 
-    public void DrawString(string s, XFont font, XBrush brush, XRect rect, XStringFormat format)
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect rect, XStringFormat format)
     {
         double x = rect.X;
         double y = rect.Y;
@@ -387,16 +387,24 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         double lineSpace = font.GetHeight();
         double cyAscent = lineSpace * font.CellAscent / font.CellSpace;
         double cyDescent = lineSpace * font.CellDescent / font.CellSpace;
-        double width = _gfx.MeasureString(s, font).Width;
+        // Measured through the same format the text is drawn with: alignment and the underline and
+        // strikeout rules below are all placed from this width.
+        double width = _gfx.MeasureString(s, font, format).Width;
 
         //bool bold = (font.Style & XFontStyle.Bold) != 0;
         //bool italic = (font.Style & XFontStyle.Italic) != 0;
         bool italicSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.ItalicSimulation) != 0;
         bool boldSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) != 0;
-        bool strikeout = (font.Style & XFontStyle.Strikeout) != 0;
-        bool underline = (font.Style & XFontStyle.Underline) != 0;
+        // The format's decoration wins; leaving it at None keeps whatever the font's style asks
+        // for, which is where underlining lived before the format could carry it.
+        XTextDecoration underline = format.Underline != XTextDecoration.None
+            ? format.Underline
+            : (font.Style & XFontStyle.Underline) != 0 ? XTextDecoration.Single : XTextDecoration.None;
+        XTextDecoration strikeout = format.Strikeout != XTextDecoration.None
+            ? format.Strikeout
+            : (font.Style & XFontStyle.Strikeout) != 0 ? XTextDecoration.Single : XTextDecoration.None;
 
-        Realize(font, brush, boldSimulation ? 2 : 0);
+        Realize(font, brush, pen, boldSimulation, format);
 
         switch (format.Alignment)
         {
@@ -412,6 +420,9 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 x += rect.Width - width;
                 break;
         }
+        // Half the height of a lowercase x, for the one alignment that is measured against it.
+        double cyXHeight = lineSpace * font.Metrics.XHeight / font.CellSpace;
+
         if (Gfx.PageDirection == XPageDirection.Downwards)
         {
             switch (format.LineAlignment)
@@ -431,6 +442,19 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
                 case XLineAlignment.BaseLine:
                     // Nothing to do.
+                    break;
+
+                case XLineAlignment.Hanging:
+                    // As Near, but hung off the position rather than off the top of the rectangle.
+                    y += cyAscent;
+                    break;
+
+                case XLineAlignment.Ideographic:
+                    y += -cyDescent;
+                    break;
+
+                case XLineAlignment.SvgMiddle:
+                    y += cyXHeight / 2;
                     break;
             }
         }
@@ -454,6 +478,18 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 case XLineAlignment.BaseLine:
                     // Nothing to do.
                     break;
+
+                case XLineAlignment.Hanging:
+                    y += -cyAscent;
+                    break;
+
+                case XLineAlignment.Ideographic:
+                    y += cyDescent;
+                    break;
+
+                case XLineAlignment.SvgMiddle:
+                    y += -cyXHeight / 2;
+                    break;
             }
         }
 
@@ -464,6 +500,8 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         const string format2 = Config.SignificantFigures4;
         OpenTypeDescriptor descriptor = realizedFont.FontDescriptor._descriptor;
 
+        // The whole show-text operation, its operator included: usually a Tj, but a TJ array when
+        // the words have to be spaced out by hand. See PdfGraphicsState.NeedsWordSpacingByHand.
         string text = null;
         if (font.Unicode)
         {
@@ -480,16 +518,16 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 int glyphID = descriptor.CharCodeToGlyphIndex(ch);
                 sb.Append((char)glyphID);
             }
-            s = sb.ToString();
+            string glyphs = sb.ToString();
 
-            byte[] bytes = PdfEncoders.RawUnicodeEncoding.GetBytes(s);
-            bytes = PdfEncoders.FormatStringLiteral(bytes, true, false, true, null);
-            text = PdfEncoders.RawEncoding.GetString(bytes, 0, bytes.Length);
+            text = PdfGraphicsState.NeedsWordSpacingByHand(font, format)
+                ? WordSpacedGlyphRun(s, glyphs, font.Size, format.WordSpacing)
+                : GlyphRunToHexString(glyphs) + " Tj";
         }
         else
         {
             byte[] bytes = PdfEncoders.WinAnsiEncoding.GetBytes(s);
-            text = PdfEncoders.ToStringLiteral(bytes, false, null);
+            text = PdfEncoders.ToStringLiteral(bytes, false, null) + " Tj";
         }
 
         // Map absolute position to PDF world space.
@@ -504,41 +542,40 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             //verticalOffset = font.Size * Const.BoldEmphasis / 2;
         }
 
-        if (italicSimulation)
+        // How far the glyphs lean, as the tangent of the angle. Italic simulation contributes a
+        // fixed lean and the caller may ask for one of their own; two shears compose by adding
+        // their tangents, so the two are one number from here on.
+        double skew = SkewOf(italicSimulation, format.ObliqueAngle);
+
+        if (skew == _gfxState.RealizedTextSkew)
         {
-            if (_gfxState.ItalicSimulationOn)
-            {
-                AdjustTdOffset(ref pos, verticalOffset, true);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td\n{2} Tj\n", pos.X, pos.Y, text);
-            }
-            else
-            {
-                // Italic simulation is done by skewing characters 20° to the right.
-                XMatrix m = new XMatrix(1, 0, Const.ItalicSkewAngleSinus, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6} Tj\n",
-                    m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
-                _gfxState.ItalicSimulationOn = true;
-                AdjustTdOffset(ref pos, verticalOffset, false);
-            }
+            // The text matrix already leans the right amount, so moving to the next position is
+            // all that is needed - and Td is shorter than Tm.
+            AdjustTdOffset(ref pos, verticalOffset, _gfxState.RealizedTextSkew);
+            AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2}\n", pos.X, pos.Y, text);
         }
         else
         {
-            if (_gfxState.ItalicSimulationOn)
-            {
-                XMatrix m = new XMatrix(1, 0, 0, 1, pos.X, pos.Y);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6} Tj\n",
-                    m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
-                _gfxState.ItalicSimulationOn = false;
-                AdjustTdOffset(ref pos, verticalOffset, false);
-            }
-            else
-            {
-                AdjustTdOffset(ref pos, verticalOffset, false);
-                AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} Td {2} Tj\n", pos.X, pos.Y, text);
-            }
+            // Only Tm can set the lean, and it sets the position absolutely while it is there.
+            XMatrix m = new XMatrix(1, 0, skew, 1, pos.X, pos.Y);
+            AppendFormatArgs("{0:" + format2 + "} {1:" + format2 + "} {2:" + format2 + "} {3:" + format2 + "} {4:" + format2 + "} {5:" + format2 + "} Tm\n{6}\n",
+                m.M11, m.M12, m.M21, m.M22, m.OffsetX, m.OffsetY, text);
+            _gfxState.RealizedTextSkew = skew;
+            AdjustTdOffset(ref pos, verticalOffset, 0);
         }
 
-        if (underline)
+        // The rules below are rectangles drawn in graphics mode, so they do not go through the
+        // text matrix and have to be moved by the text rise themselves. Raising text moves it up
+        // the page, which is towards smaller y only when y runs downwards.
+        double rise = Gfx.PageDirection == XPageDirection.Downwards ? -format.TextRise : format.TextRise;
+
+        // Built only where there is a rule to draw, which is almost never - every string drawn
+        // otherwise paid for a brush nothing used.
+        XBrush ruleBrush = underline == XTextDecoration.None && strikeout == XTextDecoration.None
+            ? null
+            : RuleBrushFor(brush, pen, format);
+
+        if (underline != XTextDecoration.None)
         {
             double underlinePosition = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlinePosition / font.CellSpace;
             double underlineThickness = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlineThickness / font.CellSpace;
@@ -546,10 +583,10 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double underlineRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - underlinePosition
                 : y + underlinePosition - underlineThickness;
-            DrawRectangle(null, brush, x, underlineRectY, width, underlineThickness);
+            DrawTextRule(underline, s, font, format, ruleBrush, x, underlineRectY + rise, width, underlineThickness);
         }
 
-        if (strikeout)
+        if (strikeout != XTextDecoration.None)
         {
             double strikeoutPosition = lineSpace * realizedFont.FontDescriptor._descriptor.StrikeoutPosition / font.CellSpace;
             double strikeoutSize = lineSpace * realizedFont.FontDescriptor._descriptor.StrikeoutSize / font.CellSpace;
@@ -557,8 +594,126 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double strikeoutRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - strikeoutPosition
                 : y + strikeoutPosition - strikeoutSize;
-            DrawRectangle(null, brush, x, strikeoutRectY, width, strikeoutSize);
+            DrawTextRule(strikeout, s, font, format, ruleBrush, x, strikeoutRectY + rise, width, strikeoutSize);
         }
+    }
+
+    /// <summary>
+    /// What an underline or strikeout rule is painted with.
+    /// </summary>
+    /// <remarks>
+    /// A colour asked for outright wins. Failing that the rule follows the text, which is the brush
+    /// filling it, or the pen outlining it when there is no brush - and a pen carrying a brush of
+    /// its own leaves its Color empty, so that has to be looked at before the colour is.
+    /// </remarks>
+    static XBrush RuleBrushFor(XBrush brush, XPen pen, XStringFormat format)
+    {
+        if (!format.DecorationColor.IsEmpty)
+            return new XSolidBrush(format.DecorationColor);
+
+        if (brush != null)
+            return brush;
+
+        return pen.Brush ?? new XSolidBrush(pen.Color);
+    }
+
+    /// <summary>
+    /// Draws the rule that underlines or strikes out a run of text.
+    /// </summary>
+    /// <param name="top">Where the top of the rule sits, in world coordinates.</param>
+    /// <param name="thickness">How thick the rule is, from the font's own metrics.</param>
+    void DrawTextRule(XTextDecoration decoration, string s, XFont font, XStringFormat format,
+        XBrush brush, double x, double top, double width, double thickness)
+    {
+        if (decoration == XTextDecoration.Words)
+        {
+            // Under the words and not under the spaces between them, so the run has to be broken
+            // up and each piece measured to find out where it starts.
+            foreach (var (wordX, wordWidth) in WordRunsOf(s, font, format, x))
+                DrawTextRule(XTextDecoration.Single, null, font, format, brush, wordX, top, wordWidth, thickness);
+            return;
+        }
+
+        XDashStyle dashStyle = DashStyleOf(decoration);
+        if (dashStyle == XDashStyle.Solid)
+        {
+            // Filled rather than stroked, which is how this has always been drawn and what every
+            // document made with it looks like.
+            DrawRectangle(null, brush, x, top, width, thickness);
+            return;
+        }
+
+        // A broken rule has to be stroked, since a rectangle cannot be dotted. The pen is as thick
+        // as the rule and runs down the middle of where the rectangle would have been.
+        XColor colour = brush is XSolidBrush solid ? solid.Color : XColors.Black;
+        XPen pen = new XPen(colour, thickness) { DashStyle = dashStyle };
+        double middle = top + thickness / 2;
+        DrawLine(pen, x, middle, x + width, middle);
+    }
+
+    static XDashStyle DashStyleOf(XTextDecoration decoration)
+    {
+        switch (decoration)
+        {
+            case XTextDecoration.Dotted: return XDashStyle.Dot;
+            case XTextDecoration.Dash: return XDashStyle.Dash;
+            case XTextDecoration.DotDash: return XDashStyle.DashDot;
+            case XTextDecoration.DotDotDash: return XDashStyle.DashDotDot;
+            default: return XDashStyle.Solid;
+        }
+    }
+
+    /// <summary>
+    /// Where each run of non-blank characters in <paramref name="s"/> starts and how wide it is,
+    /// measured through the same format the text is drawn with.
+    /// </summary>
+    /// <remarks>
+    /// Each stretch of the string - blank or not - is measured once and the widths added up, which
+    /// is exact rather than close enough: a glyph advances by its own width plus the character
+    /// spacing, and a space by the word spacing on top, so the width of a run really is the sum of
+    /// the widths of its parts. Measuring each word's prefix from the start of the string instead
+    /// would answer the same and cost a measurement of the whole string per word.
+    /// </remarks>
+    IEnumerable<(double X, double Width)> WordRunsOf(string s, XFont font, XStringFormat format, double x)
+    {
+        int idx = 0;
+        while (idx < s.Length)
+        {
+            int blankStart = idx;
+            while (idx < s.Length && char.IsWhiteSpace(s[idx]))
+                idx++;
+            if (idx > blankStart)
+                x += _gfx.MeasureString(s.Substring(blankStart, idx - blankStart), font, format).Width;
+            if (idx == s.Length)
+                yield break;
+
+            int wordStart = idx;
+            while (idx < s.Length && !char.IsWhiteSpace(s[idx]))
+                idx++;
+
+            double width = _gfx.MeasureString(s.Substring(wordStart, idx - wordStart), font, format).Width;
+            yield return (x, width);
+            x += width;
+        }
+    }
+
+    /// <summary>
+    /// How far text leans to the right, as the tangent of the angle, given whether the font is
+    /// having its italic drawn on for it and what the caller asked for on top of that.
+    /// </summary>
+    /// <remarks>
+    /// Italic simulation contributes sin(20°) rather than tan(20°). That is what PDFsharp has
+    /// always skewed by and what every document built with it looks like, so it is left alone; a
+    /// caller asking for an angle gets its tangent, which is the skew that angle actually means
+    /// and what PDFKit's oblique produces. The two add because shearing by a and then by b is
+    /// shearing by a + b.
+    /// </remarks>
+    static double SkewOf(bool italicSimulation, double obliqueAngle)
+    {
+        double skew = italicSimulation ? Const.ItalicSkewAngleSinus : 0;
+        if (obliqueAngle != 0)
+            skew += Math.Tan(obliqueAngle * Math.PI / 180);
+        return skew;
     }
 
     // ----- DrawImage ----------------------------------------------------------------------------
@@ -1541,7 +1696,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             _content.Append("BT\n");
             // Text matrix is empty after BT
             _gfxState.RealizedTextPosition = new XPoint();
-            _gfxState.ItalicSimulationOn = false;
+            _gfxState.RealizedTextSkew = 0;
         }
     }
 
@@ -1585,13 +1740,73 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Makes the specified font and brush to the current graphics objects.
     /// </summary>
-    void Realize(XFont font, XBrush brush, int renderingMode)
+    void Realize(XFont font, XBrush brush, XPen pen, bool boldSimulation, XStringFormat format)
     {
         BeginPage();
         RealizeTransform();
         BeginTextMode();
-        _gfxState.RealizeFont(font, brush, renderingMode);
+        _gfxState.RealizeFont(font, brush, pen, boldSimulation, format);
     }
+
+    /// <summary>
+    /// Encodes a run of glyph identifiers as the hexadecimal string a Tj or a TJ array takes.
+    /// </summary>
+    static string GlyphRunToHexString(string glyphs)
+    {
+        byte[] bytes = PdfEncoders.RawUnicodeEncoding.GetBytes(glyphs);
+        bytes = PdfEncoders.FormatStringLiteral(bytes, true, false, true, null);
+        return PdfEncoders.RawEncoding.GetString(bytes, 0, bytes.Length);
+    }
+
+    /// <summary>
+    /// Builds a TJ array that draws <paramref name="glyphs"/> with <paramref name="wordSpacing"/>
+    /// points of extra room after every space, for the fonts whose Tw cannot say so.
+    /// </summary>
+    /// <remarks>
+    /// A number in a TJ array moves the pen back by n/1000 of the font size, so the number that
+    /// buys one word spacing is -wordSpacing * 1000 / size. The horizontal scaling multiplies that
+    /// displacement and the one Tw produces alike, so it cancels and is not compensated for here.
+    /// <para>
+    /// <paramref name="text"/> is the string as the caller wrote it and <paramref name="glyphs"/>
+    /// the glyph identifiers it was mapped to, one per character, so an index into one is an index
+    /// into the other.
+    /// </para>
+    /// </remarks>
+    static string WordSpacedGlyphRun(string text, string glyphs, double fontSize, double wordSpacing)
+    {
+        Debug.Assert(text.Length == glyphs.Length, "One glyph per character, or the split lands in the wrong place.");
+
+        // A font of no size has no displacement to divide into, and nothing to show either.
+        if (fontSize <= 0)
+            return GlyphRunToHexString(glyphs) + " Tj";
+
+        double adjustment = -wordSpacing * 1000 / fontSize;
+
+        StringBuilder tj = new StringBuilder("[");
+        int start = 0;
+        for (int idx = 0; idx < text.Length; idx++)
+        {
+            if (!IsWordSpace(text[idx]))
+                continue;
+
+            // The run up to and including the space, then the room that follows it.
+            tj.Append(GlyphRunToHexString(glyphs.Substring(start, idx - start + 1)));
+            tj.Append(' ');
+            tj.Append(adjustment.ToString(Config.SignificantFigures3, CultureInfo.InvariantCulture));
+            tj.Append(' ');
+            start = idx + 1;
+        }
+        if (start < glyphs.Length)
+            tj.Append(GlyphRunToHexString(glyphs.Substring(start)));
+        tj.Append("] TJ");
+        return tj.ToString();
+    }
+
+    /// <summary>
+    /// True for the characters a word spacing is paid out for. Kept in step with
+    /// FontHelper.MeasureString, which maps a tab to a space before it counts one.
+    /// </summary>
+    static bool IsWordSpace(char ch) => ch == ' ' || ch == '\t';
 
     /// <summary>
     /// PDFsharp uses the Td operator to set the text position. Td just sets the offset of the text matrix
@@ -1599,18 +1814,22 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// </summary>
     /// <param name="pos">The absolute text position.</param>
     /// <param name="dy">The dy.</param>
-    /// <param name="adjustSkew">true if skewing for italic simulation is currently on.</param>
-    void AdjustTdOffset(ref XPoint pos, double dy, bool adjustSkew)
+    /// <param name="skew">
+    /// How far the text matrix currently leans, as the tangent of the angle, or 0 for upright
+    /// text. Td's offset is taken through that lean, so it has to be corrected for it.
+    /// </param>
+    void AdjustTdOffset(ref XPoint pos, double dy, double skew)
     {
         pos.Y += dy;
         // Reference: TABLE 5.5  Text-positioning operators / Page 406
         XPoint posSave = pos;
         // Map from absolute to relative position.
         pos = pos - new XVector(_gfxState.RealizedTextPosition.X, _gfxState.RealizedTextPosition.Y);
-        if (adjustSkew)
+        if (skew != 0)
         {
-            // In case that italic simulation is on X must be adjusted according to Y offset. Weird but works :-)
-            pos.X -= Const.ItalicSkewAngleSinus * pos.Y;
+            // A leaning text matrix carries the Td offset sideways by the height it moves through,
+            // so that much has to come off the offset for the text to land where it was asked for.
+            pos.X -= skew * pos.Y;
         }
         _gfxState.RealizedTextPosition = posSave;
     }

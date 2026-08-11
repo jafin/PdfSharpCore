@@ -682,6 +682,18 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     }
 
     /// <summary>
+    /// Adds a link to a named destination of this document.
+    /// </summary>
+    /// <param name="rect">The rect.</param>
+    /// <param name="destinationName">The name, as given to <see cref="PdfDocument.NamedDestinations"/>.</param>
+    public PdfLinkAnnotation AddNamedLink(PdfRectangle rect, string destinationName)
+    {
+        PdfLinkAnnotation annotation = PdfLinkAnnotation.CreateNamedLink(rect, destinationName);
+        Annotations.Add(annotation);
+        return annotation;
+    }
+
+    /// <summary>
     /// Adds a link to a file.
     /// </summary>
     /// <param name="rect">The rect.</param>

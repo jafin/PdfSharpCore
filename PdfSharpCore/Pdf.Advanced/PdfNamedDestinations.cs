@@ -26,6 +26,9 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
+
 namespace PdfSharpCore.Pdf.Advanced;
 
 /// <summary>
@@ -121,6 +124,51 @@ internal static class PdfNamedDestinations
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Every name the document holds in its /Names /Dests tree, with what it stands for, as it is
+    /// written rather than resolved. The legacy /Dests dictionary is not walked: a document being
+    /// rewritten gets a name tree, and putting the old dictionary's names into it would move them.
+    /// </summary>
+    internal static IEnumerable<KeyValuePair<string, PdfItem>> Enumerate(PdfDocument document)
+    {
+        PdfCatalog catalog = document?.Catalog;
+        PdfDictionary names = catalog?.Elements.GetDictionary("/Names");
+        PdfDictionary dests = names?.Elements.GetDictionary("/Dests");
+        return dests == null
+            ? Enumerable.Empty<KeyValuePair<string, PdfItem>>()
+            : Walk(dests, 0);
+    }
+
+    static IEnumerable<KeyValuePair<string, PdfItem>> Walk(PdfDictionary node, int depth)
+    {
+        // The same cap the search uses, and for the same reason: a tree that leads back into
+        // itself would otherwise be walked forever.
+        if (node == null || depth > MaxDepth)
+            yield break;
+
+        PdfArray leaves = node.Elements.GetArray("/Names");
+        if (leaves != null)
+        {
+            int count = leaves.Elements.Count;
+            for (int idx = 0; idx + 1 < count; idx += 2)
+            {
+                string name = TextOf(leaves.Elements[idx]);
+                if (name != null)
+                    yield return new KeyValuePair<string, PdfItem>(name, leaves.Elements[idx + 1]);
+            }
+        }
+
+        PdfArray kids = node.Elements.GetArray("/Kids");
+        if (kids == null)
+            yield break;
+
+        for (int idx = 0; idx < kids.Elements.Count; idx++)
+        {
+            foreach (var entry in Walk(kids.Elements.GetDictionary(idx), depth + 1))
+                yield return entry;
+        }
     }
 
     /// <summary>

@@ -27,6 +27,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
+
 namespace PdfSharpCore.Drawing;
 
 /// <summary>
@@ -80,4 +82,151 @@ public class XStringFormat
         set => _lineAlignment = value;
     }
     XLineAlignment _lineAlignment;
+
+    // ----- Text state ---------------------------------------------------------------------------
+    //
+    // The properties below are the PDF text state parameters of PDF 32000-1 section 9.3. They are
+    // carried here rather than on their own type because DrawString and MeasureString already pass
+    // an XStringFormat all the way down to the renderer, so nothing else has to change shape to
+    // reach it.
+    //
+    // All of them widen or move a glyph run, so FontHelper.MeasureString has to apply them or
+    // measurement and drawing disagree at every line end.
+
+    /// <summary>
+    /// Gets or sets the extra space added after each glyph, in points.
+    /// Negative values tighten the text. The default is 0.
+    /// This is the Tc operand of PDF 32000-1 section 9.3.2.
+    /// </summary>
+    public double CharacterSpacing
+    {
+        get => _characterSpacing;
+        set => _characterSpacing = value;
+    }
+    double _characterSpacing;
+
+    /// <summary>
+    /// Gets or sets the extra space added after each space character, in points.
+    /// Negative values tighten the text. The default is 0.
+    /// This is the Tw operand of PDF 32000-1 section 9.3.3, and applies on top of
+    /// <see cref="CharacterSpacing"/>, which a space receives as well.
+    /// </summary>
+    public double WordSpacing
+    {
+        get => _wordSpacing;
+        set => _wordSpacing = value;
+    }
+    double _wordSpacing;
+
+    /// <summary>
+    /// Gets or sets the horizontal scaling of the text, as a percentage. The default is 100.
+    /// This is the Tz operand of PDF 32000-1 section 9.3.4, and scales the glyphs, the character
+    /// spacing and the word spacing alike.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not greater than zero.</exception>
+    public double HorizontalScaling
+    {
+        get => _horizontalScaling;
+        set
+        {
+            // PDF permits any number here, but a run of zero or negative width has no sensible
+            // measurement and would break every line-breaking decision taken from it. Mirrored
+            // text is XGraphics.ScaleTransform(-1, 1), not a negative scaling.
+            //
+            // Asked the way round that rejects NaN as well: NaN fails every comparison, so
+            // "value <= 0" would have let it through to be written into the content stream, and a
+            // page carrying "NaN Tz" is one no reader will open.
+            if (!(value > 0))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "HorizontalScaling must be greater than zero.");
+            _horizontalScaling = value;
+        }
+    }
+    double _horizontalScaling = 100;
+
+    /// <summary>
+    /// Gets or sets the distance the text is raised above its baseline, in points.
+    /// Negative values lower it. The default is 0.
+    /// This is the Ts operand of PDF 32000-1 section 9.3.5, and is how superscript and subscript
+    /// are expressed. It moves the text without changing how wide it is.
+    /// </summary>
+    public double TextRise
+    {
+        get => _textRise;
+        set => _textRise = value;
+    }
+    double _textRise;
+
+    /// <summary>
+    /// Gets or sets the angle, in degrees, by which the text is slanted to the right.
+    /// Negative values slant it to the left. The default is 0.
+    /// This is a skew of the text matrix rather than a text state parameter, and like
+    /// <see cref="TextRise"/> it does not change how wide the text is.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The absolute value is 90 or more.</exception>
+    public double ObliqueAngle
+    {
+        get => _obliqueAngle;
+        set
+        {
+            // At 90 degrees the skew is infinite and the glyphs collapse to a line. Asked the way
+            // round that rejects NaN too, which would otherwise reach Math.Tan and put NaN into a
+            // text matrix.
+            if (!(value > -90 && value < 90))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "ObliqueAngle must be greater than -90 and less than 90 degrees.");
+            _obliqueAngle = value;
+        }
+    }
+    double _obliqueAngle;
+
+    // ----- decoration ---------------------------------------------------------------------------
+    //
+    // Underlining and striking out are also settable through XFontStyle, which is where they were
+    // before these existed and where they remain. A style set here wins; leaving it at None keeps
+    // whatever the font's style asks for, so nothing that already underlines its text stops.
+
+    /// <summary>
+    /// Gets or sets the rule drawn under the text. <see cref="XTextDecoration.None"/>, the
+    /// default, falls back to <see cref="XFontStyle.Underline"/> on the font.
+    /// </summary>
+    public XTextDecoration Underline
+    {
+        get => _underline;
+        set => _underline = value;
+    }
+    XTextDecoration _underline;
+
+    /// <summary>
+    /// Gets or sets the rule drawn through the text. <see cref="XTextDecoration.None"/>, the
+    /// default, falls back to <see cref="XFontStyle.Strikeout"/> on the font.
+    /// </summary>
+    public XTextDecoration Strikeout
+    {
+        get => _strikeout;
+        set => _strikeout = value;
+    }
+    XTextDecoration _strikeout;
+
+    /// <summary>
+    /// Gets or sets the colour of the underline and strikeout rules. Empty, the default, draws
+    /// them in the colour of the text.
+    /// </summary>
+    /// <remarks>
+    /// MigraDoc has never offered this - its underline is always the colour of the font
+    /// (<c>ParagraphRenderer</c>) - and neither does PDFKit. It is here because a rule that cannot
+    /// be told apart from the text is the one thing a caller cannot achieve by other means.
+    /// </remarks>
+    public XColor DecorationColor
+    {
+        get => _decorationColor;
+        set => _decorationColor = value;
+    }
+    XColor _decorationColor = XColor.Empty;
+
+    /// <summary>
+    /// Returns true if every text state property still holds its default, and the text can
+    /// therefore be drawn without writing any text state operator.
+    /// </summary>
+    internal bool IsDefaultTextState =>
+        _characterSpacing == 0 && _wordSpacing == 0 && _horizontalScaling == 100 &&
+        _textRise == 0 && _obliqueAngle == 0;
 }

@@ -55,12 +55,31 @@ static class FontHelper
 
             Debug.Assert(descriptor.Ascender > 0);
 
+            XStringFormat format = stringFormat ?? XStringFormats.Default;
+
+            // Bold simulation strokes the glyphs and widens them by a character spacing of its own
+            // (see PdfGraphicsState.RealizeFont), so it counts the same way CharacterSpacing does.
+            // Unsure how to deal with white space. Currently count as regular character.
+            double boldSimulation =
+                (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) == XStyleSimulations.BoldSimulation
+                    ? font.Size * Const.BoldEmphasis
+                    : 0;
+            double characterSpacing = format.CharacterSpacing + boldSimulation;
+            double wordSpacing = format.WordSpacing;
+
+            // A glyph advances by its own width plus the character spacing, and a space by the word
+            // spacing on top of that; the horizontal scaling then applies to the lot. PDF 32000-1
+            // section 9.4.4.
+            double LineWidth(int fontUnits, int glyphs, int spaces)
+                => fontUnits * font.Size / descriptor.UnitsPerEm + glyphs * characterSpacing + spaces * wordSpacing;
+
             bool symbol = descriptor.FontFace.cmap.symbol;
             int length = text.Length;
-            int adjustedLength = length;
             var height = singleLineHeight;
-            int maxWidth = 0;
+            double maxWidth = 0;
             int width = 0;
+            int glyphCount = 0;
+            int spaceCount = 0;
             for (int idx = 0; idx < length; idx++)
             {
                 char ch = text[idx];
@@ -68,11 +87,12 @@ static class FontHelper
                 // Handle line feed ( \n)
                 if (ch == 10)
                 {
-                    adjustedLength--;
                     if (idx < (length - 1))
                     {
-                        maxWidth = Math.Max(maxWidth, width);
+                        maxWidth = Math.Max(maxWidth, LineWidth(width, glyphCount, spaceCount));
                         width = 0;
+                        glyphCount = 0;
+                        spaceCount = 0;
                         height += lineGapHeight + singleLineHeight;
                     }
 
@@ -88,10 +108,13 @@ static class FontHelper
                 // HACK: Unclear what to do here.
                 if (ch < 32)
                 {
-                    adjustedLength--;
-
                     continue;
                 }
+
+                // Counted before the symbol remapping below, which would turn the space into some
+                // other code point entirely.
+                if (ch == ' ')
+                    spaceCount++;
 
                 if (symbol)
                 {
@@ -101,20 +124,13 @@ static class FontHelper
                 }
                 int glyphIndex = descriptor.CharCodeToGlyphIndex(ch);
                 width += descriptor.GlyphIndexToWidth(glyphIndex);
+                glyphCount++;
             }
-            maxWidth = Math.Max(maxWidth, width);
+            maxWidth = Math.Max(maxWidth, LineWidth(width, glyphCount, spaceCount));
 
             // What? size.Width = maxWidth * font.Size * (font.Italic ? 1 : 1) / descriptor.UnitsPerEm;
-            size.Width = maxWidth * font.Size / descriptor.UnitsPerEm;
+            size.Width = maxWidth * format.HorizontalScaling / 100;
             size.Height = height;
-
-            // Adjust bold simulation.
-            if ((font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) == XStyleSimulations.BoldSimulation)
-            {
-                // Add 2% of the em-size for each character.
-                // Unsure how to deal with white space. Currently count as regular character.
-                size.Width += adjustedLength * font.Size * Const.BoldEmphasis;
-            }
         }
         Debug.Assert(descriptor != null, "No OpenTypeDescriptor.");
 

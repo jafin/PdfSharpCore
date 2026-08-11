@@ -31,6 +31,7 @@ using System;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing.Pdf;
 using PdfSharpCore.Pdf.Advanced;
+using PdfSharpCore.Pdf.Annotations;
 
 #pragma warning disable 1587
 // ReSharper disable UseNullPropagation
@@ -1221,12 +1222,75 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XStringFormat format)
     {
+        if (brush == null)
+            throw new ArgumentNullException("brush");
+
+        DrawString(text, font, null, brush, layoutRectangle, format);
+    }
+
+    // ----- outlined text ------------------------------------------------------------------------
+    //
+    // The overloads below take a pen as well as a brush, as every other Draw method here does.
+    // A brush alone fills the glyphs, a pen alone outlines them, and both does both; passing
+    // neither is an error, the same way it is for DrawRectangle.
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point)
+    {
+        DrawString(s, font, pen, brush, new XRect(point.X, point.Y, 0, 0), XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point, XStringFormat format)
+    {
+        DrawString(s, font, pen, brush, new XRect(point.X, point.Y, 0, 0), format);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y)
+    {
+        DrawString(s, font, pen, brush, new XRect(x, y, 0, 0), XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y, XStringFormat format)
+    {
+        DrawString(s, font, pen, brush, new XRect(x, y, 0, 0), format);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect layoutRectangle)
+    {
+        DrawString(s, font, pen, brush, layoutRectangle, XStringFormats.Default);
+    }
+
+    /// <summary>
+    /// Draws the specified text string, filled with the brush and outlined with the pen.
+    /// Either may be null, but not both.
+    /// </summary>
+    public void DrawString(string text, XFont font, XPen pen, XBrush brush, XRect layoutRectangle, XStringFormat format)
+    {
         if (text == null)
             throw new ArgumentNullException("text");
         if (font == null)
             throw new ArgumentNullException("font");
-        if (brush == null)
-            throw new ArgumentNullException("brush");
+        if (pen == null && brush == null)
+            throw new ArgumentNullException("pen and brush", PSSR.NeedPenOrBrush);
 
         if (format != null && format.LineAlignment == XLineAlignment.BaseLine && layoutRectangle.Height != 0)
             throw new InvalidOperationException("DrawString: With XLineAlignment.BaseLine the height of the layout rectangle must be 0.");
@@ -1238,7 +1302,7 @@ public sealed class XGraphics : IDisposable
             format = XStringFormats.Default;
 
         if (_renderer != null)
-            _renderer.DrawString(text, font, brush, layoutRectangle, format);
+            _renderer.DrawString(text, font, pen, brush, layoutRectangle, format);
     }
 
     // ----- MeasureString ------------------------------------------------------------------------
@@ -1255,7 +1319,7 @@ public sealed class XGraphics : IDisposable
         if (stringFormat == null)
             throw new ArgumentNullException("stringFormat");
 
-        XSize size = FontHelper.MeasureString(text, font, XStringFormats.Default);
+        XSize size = FontHelper.MeasureString(text, font, stringFormat);
         return size;
     }
 
@@ -1892,6 +1956,71 @@ public sealed class XGraphics : IDisposable
             XGraphicsPdfRenderer renderer = _renderer as XGraphicsPdfRenderer;
             return renderer != null ? renderer._page : null;
         }
+    }
+
+    // ----- linking what has been drawn -----------------------------------------------------------
+    //
+    // An annotation is placed in default page space, measured from the bottom left of the page,
+    // and everything drawn here is placed in world space, which is usually measured from the top
+    // left and may have been turned or scaled since. The methods below are the conversion, which
+    // is the whole of what stood between drawing a piece of text and linking it.
+
+    /// <summary>
+    /// Links a rectangle of what has been drawn to a web address.
+    /// </summary>
+    /// <param name="worldRect">The area to link, in the coordinates the drawing methods take.</param>
+    /// <param name="url">The address to link to.</param>
+    public PdfLinkAnnotation AddWebLink(XRect worldRect, string url)
+    {
+        return PageForAnnotation().AddWebLink(PageRectangleOf(worldRect), url);
+    }
+
+    /// <summary>
+    /// Links a rectangle of what has been drawn to a page of the same document.
+    /// </summary>
+    /// <param name="worldRect">The area to link, in the coordinates the drawing methods take.</param>
+    /// <param name="destinationPage">The one-based destination page number.</param>
+    public PdfLinkAnnotation AddDocumentLink(XRect worldRect, int destinationPage)
+    {
+        return PageForAnnotation().AddDocumentLink(PageRectangleOf(worldRect), destinationPage);
+    }
+
+    /// <summary>
+    /// Links a rectangle of what has been drawn to a named destination of the same document.
+    /// </summary>
+    /// <param name="worldRect">The area to link, in the coordinates the drawing methods take.</param>
+    /// <param name="destinationName">The name, as given to <see cref="PdfDocument.NamedDestinations"/>.</param>
+    public PdfLinkAnnotation AddNamedLink(XRect worldRect, string destinationName)
+    {
+        return PageForAnnotation().AddNamedLink(PageRectangleOf(worldRect), destinationName);
+    }
+
+    /// <summary>
+    /// Names the place on this page that a point of what has been drawn sits at, so that it can be
+    /// linked to by that name.
+    /// </summary>
+    /// <param name="name">The name to give it.</param>
+    /// <param name="worldPoint">The place, in the coordinates the drawing methods take.</param>
+    public void AddNamedDestination(string name, XPoint worldPoint)
+    {
+        PdfPage page = PageForAnnotation();
+        XRect onPage = Transformer.WorldToDefaultPage(new XRect(worldPoint.X, worldPoint.Y, 0, 0));
+
+        // The top of the window, which PDF measures up the page from the bottom.
+        page.Owner.NamedDestinations.Add(name, page, onPage.Y);
+    }
+
+    PdfPage PageForAnnotation()
+    {
+        PdfPage page = PdfPage;
+        if (page == null)
+            throw new InvalidOperationException("Annotations can only be added to an XGraphics that draws onto a PDF page.");
+        return page;
+    }
+
+    PdfRectangle PageRectangleOf(XRect worldRect)
+    {
+        return new PdfRectangle(Transformer.WorldToDefaultPage(worldRect));
     }
 
     /// <summary>
