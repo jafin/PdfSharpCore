@@ -395,8 +395,14 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         //bool italic = (font.Style & XFontStyle.Italic) != 0;
         bool italicSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.ItalicSimulation) != 0;
         bool boldSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) != 0;
-        bool strikeout = (font.Style & XFontStyle.Strikeout) != 0;
-        bool underline = (font.Style & XFontStyle.Underline) != 0;
+        // The format's decoration wins; leaving it at None keeps whatever the font's style asks
+        // for, which is where underlining lived before the format could carry it.
+        XTextDecoration underline = format.Underline != XTextDecoration.None
+            ? format.Underline
+            : (font.Style & XFontStyle.Underline) != 0 ? XTextDecoration.Single : XTextDecoration.None;
+        XTextDecoration strikeout = format.Strikeout != XTextDecoration.None
+            ? format.Strikeout
+            : (font.Style & XFontStyle.Strikeout) != 0 ? XTextDecoration.Single : XTextDecoration.None;
 
         Realize(font, brush, pen, boldSimulation, format);
 
@@ -414,6 +420,9 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 x += rect.Width - width;
                 break;
         }
+        // Half the height of a lowercase x, for the one alignment that is measured against it.
+        double cyXHeight = lineSpace * font.Metrics.XHeight / font.CellSpace;
+
         if (Gfx.PageDirection == XPageDirection.Downwards)
         {
             switch (format.LineAlignment)
@@ -433,6 +442,19 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
                 case XLineAlignment.BaseLine:
                     // Nothing to do.
+                    break;
+
+                case XLineAlignment.Hanging:
+                    // As Near, but hung off the position rather than off the top of the rectangle.
+                    y += cyAscent;
+                    break;
+
+                case XLineAlignment.Ideographic:
+                    y += -cyDescent;
+                    break;
+
+                case XLineAlignment.SvgMiddle:
+                    y += cyXHeight / 2;
                     break;
             }
         }
@@ -455,6 +477,18 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
                 case XLineAlignment.BaseLine:
                     // Nothing to do.
+                    break;
+
+                case XLineAlignment.Hanging:
+                    y += -cyAscent;
+                    break;
+
+                case XLineAlignment.Ideographic:
+                    y += cyDescent;
+                    break;
+
+                case XLineAlignment.SvgMiddle:
+                    y += -cyXHeight / 2;
                     break;
             }
         }
@@ -536,10 +570,13 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         double rise = Gfx.PageDirection == XPageDirection.Downwards ? -format.TextRise : format.TextRise;
 
         // They are filled rather than stroked, so text that is only outlined has no brush to give
-        // them. Its pen's colour is the nearest thing to the colour the reader sees.
-        XBrush ruleBrush = brush ?? new XSolidBrush(pen.Color);
+        // them. Its pen's colour is the nearest thing to the colour the reader sees, and a colour
+        // asked for outright beats both.
+        XBrush ruleBrush = format.DecorationColor.IsEmpty
+            ? brush ?? new XSolidBrush(pen.Color)
+            : new XSolidBrush(format.DecorationColor);
 
-        if (underline)
+        if (underline != XTextDecoration.None)
         {
             double underlinePosition = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlinePosition / font.CellSpace;
             double underlineThickness = lineSpace * realizedFont.FontDescriptor._descriptor.UnderlineThickness / font.CellSpace;
@@ -547,10 +584,10 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double underlineRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - underlinePosition
                 : y + underlinePosition - underlineThickness;
-            DrawRectangle(null, ruleBrush, x, underlineRectY + rise, width, underlineThickness);
+            DrawTextRule(underline, s, font, format, ruleBrush, x, underlineRectY + rise, width, underlineThickness);
         }
 
-        if (strikeout)
+        if (strikeout != XTextDecoration.None)
         {
             double strikeoutPosition = lineSpace * realizedFont.FontDescriptor._descriptor.StrikeoutPosition / font.CellSpace;
             double strikeoutSize = lineSpace * realizedFont.FontDescriptor._descriptor.StrikeoutSize / font.CellSpace;
@@ -558,7 +595,79 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             double strikeoutRectY = Gfx.PageDirection == XPageDirection.Downwards
                 ? y - strikeoutPosition
                 : y + strikeoutPosition - strikeoutSize;
-            DrawRectangle(null, ruleBrush, x, strikeoutRectY + rise, width, strikeoutSize);
+            DrawTextRule(strikeout, s, font, format, ruleBrush, x, strikeoutRectY + rise, width, strikeoutSize);
+        }
+    }
+
+    /// <summary>
+    /// Draws the rule that underlines or strikes out a run of text.
+    /// </summary>
+    /// <param name="top">Where the top of the rule sits, in world coordinates.</param>
+    /// <param name="thickness">How thick the rule is, from the font's own metrics.</param>
+    void DrawTextRule(XTextDecoration decoration, string s, XFont font, XStringFormat format,
+        XBrush brush, double x, double top, double width, double thickness)
+    {
+        if (decoration == XTextDecoration.Words)
+        {
+            // Under the words and not under the spaces between them, so the run has to be broken
+            // up and each piece measured to find out where it starts.
+            foreach (var (wordX, wordWidth) in WordRunsOf(s, font, format, x))
+                DrawTextRule(XTextDecoration.Single, null, font, format, brush, wordX, top, wordWidth, thickness);
+            return;
+        }
+
+        XDashStyle dashStyle = DashStyleOf(decoration);
+        if (dashStyle == XDashStyle.Solid)
+        {
+            // Filled rather than stroked, which is how this has always been drawn and what every
+            // document made with it looks like.
+            DrawRectangle(null, brush, x, top, width, thickness);
+            return;
+        }
+
+        // A broken rule has to be stroked, since a rectangle cannot be dotted. The pen is as thick
+        // as the rule and runs down the middle of where the rectangle would have been.
+        XColor colour = brush is XSolidBrush solid ? solid.Color : XColors.Black;
+        XPen pen = new XPen(colour, thickness) { DashStyle = dashStyle };
+        double middle = top + thickness / 2;
+        DrawLine(pen, x, middle, x + width, middle);
+    }
+
+    static XDashStyle DashStyleOf(XTextDecoration decoration)
+    {
+        switch (decoration)
+        {
+            case XTextDecoration.Dotted: return XDashStyle.Dot;
+            case XTextDecoration.Dash: return XDashStyle.Dash;
+            case XTextDecoration.DotDash: return XDashStyle.DashDot;
+            case XTextDecoration.DotDotDash: return XDashStyle.DashDotDot;
+            default: return XDashStyle.Solid;
+        }
+    }
+
+    /// <summary>
+    /// Where each run of non-blank characters in <paramref name="s"/> starts and how wide it is,
+    /// measured through the same format the text is drawn with.
+    /// </summary>
+    IEnumerable<(double X, double Width)> WordRunsOf(string s, XFont font, XStringFormat format, double x)
+    {
+        int idx = 0;
+        while (idx < s.Length)
+        {
+            while (idx < s.Length && char.IsWhiteSpace(s[idx]))
+                idx++;
+            if (idx == s.Length)
+                yield break;
+
+            int start = idx;
+            while (idx < s.Length && !char.IsWhiteSpace(s[idx]))
+                idx++;
+
+            // Measured from the beginning every time rather than by adding widths up, because the
+            // width of a run is not the sum of the widths of its parts once there is spacing in it.
+            double before = start == 0 ? 0 : _gfx.MeasureString(s.Substring(0, start), font, format).Width;
+            double through = _gfx.MeasureString(s.Substring(0, idx), font, format).Width;
+            yield return (x + before, through - before);
         }
     }
 

@@ -172,6 +172,50 @@ public class XStringFormat
     }
     double _obliqueAngle;
 
+    // ----- decoration ---------------------------------------------------------------------------
+    //
+    // Underlining and striking out are also settable through XFontStyle, which is where they were
+    // before these existed and where they remain. A style set here wins; leaving it at None keeps
+    // whatever the font's style asks for, so nothing that already underlines its text stops.
+
+    /// <summary>
+    /// Gets or sets the rule drawn under the text. <see cref="XTextDecoration.None"/>, the
+    /// default, falls back to <see cref="XFontStyle.Underline"/> on the font.
+    /// </summary>
+    public XTextDecoration Underline
+    {
+        get => _underline;
+        set => _underline = value;
+    }
+    XTextDecoration _underline;
+
+    /// <summary>
+    /// Gets or sets the rule drawn through the text. <see cref="XTextDecoration.None"/>, the
+    /// default, falls back to <see cref="XFontStyle.Strikeout"/> on the font.
+    /// </summary>
+    public XTextDecoration Strikeout
+    {
+        get => _strikeout;
+        set => _strikeout = value;
+    }
+    XTextDecoration _strikeout;
+
+    /// <summary>
+    /// Gets or sets the colour of the underline and strikeout rules. Empty, the default, draws
+    /// them in the colour of the text.
+    /// </summary>
+    /// <remarks>
+    /// MigraDoc has never offered this - its underline is always the colour of the font
+    /// (<c>ParagraphRenderer</c>) - and neither does PDFKit. It is here because a rule that cannot
+    /// be told apart from the text is the one thing a caller cannot achieve by other means.
+    /// </remarks>
+    public XColor DecorationColor
+    {
+        get => _decorationColor;
+        set => _decorationColor = value;
+    }
+    XColor _decorationColor = XColor.Empty;
+
     /// <summary>
     /// Returns true if every text state property still holds its default, and the text can
     /// therefore be drawn without writing any text state operator.

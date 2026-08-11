@@ -6,9 +6,8 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Sections A, B and C are built, and item D3, on
-`feat/text-state-and-measurement`. What is left is section D's decoration work, section E's
-annotations, and section F.
+This is the gap analysis and the plan. Sections A, B, C and D are built, on
+`feat/text-state-and-measurement`. What is left is section E's annotations and section F.
 
 ## Where parity has to land
 
@@ -65,9 +64,9 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 14 | `fill` | **done** — pass no brush and the text is not filled | always on |
 | 15 | `stroke` | **done** — `DrawString` takes an `XPen`, written as `Tr` 1 or 2 | **missing**, `Font.cs:266` |
 | 16 | `oblique` | **done** — `XStringFormat.ObliqueAngle`, in degrees | **missing** |
-| 17 | `baseline` | partial — `XLineAlignment` has 4 of the 6 canvas values | n/a |
-| 18 | `underline` | partial — bound to `XFontStyle`, one style, font colour only | `Underline`, 7 styles (`enums/Underline.cs`) |
-| 19 | `strike` | partial — same | `Strikethrough`, 7 styles |
+| 17 | `baseline` | **done** — `XLineAlignment` gains `Hanging`, `Ideographic`, `SvgMiddle` | n/a |
+| 18 | `underline` | **done** — `XStringFormat.Underline`, 7 styles, own colour | `Underline`, 7 styles (`enums/Underline.cs`) |
+| 19 | `strike` | **done** — `XStringFormat.Strikeout`, the same seven | `Strikethrough`, 7 styles |
 | 20 | `rotation` | **done** — `XTextFormatter.Rotation`, degrees anticlockwise | `TextFrame.Orientation`, 90° steps only |
 | 21 | `link` | partial — `PdfPage.AddWebLink` takes a page-space rect; no text-level shortcut | `Hyperlink`, `HyperlinkType.Web` |
 | 22 | `goTo` | **missing** — no way to link to a name | `HyperlinkType.Local` + `BookmarkField` |
@@ -75,10 +74,9 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 24 | `continued` | **done** — `XTextSegmentFormatter` takes the runs together | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five were at parity when this was written; eighteen are now, and `Ts` is emitted for
-a text rise PDFKit has no option for at all. Of the seven left, four are partial - `baseline`,
-`underline`, `strike` and `link` all work in the common case and want widening - and three are not
-started: `goTo`, `destination` and `features`.
+Two of twenty-five were at parity when this was written; twenty-one are now, and `Ts` is emitted
+for a text rise PDFKit has no option for at all. Four are left: `link`, which works but has no
+text-level shortcut, and `goTo`, `destination` and `features`, which are not started.
 
 ---
 
@@ -233,14 +231,26 @@ list at lines 443-456.
 
 ### D — decoration as a per-draw option
 
-- [ ] **D1. Decouple `underline` and `strike` from `XFontStyle`.** Today they are font style flags
-  (`Drawing/XFont.cs:193,198`) drawn as filled rectangles from font descriptor metrics
-  (`XGraphicsPdfRenderer.cs:541-561`). PDFKit takes them per call. Add them to the text state from
-  A1, keeping the `XFontStyle` flags working so nothing breaks.
-- [ ] **D2. Decoration style and colour.** MigraDoc already offers seven underline and seven
-  strikethrough styles (`enums/Underline.cs`, `enums/Strikethrough.cs`) and the core offers one.
-  Bringing the core up to that set is optional for PDFKit parity — PDFKit's `underline` is a plain
-  boolean — but it is what closes the gap between the two layers of this library.
+- [x] **D1. Decouple `underline` and `strike` from `XFontStyle`.** `XStringFormat.Underline` and
+  `.Strikeout` take an `XTextDecoration` each. The `XFontStyle` flags still work and still mean a
+  single solid rule; a style set on the format wins over them, and `None` — the default — leaves
+  them in charge, so nothing that already underlines its text stops.
+- [x] **D2. Decoration style and colour.** All seven of MigraDoc's shapes, in a core
+  `XTextDecoration`, plus `DecorationColor`.
+
+  A solid rule stays a filled rectangle, which is how it has always been drawn and what every
+  document made with this library looks like. A broken one cannot be: a rectangle will not dot, so
+  those are stroked with a pen carrying the matching `XDashStyle`, as thick as the rule and running
+  down the middle of where the rectangle would have been.
+
+  `Words` needs the run broken up and each piece measured from the start of the string, because
+  with a character or word spacing in play the width of a run is not the sum of the widths of its
+  parts.
+
+  `DecorationColor` is in neither PDFKit nor MigraDoc — MigraDoc's underline is always the colour
+  of the font. It is here because a rule in a different colour from its text is the one thing a
+  caller cannot get by drawing it themselves, since they cannot know where the font would have put
+  it.
 - [x] **D3. `Oblique` at an arbitrary angle.** `XStringFormat.ObliqueAngle`, in degrees, leaning
   right for a positive angle.
 
@@ -260,11 +270,21 @@ list at lines 443-456.
   the skew itself now, or the correction would be wrong for every angle but 20°.
   `ATdThroughALeaningMatrixIsCorrectedForTheLean` holds it down: two strings asked for at the same
   x are eleven points apart per line without it.
-- [ ] **D4. Fill out `baseline`.** `XLineAlignment` (`Drawing/enums/XLineAlignment.cs`) has
-  `Near, Center, Far, BaseLine` — roughly canvas `top`, `middle`, `bottom`, `alphabetic`. Missing
-  are `hanging`, `ideographic`, and PDFKit's `svg-middle`. Adding them needs `CapHeight` and
-  `XHeight`, both already on `XFontMetrics`; there is a standing `// TODO: Use CapHeight` at
-  `XGraphicsPdfRenderer.cs:424`.
+- [x] **D4. Fill out `baseline`.** `Hanging`, `Ideographic` and `SvgMiddle` join
+  `XLineAlignment`.
+
+  They differ from `Near` and `Far` in what they are measured against, which is the point of them:
+  `Near` and `Far` are the top and bottom of the layout *rectangle*, these are the top and bottom
+  of the *text*, as the canvas values they come from are. For a rectangle of no height — which is
+  what the point overloads make — the two amount to the same thing, and
+  `HangingIsWhereNearIsWhenThereIsNoRectangleToSpeakOf` says so.
+
+  **The `// TODO: Use CapHeight` on `Center` is deliberately left alone.** It is a real
+  inaccuracy — three quarters of the ascent standing in for half the cap height — but correcting it
+  would move every centred string ever drawn with this library, to fix nothing anybody reported.
+  `Center` is not the value PDFKit's `middle` is anyway: this one centres the text in the layout
+  rectangle, that one puts the middle of the em box on the point. Anyone wanting the latter has
+  `SvgMiddle` for the x-height and `Hanging` and `Ideographic` for the two edges.
 
 ### E — annotations
 
@@ -324,9 +344,12 @@ pen. Nothing in the repo implements that interface but `XGraphicsPdfRenderer`.
 **C is done**, in three steps: the paragraph options, then the columns, then the finding that
 `continued` was already answered by a class with no tests to say so.
 
-**What is left is smaller than what is done, apart from F.** D1, D2 and D4 widen decoration and
-baselines that already work in the common case. E needs a name tree writer, which does not exist.
-F is a shaping engine and is not comparable to any of it.
+**D is done**, and left one thing alone on purpose: the `Center` line alignment still stands three
+quarters of the ascent in for half the cap height, because correcting it would move every centred
+string this library has ever drawn.
+
+**E and F are what is left.** E needs a name tree writer, which does not exist anywhere in the
+repo. F is a shaping engine and is not comparable to any of the rest of this.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 
