@@ -6,8 +6,9 @@ missing, together with the work each gap needs. Reference is
 [`lib/mixins/text.js`](https://github.com/foliojs/pdfkit/blob/f308aae92f1491b0e952545fc0fbbef561c40e9e/lib/mixins/text.js#L114)
 and its companion `lib/line_wrapper.js` at the same revision.
 
-This is the gap analysis and the plan. Sections A and B are built, and item D3, on
-`feat/text-state-and-measurement`; everything else is still to do.
+This is the gap analysis and the plan. Sections A, B and C are built, and item D3, on
+`feat/text-state-and-measurement`. What is left is section D's decoration work, section E's
+annotations, and section F.
 
 ## Where parity has to land
 
@@ -50,14 +51,14 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 |---|---|---|---|
 | 1 | `width` | **done** — `LayoutRectangle.Width` | `PageSetup` margins, indents |
 | 2 | `height` | **done** — `LayoutRectangle.Height` + `AllowVerticalOverflow` (`XTextFormatter.cs:108`) | none — a `TextFrame` formats to `double.MaxValue` (`FormattedTextFrame.cs:132`) |
-| 3 | `lineBreak` | partial — wrapping cannot be switched off in the formatter | n/a |
-| 4 | `lineGap` | partial — `lineHeight` sets absolute height, not extra gap (`XTextFormatter.cs:143`) | `LineSpacing` + `LineSpacingRule`, 6 rules |
-| 5 | `indent` | **missing** — a TODO since upstream (`XTextFormatter.cs:446`) | `ParagraphFormat.FirstLineIndent` |
-| 6 | `indentAllLines` | **missing** (`XTextFormatter.cs:445`) | `ParagraphFormat.LeftIndent` |
-| 7 | `paragraphGap` | **missing** | `SpaceBefore` / `SpaceAfter` |
-| 8 | `ellipsis` | **missing** — overflow is a hard cut, no glyph | **missing** |
-| 9 | `columns` | **missing** | **missing** — `PageSetup` has no column properties |
-| 10 | `columnGap` | **missing** | **missing** |
+| 3 | `lineBreak` | **done** — `XTextFormatter.LineBreak` | n/a |
+| 4 | `lineGap` | **done** — `XTextFormatter.LineGap`, added to the line height | `LineSpacing` + `LineSpacingRule`, 6 rules |
+| 5 | `indent` | **done** — `XTextFormatter.Indent` | `ParagraphFormat.FirstLineIndent` |
+| 6 | `indentAllLines` | **done** — `XTextFormatter.IndentAllLines` | `ParagraphFormat.LeftIndent` |
+| 7 | `paragraphGap` | **done** — `XTextFormatter.ParagraphGap` | `SpaceBefore` / `SpaceAfter` |
+| 8 | `ellipsis` | **done** — `XTextFormatter.Ellipsis`, a string | **missing** |
+| 9 | `columns` | **done** — `XTextFormatter.Columns` | **missing** — `PageSetup` has no column properties |
+| 10 | `columnGap` | **done** — `XTextFormatter.ColumnGap`, 18pt by default | **missing** |
 | 11 | `characterSpacing` | **done** — `XStringFormat.CharacterSpacing`, written as `Tc` | **missing**, marked unported at `Font.cs:276` |
 | 12 | `wordSpacing` | **done** — `XStringFormat.WordSpacing`, written as `Tw` or as a `TJ` array | **missing** |
 | 13 | `horizontalScaling` | **done** — `XStringFormat.HorizontalScaling`, written as `Tz` | **missing**, `Font.cs:277` |
@@ -67,15 +68,17 @@ already reach, and is informational — a MigraDoc equivalent does not close a c
 | 17 | `baseline` | partial — `XLineAlignment` has 4 of the 6 canvas values | n/a |
 | 18 | `underline` | partial — bound to `XFontStyle`, one style, font colour only | `Underline`, 7 styles (`enums/Underline.cs`) |
 | 19 | `strike` | partial — same | `Strikethrough`, 7 styles |
-| 20 | `rotation` | partial — `RotateTransform` reaches text via the CTM, but is not an option | `TextFrame.Orientation`, 90° steps only |
+| 20 | `rotation` | **done** — `XTextFormatter.Rotation`, degrees anticlockwise | `TextFrame.Orientation`, 90° steps only |
 | 21 | `link` | partial — `PdfPage.AddWebLink` takes a page-space rect; no text-level shortcut | `Hyperlink`, `HyperlinkType.Web` |
 | 22 | `goTo` | **missing** — no way to link to a name | `HyperlinkType.Local` + `BookmarkField` |
 | 23 | `destination` | **missing** — `PdfNamedDestinations` is `internal` and read-only (`Pdf.Advanced/PdfNamedDestinations.cs:41`) | `BookmarkField` |
-| 24 | `continued` | partial — `XTextSegmentFormatter` takes mixed runs in one call, but there is no resumable cursor | `FormattedText`, nestable |
+| 24 | `continued` | **done** — `XTextSegmentFormatter` takes the runs together | `FormattedText`, nestable |
 | 25 | `features` | **missing** — `GlyphSubstitutionTable.Read()` is an empty `try` block (`Fonts.OpenType/OpenTypeFontTables.cs:1067`); no GPOS, no `kern` | **missing** |
 
-Two of twenty-five were at parity when this was written; eight are now, and `Ts` is emitted for a
-text rise PDFKit has no option for at all.
+Two of twenty-five were at parity when this was written; eighteen are now, and `Ts` is emitted for
+a text rise PDFKit has no option for at all. Of the seven left, four are partial - `baseline`,
+`underline`, `strike` and `link` all work in the common case and want widening - and three are not
+started: `goTo`, `destination` and `features`.
 
 ---
 
@@ -191,36 +194,42 @@ by later ones.
 All of these are in `Drawing.Layout/XTextFormatter.cs`, and most are named in its own upstream TODO
 list at lines 443-456.
 
-- [ ] **C1. `LineBreak`.** A `bool` that, when false, skips wrapping entirely and draws one line,
-  clipped to the rectangle width. Cheap: `CreateLayout` (`:325`) short-circuits.
-- [ ] **C2. `Indent` (first line) and `IndentAllLines`.** PDFKit subtracts the indent from the line
-  width for line 1, then adds it back unless `indentAllLines` (`line_wrapper.js`). The same shape
-  works in `CreateLayout`; `Block.LineIndent` (`Drawing.Layout/Block.cs:76`) already exists and is
-  the field to drive.
-- [ ] **C3. `ParagraphGap`.** Extra vertical space after a block whose `EndsParagraph` is set
-  (`Block.cs:66`) — the flag is already there and already tracked.
-- [ ] **C4. `LineGap`.** Additive leading, distinct from the existing `lineHeight` parameter
-  (`XTextFormatter.cs:143`) which sets an absolute height. Both should coexist: PDFKit's `lineGap`
-  adds to the computed line height.
-- [ ] **C5. `Ellipsis`.** On vertical overflow, instead of dropping the block (`block.Stop = true` at
-  `:345-349` and `:366-370`), trim the last line character by character until the text plus the
-  ellipsis string fits the line width, then append it. Needs a `string` property, not a `bool`, so a
-  caller can pass `"..."` instead of `…` when the font has no ellipsis glyph. Depends on A2 for the
-  trimming loop to measure correctly.
-- [ ] **C6. `Columns` and `ColumnGap`.** Column width is
-  `(width - columnGap * (columns - 1)) / columns`; on filling a column, reset y to the top and
-  advance x by `columnWidth + columnGap`. Default gap 18pt (1/4 inch) to match PDFKit. This is the
-  largest single item in section C, because `CreateLayout` currently assumes one flow region.
-- [ ] **C7. `Rotation`.** A degrees property that wraps the draw in
-  `Save()` / `RotateAtTransform(angle, origin)` / `Restore()`. The transform machinery already
-  applies to text through the CTM (`XGraphicsPdfRenderer.cs:1588-1593`), so this is plumbing, not
-  new capability. Fix the layout rectangle semantics deliberately — PDFKit rotates about the text
-  origin, not the rectangle centre.
-- [ ] **C8. `Continued`.** A resumable cursor: the formatter must expose where it stopped (x, y, and
-  the pending block) and accept it back on the next call. `XTextSegmentFormatter` covers the
-  common case — changing style mid-paragraph — in a single call, so decide whether `continued`
-  is worth a second mechanism or whether the segment formatter is the answer and this row is
-  closed by documentation.
+- [x] **C1. `LineBreak`.** False leaves the text to run on past the right edge. The line breaks
+  written into the text are still obeyed — wrapping and breaking are different things, and turning
+  off the first must not silently turn off the second.
+- [x] **C2. `Indent` (first line) and `IndentAllLines`.** The indent is charged against the line, so
+  an indented paragraph wraps sooner, and it belongs to a paragraph rather than to the text, so the
+  line after a written break is indented again. `Block.LineIndent` was the field to drive, as this
+  item guessed — it had been declared and unused since the class was written.
+- [x] **C3. `ParagraphGap`.** Left at each written line break.
+- [x] **C4. `LineGap`.** Left after every line, and where a paragraph ends both gaps are owed.
+- [x] **C5. `Ellipsis`.** A `string`, as this item called for. The word it lands on is trimmed a
+  character at a time until the two together fit the room left on the line. Nothing is marked when
+  nothing was cut, nor when `AllowVerticalOverflow` means nothing can be.
+- [x] **C6. `Columns` and `ColumnGap`.** As described, with the gap defaulting to PDFKit's 18 points.
+
+  Two things this item did not see. A column has to break at the bottom of the rectangle whatever
+  `AllowVerticalOverflow` says, or there is no height to break it at and every column but the first
+  stays empty; overflow decides what becomes of the text after the *last* column instead. And
+  `GetLines` grouped blocks into lines by their height alone, which was right while there was one
+  column and wrong the moment there were two — the first line of the second column sits exactly
+  level with the first line of the first, and the two were drawn as one. Blocks carry a `Column`
+  now.
+- [x] **C7. `Rotation`.** Turns the whole block about the top left corner of the layout rectangle,
+  positive anticlockwise. Which way round that is, and which corner it turns about, are checked by
+  rasterizing: both are signs in a transform and would read as plausibly the other way.
+- [x] **C8. `Continued` — closed by `XTextSegmentFormatter`, not built.**
+
+  `continued` exists so that styling can change in the middle of a paragraph. PDFKit chains
+  `text` calls to do it; `XTextSegmentFormatter.DrawString(IEnumerable<TextSegment>, …)` takes the
+  runs together instead. Same capability, different shape — and the shape this library already has.
+  A resumable cursor on `XTextFormatter` would be a second way to say the same thing, and the
+  formatter is built around laying out one string per call.
+
+  The class had **no tests at all**, so the claim that it covers this was worth checking before
+  being made. `XTextSegmentFormatterTests` checks it: runs of differing font and colour continue
+  along the same line rather than each starting one, each keeps its own colour, and they wrap
+  together at the words rather than at the seam between them.
 
 ### D — decoration as a per-draw option
 
@@ -312,8 +321,12 @@ where simulated-italic text used to have a newline between its `Td` and its `Tj`
 **B is done too**, and cost one deliberate breaking change: `IXGraphicsRenderer.DrawString` takes a
 pen. Nothing in the repo implements that interface but `XGraphicsPdfRenderer`.
 
-**C is the next worthwhile stretch.** C1-C4 are a few lines each in `XTextFormatter`; C6, the
-columns, is most of the section on its own.
+**C is done**, in three steps: the paragraph options, then the columns, then the finding that
+`continued` was already answered by a class with no tests to say so.
+
+**What is left is smaller than what is done, apart from F.** D1, D2 and D4 widen decoration and
+baselines that already work in the common case. E needs a name tree writer, which does not exist.
+F is a shaping engine and is not comparable to any of it.
 
 After that the sections are independent and can be taken in any order. Rough weights:
 
