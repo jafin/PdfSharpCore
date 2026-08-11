@@ -160,6 +160,88 @@ public class NamedDestinationTests
             .Should().Throw<ArgumentNullException>();
     }
 
+    // ----- what a second save must not lose ------------------------------------------------------
+
+    [Fact]
+    public void NamingOneMoreDestinationKeepsTheOnesTheDocumentCameWith()
+    {
+        var first = TwoPageDocument();
+        first.NamedDestinations.Add("chapter-1", first.Pages[0]);
+        first.NamedDestinations.Add("chapter-2", first.Pages[1], 300);
+
+        // Open what was written, name one more, and write it again.
+        var second = RoundTrip(first);
+        second.NamedDestinations.Add("chapter-3", second.Pages[1], 100);
+        var third = RoundTrip(second);
+
+        // The table writes the tree whole, so the names it was not told about have to be taken in
+        // before it does - or every one of them is dropped, silently, on the second save.
+        LookupOn(third, "chapter-1").Should().NotBeNull();
+        LookupOn(third, "chapter-2").Should().NotBeNull();
+        LookupOn(third, "chapter-3").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ADestinationTheDocumentCameWithKeepsItsPlace()
+    {
+        var first = TwoPageDocument();
+        first.NamedDestinations.Add("chapter-2", first.Pages[1], 300);
+
+        var second = RoundTrip(first);
+        second.NamedDestinations.Add("chapter-3", second.Pages[0]);
+
+        // Written back as it was found, rather than rebuilt from what this library can express.
+        LookupOn(RoundTrip(second), "chapter-2").Elements.GetReal(3).Should().BeApproximately(300, 0.01);
+    }
+
+    [Fact]
+    public void ANameTakenBackIsGoneFromTheDocumentToo()
+    {
+        var first = TwoPageDocument();
+        first.NamedDestinations.Add("temporary", first.Pages[0]);
+        first.NamedDestinations.Add("permanent", first.Pages[1]);
+
+        var second = RoundTrip(first);
+        second.NamedDestinations.Remove("temporary").Should().BeTrue();
+        var third = RoundTrip(second);
+
+        LookupOn(third, "temporary").Should().BeNull();
+        LookupOn(third, "permanent").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void TakingBackEveryNameLeavesNoTreeBehind()
+    {
+        var first = TwoPageDocument();
+        first.NamedDestinations.Add("only", first.Pages[0]);
+
+        var second = RoundTrip(first);
+        second.NamedDestinations.Remove("only").Should().BeTrue();
+
+        LookupOn(RoundTrip(second), "only").Should().BeNull();
+    }
+
+    [Fact]
+    public void ContainsAnswersForTheNamesTheDocumentCameWith()
+    {
+        var first = TwoPageDocument();
+        first.NamedDestinations.Add("chapter-1", first.Pages[0]);
+
+        RoundTrip(first).NamedDestinations.Contains("chapter-1").Should().BeTrue();
+    }
+
+    [Fact]
+    public void APageOfAnotherDocumentIsRejected()
+    {
+        var document = TwoPageDocument();
+        var other = TwoPageDocument();
+
+        // Its object number belongs to the other document's table, so a reference to it here would
+        // point at whatever this document holds under that number, or at nothing.
+        document.Invoking(d => d.NamedDestinations.Add("elsewhere", other.Pages[0]))
+            .Should().Throw<ArgumentException>();
+    }
+
     // ----- E3, linking to a name -----------------------------------------------------------------
 
     [Fact]
@@ -190,6 +272,25 @@ public class NamedDestinationTests
 
         // The two halves meet: what the link says, the name tree answers.
         LookupOn(reopened, name).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ANameOutsideWinAnsiSurvivesBothHalves()
+    {
+        const string name = "kapitel-über-2";
+
+        var document = TwoPageDocument();
+        document.NamedDestinations.Add(name, document.Pages[1]);
+        document.Pages[0].AddNamedLink(new PdfRectangle(new XRect(20, 20, 100, 20)), name);
+
+        var reopened = RoundTrip(document);
+
+        // The tree and the link have to encode the name the same way. Pinning one end to WinAnsi
+        // turned every character outside it into a question mark, and the link then pointed at a
+        // name the document did not hold.
+        var linked = ((PdfString)reopened.Pages[0].Annotations[0].Elements["/Dest"]).Value;
+        linked.Should().Be(name);
+        LookupOn(reopened, linked).Should().NotBeNull();
     }
 
     [Fact]

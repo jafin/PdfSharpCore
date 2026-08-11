@@ -92,7 +92,7 @@ by later ones.
   `HorizontalScaling`, `TextRise`, `ObliqueAngle` — rather than a separate `XTextState`.
 
   Two corrections to what this item originally said. **No interface change was needed:**
-  `IXGraphicsRenderer.DrawString` (`Drawing/IXGraphicsRenderer.cs:114`) already takes an
+  `IXGraphicsRenderer.DrawString` (`Drawing/IXGraphicsRenderer.cs`) already takes an
   `XStringFormat` and always has, so hanging the state there carries it to the renderer for free.
   And `XStringFormats`' presets each build a fresh instance (`"Create new format to allow
   changes"`), so mutable state on the type is not shared between callers — the hazard that would
@@ -235,8 +235,8 @@ list at lines 443-456.
   `.Strikeout` take an `XTextDecoration` each. The `XFontStyle` flags still work and still mean a
   single solid rule; a style set on the format wins over them, and `None` — the default — leaves
   them in charge, so nothing that already underlines its text stops.
-- [x] **D2. Decoration style and colour.** All seven of MigraDoc's shapes, in a core
-  `XTextDecoration`, plus `DecorationColor`.
+- [x] **D2. Decoration style and colour.** All six of MigraDoc's rules - `Single`, `Words`,
+  `Dotted`, `Dash`, `DotDash`, `DotDotDash` - in a core `XTextDecoration`, plus `DecorationColor`.
 
   A solid rule stays a filled rectangle, which is how it has always been drawn and what every
   document made with this library looks like. A broken one cannot be: a rectangle will not dot, so
@@ -376,8 +376,8 @@ After that the sections are independent and can be taken in any order. Rough wei
 
 | section | weight | note |
 |---|---|---|
-| A | medium | mostly plumbing, but touches `IXGraphicsRenderer` — a public interface change |
-| B | small | the machinery is present and artificially restricted |
+| A | medium | plumbing; no interface change was needed after all, see A1 |
+| B | small | the machinery is present and artificially restricted; B2 is the interface change |
 | C | medium-large | C6 (columns) is most of it; C1-C4 are each small |
 | D | small | D1 and D3 are refactors of working code |
 | E | medium | E2 needs a name tree writer, which does not exist |

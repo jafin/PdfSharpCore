@@ -89,7 +89,7 @@ This file starts at the entry below. Changes before that point are recorded only
   gfx.DrawString("outlined", font, new XPen(XColors.Black, 0.6), null, 20, 40);
   ```
 
-- `XStringFormat.Underline` and `.Strikeout`, in the seven shapes MigraDoc has always had —
+- `XStringFormat.Underline` and `.Strikeout`, in the six shapes MigraDoc has always had —
   `Single`, `Words`, `Dotted`, `Dash`, `DotDash`, `DotDotDash` — plus `DecorationColor`, which draws
   the rule in a colour of its own. Setting them on the font through `XFontStyle` still works and
   still means one solid rule.

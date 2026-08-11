@@ -332,47 +332,55 @@ public class XTextFormatter
 
         var columnWidth = ColumnWidthWithin(layoutRectangle.Width);
 
-        foreach (var line in lines)
+        try
         {
-            var lineBlocks = line as Block[] ?? line.ToArray();
-            var lineY = dy + lineBlocks.First().Location.Y;
-            var indent = lineBlocks.First().LineIndent;
-
-            // A line is laid out and aligned within its own column, so that is the left edge it
-            // is measured from and the width it is measured against.
-            var columnLeft = dx + ColumnLeft(lineBlocks.First().Column, columnWidth);
-
-            // The last line of a paragraph keeps its natural width. Stretching it over the
-            // full width of the column would tear the few words it holds apart.
-            if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
+            foreach (var line in lines)
             {
-                var locationX = columnLeft + indent;
-                var gaps = lineBlocks.Length - 1;
-                var gapSize = gaps > 0
-                    ? (columnWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
-                    : 0;
-                foreach (var block in lineBlocks)
+                var lineBlocks = line as Block[] ?? line.ToArray();
+                var lineY = dy + lineBlocks.First().Location.Y;
+                var indent = lineBlocks.First().LineIndent;
+
+                // A line is laid out and aligned within its own column, so that is the left edge it
+                // is measured from and the width it is measured against.
+                var columnLeft = dx + ColumnLeft(lineBlocks.First().Column, columnWidth);
+
+                // The last line of a paragraph keeps its natural width. Stretching it over the
+                // full width of the column would tear the few words it holds apart.
+                if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
                 {
-                    _gfx.DrawString(block.Text.Trim(), font, brush, locationX, lineY, XStringFormats.TopLeft);
-                    locationX += block.Width + gapSize;
+                    var locationX = columnLeft + indent;
+                    var gaps = lineBlocks.Length - 1;
+                    var gapSize = gaps > 0
+                        ? (columnWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
+                        : 0;
+                    foreach (var block in lineBlocks)
+                    {
+                        _gfx.DrawString(block.Text.Trim(), font, brush, locationX, lineY, XStringFormats.TopLeft);
+                        locationX += block.Width + gapSize;
+                    }
+                }
+                else
+                {
+                    var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
+                    // An indent takes room off the left, so what is left to centre in - or to push a
+                    // line to the right end of - is that much narrower.
+                    var locationX = columnLeft + indent;
+                    if (Alignment == XParagraphAlignment.Center)
+                        locationX = columnLeft + indent + (columnWidth - indent) / 2;
+                    if (Alignment == XParagraphAlignment.Right)
+                        locationX = columnLeft + columnWidth;
+                    _gfx.DrawString(lineText, font, brush, locationX, lineY, GetXStringFormat());
                 }
             }
-            else
-            {
-                var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
-                // An indent takes room off the left, so what is left to centre in - or to push a
-                // line to the right end of - is that much narrower.
-                var locationX = columnLeft + indent;
-                if (Alignment == XParagraphAlignment.Center)
-                    locationX = columnLeft + indent + (columnWidth - indent) / 2;
-                if (Alignment == XParagraphAlignment.Right)
-                    locationX = columnLeft + columnWidth;
-                _gfx.DrawString(lineText, font, brush, locationX, lineY, GetXStringFormat());
-            }
         }
-
-        if (state != null)
-            _gfx.Restore(state);
+        finally
+        {
+            // In a finally because the turn is on the caller's XGraphics, not on something this
+            // method owns. A line that throws half way through would otherwise leave the transform
+            // applied, and everything the caller drew afterwards would come out turned.
+            if (state != null)
+                _gfx.Restore(state);
+        }
     }
 
     private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)

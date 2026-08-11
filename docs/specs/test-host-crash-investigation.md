@@ -8,7 +8,7 @@ because chasing it three separate times from scratch is how it will otherwise go
 
 A full `dotnet test` run ends with
 
-```
+```text
 The active test run was aborted. Reason: Test host process crashed
 
 Passed!  - Failed:     0, Passed:  1388, Skipped:     1, Total:  1389, ...

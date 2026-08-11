@@ -569,12 +569,11 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         // the page, which is towards smaller y only when y runs downwards.
         double rise = Gfx.PageDirection == XPageDirection.Downwards ? -format.TextRise : format.TextRise;
 
-        // They are filled rather than stroked, so text that is only outlined has no brush to give
-        // them. Its pen's colour is the nearest thing to the colour the reader sees, and a colour
-        // asked for outright beats both.
-        XBrush ruleBrush = format.DecorationColor.IsEmpty
-            ? brush ?? new XSolidBrush(pen.Color)
-            : new XSolidBrush(format.DecorationColor);
+        // Built only where there is a rule to draw, which is almost never - every string drawn
+        // otherwise paid for a brush nothing used.
+        XBrush ruleBrush = underline == XTextDecoration.None && strikeout == XTextDecoration.None
+            ? null
+            : RuleBrushFor(brush, pen, format);
 
         if (underline != XTextDecoration.None)
         {
@@ -597,6 +596,25 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 : y + strikeoutPosition - strikeoutSize;
             DrawTextRule(strikeout, s, font, format, ruleBrush, x, strikeoutRectY + rise, width, strikeoutSize);
         }
+    }
+
+    /// <summary>
+    /// What an underline or strikeout rule is painted with.
+    /// </summary>
+    /// <remarks>
+    /// A colour asked for outright wins. Failing that the rule follows the text, which is the brush
+    /// filling it, or the pen outlining it when there is no brush - and a pen carrying a brush of
+    /// its own leaves its Color empty, so that has to be looked at before the colour is.
+    /// </remarks>
+    static XBrush RuleBrushFor(XBrush brush, XPen pen, XStringFormat format)
+    {
+        if (!format.DecorationColor.IsEmpty)
+            return new XSolidBrush(format.DecorationColor);
+
+        if (brush != null)
+            return brush;
+
+        return pen.Brush ?? new XSolidBrush(pen.Color);
     }
 
     /// <summary>
@@ -649,25 +667,33 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// Where each run of non-blank characters in <paramref name="s"/> starts and how wide it is,
     /// measured through the same format the text is drawn with.
     /// </summary>
+    /// <remarks>
+    /// Each stretch of the string - blank or not - is measured once and the widths added up, which
+    /// is exact rather than close enough: a glyph advances by its own width plus the character
+    /// spacing, and a space by the word spacing on top, so the width of a run really is the sum of
+    /// the widths of its parts. Measuring each word's prefix from the start of the string instead
+    /// would answer the same and cost a measurement of the whole string per word.
+    /// </remarks>
     IEnumerable<(double X, double Width)> WordRunsOf(string s, XFont font, XStringFormat format, double x)
     {
         int idx = 0;
         while (idx < s.Length)
         {
+            int blankStart = idx;
             while (idx < s.Length && char.IsWhiteSpace(s[idx]))
                 idx++;
+            if (idx > blankStart)
+                x += _gfx.MeasureString(s.Substring(blankStart, idx - blankStart), font, format).Width;
             if (idx == s.Length)
                 yield break;
 
-            int start = idx;
+            int wordStart = idx;
             while (idx < s.Length && !char.IsWhiteSpace(s[idx]))
                 idx++;
 
-            // Measured from the beginning every time rather than by adding widths up, because the
-            // width of a run is not the sum of the widths of its parts once there is spacing in it.
-            double before = start == 0 ? 0 : _gfx.MeasureString(s.Substring(0, start), font, format).Width;
-            double through = _gfx.MeasureString(s.Substring(0, idx), font, format).Width;
-            yield return (x + before, through - before);
+            double width = _gfx.MeasureString(s.Substring(wordStart, idx - wordStart), font, format).Width;
+            yield return (x, width);
+            x += width;
         }
     }
 

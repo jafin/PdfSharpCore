@@ -192,8 +192,13 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
                 // A destination written as a string is looked up in the /Names /Dests name tree,
                 // which is where PDF 1.2 onwards puts them. Writing it as a name instead would
                 // send the reader to the /Dests dictionary of PDF 1.1.
-                Elements[Keys.Dest] = new PdfLiteral("{0}",
-                    PdfEncoders.ToStringLiteral(_destName, PdfStringEncoding.WinAnsiEncoding, writer.SecurityHandler));
+                //
+                // A PdfString rather than a literal encoded here, so that the name is encoded the
+                // way PdfNamedDestinationTable encodes the one it writes into the tree - which is
+                // PdfString's own choice of raw or Unicode. Pinning this end to WinAnsi would turn
+                // every character outside it into a question mark and leave the link pointing at a
+                // name the document does not hold.
+                Elements[Keys.Dest] = new PdfString(_destName);
                 break;
 
             case LinkType.Web:

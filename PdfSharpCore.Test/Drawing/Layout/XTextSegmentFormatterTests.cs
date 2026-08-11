@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -76,9 +77,16 @@ public class XTextSegmentFormatterTests
             Segment("The quick brown fox jumps over", Plain, XBrushes.Black),
             Segment("the lazy dog and keeps on going", Bold, XBrushes.Black));
 
-        // One flow of text, so the wrapping happens where the words run out of room and not at
-        // the seam between the two segments.
+        // One flow of text, so the wrapping happens where the words run out of room and not at the
+        // seam between the two segments. A formatter that started each segment on a line of its own
+        // would also give more than one line, so the seam is what has to be checked: the run that
+        // opens the second segment must sit on a line that already has something on it.
+        var runs = TextBaselines.PositionsOf(page);
         TextBaselines.LinesOf(page).Count.Should().BeGreaterThan(1);
+
+        var lineOfEachRun = runs.Select(run => Math.Round(run.Y, 3)).ToList();
+        lineOfEachRun.Distinct().Count().Should().BeLessThan(runs.Count,
+            "some line must carry more than one run, or every segment began a line of its own");
     }
 
     [Fact]

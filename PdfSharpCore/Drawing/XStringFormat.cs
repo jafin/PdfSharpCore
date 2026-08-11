@@ -132,7 +132,11 @@ public class XStringFormat
             // PDF permits any number here, but a run of zero or negative width has no sensible
             // measurement and would break every line-breaking decision taken from it. Mirrored
             // text is XGraphics.ScaleTransform(-1, 1), not a negative scaling.
-            if (value <= 0)
+            //
+            // Asked the way round that rejects NaN as well: NaN fails every comparison, so
+            // "value <= 0" would have let it through to be written into the content stream, and a
+            // page carrying "NaN Tz" is one no reader will open.
+            if (!(value > 0))
                 throw new ArgumentOutOfRangeException(nameof(value), value, "HorizontalScaling must be greater than zero.");
             _horizontalScaling = value;
         }
@@ -164,8 +168,10 @@ public class XStringFormat
         get => _obliqueAngle;
         set
         {
-            // At 90 degrees the skew is infinite and the glyphs collapse to a line.
-            if (value <= -90 || value >= 90)
+            // At 90 degrees the skew is infinite and the glyphs collapse to a line. Asked the way
+            // round that rejects NaN too, which would otherwise reach Math.Tan and put NaN into a
+            // text matrix.
+            if (!(value > -90 && value < 90))
                 throw new ArgumentOutOfRangeException(nameof(value), value, "ObliqueAngle must be greater than -90 and less than 90 degrees.");
             _obliqueAngle = value;
         }

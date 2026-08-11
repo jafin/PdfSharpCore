@@ -373,6 +373,9 @@ public class XTextFormatterOptionsTests
         var runs = RunsOf(page);
         var shown = TextOperators.ShownStrings(page);
 
+        runs.Should().NotBeEmpty();
+        shown.Should().NotBeEmpty();
+
         // Cut off at the bottom of the second column, not the first.
         shown[shown.Count - 1].Should().EndWith("...");
         runs[runs.Count - 1].X.Should().BeGreaterThan(runs[0].X);

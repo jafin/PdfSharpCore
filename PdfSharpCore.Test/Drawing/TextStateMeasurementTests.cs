@@ -19,8 +19,9 @@ namespace PdfSharpCore.Test.Drawing;
 ///   line wraps.
 ///   </para>
 ///   <para>
-///   These are measurements only. Drawing does not yet emit Tc, Tw, Tz or Ts - that is the next
-///   item on the parity checklist in docs/specs/pdfkit-text-parity.md.
+///   These are measurements only. That the same settings reach the page is
+///   <see cref="TextStateOperatorTests"/>, and that they do something once there is
+///   <see cref="TextStateRenderingTests"/>.
 ///   </para>
 /// </summary>
 public class TextStateMeasurementTests
