@@ -188,6 +188,45 @@ public class XTextFormatter
     /// the layout rectangle. Positive turns it anticlockwise on the page. The default is 0.
     /// </summary>
     public double Rotation { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many columns the layout rectangle is divided into, which the text flows
+    /// down in turn. The default is 1.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is less than 1.</exception>
+    public int Columns
+    {
+        get => _columns;
+        set
+        {
+            if (value < 1)
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Columns must be at least 1.");
+            _columns = value;
+        }
+    }
+    int _columns = 1;
+
+    /// <summary>
+    /// Gets or sets the space, in points, left between one column and the next.
+    /// The default is 18 - a quarter of an inch, as PDFKit uses.
+    /// </summary>
+    public double ColumnGap { get; set; } = 18;
+
+    /// <summary>
+    /// How wide one column is, given the width of the whole layout rectangle.
+    /// </summary>
+    double ColumnWidthWithin(double rectWidth)
+    {
+        return (rectWidth - ColumnGap * (Columns - 1)) / Columns;
+    }
+
+    /// <summary>
+    /// How far the left edge of a column sits from the left edge of the layout rectangle.
+    /// </summary>
+    double ColumnLeft(int column, double columnWidth)
+    {
+        return column * (columnWidth + ColumnGap);
+    }
         
         
     /// <summary>
@@ -291,20 +330,26 @@ public class XTextFormatter
             _gfx.RotateAtTransform(-Rotation, new XPoint(layoutRectangle.X, layoutRectangle.Y));
         }
 
+        var columnWidth = ColumnWidthWithin(layoutRectangle.Width);
+
         foreach (var line in lines)
         {
             var lineBlocks = line as Block[] ?? line.ToArray();
             var lineY = dy + lineBlocks.First().Location.Y;
             var indent = lineBlocks.First().LineIndent;
 
+            // A line is laid out and aligned within its own column, so that is the left edge it
+            // is measured from and the width it is measured against.
+            var columnLeft = dx + ColumnLeft(lineBlocks.First().Column, columnWidth);
+
             // The last line of a paragraph keeps its natural width. Stretching it over the
-            // full width of the layout rectangle would tear the few words it holds apart.
+            // full width of the column would tear the few words it holds apart.
             if (Alignment == XParagraphAlignment.Justify && !lineBlocks[lineBlocks.Length - 1].EndsParagraph)
             {
-                var locationX = dx + indent;
+                var locationX = columnLeft + indent;
                 var gaps = lineBlocks.Length - 1;
                 var gapSize = gaps > 0
-                    ? (layoutRectangle.Width - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
+                    ? (columnWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
                     : 0;
                 foreach (var block in lineBlocks)
                 {
@@ -317,11 +362,11 @@ public class XTextFormatter
                 var lineText = string.Join(" ", lineBlocks.Select(l => l.Text));
                 // An indent takes room off the left, so what is left to centre in - or to push a
                 // line to the right end of - is that much narrower.
-                var locationX = dx + indent;
+                var locationX = columnLeft + indent;
                 if (Alignment == XParagraphAlignment.Center)
-                    locationX = dx + indent + (layoutRectangle.Width - indent) / 2;
+                    locationX = columnLeft + indent + (columnWidth - indent) / 2;
                 if (Alignment == XParagraphAlignment.Right)
-                    locationX = dx + layoutRectangle.Width;
+                    locationX = columnLeft + columnWidth;
                 _gfx.DrawString(lineText, font, brush, locationX, lineY, GetXStringFormat());
             }
         }
@@ -332,7 +377,9 @@ public class XTextFormatter
 
     private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
     {
-        return GetLaidOutBlocks(blocks).GroupBy(b => b.Location.Y);
+        // By column as well as by height: the first line of the second column sits level with the
+        // first line of the first, and grouping on height alone would draw them as one line.
+        return GetLaidOutBlocks(blocks).GroupBy(b => (b.Column, b.Location.Y));
     }
 
     /// <summary>
@@ -411,11 +458,38 @@ public class XTextFormatter
         return IndentAllLines || firstLineOfParagraph ? Indent : 0;
     }
 
+    /// <summary>
+    /// Moves to the top of the next column when the one being filled has run out of room.
+    /// Answers false when there is no next column and nowhere left to put the line.
+    /// </summary>
+    /// <remarks>
+    /// A column has to break at the bottom of the rectangle whatever
+    /// <see cref="AllowVerticalOverflow"/> says, or there would be no height to break it at and
+    /// every column but the first would stay empty. Overflow decides what becomes of the text
+    /// after the <em>last</em> column is full.
+    /// </remarks>
+    bool MoveToNextColumnIfFull(ref int column, ref double y, double rectHeight)
+    {
+        if (y <= rectHeight)
+            return true;
+
+        if (column + 1 < Columns)
+        {
+            column++;
+            y = 0;
+            return true;
+        }
+
+        return AllowVerticalOverflow;
+    }
+
     void CreateLayout()
     {
         double rectWidth = _layoutRectangle.Width;
         double rectHeight = _layoutRectangle.Height - _cyAscent - _cyDescent;
+        double columnWidth = ColumnWidthWithin(rectWidth);
         int firstIndex = 0;
+        int column = 0;
         double lineStart = IndentOf(true);
         double x = lineStart, y = 0;
         int count = _blocks.Count;
@@ -428,14 +502,14 @@ public class XTextFormatter
                     _blocks[idx - 1].EndsParagraph = true;
                 if (Alignment == XParagraphAlignment.Justify)
                     _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
-                HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
+                HorizontalAlignLine(firstIndex, idx - 1, columnWidth);
                 firstIndex = idx + 1;
                 // A written line break ends a paragraph, so the next line is indented again and
                 // the gap between paragraphs falls here.
                 lineStart = IndentOf(true);
                 x = lineStart;
                 y += _lineHeight + LineGap + ParagraphGap;
-                if (!AllowVerticalOverflow && y > rectHeight)
+                if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
                 {
                     block.Stop = true;
                     break;
@@ -446,35 +520,37 @@ public class XTextFormatter
                 double width = block.Width;
                 // A block that starts a line is placed whether it fits or not, since moving it to
                 // a line of its own would not make it any narrower.
-                if (!LineBreak || x + width <= rectWidth || x == lineStart)
+                if (!LineBreak || x + width <= columnWidth || x == lineStart)
                 {
-                    block.Location = new XPoint(x, y);
+                    block.Location = new XPoint(ColumnLeft(column, columnWidth) + x, y);
                     block.LineIndent = lineStart;
+                    block.Column = column;
                     x += width + _spaceWidth;
                 }
                 else
                 {
-                    HorizontalAlignLine(firstIndex, idx - 1, rectWidth);
+                    HorizontalAlignLine(firstIndex, idx - 1, columnWidth);
 
                     // Begin implicit line break
                     firstIndex = idx;
                     lineStart = IndentOf(false);
                     y += _lineHeight + LineGap;
-                    if (!AllowVerticalOverflow && y > rectHeight)
+                    if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
                     {
                         block.Stop = true;
                         break;
                     }
-                    block.Location = new XPoint(lineStart, y);
+                    block.Location = new XPoint(ColumnLeft(column, columnWidth) + lineStart, y);
                     block.LineIndent = lineStart;
+                    block.Column = column;
                     x = lineStart + width + _spaceWidth;
                 }
             }
         }
         if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
-            HorizontalAlignLine(firstIndex, count - 1, rectWidth);
+            HorizontalAlignLine(firstIndex, count - 1, columnWidth);
 
-        ApplyEllipsis(rectWidth);
+        ApplyEllipsis(columnWidth);
 
         var laidOutBlocks = GetLaidOutBlocks(_blocks).ToArray();
         if (laidOutBlocks.Length == 0)
@@ -507,7 +583,7 @@ public class XTextFormatter
     /// left on that line. Trimming rather than measuring once, because how much has to come off
     /// depends on how wide the characters that come off are.
     /// </remarks>
-    void ApplyEllipsis(double rectWidth)
+    void ApplyEllipsis(double columnWidth)
     {
         if (string.IsNullOrEmpty(Ellipsis) || AllowVerticalOverflow)
             return;
@@ -521,7 +597,7 @@ public class XTextFormatter
             return;
 
         Block last = laidOut[laidOut.Length - 1];
-        double available = rectWidth - last.Location.X;
+        double available = ColumnLeft(last.Column, columnWidth) + columnWidth - last.Location.X;
 
         string text = last.Text;
         while (text.Length > 0 && _gfx.MeasureString(text + Ellipsis, _font).Width > available)

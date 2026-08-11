@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
@@ -250,6 +251,131 @@ public class XTextFormatterOptionsTests
 
         // The ellipsis marks the cut; it does not move it.
         marked.Should().HaveCount(plain.Count);
+    }
+
+    // ----- C6, columns ---------------------------------------------------------------------------
+
+    /// <summary>Wide enough for two columns, deep enough for two lines in each.</summary>
+    static XRect TwoColumnsDeep => new XRect(20, 20, 260, 2 * LineHeight);
+
+    [Fact]
+    public void TextFlowsDownOneColumnAndOnIntoTheNext()
+    {
+        var page = PageShowing(ThreeLinesish, TwoColumnsDeep, f =>
+        {
+            f.Columns = 2;
+            f.ColumnGap = 20;
+        });
+
+        var runs = RunsOf(page);
+        runs.Count.Should().BeGreaterThan(2);
+
+        // The column is (260 - 20) / 2 = 120 wide, so the second column starts 140 points in.
+        var left = runs.Select(run => Math.Round(run.X, 3)).Distinct().OrderBy(x => x).ToList();
+        left.Should().HaveCount(2);
+        (left[1] - left[0]).Should().BeApproximately(140, 0.01);
+    }
+
+    [Fact]
+    public void ALineInTheSecondColumnSitsLevelWithOneInTheFirst()
+    {
+        var page = PageShowing(ThreeLinesish, TwoColumnsDeep, f =>
+        {
+            f.Columns = 2;
+            f.ColumnGap = 20;
+        });
+
+        var runs = RunsOf(page);
+
+        // Each column starts again at the top, so the same heights are used twice over. The lines
+        // must still be drawn as separate runs rather than joined into one by their height.
+        var heights = runs.Select(run => Math.Round(run.Y, 3)).ToList();
+        heights.Distinct().Count().Should().BeLessThan(heights.Count);
+    }
+
+    [Fact]
+    public void ANarrowerColumnWrapsSoonerThanTheWholeRectangleWould()
+    {
+        var oneColumn = LinesOf(PageShowing(ThreeLinesish, new XRect(20, 20, 260, 400))).Count;
+        var twoColumns = RunsOf(PageShowing(ThreeLinesish, new XRect(20, 20, 260, 400), f =>
+        {
+            f.Columns = 2;
+            f.ColumnGap = 20;
+        })).Count;
+
+        twoColumns.Should().BeGreaterThan(oneColumn);
+    }
+
+    [Fact]
+    public void TheColumnGapIsRoomTakenOffTheColumns()
+    {
+        var page = PageShowing(ThreeLinesish, TwoColumnsDeep, f =>
+        {
+            f.Columns = 2;
+            f.ColumnGap = 60;
+        });
+
+        // (260 - 60) / 2 = 100 wide, so the second column starts 160 points in.
+        var left = RunsOf(page).Select(run => Math.Round(run.X, 3)).Distinct().OrderBy(x => x).ToList();
+        left.Should().HaveCount(2);
+        (left[1] - left[0]).Should().BeApproximately(160, 0.01);
+    }
+
+    [Fact]
+    public void TextRunsOutOfRoomOnlyWhenTheLastColumnIsFull()
+    {
+        var oneColumn = RunsOf(PageShowing(ThreeLinesish, TwoColumnsDeep)).Count;
+        var threeColumns = RunsOf(PageShowing(ThreeLinesish, TwoColumnsDeep, f =>
+        {
+            f.Columns = 3;
+            f.ColumnGap = 10;
+        })).Count;
+
+        // More columns, more room, so more of the text is placed before it is cut off.
+        threeColumns.Should().BeGreaterThan(oneColumn);
+    }
+
+    [Fact]
+    public void OneColumnIsWhatItAlwaysWas()
+    {
+        var implicitly1 = RunsOf(PageShowing(ThreeLinesish, Narrow));
+        var explicitly1 = RunsOf(PageShowing(ThreeLinesish, Narrow, f => f.Columns = 1));
+
+        explicitly1.Should().Equal(implicitly1);
+    }
+
+    [Fact]
+    public void FewerThanOneColumnIsRejected()
+    {
+        var document = new PdfDocument();
+        using var gfx = XGraphics.FromPdfPage(document.AddPage());
+        var formatter = new XTextFormatter(gfx);
+
+        formatter.Invoking(f => f.Columns = 0).Should().Throw<ArgumentOutOfRangeException>();
+        formatter.Invoking(f => f.Columns = -2).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void TheEllipsisLandsInTheLastColumn()
+    {
+        // Long enough to fill both columns and still have text left over: two columns two lines
+        // deep hold four lines, and the fox and the dog between them only need four.
+        const string tooMuch = ThreeLinesish + " and then a good deal more besides, enough to fill "
+                                             + "both of the columns and still be cut off at the end";
+
+        var page = PageShowing(tooMuch, TwoColumnsDeep, f =>
+        {
+            f.Columns = 2;
+            f.ColumnGap = 20;
+            f.Ellipsis = "...";
+        });
+
+        var runs = RunsOf(page);
+        var shown = TextOperators.ShownStrings(page);
+
+        // Cut off at the bottom of the second column, not the first.
+        shown[shown.Count - 1].Should().EndWith("...");
+        runs[runs.Count - 1].X.Should().BeGreaterThan(runs[0].X);
     }
 
     // ----- the options leave the ordinary case alone ---------------------------------------------

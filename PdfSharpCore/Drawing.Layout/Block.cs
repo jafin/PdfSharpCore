@@ -76,6 +76,15 @@ internal class Block
 	public double LineIndent { get; set; }
 
 	/// <summary>
+	/// Which column of the layout rectangle this block was placed in, counting from 0.
+	/// </summary>
+	/// <remarks>
+	/// Two lines in different columns sit at the same height, so a line cannot be told from its
+	/// vertical position alone once there is more than one column to put it in.
+	/// </remarks>
+	public int Column { get; set; }
+
+	/// <summary>
 	/// Skips block for alignment justify calculation, when its the first block in line
 	/// </summary>
 	public bool SkipParagraphAlignment { get; set; }
