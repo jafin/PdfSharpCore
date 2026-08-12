@@ -35,6 +35,11 @@
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
     <ProjectReference Include="..\PdfSharpCore.ImageSharp\PdfSharpCore.ImageSharp.csproj" />
+    <!--
+      So that the demonstration app's demos can be run by the smoke tests. The app targets
+      net8.0 alone, which both legs of this project can reference.
+    -->
+    <ProjectReference Include="..\SampleApp\SampleApp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
