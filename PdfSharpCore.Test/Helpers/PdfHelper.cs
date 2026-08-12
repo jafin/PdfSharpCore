@@ -11,15 +11,36 @@ public class PdfHelper
     private static readonly string _rootPath = PathHelper.GetInstance().RootDir;
 
     /// <summary>
+    /// The resolution pages are rasterized at, unless one is too big to be drawn at it.
+    /// </summary>
+    private const int Dpi = 300;
+
+    /// <summary>
+    /// The most pixels one rasterized page may come to.
+    /// </summary>
+    /// <remarks>
+    /// A page is drawn by Ghostscript, which on Windows is loaded into the test host rather than
+    /// run as a command, and which ends the process outright rather than reporting an error it
+    /// cannot recover from. A big enough page is such an error: FamilyTree.pdf is 58 inches by 23,
+    /// which at 300 dpi is 122 megapixels and takes the process to about 940MB for the one page.
+    /// On its own that succeeds; landing on a test host that is already carrying the rest of the
+    /// suite it sometimes does not, and the host exits with status 1, no dump, no message and no
+    /// failing test. Every other page in these tests is around 9 megapixels, so a page over this
+    /// limit is drawn at whatever lower resolution brings it under, and the rest are untouched.
+    /// </remarks>
+    private const double MaxPixelsPerPage = 16e6;
+
+    /// <summary>
     ///   Rasterize all pages within a PDF to PNG images
     /// </summary>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public static RasterizeOutput Rasterize(PdfDocument document)
     {
+        var dpi = ResolutionFor(document);
         var readerSettings = new MagickReadSettings
         {
-            Density = new Density(300, 300),
+            Density = new Density(dpi, dpi),
             BackgroundColor = MagickColors.White
         };
         var images = new MagickImageCollection();
@@ -64,6 +85,33 @@ public class PdfHelper
         };
     }
         
+    /// <summary>
+    /// What to draw a document at: <see cref="Dpi"/>, or as much less as it takes to keep its
+    /// largest page inside <see cref="MaxPixelsPerPage"/>.
+    /// </summary>
+    /// <remarks>
+    /// One resolution for the whole document, because a reader is given one and the pages of a
+    /// document are compared with each other. The answer is a whole number of dots per inch so
+    /// that the same document rasterizes to the same size every time it is asked for, whatever
+    /// arithmetic the caller did to get here.
+    /// </remarks>
+    private static int ResolutionFor(PdfDocument document)
+    {
+        var largestPage = 0.0;
+
+        foreach (var page in document.Pages)
+            largestPage = Math.Max(largestPage, page.Width.Point * page.Height.Point);
+
+        // Points are 1/72 inch, so a page is (points / 72 * dpi) pixels along each side.
+        var pixelsAtFullResolution = largestPage * Dpi * Dpi / (72.0 * 72.0);
+        if (pixelsAtFullResolution <= MaxPixelsPerPage)
+            return Dpi;
+
+        // Halving the resolution quarters the pixels, so the resolution scales by the square root.
+        var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerPage / pixelsAtFullResolution));
+        return Math.Max(reduced, 1);
+    }
+
     public static List<string> WriteImageCollection(MagickImageCollection images, string outDir, string filePrefix)
     {
         var outPaths = new List<string>();
