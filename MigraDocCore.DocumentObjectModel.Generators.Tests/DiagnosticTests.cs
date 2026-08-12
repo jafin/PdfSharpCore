@@ -1,5 +1,6 @@
 using System.Linq;
 using AwesomeAssertions;
+using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace MigraDocCore.DocumentObjectModel.Generators.Tests;
@@ -171,6 +172,53 @@ public class DiagnosticTests
 
         result.Ids.Should().Contain("MDG006");
     }
+
+    /// <summary>
+    /// A diagnostic with no location is reported against the project rather than the code, so the
+    /// build says what is wrong without saying where. Every one of these used to be located except
+    /// MDG004, which had no way to be: the collision is only visible once the base chain is closed,
+    /// by which point the symbol that caused it is gone. Carrying a value-equatable LocationInfo
+    /// through the pipeline is what fixed it, and this is the test that keeps it fixed.
+    /// </summary>
+    [Theory]
+    [InlineData("MDG001", "public class Widget : DocumentObject { [DV] internal bool? visible; }")]
+    [InlineData("MDG002", "public partial class Widget : DocumentObject { [DV] internal System.Collections.Generic.List<int> bad; }")]
+    [InlineData("MDG003", "public partial class Widget : DocumentObject { [DV] internal static bool? visible; }")]
+    [InlineData("MDG004", "public partial class Widget : DocumentObject { [DV] internal bool? caption; [DV] public bool? Caption { get; set; } }")]
+    [InlineData("MDG005", "public partial class NotADomType { [DV] internal bool? visible; }")]
+    [InlineData("MDG006", "public partial class Widget : DocumentObject { [DV(RefOnly = true)] internal bool? visible; }")]
+    public void EveryDiagnosticPointsAtSource(string id, string snippet)
+    {
+        var result = GeneratorHarness.Run(Ns + snippet);
+
+        Diagnostic reported = result.Diagnostics.Single(d => d.Id == id);
+
+        reported.Location.Should().NotBe(Location.None, "a diagnostic with no location cannot be navigated to");
+        reported.Location.GetLineSpan().Path.Should().Be(GeneratorHarness.SnippetPath);
+    }
+
+    [Fact]
+    public void MDG004_PointsAtTheLaterOfTheTwoDeclarations()
+    {
+        // Base chain is walked base first, so the second declaration seen is the one the collision
+        // is attributable to - and the one a reader would delete or rename.
+        string snippet = """
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? caption;
+                [DV] public bool? Caption { get; set; }
+            }
+            """;
+        var result = GeneratorHarness.Run(Ns + snippet);
+
+        Diagnostic collision = result.Diagnostics.Single(d => d.Id == "MDG004");
+
+        int expected = LineOf(Ns + snippet, "public bool? Caption");
+        collision.Location.GetLineSpan().StartLinePosition.Line.Should().Be(expected);
+    }
+
+    static int LineOf(string source, string needle) =>
+        source.Replace("\r\n", "\n").Split('\n').ToList().FindIndex(line => line.Contains(needle));
 
     /// <summary>
     ///   A type declaring no [DV] member of its own still needs a table - it inherits parent, and

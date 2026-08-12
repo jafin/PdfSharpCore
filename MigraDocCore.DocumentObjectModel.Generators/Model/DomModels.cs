@@ -47,10 +47,18 @@ internal sealed record DomTypeModel(
 /// <summary>
 /// A member as parsed, before the base chain is closed.
 /// </summary>
+/// <param name="Location">
+/// Where the member is declared, kept so that a diagnostic raised once the base chain is closed -
+/// MDG004 is the only one - can point at it. Grouping is the first stage that can see a collision,
+/// and by then the symbol is long gone. This costs nothing in cache terms that
+/// <paramref name="DeclarationOrder"/> does not already cost: both change when the declaration
+/// moves, and neither holds a syntax tree.
+/// </param>
 internal sealed record ParsedMember(
     DomMemberModel Member,
     string TypeFqn,
-    int DeclarationOrder) : IEquatable<ParsedMember>;
+    int DeclarationOrder,
+    LocationInfo? Location) : IEquatable<ParsedMember>;
 
 /// <summary>
 /// A DocumentObject class, whether or not it declares any [DV] members of its own.

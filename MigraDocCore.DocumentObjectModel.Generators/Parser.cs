@@ -21,7 +21,12 @@ internal static class Parser
     /// <summary>
     /// A [DV] member, or null with a diagnostic if it is one the model cannot describe.
     /// </summary>
-    public static (ParsedMember? Member, Diagnostic? Error) Parse(GeneratorAttributeSyntaxContext context, int order)
+    /// <remarks>
+    /// The diagnostic comes back as a <see cref="DiagnosticInfo"/> rather than a
+    /// <see cref="Diagnostic"/> because this return value goes into the pipeline, and a Diagnostic
+    /// carries a Location, which carries the SyntaxTree it came from.
+    /// </remarks>
+    public static (ParsedMember? Member, DiagnosticInfo? Error) Parse(GeneratorAttributeSyntaxContext context, int order)
     {
         ISymbol symbol = context.TargetSymbol;
         INamedTypeSymbol? owner = symbol.ContainingType;
@@ -29,29 +34,29 @@ internal static class Parser
             return (null, null);
 
         string ownerFqn = owner.ToDisplayString(Fqn);
-        Location location = symbol.Locations.FirstOrDefault() ?? Location.None;
+        LocationInfo? location = LocationInfo.From(symbol.Locations.FirstOrDefault());
 
         if (symbol.IsStatic)
         {
-            return (null, Diagnostic.Create(Diagnostics.NotAnInstanceMember, location,
+            return (null, DiagnosticInfo.Create(Diagnostics.NotAnInstanceMember, location,
                 owner.Name, symbol.Name, "static"));
         }
 
         if (symbol.DeclaredAccessibility == Accessibility.Private)
         {
-            return (null, Diagnostic.Create(Diagnostics.NotAnInstanceMember, location,
+            return (null, DiagnosticInfo.Create(Diagnostics.NotAnInstanceMember, location,
                 owner.Name, symbol.Name, "private"));
         }
 
         if (!DerivesFrom(owner, DocumentObject))
         {
-            return (null, Diagnostic.Create(Diagnostics.NotADocumentObject, location,
+            return (null, DiagnosticInfo.Create(Diagnostics.NotADocumentObject, location,
                 owner.Name, symbol.Name));
         }
 
         if (!IsPartial(owner))
         {
-            return (null, Diagnostic.Create(Diagnostics.NotPartial, location, owner.Name));
+            return (null, DiagnosticInfo.Create(Diagnostics.NotPartial, location, owner.Name));
         }
 
         ITypeSymbol memberType;
@@ -76,7 +81,7 @@ internal static class Parser
         (MemberKind kind, ITypeSymbol valueType)? classified = Classify(memberType);
         if (classified is null)
         {
-            return (null, Diagnostic.Create(Diagnostics.UnsupportedMemberType, location,
+            return (null, DiagnosticInfo.Create(Diagnostics.UnsupportedMemberType, location,
                 owner.Name, symbol.Name, memberType.ToDisplayString()));
         }
 
@@ -85,7 +90,7 @@ internal static class Parser
 
         if (isRefOnly && memberType.IsValueType)
         {
-            return (null, Diagnostic.Create(Diagnostics.RefOnlyOnValueType, location,
+            return (null, DiagnosticInfo.Create(Diagnostics.RefOnlyOnValueType, location,
                 owner.Name, symbol.Name));
         }
 
@@ -111,7 +116,7 @@ internal static class Parser
                 ? BoxedDefault(valueTypeSymbol)
                 : null);
 
-        return (new ParsedMember(member, ownerFqn, order), null);
+        return (new ParsedMember(member, ownerFqn, order, location), null);
     }
 
     /// <summary>
@@ -263,8 +268,13 @@ internal static class Parser
                 {
                     if (seen.ContainsKey(member.Member.Name))
                     {
+                        // Points at the later of the two declarations - the base chain is walked
+                        // base first, so that is the one the collision is attributable to. Raising
+                        // a real Diagnostic here rather than a DiagnosticInfo is fine: grouping
+                        // runs inside the source-output stage, downstream of every cache.
                         context.ReportDiagnostic(Diagnostic.Create(
-                            Diagnostics.DuplicateValueName, Location.None, type.Name, member.Member.Name));
+                            Diagnostics.DuplicateValueName, member.Location?.ToLocation(),
+                            type.Name, member.Member.Name));
                         continue;
                     }
                     seen.Add(member.Member.Name, owner);

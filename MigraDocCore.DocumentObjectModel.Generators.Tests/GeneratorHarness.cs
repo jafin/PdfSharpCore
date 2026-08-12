@@ -107,14 +107,17 @@ internal static class GeneratorHarness
     /// <summary>
     /// Compiles <paramref name="source"/> together with the preamble and runs the generator over it.
     /// </summary>
+    /// <summary>The path the snippet is parsed under, so a test can assert where a diagnostic points.</summary>
+    public const string SnippetPath = "Snippet.cs";
+
     public static Result Run(string source)
     {
         CSharpCompilation compilation = CSharpCompilation.Create(
             "GeneratorTests",
             new[]
             {
-                CSharpSyntaxTree.ParseText(Preamble),
-                CSharpSyntaxTree.ParseText(source),
+                CSharpSyntaxTree.ParseText(Preamble, path: "Preamble.cs"),
+                CSharpSyntaxTree.ParseText(source, path: SnippetPath),
             },
             References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
