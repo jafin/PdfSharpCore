@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Fields;
 using PdfSharpCore.Drawing;
@@ -172,9 +173,27 @@ internal class TopDownFormatter
                     if (renderer.RenderInfo.LayoutInfo.VerticalReference == VerticalReference.PreviousElement
                         && renderer.RenderInfo.LayoutInfo.Floating != Floating.None) //Added KlPo 12.07.07
                     {
-                        prevBottomMargin = renderer.RenderInfo.LayoutInfo.MarginBottom;
-                        if (renderer.RenderInfo.LayoutInfo.Floating != Floating.None)
+                        // A shape the text runs beside does not push what follows it down the page;
+                        // it stands in the area the following elements are laid out in. That is the
+                        // whole difference between wrapping around a shape and being placed after
+                        // one, and it is the only place the two part company.
+                        Area beside = AreaBesideShape(area, renderer.RenderInfo.LayoutInfo);
+                        if (beside != null)
+                        {
+                            area = beside;
+
+                            // No bottom margin to carry: the next element is not placed after this
+                            // shape, so there is nothing for a margin between them to separate.
+                            // DistanceBottom has already grown the obstacle, and charging it again
+                            // here would push the following text down the page as well as holding
+                            // it off the shape - the same gap counted twice.
+                            prevBottomMargin = 0;
+                        }
+                        else
+                        {
+                            prevBottomMargin = renderer.RenderInfo.LayoutInfo.MarginBottom;
                             area = area.Lower(renderer.RenderInfo.LayoutInfo.ContentArea.Height);
+                        }
                     }
                     else
                         prevBottomMargin = 0;
@@ -254,6 +273,77 @@ internal class TopDownFormatter
         areaProvider.StoreRenderInfos(renderInfos);
         renderInfos = new ArrayList();
         return prevRenderInfo;
+    }
+
+    /// <summary>
+    /// The area the elements after a side-wrapped shape are laid out in: the same area, with the
+    /// shape standing in it. Null where the shape is not one the text runs beside, or where it
+    /// cannot be made to stand in the area.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The obstacle is the shape's rectangle grown by all four wrap distances, which is what makes
+    /// every one of them mean something. <c>DistanceLeft</c> and <c>DistanceRight</c> hold the text
+    /// off horizontally, as they always claimed to; <c>DistanceTop</c> and <c>DistanceBottom</c>
+    /// grow it vertically, so a line whose box would otherwise clear the shape by a hair is pushed
+    /// past it instead.
+    /// </para>
+    /// <para>
+    /// <b>The side is expressed in the obstacle, not in the area.</b> A shape the text runs down
+    /// the left of blocks everything from its own left edge to the right edge of the area, so the
+    /// only clear span left is the one the caller asked for. That keeps
+    /// <see cref="ObstructedArea"/> free of any notion of sides: it subtracts what it is given and
+    /// the text goes where it can.
+    /// </para>
+    /// </remarks>
+    Area AreaBesideShape(Area area, LayoutInfo layoutInfo)
+    {
+        if (layoutInfo.Floating != Floating.Left && layoutInfo.Floating != Floating.Right &&
+            layoutInfo.Floating != Floating.BothSides)
+            return null;
+
+        Area shape = layoutInfo.ContentArea;
+        if (shape == null)
+            return null;
+
+        XUnit top = shape.Y - layoutInfo.MarginTop;
+        XUnit bottom = shape.Y + shape.Height + layoutInfo.MarginBottom;
+        XUnit left = shape.X - layoutInfo.MarginLeft;
+        XUnit right = shape.X + shape.Width + layoutInfo.MarginRight;
+
+        // A shape taller than the area left to it cannot be an obstacle in that area: the obstacle
+        // would outlive the area holding it, and the text after the page break would be laid out
+        // around something that is no longer there. Fall back to being placed between neighbours,
+        // which is a predictable degradation rather than a wrong page.
+        if (bottom > area.Y + area.Height + Renderer.Tolerance)
+            return null;
+
+        switch (layoutInfo.Floating)
+        {
+            case Floating.Left:
+                // Text on the left, so everything from the shape rightwards is taken.
+                right = area.X + area.Width;
+                break;
+
+            case Floating.Right:
+                left = area.X;
+                break;
+        }
+
+        if (right - left <= Renderer.Tolerance || bottom - top <= Renderer.Tolerance)
+            return null;
+
+        var obstacle = new Rectangle(left, top, right - left, bottom - top);
+        var bounds = new Rectangle(area.X, area.Y, area.Width, area.Height);
+
+        if (area is ObstructedArea standing)
+        {
+            // A second shape beside the first, rather than one replacing the other.
+            var all = new List<Rectangle>(standing.Obstacles) { obstacle };
+            return new ObstructedArea(bounds, all);
+        }
+
+        return new ObstructedArea(bounds, new[] { obstacle });
     }
 
     /// <summary>

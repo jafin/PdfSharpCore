@@ -659,7 +659,10 @@ internal class ParagraphRenderer : Renderer
                 XUnit rectX = contentArea.X;
                 XUnit rectWidth = contentArea.Width;
 
-                Rectangle fittingRect = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+                // The measure the formatting phase broke this line to, rather than the same
+                // question asked again of an area that has since forgotten the answer.
+                Rectangle fittingRect = currentLineFittingRect
+                                        ?? contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
                 if (fittingRect != null)
                 {
                     rectX = fittingRect.X;
@@ -693,6 +696,7 @@ internal class ParagraphRenderer : Renderer
     /// <param name="lineInfo"></param>
     void RenderLine(LineInfo lineInfo)
     {
+        currentLineFittingRect = lineInfo.fittingRect;
         currentVerticalInfo = lineInfo.vertical;
         currentLeaf = lineInfo.startIter;
         startLeaf = lineInfo.startIter;
@@ -802,7 +806,11 @@ internal class ParagraphRenderer : Renderer
                 if (currentBlankCount >= 1 && !(isLastLine && renderInfo.FormatInfo.IsEnding))
                 {
                     Area contentArea = renderInfo.LayoutInfo.ContentArea;
-                    XUnit width = FittingRectOrBounds(contentArea, currentYPosition, currentVerticalInfo.height).Width;
+                    // Justification stretches blanks to fill the line's own measure. Reading the
+                    // content area's width here would stretch a line beside a shape to the full
+                    // measure, which is ragged rather than obviously broken.
+                    XUnit width = (currentLineFittingRect
+                                   ?? FittingRectOrBounds(contentArea, currentYPosition, currentVerticalInfo.height)).Width;
                     if (lastTabPosition > 0)
                     {
                         width -= (lastTabPosition -
@@ -1261,7 +1269,8 @@ internal class ParagraphRenderer : Renderer
         Area contentArea = renderInfo.LayoutInfo.ContentArea;
         currentYPosition = contentArea.Y + TopBorderOffset;
         // StL: GetFittingRect liefert manchmal null
-        Rectangle rect = contentArea.GetFittingRect(currentYPosition, lineInfo.vertical.height);
+        Rectangle rect = lineInfo.fittingRect
+                         ?? contentArea.GetFittingRect(currentYPosition, lineInfo.vertical.height);
         if (rect != null)
             currentXPosition = rect.X;
         currentLineWidth = 0;
@@ -2178,12 +2187,16 @@ internal class ParagraphRenderer : Renderer
         if (topBorderOffset > 0)//May only occure for the first line.
             contentArea = formattingArea.GetFittingRect(formattingArea.Y, topBorderOffset);
 
+        // The measure this line was broken to. Kept, because uniting it into the content area below
+        // loses it - see LineInfo.fittingRect.
+        Rectangle lineFittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+
         if (contentArea == null)
         {
-            contentArea = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+            contentArea = lineFittingRect;
         }
         else
-            contentArea = contentArea.Unite(formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height));
+            contentArea = contentArea.Unite(lineFittingRect);
 
         XUnit bottomBorderOffset = BottomBorderOffset;
         if (bottomBorderOffset > 0)
@@ -2196,6 +2209,11 @@ internal class ParagraphRenderer : Renderer
             HandleNonFittingLine();
 
         lineInfo.lastTab = lastTab;
+        // Carried only for an area with something standing in it. Elsewhere the content area
+        // answers the same question just as well, and it answers it later: a table formats its
+        // cells in one place and renders them in another, so a rect kept from formatting would be
+        // stale by the time the cell is drawn. See LineInfo.fittingRect.
+        lineInfo.fittingRect = formattingArea is ObstructedArea ? lineFittingRect : null;
         renderInfo.LayoutInfo.ContentArea = contentArea;
 
         lineInfo.startIter = startLeaf;
@@ -2637,6 +2655,11 @@ internal class ParagraphRenderer : Renderer
         return area.GetFittingRect(yPosition, height)
                ?? new Rectangle(area.X, yPosition, area.Width, height);
     }
+
+    /// <summary>
+    /// While rendering, the measure the line being rendered was broken to. Null while formatting.
+    /// </summary>
+    Rectangle currentLineFittingRect;
 
     private XUnit currentWordsWidth;
     private int currentBlankCount;
