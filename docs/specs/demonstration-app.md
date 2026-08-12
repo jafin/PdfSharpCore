@@ -51,9 +51,13 @@ nothing compiles is prose that rots, and it has.
 
 ## Item 1 — the command line
 
-`System.CommandLine` 2.0.11, which is the stable post-GA package and ships `lib/net8.0` alongside
-`lib/netstandard2.0`, so both target frameworks of the project are served. `Spectre.Console` renders
-the output; it is not `Spectre.Console.Cli`, because one argument parser is enough.
+`System.CommandLine` 2.0.11, which is the stable post-GA package and ships `lib/net8.0`, the target
+this project builds for. `Spectre.Console` renders the output; it is not `Spectre.Console.Cli`,
+because one argument parser is enough.
+
+The app targets `net8.0` alone rather than the library's set, so that `dotnet run` needs no `-f`.
+Not `net10.0` alone: `PdfSharpCore.Test` references this project to run the demos and builds a
+`net8.0` leg, which could not reference a `net10.0` one.
 
 ```text
 SampleApp list                              what each demo shows
@@ -115,9 +119,10 @@ including — once item 5 lands — these demos. If a demo registered a resolver
 either throw outright, or win the race and quietly move every golden-image test in the suite onto
 different font metrics.
 
-So **no demo touches a static seam.** Registration happens once, in `Program.Main`, and nowhere else.
-A demo is handed a document and fills it in. Under the test host it draws with whatever resolver is
-already installed, which is exactly what makes it safe to run there.
+So **no demo touches a static seam.** Registration happens once, in `Backends.EnsureRegistered`,
+called from `DemoRunner.Run` and from nowhere else — a path only `Program.Main` reaches, and one
+`list` and `--help` never take. A demo is handed a document and fills it in. Under the test host it
+draws with whatever resolver is already installed, which is what makes it safe to run there.
 
 ## Item 3 — printing the source
 

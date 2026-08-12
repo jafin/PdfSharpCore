@@ -105,8 +105,14 @@ internal sealed class OrientationDemo : PdfDemo
             if (size == PageSize.A6)
             {
                 page.Rotate = 90;
-                gfx.DrawString("page.Rotate = 90: the reader turns this, the drawing did not",
-                    small, XBrushes.Crimson, new XPoint(56, y + 8));
+
+                // Broken over two lines by hand. A6 is 298pt wide and this is the one page
+                // here where the measure is tight enough that a single line of it would run
+                // to the frame - DrawString does not wrap, so nothing would break it.
+                gfx.DrawString("page.Rotate = 90: the reader turns this,", small,
+                    XBrushes.Crimson, new XPoint(56, y + 8));
+                gfx.DrawString("the drawing did not.", small,
+                    XBrushes.Crimson, new XPoint(56, y + 20));
             }
         }
         #endregion

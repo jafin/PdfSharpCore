@@ -154,10 +154,12 @@ internal sealed class TextDemo : PdfDemo
 
         y += 8;
 
-        // Ts: the baseline moves up or down without changing the size of the glyphs, so
-        // a superscript needs the rise and a smaller font together.
+        // A skew rather than an italic: the upright glyphs are slanted, where a real italic
+        // is a different set of shapes. The Fonts demo sets the two side by side.
         Row("ObliqueAngle = 12", new XStringFormat { ObliqueAngle = 12 });
 
+        // Ts: the baseline moves up or down without changing the size of the glyphs, so a
+        // superscript needs the rise and a smaller font together.
         Heading("Text rise", y + 6);
         y += 34;
 

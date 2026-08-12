@@ -121,7 +121,14 @@ internal sealed class TablesDemo : PdfDemo
         };
         string[] quarters = { "Q1", "Q2", "Q3", "Q4" };
 
+        // Accumulated as the rows are built rather than worked out again afterwards, so the
+        // totals row cannot disagree with the column above it. A reader who adds the column
+        // up is exactly the reader a table demo has to survive.
         int rowIndex = 0;
+        long totalUnits = 0;
+        double totalRevenue = 0;
+        double marginTimesUnits = 0;
+
         foreach (string name in regions)
         {
             for (int q = 0; q < quarters.Length; q++)
@@ -145,11 +152,16 @@ internal sealed class TablesDemo : PdfDemo
 
                 int units = 400 + rowIndex * 37 % 900;
                 double revenue = units * 12.5;
+                double margin = (units % 17 + 8) / 100.0;
+
+                totalUnits += units;
+                totalRevenue += revenue;
+                marginTimesUnits += margin * units;
 
                 row.Cells[1].AddParagraph(quarters[q]);
                 row.Cells[2].AddParagraph($"{units:N0}");
                 row.Cells[3].AddParagraph($"{revenue:N2}");
-                row.Cells[4].AddParagraph($"{(units % 17 + 8) / 100.0:P1}");
+                row.Cells[4].AddParagraph($"{margin:P1}");
 
                 rowIndex++;
             }
@@ -165,9 +177,11 @@ internal sealed class TablesDemo : PdfDemo
         total.Format.Font.Bold = true;
         total.Cells[0].MergeRight = 1;
         total.Cells[0].AddParagraph("All regions");
-        total.Cells[2].AddParagraph($"{rowIndex * 640:N0}");
-        total.Cells[3].AddParagraph($"{rowIndex * 640 * 12.5:N2}");
-        total.Cells[4].AddParagraph("12.4%");
+        total.Cells[2].AddParagraph($"{totalUnits:N0}");
+        total.Cells[3].AddParagraph($"{totalRevenue:N2}");
+        // Weighted by units rather than a plain mean of the column, which is what a total
+        // row of percentages has to be if it is to mean anything.
+        total.Cells[4].AddParagraph($"{marginTimesUnits / totalUnits:P1}");
 
         table.SetEdge(0, table.Rows.Count - 1, 5, 1, Edge.Box, BorderStyle.Single, 1, Colors.Black);
 

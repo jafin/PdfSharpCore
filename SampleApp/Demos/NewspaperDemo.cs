@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
@@ -156,7 +157,12 @@ internal sealed class NewspaperDemo : PdfDemo
 
         // ---- The rest of the story, below the photograph -------------------------------
         double lowerTop = pictureTop + pictureHeight + 30;
-        double lowerHeight = page.Height.Point - lowerTop - margin - 24;
+
+        // Floored at zero. Everything above is computed from the photograph's own aspect
+        // ratio, so a taller picture pushes this down the page, and a rectangle with a
+        // negative height throws rather than drawing nothing. Swapping the image should
+        // give a worse looking page, not an exception.
+        double lowerHeight = Math.Max(0, page.Height.Point - lowerTop - margin - 24);
 
         formatter.Columns = columnCount;
         formatter.Alignment = XParagraphAlignment.Justify;

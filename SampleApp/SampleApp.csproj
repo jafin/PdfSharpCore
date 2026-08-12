@@ -55,6 +55,13 @@
     <EmbeddedResource Include="Assets\Fonts\*.ttf" LogicalName="Fonts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Fonts\*.otf" LogicalName="Fonts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Images\*.jpg" LogicalName="Images/%(Filename)%(Extension)" />
+
+    <!--
+      The licence travels with the fonts. The SIL OFL requires its text to be distributed
+      with the font software, and embedding the faces without it would ship them stripped of
+      the one file that permits shipping them at all.
+    -->
+    <EmbeddedResource Include="Assets\Fonts\LICENSE.txt" LogicalName="Fonts/LICENSE.txt" />
   </ItemGroup>
 
 </Project>
