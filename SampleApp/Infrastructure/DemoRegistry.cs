@@ -29,6 +29,7 @@ public static class DemoRegistry
         new LayoutDemo(),
         new TablesDemo(),
         new PageResizeDemo(),
+        new BleedDemo(),
         new InvoiceDemo(),
         new NewspaperDemo(),
         new MagazineDemo(),

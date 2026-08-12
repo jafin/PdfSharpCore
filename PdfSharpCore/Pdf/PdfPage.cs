@@ -338,8 +338,48 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     }
 
     /// <summary>
-    /// Gets or sets the trim margins.
+    /// Gets or sets the trim margins: how much sheet there is outside the page, for artwork that
+    /// has to run past the edge of the paper.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Setting a margin does three things. The origin an <see cref="Drawing.XGraphics"/> draws in
+    /// moves to the top-left corner of the <b>trimmed</b> page, so a caller who never draws outside
+    /// it writes exactly the same code as on a page with no margin at all, and a caller who wants a
+    /// bleed reaches past the origin with negative coordinates. The sheet written to the file grows
+    /// by the margins - <see cref="Width"/> and <see cref="Height"/> go on reporting the trimmed
+    /// page while the document is being built. And saving writes all five page boxes rather than
+    /// <c>/MediaBox</c> alone: <c>/MediaBox</c>, <c>/CropBox</c> and <c>/BleedBox</c> are the whole
+    /// sheet, and <c>/TrimBox</c> and <c>/ArtBox</c> are the sheet inset by the margins, which is
+    /// where a guillotine cuts.
+    /// </para>
+    /// <para>
+    /// A page with no margin set is untouched: none of the extra boxes is written, so the whole
+    /// feature is invisible to every document that does not ask for it.
+    /// </para>
+    /// <para>
+    /// <b>The page must be drawn in points.</b> An <see cref="Drawing.XGraphics"/> opened on a
+    /// trimmed page with any other <see cref="Drawing.XGraphics.PageUnit"/> asserts in a debug
+    /// build and places the origin wrongly in a release one; the offset is applied after the unit
+    /// scale rather than through it.
+    /// </para>
+    /// <para>
+    /// <b>Save the document once.</b> The sheet is derived from <see cref="Width"/>, which is the
+    /// media box that saving then overwrites, so saving a second time adds the margins again. This
+    /// is a known defect rather than an intention.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// A photograph bled 3mm off the top-left corner of an A5 page:
+    /// <code>
+    /// page.Size = PageSize.A5;
+    /// page.TrimMargins.All = XUnit.FromMillimeter(3);
+    ///
+    /// XGraphics gfx = XGraphics.FromPdfPage(page);
+    /// double bleed = XUnit.FromMillimeter(3).Point;
+    /// gfx.DrawImage(photograph, -bleed, -bleed, page.Width.Point + 2 * bleed, 300);
+    /// </code>
+    /// </example>
     public TrimMargins TrimMargins
     {
         get

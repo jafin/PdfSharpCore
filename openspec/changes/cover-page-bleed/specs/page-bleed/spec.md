@@ -26,11 +26,15 @@ page with no trim margin at all. Bleeding is reaching past the origin, not rebui
 
 ### Requirement: A trim margin does not change the size of the page a caller draws on
 
-`PdfPage.Width` and `PdfPage.Height` SHALL continue to report the size of the trimmed page. The
-sheet is larger by the trim margins, and that difference SHALL be visible only in the page boxes.
+`PdfPage.Width` and `PdfPage.Height` SHALL report the size of the trimmed page for as long as the
+document is being built. The sheet is larger by the trim margins, and that difference SHALL be
+visible only in the page boxes.
 
 Stated because the alternative — a page that silently grows when a margin is set — would move every
 right-aligned and bottom-aligned thing on it.
+
+Scoped to "while the document is being built" because saving does not honour it. See the departures
+recorded at the foot of this specification.
 
 #### Scenario: Width and height are the trimmed size
 
@@ -50,6 +54,10 @@ Saving a page with a trim margin SHALL write `/MediaBox`, `/CropBox`, `/BleedBox
 `/TrimBox` SHALL be the trimmed page: the media box inset by the trim margin on each edge. `/ArtBox`
 SHALL match it. The boxes SHALL nest — every box SHALL lie within `/MediaBox`, and `/TrimBox` SHALL
 lie within `/BleedBox`.
+
+`/BleedBox` is written equal to `/MediaBox`, which satisfies the nesting rule and leaves no room
+between the bleed and the sheet edge for crop marks. That is recorded here as the state of things
+rather than as an intention; the crop-mark decision is where it is settled.
 
 #### Scenario: The boxes of a trimmed page
 
@@ -113,3 +121,37 @@ is the one that exists. It is specified because it works and nothing says so.
   document is rendered to that surface a page at a time
 - **THEN** the document's margins are measured from the trimmed page, not from the sheet
 - **AND** the saved page carries the boxes of a trimmed page
+
+### Requirement: Three departures from this specification are recorded rather than fixed
+
+The behaviour that departs from the requirements above SHALL be covered by tests that name it as a
+departure, so that it is visible and reviewable rather than merely absent.
+
+All three were found by writing the tests, not by reading the code, which is why this change pinned
+the behaviour before touching any of it. All three share one cause: `PdfPage.PrepareForSave` derives
+the sheet from `Width`, and `Width` is the media box that `PrepareForSave` then overwrites. None is
+fixed here — a change to the boxes is a change to the output of every trimmed page ever written, and
+that needs its own decision rather than a quiet correction inside a task called "pin what is there".
+
+#### Scenario: The page reports the sheet once it has been saved
+
+- **WHEN** a trimmed page is saved and its `Width` and `Height` are read afterwards
+- **THEN** they report the sheet rather than the trimmed page
+- **AND** a test records this as a departure
+
+#### Scenario: Saving a second time grows the sheet again
+
+- **WHEN** a document containing a trimmed page is saved twice — to a stream and then to a file, say
+- **THEN** the second file's media box is larger than the first's by another trim margin on each edge
+- **AND** a test records this as a departure
+
+#### Scenario: An uneven trim margin swaps the vertical edges of the trim box
+
+- **WHEN** a page is given different trim margins at its top and bottom
+- **THEN** the drawing origin is placed one *top* margin below the sheet's top edge, which is right
+- **AND** `/TrimBox` places the trimmed page one *bottom* margin below it, which disagrees with the
+  origin
+- **AND** a test records this as a departure
+
+An even trim margin — the case a printer asks for and the case InDesign's numbers came from — hides
+it completely.

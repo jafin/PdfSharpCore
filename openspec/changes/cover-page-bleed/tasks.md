@@ -3,37 +3,41 @@ Group 3 is the only one that changes behaviour, and is gated on that decision be
 
 ## 1. Pin what is already there
 
-- [ ] 1.1 Write `PdfSharpCore.Test/Drawing/PageBleedTests.cs` against the **current** behaviour: the
+- [x] 1.1 Write `PdfSharpCore.Test/Drawing/PageBleedTests.cs` against the **current** behaviour: the
       origin on the trim corner, a negative coordinate reaching the sheet edge, `Width`/`Height`
       still reporting the trimmed size, and the five boxes with their measured values. Write it
       before changing anything — the point is to find out what the code does, not to confirm what
       it ought to do.
-- [ ] 1.2 Assert the nesting rule — `TrimBox` within `BleedBox` within `MediaBox` — and record in
+- [x] 1.2 Assert the nesting rule — `TrimBox` within `BleedBox` within `MediaBox` — and record in
       the test what the current values make of it. `BleedBox == MediaBox` satisfies nesting; note
       it rather than fix it here.
-- [ ] 1.3 Add a rasterizing test in `[Collection(RasterizingCollection.Name)]` that a band bled off
+- [x] 1.3 Add a rasterizing test in `[Collection(RasterizingCollection.Name)]` that a band bled off
       an edge puts ink on the sheet's outermost pixels. Reading the content stream proves the
       operators were written; only rasterizing proves nothing clipped them away.
-- [ ] 1.4 Test that a page with no trim margin gains no `/TrimBox`, `/BleedBox` or `/ArtBox`, so the
+- [x] 1.4 Test that a page with no trim margin gains no `/TrimBox`, `/BleedBox` or `/ArtBox`, so the
       whole feature stays invisible to every document that does not ask for it.
-- [ ] 1.5 Report anything found that contradicts `specs/page-bleed/spec.md`. Amend the spec to what
+- [x] 1.5 Report anything found that contradicts `specs/page-bleed/spec.md`. Amend the spec to what
       is true and say so, rather than fixing the code inside this task — a behaviour change here
-      needs its own decision.
+      needs its own decision. **Three departures found**, all sharing one cause — `PrepareForSave`
+      derives the sheet from `Width`, and `Width` reads the media box it then overwrites. Recorded
+      in the spec and pinned by the three `DEFECT_` tests.
 
 ## 2. Show it, and say where it applies
 
-- [ ] 2.1 Add `SampleApp/Demos/BleedDemo.cs`: one trimmed page, an image bled off three edges, and a
+- [x] 2.1 Add `SampleApp/Demos/BleedDemo.cs`: one trimmed page, an image bled off three edges, and a
       thin rule marking the trim boundary so the bleed is visible on screen. Label the rule on the
       page as part of the demonstration rather than part of the artwork.
-- [ ] 2.2 Register it, give it `Shows` entries and a `PageCount`, and check the demo smoke tests
+- [x] 2.2 Register it, give it `Shows` entries and a `PageCount`, and check the demo smoke tests
       cover it. Remember the two rules in `docs/specs/demonstration-app.md`: a demo never registers
       a backend, and its assets are embedded resources.
-- [ ] 2.3 Test the MigraDoc route — a caller-made trimmed page, an `XGraphics` on it, and
+- [x] 2.3 Test the MigraDoc route — a caller-made trimmed page, an `XGraphics` on it, and
       `DocumentRenderer.RenderPage` — asserting the layout is measured from the trimmed page and the
       saved page carries the boxes.
-- [ ] 2.4 Correct `docs/specs/demonstration-app.md`: bleed comes out of the list of things the
-      library cannot do, with a pointer to the demo.
-- [ ] 2.5 XML-document `PdfPage.TrimMargins` with what it moves, what it writes, and the point-units
+- [x] 2.4 Correct `docs/specs/demonstration-app.md`: bleed comes out of the list of things the
+      library cannot do, with a pointer to the demo. The doc no longer claimed bleed was impossible,
+      but `Magazine` did describe an image running to the edge of an ordinary page as "bled off
+      three edges" — so the correction is a section distinguishing the two, not a deletion.
+- [x] 2.5 XML-document `PdfPage.TrimMargins` with what it moves, what it writes, and the point-units
       restriction. It is public API with no documentation at all today.
 
 ## 3. Crop marks
