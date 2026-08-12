@@ -41,12 +41,21 @@ groups 1 to 3 changes the output of any existing document.
 
 ## 3. The document object model
 
-- [ ] 3.1 Add the `WrapStyle` values. `Left` and `Right` name the side the **text** occupies; say so
+- [x] 3.1 Add the `WrapStyle` values. `Left` and `Right` name the side the **text** occupies; say so
       in the XML documentation, because the opposite reading is equally natural and a caller who
-      guesses wrong gets a page that looks deliberate and is backwards.
-- [ ] 3.2 Check the values through MDDDL, both ways. The DOM's serialisation is generated — read
-      `docs/specs/generated-serialization.md` first and verify rather than assume.
-- [ ] 3.3 Test the round trip, and test that the existing values still mean exactly what they meant.
+      guesses wrong gets a page that looks deliberate and is backwards. `Left`, `Right`,
+      `Largest` and `Both`, appended so the three that came before keep their numbers. `Both` and
+      `Largest` lay out alike today, because a line is given one span rather than every span; they
+      are kept apart because they say different things and would part company if that changed.
+- [x] 3.2 Check the values through MDDDL, both ways. The DOM's serialisation is generated — read
+      `docs/specs/generated-serialization.md` first and verify rather than assume. The parser has a
+      generic enum path driven by the value descriptor (`DdlParser.ParseEnumAssignment`), so the new
+      values need no generator change — but that is now tested rather than read.
+- [x] 3.3 Test the round trip, and test that the existing values still mean exactly what they meant.
+      **18 tests**: every value round-trips, is written by name rather than by number, carries its
+      four distances with it, and an unknown name is refused rather than taken for the default. That
+      the old values still mean what they meant is what the pinned corpus says - it renders a
+      `TopBottom` frame and a `Through` frame, and both are byte-identical.
 
 ## 4. Wire it up
 

@@ -136,6 +136,20 @@ Written down because the alternative is a future reader assuming `Unite` is exac
 - **What does `Largest` do when the two sides are equal?** Any answer works provided it is stable
   across formatting passes; an unstable one produces text that moves between the measuring pass and
   the rendering pass.
-- **Should `WrapFormat.DistanceTop`/`DistanceBottom` continue to mean what they mean today** for a
-  side-wrapped shape, or do they become the gap above and below the *obstacle*? Today they are the
-  margins of a `TopBottom` element. Probably the latter; confirm against a rasterized page.
+## Settled during implementation
+
+### `DistanceTop` and `DistanceBottom` become the gap above and below the obstacle
+
+For a `TopBottom` shape they are the margins of the element, and they stay that. For a side-wrapped
+one they grow the obstacle vertically, so that a line whose box would otherwise clear the shape by a
+hair is pushed past it instead.
+
+Chosen because it is the reading that makes all four distances mean something, which is the point of
+the change: two of them have never meant anything at all. A side-wrapped shape has no "above" and
+"below" in the `TopBottom` sense — there is no element placed after it to be held off — so keeping
+the old meaning would leave them inert exactly where they are asked for.
+
+The obstacle handed to the area is therefore the shape's rectangle grown by all four distances, and
+the area needs to know nothing about wrapping at all.
+
+## Open Questions
