@@ -51,13 +51,14 @@ public sealed class PdfShadingPattern : PdfDictionaryWithContentStream
     /// <summary>
     /// Setups the shading pattern from the specified brush.
     /// </summary>
-    internal void SetupFromBrush(XBaseGradientBrush brush, XMatrix matrix, XGraphicsPdfRenderer renderer)
+    internal void SetupFromBrush(XBaseGradientBrush brush, XMatrix matrix, XGraphicsPdfRenderer renderer,
+        PdfShadingChannel channel = PdfShadingChannel.Color)
     {
         if (brush == null)
             throw new ArgumentNullException(nameof(brush));
 
         PdfShading shading = new PdfShading(_document);
-        shading.SetupFromBrush(brush, renderer);
+        shading.SetupFromBrush(brush, renderer, channel);
         Elements[Keys.Shading] = shading;
         //Elements[Keys.Matrix] = new PdfLiteral("[" + PdfEncoders.ToString(matrix) + "]");
         Elements.SetMatrix(Keys.Matrix, matrix);

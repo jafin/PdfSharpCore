@@ -35,6 +35,25 @@ using PdfSharpCore.Pdf.Internal;
 namespace PdfSharpCore.Pdf.Advanced;
 
 /// <summary>
+/// Which of a gradient's two ramps a shading carries.
+/// </summary>
+/// <remarks>
+/// A gradient between translucent colours is drawn twice: once in colour, and once in grey as
+/// the group of a luminosity soft mask, where how light the shading is at a point is how much of
+/// the colour shows through there. Both are built by the same code from the same brush, so the
+/// mask cannot follow a different axis, a different extent or a different interpolation from the
+/// colour it masks.
+/// </remarks>
+internal enum PdfShadingChannel
+{
+    /// <summary>The colours of the gradient, in the document's colour mode.</summary>
+    Color,
+
+    /// <summary>The alpha of the gradient's colours, as grey levels.</summary>
+    Alpha
+}
+
+/// <summary>
 /// Represents a shading dictionary.
 /// </summary>
 public sealed class PdfShading : PdfDictionary
@@ -46,17 +65,19 @@ public sealed class PdfShading : PdfDictionary
         : base(document)
     { }
 
-    internal void SetupFromBrush(XBaseGradientBrush brush, XGraphicsPdfRenderer renderer)
+    internal void SetupFromBrush(XBaseGradientBrush brush, XGraphicsPdfRenderer renderer,
+        PdfShadingChannel channel = PdfShadingChannel.Color)
     {
         if (brush is XRadialGradientBrush radialBrush)
-            SetupFromBrush(radialBrush, renderer);
+            SetupFromBrush(radialBrush, renderer, channel);
         else if (brush is XLinearGradientBrush linearBrush)
-            SetupFromBrush(linearBrush, renderer);
+            SetupFromBrush(linearBrush, renderer, channel);
         else
             throw new ArgumentException("Unsupoorted XGradientBrush: " + brush);
     }
 
-    internal void SetupFromBrush(XRadialGradientBrush brush, XGraphicsPdfRenderer renderer)
+    internal void SetupFromBrush(XRadialGradientBrush brush, XGraphicsPdfRenderer renderer,
+        PdfShadingChannel channel = PdfShadingChannel.Color)
     {
         if (brush == null)
             throw new ArgumentNullException(nameof(brush));
@@ -65,13 +86,8 @@ public sealed class PdfShading : PdfDictionary
         XColor color1 = ColorSpaceHelper.EnsureColorMode(colorMode, brush._color1);
         XColor color2 = ColorSpaceHelper.EnsureColorMode(colorMode, brush._color2);
 
-        PdfDictionary function = new PdfDictionary();
-
         Elements[Keys.ShadingType] = new PdfInteger(3);
-        if (colorMode != PdfColorMode.Cmyk)
-            Elements[Keys.ColorSpace] = new PdfName("/DeviceRGB");
-        else
-            Elements[Keys.ColorSpace] = new PdfName("/DeviceCMYK");
+        Elements[Keys.ColorSpace] = new PdfName(ColorSpaceOf(colorMode, channel));
 
         XPoint p1 = renderer.WorldToView(brush._center1);
         XPoint p2 = renderer.WorldToView(brush._center2);
@@ -91,24 +107,16 @@ public sealed class PdfShading : PdfDictionary
         Elements[Keys.Coords] = new PdfLiteral("[{0:" + format + "} {1:" + format + "} {2:" + format + "} {3:" + format + "} {4:" + format + "} {5:" + format + "}]", p1.X, p1.Y, r1, p2.X, p2.Y, r2);
 
         //Elements[Keys.Background] = new PdfRawItem("[0 1 1]");
-        //Elements[Keys.Domain] = 
-        Elements[Keys.Function] = function;
+        //Elements[Keys.Domain] =
+        Elements[Keys.Function] = RampFunction(color1, color2, colorMode, channel);
         //Elements[Keys.Extend] = new PdfRawItem("[true true]");
-
-        string clr1 = "[" + PdfEncoders.ToString(color1, colorMode, true) + "]";
-        string clr2 = "[" + PdfEncoders.ToString(color2, colorMode, true) + "]";
-
-        function.Elements["/FunctionType"] = new PdfInteger(2);
-        function.Elements["/C0"] = new PdfLiteral(clr1);
-        function.Elements["/C1"] = new PdfLiteral(clr2);
-        function.Elements["/Domain"] = new PdfLiteral("[0 1]");
-        function.Elements["/N"] = new PdfInteger(1);
     }
 
     /// <summary>
     /// Setups the shading from the specified brush.
     /// </summary>
-    internal void SetupFromBrush(XLinearGradientBrush brush, XGraphicsPdfRenderer renderer)
+    internal void SetupFromBrush(XLinearGradientBrush brush, XGraphicsPdfRenderer renderer,
+        PdfShadingChannel channel = PdfShadingChannel.Color)
     {
         if (brush == null)
             throw new ArgumentNullException(nameof(brush));
@@ -117,13 +125,8 @@ public sealed class PdfShading : PdfDictionary
         XColor color1 = ColorSpaceHelper.EnsureColorMode(colorMode, brush._color1);
         XColor color2 = ColorSpaceHelper.EnsureColorMode(colorMode, brush._color2);
 
-        PdfDictionary function = new PdfDictionary();
-
         Elements[Keys.ShadingType] = new PdfInteger(2);
-        if (colorMode != PdfColorMode.Cmyk)
-            Elements[Keys.ColorSpace] = new PdfName("/DeviceRGB");
-        else
-            Elements[Keys.ColorSpace] = new PdfName("/DeviceCMYK");
+        Elements[Keys.ColorSpace] = new PdfName(ColorSpaceOf(colorMode, channel));
 
         double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         if (brush._useRect)
@@ -177,18 +180,64 @@ public sealed class PdfShading : PdfDictionary
         Elements[Keys.Coords] = new PdfLiteral("[{0:" + format + "} {1:" + format + "} {2:" + format + "} {3:" + format + "}]", x1, y1, x2, y2);
 
         //Elements[Keys.Background] = new PdfRawItem("[0 1 1]");
-        //Elements[Keys.Domain] = 
-        Elements[Keys.Function] = function;
+        //Elements[Keys.Domain] =
+        Elements[Keys.Function] = RampFunction(color1, color2, colorMode, channel);
         //Elements[Keys.Extend] = new PdfRawItem("[true true]");
+    }
 
-        string clr1 = "[" + PdfEncoders.ToString(color1, colorMode, true) + "]";
-        string clr2 = "[" + PdfEncoders.ToString(color2, colorMode, true) + "]";
+    /// <summary>
+    /// The colour space a shading carrying the given channel is expressed in.
+    /// </summary>
+    static string ColorSpaceOf(PdfColorMode colorMode, PdfShadingChannel channel)
+    {
+        // A luminosity mask is read as a single grey level, which is why the group it belongs to
+        // is in DeviceGray as well.
+        if (channel == PdfShadingChannel.Alpha)
+            return "/DeviceGray";
 
+        return colorMode != PdfColorMode.Cmyk ? "/DeviceRGB" : "/DeviceCMYK";
+    }
+
+    /// <summary>
+    /// The exponential interpolation function that carries one of the gradient's two ramps
+    /// between its two stops.
+    /// </summary>
+    /// <remarks>
+    /// The geometry - the shading type and the coordinates - is written by the caller and is the
+    /// same whichever channel this is, which is the point of building both through one method: an
+    /// alpha ramp that followed a different axis from the colour it masks would fade the gradient
+    /// out in the wrong direction.
+    /// </remarks>
+    static PdfDictionary RampFunction(XColor color1, XColor color2, PdfColorMode colorMode,
+        PdfShadingChannel channel)
+    {
+        const string format = Config.SignificantFigures3;
+
+        PdfItem c0, c1;
+        if (channel == PdfShadingChannel.Alpha)
+        {
+            // One grey component: fully transparent is black, fully opaque is white.
+            c0 = new PdfLiteral("[{0:" + format + "}]", color1.A);
+            c1 = new PdfLiteral("[{0:" + format + "}]", color2.A);
+        }
+        else
+        {
+            // One value per component of the colour space and no more. An RGB ramp used to carry
+            // the alpha as a fourth value, which is not a colour component and makes the function
+            // wider than the space it feeds: a conformant reader rejects the shading and paints
+            // nothing at all, which is why no gradient this library wrote ever appeared in
+            // Ghostscript. The alpha now goes where alpha belongs, into the soft mask above.
+            c0 = new PdfLiteral("[" + PdfEncoders.ToString(color1, colorMode) + "]");
+            c1 = new PdfLiteral("[" + PdfEncoders.ToString(color2, colorMode) + "]");
+        }
+
+        PdfDictionary function = new PdfDictionary();
         function.Elements["/FunctionType"] = new PdfInteger(2);
-        function.Elements["/C0"] = new PdfLiteral(clr1);
-        function.Elements["/C1"] = new PdfLiteral(clr2);
+        function.Elements["/C0"] = c0;
+        function.Elements["/C1"] = c1;
         function.Elements["/Domain"] = new PdfLiteral("[0 1]");
         function.Elements["/N"] = new PdfInteger(1);
+        return function;
     }
 
     /// <summary>

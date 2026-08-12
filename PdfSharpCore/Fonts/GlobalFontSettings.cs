@@ -93,6 +93,50 @@ public static class GlobalFontSettings
     static IFontResolver _fontResolver;
 
     /// <summary>
+    /// Gets or sets the provider that turns text into glyph outlines for the current application domain.
+    /// Only <see cref="T:PdfSharpCore.Drawing.XGraphicsPath"/>.AddString needs one; drawing and measuring
+    /// text do not. Install PdfSharpCore.Skia and use <c>new SkiaGlyphOutlineProvider()</c>, or install
+    /// PdfSharpCore.ImageSharp and use <c>new ImageSharpGlyphOutlineProvider()</c>.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="FontResolver"/> rather than part of it: <see cref="IFontResolver"/> is
+    /// implemented by every consumer who has written a resolver of their own, and a new member on it
+    /// would break all of them. A provider reads its font bytes through the registered resolver, so the
+    /// two cannot disagree about which face a family means.
+    /// </remarks>
+    public static IGlyphOutlineProvider GlyphOutlineProvider
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                if (_glyphOutlineProvider == null)
+                    throw new InvalidOperationException(
+                        "No IGlyphOutlineProvider has been configured. Set GlobalFontSettings.GlyphOutlineProvider "
+                        + "before adding text to a path, e.g. 'GlobalFontSettings.GlyphOutlineProvider = "
+                        + "new SkiaGlyphOutlineProvider();' from the PdfSharpCore.Skia package, or "
+                        + "'new ImageSharpGlyphOutlineProvider();' from PdfSharpCore.ImageSharp.");
+                return _glyphOutlineProvider;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+        set
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                // Null clears it, unlike FontResolver, which nothing can work without. Outlines are
+                // wanted by one method, so a consumer may reasonably want to take the provider away
+                // again - and a seam that can be cleared is a seam whose unset behaviour can be tested.
+                _glyphOutlineProvider = value;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+    static IGlyphOutlineProvider _glyphOutlineProvider;
+
+    /// <summary>
     /// Gets or sets the default font encoding used for XFont objects where encoding is not explicitly specified.
     /// If it is not set, the default value is PdfFontEncoding.Unicode.
     /// If you are sure your document contains only Windows-1252 characters (see https://en.wikipedia.org/wiki/Windows-1252) 

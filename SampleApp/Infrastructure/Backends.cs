@@ -3,12 +3,14 @@ using System.Threading;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Skia;
+using PdfSharpCore.Utils;
 
 namespace SampleApp.Infrastructure;
 
 /// <summary>
-///   The two static seams PdfSharpCore leaves for a host to fill: a font resolver and an image
-///   source. The core package carries neither an imaging nor a font dependency of its own.
+///   The three static seams PdfSharpCore leaves for a host to fill: a font resolver, an image
+///   source, and a glyph outline provider. The core package carries neither an imaging nor a font
+///   dependency of its own.
 /// </summary>
 /// <remarks>
 ///   <para>
@@ -41,6 +43,10 @@ public static class Backends
             GlobalFontSettings.FontResolver = new BundledFontResolver();
 
         ImageSource.ImageSourceImpl ??= new SkiaImageSource();
+
+        // Wanted by XGraphicsPath.AddString alone, which the Magazine demo uses for its title.
+        if (!GlyphOutlineProviderIsSet())
+            GlobalFontSettings.GlyphOutlineProvider = new SkiaGlyphOutlineProvider();
     }
 
     /// <summary>
@@ -54,6 +60,24 @@ public static class Backends
         try
         {
             _ = GlobalFontSettings.FontResolver;
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///   Whether an outline provider is already installed. Asked the same way, and for the same
+    ///   reason: the getter reports its absence by throwing, so that a caller who never set one
+    ///   is told which property to set rather than handed an empty path.
+    /// </summary>
+    static bool GlyphOutlineProviderIsSet()
+    {
+        try
+        {
+            _ = GlobalFontSettings.GlyphOutlineProvider;
             return true;
         }
         catch (InvalidOperationException)

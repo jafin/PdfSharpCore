@@ -260,6 +260,9 @@ internal sealed class PdfGraphicsState : ICloneable
             if (fills && solidBrush == null)
                 throw new InvalidOperationException("A filling text rendering mode needs a solid color brush to fill with.");
 
+            // Nothing here is a gradient, so a mask left over from one that was is taken off.
+            RealizeGradientSoftMask(null);
+
             if (haveFill)
             {
                 // Overprint is dropped when the same glyphs are stroked over the fill, as it was
@@ -288,6 +291,12 @@ internal sealed class PdfGraphicsState : ICloneable
                 PdfShadingPattern pattern = new PdfShadingPattern(_renderer.Owner);
                 pattern.SetupFromBrush(gradientBrush, matrix, _renderer);
                 string name = _renderer.Resources.AddPattern(pattern);
+
+                // A shading carries colour and no alpha, so a gradient between translucent
+                // colours is painted under a mask built from the same geometry. A gradient whose
+                // colours are both opaque takes this branch and writes nothing.
+                RealizeGradientSoftMask(PdfGradientSoftMask.ForBrush(gradientBrush, matrix, _renderer));
+
                 if (isForPen)
                 {
                     _renderer.AppendFormatString("/Pattern CS\n", name);
@@ -302,6 +311,44 @@ internal sealed class PdfGraphicsState : ICloneable
                 _realizedFillColor = XColor.Empty;
             }
         }
+    }
+
+    /// <summary>
+    /// True while a gradient's soft mask is in force, so that it can be taken off again.
+    /// </summary>
+    /// <remarks>
+    /// The soft mask is part of the graphics state and applies to everything painted after it,
+    /// not only to the gradient it was built for. It is cloned with the rest of this state, so a
+    /// q/Q pair takes it off on its own; within one level it has to be taken off by hand.
+    /// </remarks>
+    bool _realizedSoftMask;
+
+    /// <summary>
+    /// Puts a gradient's soft mask into force, or takes the one in force off.
+    /// </summary>
+    /// <param name="extGState">
+    /// The state carrying the mask, or null for painting that needs no mask.
+    /// </param>
+    void RealizeGradientSoftMask(PdfExtGState extGState)
+    {
+        if (extGState == null)
+        {
+            // Nothing to undo. This is the path every document that has never drawn a translucent
+            // gradient takes, and it writes not one byte.
+            if (!_realizedSoftMask)
+                return;
+
+            _renderer.AppendFormatString("{0} gs\n", _renderer.Resources.AddExtGState(_renderer.NoSoftMaskState));
+            _realizedSoftMask = false;
+            return;
+        }
+
+        _renderer.AppendFormatString("{0} gs\n", _renderer.Resources.AddExtGState(extGState));
+        _realizedSoftMask = true;
+
+        // A page carrying a soft mask needs the transparency group that says how to composite it.
+        if (_renderer._page != null)
+            _renderer._page.TransparencyUsed = true;
     }
 
     private void RealizeFillColor(XColor color, bool overPrint, PdfColorMode colorMode)

@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using PdfSharpCore.Fonts;
 using PdfSharpCore.Internal;
 
 namespace PdfSharpCore.Drawing;
@@ -358,24 +359,43 @@ public sealed class XGraphicsPath
     // ----- AddString ----------------------------------------------------------------------------
 
     /// <summary>
-    /// Adds a text string to this path.
+    /// Adds the outlines of a text string to this path, with the string laid out at a point.
     /// </summary>
+    /// <remarks>
+    /// <b>To stroke text you do not need a path.</b>
+    /// <see cref="XGraphics.DrawString(string,XFont,XPen,XBrush,XRect,XStringFormat)"/> takes a pen
+    /// as well as a brush and selects the PDF text rendering mode for you, which is cheaper and
+    /// keeps the text searchable. Come here for what that cannot do: fill glyphs with a gradient,
+    /// clip a photograph to their shapes, or widen them as geometry.
+    /// <para>
+    /// Needs <see cref="GlobalFontSettings.GlyphOutlineProvider"/> to be set, and throws naming it
+    /// if it is not. Text added to a path is no longer text, so nothing in the file says what it
+    /// said and no reader can search or copy it.
+    /// </para>
+    /// </remarks>
     public void AddString(string s, XFontFamily family, XFontStyle style, double emSize, XPoint origin,
         XStringFormat format)
     {
-        try
-        {
-            DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddString");
-        }
-        catch
-        {
-            throw;
-        }
+        // The same reduction DrawString's point overloads make: a rectangle with no extent, which
+        // every alignment but Near and BaseLine then measures against and finds nothing in.
+        AddString(s, family, style, emSize, new XRect(origin.X, origin.Y, 0, 0), format);
     }
 
     /// <summary>
-    /// Adds a text string to this path.
+    /// Adds the outlines of a text string to this path, laid out within a rectangle.
     /// </summary>
+    /// <remarks>
+    /// <b>To stroke text you do not need a path.</b>
+    /// <see cref="XGraphics.DrawString(string,XFont,XPen,XBrush,XRect,XStringFormat)"/> takes a pen
+    /// as well as a brush and selects the PDF text rendering mode for you, which is cheaper and
+    /// keeps the text searchable. Come here for what that cannot do: fill glyphs with a gradient,
+    /// clip a photograph to their shapes, or widen them as geometry.
+    /// <para>
+    /// Needs <see cref="GlobalFontSettings.GlyphOutlineProvider"/> to be set, and throws naming it
+    /// if it is not. Text added to a path is no longer text, so nothing in the file says what it
+    /// said and no reader can search or copy it.
+    /// </para>
+    /// </remarks>
     public void AddString(string s, XFontFamily family, XFontStyle style, double emSize, XRect layoutRect,
         XStringFormat format)
     {
@@ -388,15 +408,65 @@ public sealed class XGraphicsPath
         if (format == null)
             format = XStringFormats.Default;
 
-        if (format.LineAlignment == XLineAlignment.BaseLine && layoutRect.Height != 0)
-            throw new InvalidOperationException(
-                "DrawString: With XLineAlignment.BaseLine the height of the layout rectangle must be 0.");
+        // A BaseLine line alignment puts the baseline on the rectangle's top edge and ignores the
+        // height, exactly as XGraphics.DrawString does. The two guards were separate code saying
+        // the same thing, and both are gone.
 
         if (s.Length == 0)
             return;
 
         XFont font = new XFont(family.Name, emSize, style);
-        DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddString");
+
+        // Measured and placed by the code the renderer draws text with, not by a copy of it.
+        // A path is built in the caller's world, which measures y downwards.
+        double width = FontHelper.MeasureString(s, font, format).Width;
+        XPoint origin = TextOrigin.For(layoutRect, width, font, format, true);
+
+        bool isBold = (style & XFontStyle.Bold) != 0;
+        bool isItalic = (style & XFontStyle.Italic) != 0;
+
+        // Read before anything is added, so that an unregistered provider leaves the path as it
+        // found it rather than half filled.
+        IGlyphOutlineProvider provider = GlobalFontSettings.GlyphOutlineProvider;
+
+        foreach (XGlyphOutline outline in provider.GetOutlines(s, family.Name, isBold, isItalic, emSize))
+            AddGlyphOutline(outline, origin);
+    }
+
+    /// <summary>
+    /// Copies one glyph's outline into the path, turned the right way up and moved to where the
+    /// text starts.
+    /// </summary>
+    /// <remarks>
+    /// A font measures y upwards from the baseline and this path measures it downwards, so the
+    /// sign of y is flipped here - once, for every backend, rather than once per backend.
+    /// </remarks>
+    void AddGlyphOutline(XGlyphOutline outline, XPoint origin)
+    {
+        foreach (XGlyphSegment segment in outline.Segments)
+        {
+            switch (segment.Kind)
+            {
+                case XGlyphSegmentKind.Start:
+                    _corePath.MoveTo(origin.X + segment.End.X, origin.Y - segment.End.Y);
+                    break;
+
+                case XGlyphSegmentKind.Line:
+                    _corePath.LineTo(origin.X + segment.End.X, origin.Y - segment.End.Y, false);
+                    break;
+
+                case XGlyphSegmentKind.Curve:
+                    _corePath.BezierTo(
+                        origin.X + segment.Control1.X, origin.Y - segment.Control1.Y,
+                        origin.X + segment.Control2.X, origin.Y - segment.Control2.Y,
+                        origin.X + segment.End.X, origin.Y - segment.End.Y, false);
+                    break;
+
+                case XGlyphSegmentKind.Close:
+                    _corePath.CloseSubpath();
+                    break;
+            }
+        }
     }
 
     // --------------------------------------------------------------------------------------------

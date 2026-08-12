@@ -26,9 +26,10 @@ internal sealed class MagazineDemo : PdfDemo
     public override IReadOnlyList<string> Shows => new[]
     {
         "A photograph bled off three edges, clipped to its band",
-        "A scrim built from translucent bands, because gradients carry no alpha",
+        "A scrim that fades out as well as down, from a gradient with alpha in its colours",
         "A drop cap sized by MeasureString, with the text broken to fit beside it",
-        "A pull quote slanted with ObliqueAngle, and a title stroked rather than filled",
+        "A title turned into a path by AddString and filled with a gradient",
+        "A pull quote slanted with ObliqueAngle",
     };
 
     public override int PageCount => 2;
@@ -89,21 +90,15 @@ internal sealed class MagazineDemo : PdfDemo
             photograph.PointWidth * cover, photograph.PointHeight * cover);
 
         // A scrim, so white type has something to sit on whatever the photograph happens to
-        // be doing underneath it.
-        //
-        // Built from solid bands of increasing alpha rather than from an XLinearGradientBrush,
-        // because a gradient here has no transparency to give: the shading dictionary the
-        // library writes carries two colours and no soft mask, so a gradient between a
-        // transparent black and an opaque one comes out as flat black over the picture.
-        // Translucent solid fills do work, so a gradient made of enough of them does too.
-        const int bands = 140;
-        double bandHeight = bleedHeight * 0.55 / bands;
-        for (int band = 0; band < bands; band++)
-        {
-            int alpha = (int)(190.0 * (band + 1) / bands);
-            gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(alpha, 12, 14, 10)),
-                0, bleedHeight - (bands - band) * bandHeight, width, bandHeight + 0.6);
-        }
+        // be doing underneath it. One gradient, from nothing at the top to nearly opaque at
+        // the foot of the band: a gradient honours the alpha of its colours, so this fades out
+        // as well as down and the picture shows through the top of it.
+        XRect scrim = new XRect(0, bleedHeight * 0.45, width, bleedHeight * 0.55);
+        gfx.DrawRectangle(
+            new XLinearGradientBrush(scrim,
+                XColor.FromArgb(0, 12, 14, 10), XColor.FromArgb(190, 12, 14, 10),
+                XLinearGradientMode.Vertical),
+            scrim);
 
         gfx.Restore(bleed);
 
@@ -182,17 +177,22 @@ internal sealed class MagazineDemo : PdfDemo
         gfx.DrawLine(new XPen(XColors.Gainsboro, 0.6), margin, margin + 18, width - margin,
             margin + 18);
 
-        // A title stroked rather than filled: a pen and no brush is text rendering mode 1,
-        // the outline alone.
+        // A title as geometry rather than as text. AddString puts the glyph outlines into a
+        // path, which can then be filled with anything a shape can be filled with - here a
+        // gradient across the word, which no DrawString overload can produce.
         //
-        // The other route to an outline - XGraphicsPath.AddString, which would put the
-        // glyph outlines into a path and let it be filled, clipped or widened like any
-        // other shape - is not implemented in this fork. It does not throw; it reports
-        // through DiagnosticsHelper and draws nothing, which is worth knowing before
-        // reaching for it and wondering where the title went.
-        gfx.DrawString("Continued", new XFont(Serif, 34, XFontStyle.Bold),
-            new XPen(XColors.DarkSlateGray, 0.7), XBrushes.Transparent,
-            new XPoint(margin, margin + 66));
+        // It needs a glyph outline provider registered, which the runner does along with the
+        // other backends. To stroke a title and nothing more you would not come here at all:
+        // DrawString takes a pen as well as a brush, which is cheaper and stays searchable.
+        XRect titleBox = new XRect(margin, margin + 30, measure, 44);
+        XGraphicsPath title = new XGraphicsPath();
+        title.AddString("Continued", new XFontFamily(Serif), XFontStyle.Bold, 34, titleBox,
+            XStringFormats.TopLeft);
+
+        gfx.DrawPath(
+            new XLinearGradientBrush(titleBox, XColors.DarkSlateGray, XColors.CadetBlue,
+                XLinearGradientMode.Horizontal),
+            title);
 
         double upperTop = margin + 86;
         formatter.Alignment = XParagraphAlignment.Justify;

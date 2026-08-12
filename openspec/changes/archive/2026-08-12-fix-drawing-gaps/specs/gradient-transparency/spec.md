@@ -28,7 +28,27 @@ extent, the same interpolation.
 - **THEN** the image is visible at the outer edge of the gradient and progressively obscured towards
   its centre
 
-### Requirement: An opaque gradient is written exactly as it is today
+### Requirement: A gradient's colour ramp carries one value per colour component
+
+The interpolation function of a shading SHALL return exactly as many values as the shading's colour
+space has components: three for `/DeviceRGB`, four for `/DeviceCMYK`.
+
+An RGB ramp was given a fourth value, the colour's alpha, which is not a colour component. A
+function wider than the space it feeds is malformed, and a conformant reader answers it by painting
+nothing at all — so **no gradient this library has ever written appears in Ghostscript**. Alpha now
+goes where alpha belongs, into the soft mask above.
+
+#### Scenario: An RGB ramp has three values
+
+- **WHEN** a document containing a `/DeviceRGB` gradient is saved
+- **THEN** the `/C0` and `/C1` entries of its shading function each hold three numbers
+
+#### Scenario: A CMYK ramp is unchanged
+
+- **WHEN** the document's colour mode is CMYK
+- **THEN** the ramp holds four numbers, which is what that colour space has always required
+
+### Requirement: An opaque gradient carries no transparency machinery
 
 A gradient both of whose colours are fully opaque SHALL be written to the content stream without a
 soft mask, an extended graphics state, or a transparency group.
@@ -40,7 +60,8 @@ This is what keeps the change from touching every gradient ever written by the l
 - **WHEN** a document containing only fully opaque gradients is saved
 - **THEN** its content streams contain no `/SMask` entry introduced by the gradient
 - **AND** no transparency group form XObject is added to the document
-- **AND** the saved bytes match those the library produced before this change
+- **AND** its content stream, shading geometry and pattern matrices match what the library produced
+  before this change, byte for byte — the ramp above being the one and only difference
 
 ### Requirement: Transparency is realised as a luminosity soft mask
 

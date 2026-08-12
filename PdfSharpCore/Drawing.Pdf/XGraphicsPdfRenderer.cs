@@ -381,9 +381,6 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect rect, XStringFormat format)
     {
-        double x = rect.X;
-        double y = rect.Y;
-
         double lineSpace = font.GetHeight();
         double cyAscent = lineSpace * font.CellAscent / font.CellSpace;
         double cyDescent = lineSpace * font.CellDescent / font.CellSpace;
@@ -406,92 +403,11 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
         Realize(font, brush, pen, boldSimulation, format);
 
-        switch (format.Alignment)
-        {
-            case XStringAlignment.Near:
-                // nothing to do
-                break;
-
-            case XStringAlignment.Center:
-                x += (rect.Width - width) / 2;
-                break;
-
-            case XStringAlignment.Far:
-                x += rect.Width - width;
-                break;
-        }
-        // Half the height of a lowercase x, for the one alignment that is measured against it.
-        double cyXHeight = lineSpace * font.Metrics.XHeight / font.CellSpace;
-
-        if (Gfx.PageDirection == XPageDirection.Downwards)
-        {
-            switch (format.LineAlignment)
-            {
-                case XLineAlignment.Near:
-                    y += cyAscent;
-                    break;
-
-                case XLineAlignment.Center:
-                    // TODO: Use CapHeight. PDFlib also uses 3/4 of ascent
-                    y += (cyAscent * 3 / 4) / 2 + rect.Height / 2;
-                    break;
-
-                case XLineAlignment.Far:
-                    y += -cyDescent + rect.Height;
-                    break;
-
-                case XLineAlignment.BaseLine:
-                    // Nothing to do.
-                    break;
-
-                case XLineAlignment.Hanging:
-                    // As Near, but hung off the position rather than off the top of the rectangle.
-                    y += cyAscent;
-                    break;
-
-                case XLineAlignment.Ideographic:
-                    y += -cyDescent;
-                    break;
-
-                case XLineAlignment.SvgMiddle:
-                    y += cyXHeight / 2;
-                    break;
-            }
-        }
-        else
-        {
-            switch (format.LineAlignment)
-            {
-                case XLineAlignment.Near:
-                    y += cyDescent;
-                    break;
-
-                case XLineAlignment.Center:
-                    // TODO: Use CapHeight. PDFlib also uses 3/4 of ascent
-                    y += -(cyAscent * 3 / 4) / 2 + rect.Height / 2;
-                    break;
-
-                case XLineAlignment.Far:
-                    y += -cyAscent + rect.Height;
-                    break;
-
-                case XLineAlignment.BaseLine:
-                    // Nothing to do.
-                    break;
-
-                case XLineAlignment.Hanging:
-                    y += -cyAscent;
-                    break;
-
-                case XLineAlignment.Ideographic:
-                    y += cyDescent;
-                    break;
-
-                case XLineAlignment.SvgMiddle:
-                    y += -cyXHeight / 2;
-                    break;
-            }
-        }
+        // The same arithmetic XGraphicsPath.AddString places its glyphs by, so that a string added
+        // to a path lands where the same string drawn here lands.
+        XPoint origin = TextOrigin.For(rect, width, font, format, Gfx.PageDirection == XPageDirection.Downwards);
+        double x = origin.X;
+        double y = origin.Y;
 
         PdfFont realizedFont = _gfxState._realizedFont;
         Debug.Assert(realizedFont != null);
@@ -1645,10 +1561,46 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     }
 
     /// <summary>
+    /// The extended graphics state that takes a gradient's soft mask off again, made once per
+    /// page or form so that the reset is one resource however many gradients ask for it.
+    /// </summary>
+    internal PdfExtGState NoSoftMaskState
+    {
+        get
+        {
+            if (_noSoftMaskState == null)
+            {
+                _noSoftMaskState = new PdfExtGState(Owner);
+                _noSoftMaskState.Elements.SetName(PdfExtGState.Keys.SMask, "/None");
+            }
+            return _noSoftMaskState;
+        }
+    }
+    PdfExtGState _noSoftMaskState;
+
+    /// <summary>
     /// Gets the size of this page or form as it is written to the file. It is the area drawing
     /// ends up in, before the viewer turns the page.
     /// </summary>
-    XSize StoredPageSize => _page != null ? _page.StoredSize : _form.Size;
+    internal XSize StoredPageSize => _page != null ? _page.StoredSize : _form.Size;
+
+    /// <summary>
+    /// The transform the content stream has in force where something is drawn, given the matrix
+    /// that maps the caller's world onto the page. It is that matrix with the turn a rotated page
+    /// is drawn through concatenated after it, because that turn is written straight into the
+    /// content stream rather than tracked as part of the graphics state.
+    /// </summary>
+    /// <remarks>
+    /// Wanted by anything that has to undo the transform rather than work within it - a soft mask
+    /// group, which a reader evaluates under whatever transform was in force when the mask was
+    /// set, while the pattern that paints it is anchored to the page and ignores that transform.
+    /// </remarks>
+    internal XMatrix RealizedTransformOf(XMatrix worldToPage)
+    {
+        XMatrix realized = PageRotationMatrix();
+        realized.Prepend(worldToPage);
+        return realized;
+    }
 
     /// <summary>
     /// Gets the size of this page or form as the viewer shows it, which is the size the caller

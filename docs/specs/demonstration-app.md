@@ -178,7 +178,7 @@ Eleven, one PDF each.
 | `PageResize` | an A4 document with a link, shrunk to A5, content and link and destination moving together |
 | `Invoice` | MigraDoc — styles, header and footer page fields, tab stops, line items, totals |
 | `Newspaper` | masthead, a headline across the measure, five columns of body, a sidebar, a captioned image |
-| `Magazine` | a full-bleed image under a scrim, a display title, a slanted pull-quote, a drop cap |
+| `Magazine` | a full-bleed image under a gradient scrim, a title built with `AddString`, a slanted pull-quote, a drop cap |
 
 `Layout` and `PageResize` are where the two existing samples end up. Neither is deleted; both are
 given a name, a description and a file of their own.
@@ -203,21 +203,36 @@ Worth knowing before writing a demo that promises more than exists:
 - `XGraphics.DrawString` does not wrap, and draws `\n` literally. Wrapping is `XTextFormatter`'s job
   and the demos should not blur the two.
 
-Four more turned up while building, each of which had a demo claiming something the library does
-not do. All four are now demonstrated the way that works, and say why on the page:
+### Four gaps this app found, and closed
 
-- **A gradient carries no transparency.** `PdfShading` writes `/C0` and `/C1` and no soft mask, so a
-  gradient from a transparent colour to an opaque one renders as a flat opaque band. Translucent
-  *solid* fills do work, so `Magazine` builds its scrim from a hundred and forty of them.
-- **`XGraphicsPath.AddString` is not implemented.** It does not throw — it reports through
-  `DiagnosticsHelper` and draws nothing, so a title built that way silently disappears. `Magazine`
-  strokes its title with a pen instead, which is rendering mode 1 and does work.
-- **`XLineAlignment.BaseLine` demands a zero-height rectangle.** Passing a height throws rather than
-  being ignored, because there is nothing to align the text within when the baseline is the anchor.
-- **A repeated table heading must start at row zero.** `TableRenderer.CalcLastHeaderRow` walks from
-  the first row and stops at the first without `HeadingFormat`, so the heading is whatever unbroken
-  run of rows begins the table. A title band above the column names ends the run before it starts,
-  and nothing repeats at all.
+Four more turned up while building, each of which had a demo claiming something the library did not
+do. Three of them failed **silently** — no exception, no warning, just a page missing the thing that
+was asked for. They were found because something drew a page and a human looked at it; nothing in
+the test suite would have caught any of them.
+
+All four were fixed under the `fix-drawing-gaps` change, which this app is what prompted. They are
+recorded here because *finding* them is the clearest argument the app makes for its own existence:
+
+- **A gradient carried no transparency.** `PdfShading` wrote `/C0` and `/C1` and no soft mask, so a
+  gradient from a transparent colour to an opaque one rendered as a flat opaque band. `Magazine`
+  built its scrim from a hundred and forty translucent solid fills. It now draws one gradient.
+- **`XGraphicsPath.AddString` was not implemented.** It did not throw — it reported through
+  `DiagnosticsHelper` and drew nothing, so a title built that way silently disappeared. `Magazine`
+  stroked its title with a pen instead. It now builds a path and fills it with a gradient, which is
+  the thing a path can do that no `DrawString` overload can.
+- **`XLineAlignment.BaseLine` demanded a zero-height rectangle.** Passing a height threw rather than
+  being ignored — including for `XStringFormats.Default`, which *is* `BaseLineLeft`. The height is
+  now unread rather than refused.
+- **A repeated table heading had to start at row zero and said nothing when it did not.**
+  `TableRenderer.CalcLastHeaderRow` walks from the first row and stops at the first without
+  `HeadingFormat`. A title band above the column names ended the run before it started and nothing
+  repeated. The rule is unchanged; a row marked outside the run is now refused rather than discarded.
+
+A fifth turned up while fixing the first: **no gradient the library wrote was visible in a
+conformant reader at all.** An RGB shading's ramp carried a fourth value, the colour's alpha, which
+is not a colour component — and Ghostscript answers a function wider than its colour space by
+painting nothing. That is why the scrim above was built from solid fills rather than from a gradient
+that merely looked wrong.
 
 ## Item 5 — the smoke test
 

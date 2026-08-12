@@ -47,14 +47,19 @@ inside a test host that has already installed `PinnedFontResolver`, and `GlobalF
 resources, not content files** (a referenced project's content items do not reach the referencing
 project's output directory).
 
-The core package deliberately carries no imaging or font dependency. Both seams are static and
-must be set before any font is created or image loaded, and both throw a descriptive
-`InvalidOperationException` if they are not:
+The core package deliberately carries no imaging or font dependency. All three seams are static, and
+each throws a descriptive `InvalidOperationException` when read unset:
 
 - `GlobalFontSettings.FontResolver` — an `IFontResolver`; backends supply `SkiaFontResolver` /
-  `ImageSharpFontResolver`, both built on `Utils/FontResolverBase`.
+  `ImageSharpFontResolver`, both built on `Utils/FontResolverBase`. Must be set before any font is
+  created: the setter throws once one has been.
 - `ImageSource.ImageSourceImpl` — an `ImageSource`; backends supply `SkiaImageSource` /
-  `ImageSharpImageSource`.
+  `ImageSharpImageSource`. Must be set before any image is loaded.
+- `GlobalFontSettings.GlyphOutlineProvider` — an `IGlyphOutlineProvider`; backends supply
+  `SkiaGlyphOutlineProvider` / `ImageSharpGlyphOutlineProvider`. Wanted by `XGraphicsPath.AddString`
+  and nothing else, so it can be set, replaced or cleared at any time. A provider takes its font
+  bytes **through** `FontResolver` rather than resolving a family itself, or the two seams will
+  disagree about which face a family means.
 
 `ImageSource` is a trap for the eye: the file is `PdfSharpCore/Drawing/ImageSource.cs` and it ships
 in the **PdfSharpCore** assembly, but its namespace is
