@@ -20,8 +20,22 @@ public class OpaqueGradientOutputTests
     [Fact]
     public void AnOpaqueGradientIsWrittenAsItWasBesidesItsRamp()
     {
-        GradientOutput.Of(GradientOutput.OpaqueGradients()).Should().Be(Expected);
+        WithoutCarriageReturns(GradientOutput.Of(GradientOutput.OpaqueGradients()))
+            .Should().Be(WithoutCarriageReturns(Expected));
     }
+
+    /// <summary>
+    ///   The same text with every line ending reduced to a line feed.
+    /// </summary>
+    /// <remarks>
+    ///   The expected text is a literal in this file, and <c>.gitattributes</c> checks source out
+    ///   with the platform's own line endings - <c>* text=auto</c>, so LF in the repository and
+    ///   CRLF in a Windows working copy. The content stream it is compared against carries LF,
+    ///   because that is what the library writes on every platform. Left alone, this test
+    ///   therefore passed on Linux and failed on the first line of a fresh Windows checkout,
+    ///   which says nothing whatever about gradients.
+    /// </remarks>
+    static string WithoutCarriageReturns(string text) => text.Replace("\r\n", "\n");
 
     [Fact]
     public void AnRgbRampCarriesOneValuePerColourComponent()
