@@ -5,10 +5,10 @@ on:
   # here as well would run everything twice for the same commit.
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
   # So that a branch with no pull request open can still be built, on request.
   workflow_dispatch:
 
