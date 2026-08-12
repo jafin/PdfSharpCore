@@ -264,3 +264,7 @@ __pycache__/
 # OSX
 .DS_Store
 /.claude/
+
+# The PDFs the demonstration app writes
+/output/
+/SampleApp/output/

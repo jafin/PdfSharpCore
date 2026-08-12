@@ -122,6 +122,7 @@ eventually dropped, both directories can be deleted together.
 - [Backends](#backends)
 - [Target frameworks](#target-frameworks)
 - [Example](#example)
+- [Running the demos](#running-the-demos)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -153,6 +154,27 @@ gfx.DrawString("Hello World!", font, textColor, layout, format);
 
 document.Save("helloworld.pdf");
 ```
+
+## Running the demos
+
+`SampleApp` builds one PDF per feature area and prints the code that drew it.
+
+```powershell
+dotnet run --project SampleApp -- list                       # what each demo shows
+dotnet run --project SampleApp -- run                        # all of them, into SampleApp/output
+dotnet run --project SampleApp -- run --example Fonts Text   # just these two
+dotnet run --project SampleApp -- run --no-code              # PDFs only, no source printed
+```
+
+There are eleven demos, from `HelloWorld` through `Fonts`, `Orientation`, `Images`, `Text`,
+`Layout`, `Tables` and `PageResize` to three real layouts — `Invoice`, `Newspaper` and `Magazine`.
+Each writes `output/<Name>.pdf`, deleting what a previous run left rather than writing over it.
+
+The app carries its own fonts — Liberation Sans and Serif, and Source Code Pro for its PostScript
+outlines — so the PDFs are identical wherever they are built, including a machine with no fonts
+installed. `docs/specs/demonstration-app.md` records what it covers and what it deliberately does
+not.
+
 
 ## Running the tests
 

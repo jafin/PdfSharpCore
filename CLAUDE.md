@@ -30,8 +30,22 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
     dependency of its own)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
-   └── PdfSharpCore.Test  (the only test project; covers MigraDoc too)
+   └── PdfSharpCore.Test  (the only test project; covers MigraDoc and SampleApp too)
+           ▲
+           └── SampleApp  (the demonstration CLI; net8.0 alone, so both test legs can reference it)
 ```
+
+`SampleApp` is the demonstration app: `dotnet run --project SampleApp -- list` says what it covers,
+`… -- run` writes one PDF per demo into `SampleApp/output` and prints the source that drew each. Its
+demos are covered by `PdfSharpCore.Test/Demos/DemoSmokeTests.cs`, so a demo that throws or changes
+its page count fails the build.
+
+Two rules there are load-bearing rather than stylistic, both explained in
+`docs/specs/demonstration-app.md`: **a demo never registers a backend** (the smoke test runs demos
+inside a test host that has already installed `PinnedFontResolver`, and `GlobalFontSettings
+.FontResolver` throws once a font has been used), and **its fonts, images and sources are embedded
+resources, not content files** (a referenced project's content items do not reach the referencing
+project's output directory).
 
 The core package deliberately carries no imaging or font dependency. Both seams are static and
 must be set before any font is created or image loaded, and both throw a descriptive
