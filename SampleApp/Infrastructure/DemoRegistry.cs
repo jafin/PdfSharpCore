@@ -27,6 +27,7 @@ public static class DemoRegistry
         new ImagesDemo(),
         new TextDemo(),
         new LayoutDemo(),
+        new TablesDemo(),
         new PageResizeDemo(),
     };
 
