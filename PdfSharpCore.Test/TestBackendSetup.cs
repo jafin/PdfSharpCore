@@ -3,6 +3,7 @@ using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Skia;
 using PdfSharpCore.Test.Helpers;
+using PdfSharpCore.Utils;
 
 namespace PdfSharpCore.Test;
 
@@ -20,6 +21,9 @@ internal static class TestBackendSetup
         // Not the resolver the library ships: that one picks a font off the machine, which
         // lays a document out differently on each of them. See PinnedFontResolver.
         GlobalFontSettings.FontResolver = new PinnedFontResolver();
+        // The third seam, which only XGraphicsPath.AddString needs. The test that covers what
+        // happens when it is unset clears it and puts it back; see GlyphOutlineCollection.
+        GlobalFontSettings.GlyphOutlineProvider = new SkiaGlyphOutlineProvider();
         GhostscriptSetup.Configure();
     }
 }

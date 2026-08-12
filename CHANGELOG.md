@@ -169,7 +169,101 @@ This file starts at the entry below. Changes before that point are recorded only
   crops from the **top left** instead, which is almost certainly what was wanted. To reproduce the
   old anchoring exactly, ask for `PageAlignment.BottomLeft`.
 
+- `XGraphicsPath.AddString` produces a real path. Both overloads used to report through
+  `DiagnosticsHelper` and return, so the path stayed empty and whatever was being written vanished
+  from the page — no exception, no warning.
+
+  ```csharp
+  GlobalFontSettings.GlyphOutlineProvider = new SkiaGlyphOutlineProvider();   // once
+
+  var path = new XGraphicsPath();
+  path.AddString("HEADLINE", new XFontFamily("Arial"), XFontStyle.Bold, 96, box, XStringFormats.TopLeft);
+  gfx.DrawPath(new XLinearGradientBrush(box, XColors.Red, XColors.Blue, XLinearGradientMode.Horizontal), path);
+  ```
+
+  The glyphs are placed by the same arithmetic `DrawString` places them by, so a path agrees with
+  the text it stands in for. **To stroke text you still do not need a path** — `DrawString` takes a
+  pen as well as a brush. Come here for what that cannot do: fill glyphs with a gradient, clip an
+  image to their shapes, or widen them as geometry.
+
+- `IGlyphOutlineProvider` and `GlobalFontSettings.GlyphOutlineProvider` — a third static seam beside
+  `GlobalFontSettings.FontResolver` and `ImageSource.ImageSourceImpl`, supplying the glyph geometry
+  `AddString` needs. `SkiaGlyphOutlineProvider` and `ImageSharpGlyphOutlineProvider` ship with the
+  two backends; unset, it throws an `InvalidOperationException` naming the property and the packages,
+  exactly as the other two seams do.
+
+  It exists so that the core package keeps carrying no font dependency: reading contours out of a
+  font means a `glyf` decoder for TrueType and a Type 2 charstring interpreter for PostScript
+  outlines. Both backends already ship a library that does both, so PostScript (CFF) families work
+  from the first day rather than producing an empty path.
+
+  It is a separate interface rather than a member on `IFontResolver`, which every consumer with a
+  resolver of their own implements and which a new member would break. A provider reads its font
+  bytes *through* the registered resolver, so the two cannot disagree about which face a family means.
+
+- `XLinearGradientBrush` and `XRadialGradientBrush` honour the alpha of their colours. A gradient
+  between a transparent colour and an opaque one used to paint a flat opaque band over whatever it
+  was meant to veil, because a shading dictionary carries colour and no alpha anywhere.
+
+  ```csharp
+  var scrim = new XLinearGradientBrush(band,
+      XColor.FromArgb(0, 0, 0, 0), XColors.Black, XLinearGradientMode.Vertical);
+  gfx.DrawRectangle(scrim, band);   // now fades out as well as across
+  ```
+
+  Where either colour's alpha is below 1, the shading pattern is painted under a luminosity soft
+  mask built from the same axis or circles, the same extent and the same interpolation, so the
+  alpha ramps exactly as the colour does. The mask is taken off again before anything else is
+  drawn, and two gradients on one page each carry their own. A gradient whose colours are both
+  opaque takes none of this: no soft mask, no extended graphics state, no transparency group.
+
+- `XLineAlignment.BaseLine` accepts a layout rectangle of any height. It threw
+  `InvalidOperationException` unless the height was exactly `0`, which made `XStringFormats.Default`
+  — the format a caller reaches for when not thinking about formats, and `BaseLineLeft` — throw on
+  `DrawString(text, font, brush, rect)`, the most natural overload there is.
+
+  ```csharp
+  gfx.DrawString("Anchored", font, XBrushes.Black, new XRect(20, 60, 300, 20));  // used to throw
+  ```
+
+  The baseline sits on the rectangle's top edge and the height is ignored, which is what the
+  placement arithmetic always did — nothing but the guard read the height for this alignment. Code
+  passing a zero-height rectangle is unaffected. `XGraphicsPath.AddString` carried a second copy of
+  the same guard and has lost it too.
+
+- **BREAKING (narrow):** a MigraDoc table row marked with `HeadingFormat` which cannot be part of the
+  heading now throws `InvalidOperationException` while the document is being formatted, naming the
+  row. The heading a table repeats onto its later pages is the run of marked rows beginning at the
+  first row; a row marked outside that run was discarded without a word.
+
+  ```csharp
+  table.Rows[0].HeadingFormat = true;   // a title band
+  table.Rows[1].HeadingFormat = true;   // the column names — mark both, or neither repeats
+  ```
+
+  The rule has not changed, only its silence. Every document this throws for is a document that
+  asked for a repeating heading and did not get one, so it was already producing the wrong output;
+  the message says which row to mark or unmark. It is raised during formatting, before any page is
+  written, so a caller never receives half a document because of it.
+
 ### Fixed
+
+- **No gradient this library produced was visible in a conformant reader.** The interpolation
+  function of an RGB shading was given a fourth value — the colour's alpha, which is not a colour
+  component — so the function was wider than the `/DeviceRGB` space it fed. That is malformed, and
+  Ghostscript answers it by painting nothing at all: a page with a gradient on it came out blank
+  where the gradient was.
+
+  ```text
+  /ColorSpace /DeviceRGB
+  /Function << /C0 [1 0 0 1] /C1 [0 0 1 1] ... >>   before, four values for three components
+  /Function << /C0 [1 0 0]   /C1 [0 0 1]   ... >>   after
+  ```
+
+  Alpha now goes where alpha belongs, into the soft mask described above. CMYK gradients are
+  unaffected — four values is what that colour space has always required. Nothing else about how a
+  gradient is written changes: the content stream, the shading geometry and the pattern matrices
+  are byte for byte what they were.
 
 - Bold simulation measured multi-line text too wide. The widening it adds was counted over the whole
   string and charged to the widest line, so a simulated-bold string of three lines measured as

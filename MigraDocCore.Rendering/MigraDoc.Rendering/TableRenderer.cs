@@ -547,10 +547,37 @@ internal class TableRenderer : Renderer
     if (lastHeaderRow >= 0)
       lastHeaderRow = CalcLastConnectedRow(lastHeaderRow);
 
+    CheckHeadingRowsFormAnUnbrokenRun();
+
     //Ignore heading format if all the table is heading:
     if (lastHeaderRow == table.Rows.Count - 1)
       lastHeaderRow = -1;
 
+  }
+
+  /// <summary>
+  /// Refuses a row marked as a heading which is not part of the heading, rather than discarding it.
+  /// </summary>
+  /// <remarks>
+  /// A heading repeats at the top of every page the table continues onto, so it can only be the
+  /// rows at the top of the table. A row marked anywhere else was silently ignored, which left a
+  /// document that asked for a repeating heading looking exactly like one that never asked.
+  /// Called before the whole-table heading is discarded, so a table that is entirely heading -
+  /// which repeats nothing, having nothing to head - is not refused for it.
+  /// </remarks>
+  void CheckHeadingRowsFormAnUnbrokenRun()
+  {
+    for (int index = lastHeaderRow + 1; index < table.Rows.Count; ++index)
+    {
+      if (!table.Rows[index].HeadingFormat)
+        continue;
+
+      throw new InvalidOperationException(
+        "Row " + index + " of the table is marked with HeadingFormat but cannot be part of the " +
+        "heading. Heading rows repeat at the top of every page the table continues onto, so they " +
+        "must form an unbroken run beginning at the first row. Mark every row from row 0 to row " +
+        index + " as well, or clear HeadingFormat on row " + index + ".");
+    }
   }
 
   void CreateConnectedRows()

@@ -1292,8 +1292,10 @@ public sealed class XGraphics : IDisposable
         if (pen == null && brush == null)
             throw new ArgumentNullException("pen and brush", PSSR.NeedPenOrBrush);
 
-        if (format != null && format.LineAlignment == XLineAlignment.BaseLine && layoutRectangle.Height != 0)
-            throw new InvalidOperationException("DrawString: With XLineAlignment.BaseLine the height of the layout rectangle must be 0.");
+        // A BaseLine line alignment anchors the text to the top edge of the layout rectangle and
+        // reads nothing else from it, so a height is surplus rather than contradictory. This used
+        // to be refused, which made XStringFormats.Default - which is BaseLineLeft - throw on the
+        // most natural overload there is.
 
         if (text.Length == 0)
             return;
