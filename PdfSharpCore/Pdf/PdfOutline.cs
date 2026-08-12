@@ -131,27 +131,35 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
         DestinationPage = destinationPage;
     }
 
-    internal int Count
-    {
-        get => _count;
-        set => _count = value;
-    }
-    int _count;
-
     /// <summary>
-    /// The total number of open descendants at all lower levels.
+    /// How many rows this entry would add to a reader's panel if it were expanded: one for each
+    /// child, plus whatever the children that are themselves open contribute below them. A closed
+    /// child contributes itself and hides its own descendants, which is the whole difference
+    /// between this and a count of the subtree.
     /// </summary>
-    internal int OpenCount;
-
-    /// <summary>
-    /// Counts the open outline items. Not yet used.
-    /// </summary>
-    internal int CountOpen()
+    /// <remarks>
+    /// Derived on demand rather than kept up to date as the tree is built. The bookkeeping this
+    /// replaced ran once, inside <see cref="PdfOutlineCollection.Add(PdfOutline)"/>, walking the
+    /// ancestors of whatever was being added - so it recorded the state an entry was constructed
+    /// with, missed every later assignment to <see cref="Opened"/>, and was never undone by a
+    /// removal. Reading the tree at save time cannot go stale.
+    /// </remarks>
+    internal int VisibleDescendants
     {
-        int count = _opened ? 1 : 0;
-        if (_outlines != null)
-            count += _outlines.CountOpen();
-        return count;
+        get
+        {
+            int count = 0;
+            if (_outlines != null)
+            {
+                foreach (PdfOutline child in _outlines)
+                {
+                    count++;
+                    if (child.Opened)
+                        count += child.VisibleDescendants;
+                }
+            }
+            return count;
+        }
     }
 
     /// <summary>
@@ -328,7 +336,10 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 Parent = parent;
         }
 
-        Count = Elements.GetInteger(Keys.Count);
+        // /Count is how an entry records whether it is expanded: positive when it is, negative
+        // when it is not, absent when it has no descendants to expand. Reading it back is what
+        // lets a document be opened, edited and saved without every branch in it closing.
+        _opened = Elements.GetInteger(Keys.Count) > 0;
 
         PdfArray colors = Elements.GetArray(Keys.C);
         if (colors != null && colors.Elements.Count == 3)
@@ -588,10 +599,10 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 Elements[Keys.First] = _outlines[0].Reference;
                 Elements[Keys.Last] = _outlines[_outlines.Count - 1].Reference;
 
-                // TODO: /Count - the meaning is not completely clear to me.
-                // Get PDFs created with Acrobat and analyse what to implement.
-                if (OpenCount > 0)
-                    Elements[Keys.Count] = new PdfInteger(OpenCount);
+                // Table 152: the outline dictionary's /Count is the number of rows a reader shows
+                // with nothing expanded by hand - every top-level entry, plus what the open ones
+                // bring with them. Always non-negative; the root is not something that closes.
+                Elements[Keys.Count] = new PdfInteger(VisibleDescendants);
             }
             else
             {
@@ -628,9 +639,19 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                     Elements[Keys.First] = _outlines[0].Reference;
                     Elements[Keys.Last] = _outlines[_outlines.Count - 1].Reference;
                 }
-                // TODO: /Count - the meaning is not completely clear to me
-                if (OpenCount > 0)
-                    Elements[Keys.Count] = new PdfInteger((_opened ? 1 : -1) * OpenCount);
+
+                // Table 153: an entry with descendants carries how many would become visible if it
+                // were expanded, signed by whether it already is. An entry with none carries no
+                // /Count at all - and must not keep one it was read in with, since its children
+                // may since have been removed.
+                //
+                // This is what Opened is written as, and until it was written a reader had nothing
+                // to expand a branch from: every tree arrived collapsed however it was built, and
+                // the flag read back exactly as it had been set.
+                if (hasKids)
+                    Elements[Keys.Count] = new PdfInteger(_opened ? VisibleDescendants : -VisibleDescendants);
+                else
+                    Elements.Remove(Keys.Count);
 
                 if (_textColor != XColor.Empty && Owner.HasVersion("1.4"))
                     Elements[Keys.C] = new PdfLiteral("[{0}]", PdfEncoders.ToString(_textColor, PdfColorMode.Rgb));

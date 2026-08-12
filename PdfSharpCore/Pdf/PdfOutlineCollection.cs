@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using System.Collections;
 using PdfSharpCore.Drawing;
 
-// Review: CountOpen does not work. - StL/14-10-05
-
 namespace PdfSharpCore.Pdf;
 
 /// <summary>
@@ -93,15 +91,11 @@ public class PdfOutlineCollection : PdfObject, IList<PdfOutline>
         AddToOutlinesTree(outline);
         _outlines.Add(outline);
 
-        if (outline.Opened)
-        {
-            outline = _parent;
-            while (outline != null)
-            {
-                outline.OpenCount++;
-                outline = outline.Parent;
-            }
-        }
+        // Nothing is counted here any more. This used to walk the new entry's ancestors putting
+        // its Opened state into a running total, which recorded whichever value the entry happened
+        // to carry at the moment it was added: an Opened set afterwards was never seen, and a
+        // removal never took its contribution back. PdfOutline.VisibleDescendants reads the tree
+        // at save time instead.
     }
 
     /// <summary>
@@ -257,14 +251,6 @@ public class PdfOutlineCollection : PdfObject, IList<PdfOutline>
         return GetEnumerator();
     }
 
-    internal int CountOpen()
-    {
-        int count = 0;
-        //foreach (PdfOutline outline in _outlines)
-        //    count += outline.CountOpen();
-        return count;
-    }
-
     void AddToOutlinesTree(PdfOutline outline)
     {
         if (outline == null)
@@ -286,15 +272,6 @@ public class PdfOutlineCollection : PdfObject, IList<PdfOutline>
         //     outline.GetType();
         // }
 
-        //if (outline.Opened)
-        //{
-        //    outline = _parent;
-        //    while (outline != null)
-        //    {
-        //        outline.OpenCount++;
-        //        outline = outline.Parent;
-        //    }
-        //}
     }
 
     void RemoveFromOutlinesTree(PdfOutline outline)
