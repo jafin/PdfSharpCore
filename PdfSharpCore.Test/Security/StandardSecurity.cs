@@ -47,10 +47,19 @@ internal sealed class StandardSecurity
     /// <summary>Whether this class agrees with the document about the file encryption key.</summary>
     public bool DerivedKeyMatchesTheDocument { get; }
 
+    /// <summary>
+    ///   The entry of the /Info dictionary with the whole of it decrypted, byte order mark and
+    ///   all. What a conforming reader has in hand before it decides how to decode it.
+    /// </summary>
+    public byte[] DecryptedInfoBytes(string key)
+    {
+        return Rc4(ObjectKey(_fileKey, InfoObjectNumber, 0), StringValue(InfoDictionary, key));
+    }
+
     /// <summary>The entry of the /Info dictionary, decrypted and decoded the way a reader decodes it.</summary>
     public string DecryptInfoString(string key)
     {
-        byte[] plain = Rc4(ObjectKey(_fileKey, InfoObjectNumber, 0), StringValue(InfoDictionary, key));
+        byte[] plain = DecryptedInfoBytes(key);
         if (plain.Length >= 2 && plain[0] == 0xFE && plain[1] == 0xFF)
             return Encoding.BigEndianUnicode.GetString(plain, 2, plain.Length - 2);
         return Encoding.Latin1.GetString(plain);
