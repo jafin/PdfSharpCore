@@ -39,7 +39,7 @@ why it was intermittent and why it always struck at the end.
 
 `PdfHelper.Rasterize` now caps a page at 16 megapixels and drops the resolution of a document whose
 largest page would exceed it, leaving every other document at 300 dpi exactly. FamilyTree draws at
-108 dpi and 15.1 megapixels; every other page in the suite is unchanged, bit for bit, so the
+108 dpi and 15.8 megapixels; every other page in the suite is unchanged, bit for bit, so the
 reference images and the tolerances they are compared under all still hold.
 
 The two tests that use the big page compare renderings of it **with each other** — before and after

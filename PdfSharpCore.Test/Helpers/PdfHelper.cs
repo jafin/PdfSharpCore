@@ -28,7 +28,7 @@ public class PdfHelper
     /// failing test. Every other page in these tests is around 9 megapixels, so a page over this
     /// limit is drawn at whatever lower resolution brings it under, and the rest are untouched.
     /// </remarks>
-    private const double MaxPixelsPerPage = 16e6;
+    internal const double MaxPixelsPerPage = 16e6;
 
     /// <summary>
     ///   Rasterize all pages within a PDF to PNG images
@@ -95,7 +95,27 @@ public class PdfHelper
     /// that the same document rasterizes to the same size every time it is asked for, whatever
     /// arithmetic the caller did to get here.
     /// </remarks>
-    private static int ResolutionFor(PdfDocument document)
+    internal static int ResolutionFor(PdfDocument document)
+    {
+        var pixelsAtFullResolution = PixelsIn(document, Dpi);
+        if (pixelsAtFullResolution <= MaxPixelsPerPage)
+            return Dpi;
+
+        // Halving the resolution quarters the pixels, so the resolution scales by the square root.
+        var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerPage / pixelsAtFullResolution));
+
+        // One dot per inch is a floor against a document that says something absurd about how big
+        // its pages are - a resolution of zero is not a resolution, and Ghostscript is being asked
+        // for one number. It is never what a real page reduces to: readers stop at 14400 points a
+        // side, and even that whole page is 40 thousand pixels at 1 dpi, which is far inside the
+        // limit. So a page that reaches this floor is already outside what could be drawn at all.
+        return Math.Max(reduced, 1);
+    }
+
+    /// <summary>
+    /// How many pixels the largest page of a document comes to when drawn at a resolution.
+    /// </summary>
+    internal static double PixelsIn(PdfDocument document, int dpi)
     {
         var largestPage = 0.0;
 
@@ -103,13 +123,7 @@ public class PdfHelper
             largestPage = Math.Max(largestPage, page.Width.Point * page.Height.Point);
 
         // Points are 1/72 inch, so a page is (points / 72 * dpi) pixels along each side.
-        var pixelsAtFullResolution = largestPage * Dpi * Dpi / (72.0 * 72.0);
-        if (pixelsAtFullResolution <= MaxPixelsPerPage)
-            return Dpi;
-
-        // Halving the resolution quarters the pixels, so the resolution scales by the square root.
-        var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerPage / pixelsAtFullResolution));
-        return Math.Max(reduced, 1);
+        return largestPage * dpi * dpi / (72.0 * 72.0);
     }
 
     public static List<string> WriteImageCollection(MagickImageCollection images, string outDir, string filePrefix)
