@@ -266,4 +266,5 @@ __pycache__/
 /.claude/
 
 # The PDFs the demonstration app writes
+/output/
 /SampleApp/output/
