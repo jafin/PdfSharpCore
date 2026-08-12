@@ -213,6 +213,41 @@ public class XTextFormatter
     public double ColumnGap { get; set; } = 18;
 
     /// <summary>
+    /// Gets or sets an initial letter set into the opening lines of the text. Null, the default,
+    /// draws no cap and leaves every line at its full measure.
+    /// </summary>
+    /// <remarks>
+    /// The cap consumes the first character of the text and nothing else. The remainder is laid
+    /// out in full, beside the cap for as many lines as it is deep and at the full measure after
+    /// that.
+    /// </remarks>
+    public XDropCap DropCap { get; set; }
+
+    /// <summary>
+    /// What a drop cap has been worked out to be for the text and layout in hand: the room it
+    /// reserves, the font it is drawn in, and how far its ink sits from the pen.
+    /// </summary>
+    sealed class DropCapMetrics
+    {
+        internal string Character;
+        internal XFont Font;
+
+        /// <summary>The room reserved beside the cap, from the top left of the first column.</summary>
+        internal XRect Reserved;
+
+        /// <summary>
+        /// How far the glyph's ink begins to the right of where the pen would be put. Subtracted
+        /// when the cap is drawn, so that its ink and not its advance sits flush with the margin.
+        /// </summary>
+        internal double InkOffset;
+
+        /// <summary>Where the cap's foot goes, measured down from the top of the layout.</summary>
+        internal double Baseline;
+    }
+
+    DropCapMetrics _dropCap;
+
+    /// <summary>
     /// How wide one column is, given the width of the whole layout rectangle.
     /// </summary>
     double ColumnWidthWithin(double rectWidth)
@@ -270,11 +305,18 @@ public class XTextFormatter
         Text = text;
         Font = font;
         LayoutRectangle = layoutRectangle;
-            
+
         _lineHeight = lineHeight?.Point ?? _lineSpace;
 
         if (text.Length == 0)
             return new XRect(layoutRectangle.Location.X, layoutRectangle.Location.Y, 0, 0);
+
+        // The cap takes the first character and the layout takes the rest, so the letter appears
+        // once rather than twice. Worked out before the blocks are made, because it decides both
+        // what text there is to break and how wide the opening lines may be.
+        _dropCap = MeasureDropCap(text);
+        if (_dropCap != null)
+            _text = text.Substring(1);
 
         CreateBlocks();
 
@@ -334,6 +376,8 @@ public class XTextFormatter
 
         try
         {
+            DrawDropCap(brush, dx, dy);
+
             foreach (var line in lines)
             {
                 var lineBlocks = line as Block[] ?? line.ToArray();
@@ -387,6 +431,25 @@ public class XTextFormatter
             if (state != null)
                 _gfx.Restore(state);
         }
+    }
+
+    /// <summary>
+    /// Draws the initial letter, with its foot on the baseline of the last line it is set into and
+    /// its ink flush with the left edge of the text.
+    /// </summary>
+    /// <remarks>
+    /// Flush by ink rather than by pen: the left side bearing is space the font leaves so that a
+    /// letter does not touch the one before it, and a display letter has nothing before it. Set by
+    /// the pen it looks indented by an amount that grows with the size of the cap, which is exactly
+    /// the size at which the eye notices.
+    /// </remarks>
+    void DrawDropCap(XBrush brush, double dx, double dy)
+    {
+        if (_dropCap == null)
+            return;
+
+        _gfx.DrawString(_dropCap.Character, _dropCap.Font, brush,
+            dx - _dropCap.InkOffset, dy + _dropCap.Baseline, XStringFormats.BaseLineLeft);
     }
 
     private static IEnumerable<IEnumerable<Block>> GetLines(List<Block> blocks)
@@ -491,7 +554,10 @@ public class XTextFormatter
         /// <summary>How far in from the left edge of the column the line's first block goes.</summary>
         internal double Start { get; }
 
-        /// <summary>How far from the left edge of the column the line may reach.</summary>
+        /// <summary>
+        /// How far from the left edge of the column the line may reach - the position of its right
+        /// limit, not the room between the two. The room is <c>Width - Start</c>.
+        /// </summary>
         internal double Width { get; }
     }
 
@@ -513,7 +579,145 @@ public class XTextFormatter
     LineMeasure MeasureOfLineAt(double yTop, bool firstLineOfParagraph, double columnWidth, int column)
     {
         double start = IndentOf(firstLineOfParagraph);
+
+        // Only the first column: a cap belongs to the opening of the text, and reserving the same
+        // corner of every column would carve a hole out of each of them.
+        if (_dropCap != null && column == 0)
+        {
+            // By the line's box and not by its baseline. A line whose baseline falls below the
+            // reserved depth still has ascenders inside it, and they would collide with the cap.
+            bool overlaps = yTop < _dropCap.Reserved.Bottom && yTop + _lineHeight > _dropCap.Reserved.Top;
+            if (overlaps)
+            {
+                // The start moves right and the width does not move at all. Both are measured from
+                // the left edge of the column, so the width is where the line may reach rather than
+                // how much room it has - which is what makes a reservation on the left a change to
+                // one number. A reservation on the *right*, which is what a shape wrapped on its
+                // left side would want, is the other one.
+                return new LineMeasure(start + _dropCap.Reserved.Width, columnWidth);
+            }
+        }
+
         return new LineMeasure(start, columnWidth);
+    }
+
+    /// <summary>
+    /// Works out how big the cap has to be, how much room it takes and where its foot goes, for
+    /// the text and line height in hand. Answers null when there is no cap to draw.
+    /// </summary>
+    /// <remarks>
+    /// The cap is scaled so that its ink spans from the top of the first line to the baseline of
+    /// the last line it is set into, which is what makes it look set <i>into</i> the text rather
+    /// than floating above it.
+    /// </remarks>
+    DropCapMetrics MeasureDropCap(string text)
+    {
+        if (DropCap == null || string.IsNullOrEmpty(text))
+            return null;
+
+        string character = text.Substring(0, 1);
+        if (char.IsWhiteSpace(character[0]))
+            return null;
+
+        // From the top of the first line down to the baseline of the last reserved one.
+        double depth = (DropCap.Lines - 1) * (_lineHeight + LineGap) + _cyAscent;
+        if (depth <= 0)
+            return null;
+
+        // Measured at a probe size and scaled, because what has to span the depth is the height of
+        // this glyph's ink - the font's own metrics describe the whole face, and a cap letter fills
+        // neither the ascent nor the em box exactly.
+        const double probe = 100;
+        XFont probeFont = new XFont(DropCap.Font.FontFamily.Name, probe, DropCap.Font.Style);
+
+        XRect probeInk = InkOf(character, probeFont);
+        if (probeInk.Height <= 0 || probeInk.Width <= 0)
+            return null;
+
+        double size = probe * depth / probeInk.Height;
+        XFont capFont = new XFont(DropCap.Font.FontFamily.Name, size, DropCap.Font.Style);
+        XRect ink = InkOf(character, capFont);
+
+        double gutter = DropCap.Gutter ?? _spaceWidth;
+
+        return new DropCapMetrics
+        {
+            Character = character,
+            Font = capFont,
+            InkOffset = ink.X,
+            Baseline = depth,
+            Reserved = new XRect(0, 0, ink.Width + gutter,
+                (DropCap.Lines - 1) * (_lineHeight + LineGap) + _lineHeight),
+        };
+    }
+
+    /// <summary>
+    /// The box a string's ink occupies, relative to the pen and with y measured down from the
+    /// baseline.
+    /// </summary>
+    /// <remarks>
+    /// Taken from the glyph's outlines where <see cref="Fonts.GlobalFontSettings.GlyphOutlineProvider"/>
+    /// is registered, because a letter's advance includes side bearings - space the letter does not
+    /// occupy - and a display letter set flush by its advance looks indented. Where no provider is
+    /// registered the advance is all there is, and the small inset is accepted: a drop cap that
+    /// demanded a backend seam would be a worse failure than the arithmetic it replaces.
+    /// <para>
+    /// The bounds come from the segment endpoints alone. Fonts place points at the extremes of
+    /// their curves by convention, so those are the extremes; the control points of a curve lie
+    /// outside the ink it draws.
+    /// </para>
+    /// </remarks>
+    XRect InkOf(string text, XFont font)
+    {
+        Fonts.IGlyphOutlineProvider provider = OutlineProviderOrNull();
+        if (provider == null)
+        {
+            // Advance and ascent: the whole box the font would set the letter in.
+            XSize measured = _gfx.MeasureString(text, font);
+            double ascent = font.GetHeight() * font.CellAscent / font.CellSpace;
+            return new XRect(0, -ascent, measured.Width, ascent);
+        }
+
+        double left = double.MaxValue, right = double.MinValue;
+        double top = double.MinValue, bottom = double.MaxValue;
+
+        foreach (Fonts.XGlyphOutline outline in provider.GetOutlines(text, font.FontFamily.Name,
+                     (font.Style & XFontStyle.Bold) != 0, (font.Style & XFontStyle.Italic) != 0, font.Size))
+        {
+            foreach (Fonts.XGlyphSegment segment in outline.Segments)
+            {
+                if (segment.Kind == Fonts.XGlyphSegmentKind.Close)
+                    continue;
+
+                left = Math.Min(left, segment.End.X);
+                right = Math.Max(right, segment.End.X);
+                top = Math.Max(top, segment.End.Y);
+                bottom = Math.Min(bottom, segment.End.Y);
+            }
+        }
+
+        if (left > right)
+            return new XRect();
+
+        // The outlines measure y upwards from the baseline; the layout measures it down.
+        return new XRect(left, -top, right - left, top - bottom);
+    }
+
+    /// <summary>
+    /// The registered glyph outline provider, or null where there is none. Reading the property
+    /// throws when it is unset, which is right for a caller who asked for outlines and wrong here:
+    /// a drop cap without a provider is drawn by advance rather than refused.
+    /// </summary>
+    static Fonts.IGlyphOutlineProvider OutlineProviderOrNull()
+    {
+        try
+        {
+            return Fonts.GlobalFontSettings.GlyphOutlineProvider;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

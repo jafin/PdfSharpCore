@@ -121,6 +121,35 @@ measured in.
   and let the text be short; do not throw. A page with a big letter and two words on it is visibly
   wrong in the way the caller can act on, which is the standard `fix-drawing-gaps` set.
 
+## What the per-line measure turned out to be
+
+Written down for `shape-side-wrap`, which needs the same idea and must extend this rather than
+invent a second one.
+
+```csharp
+readonly struct LineMeasure { double Start; double Width; }
+
+LineMeasure MeasureOfLineAt(double yTop, bool firstLineOfParagraph, double columnWidth, int column)
+```
+
+Both numbers are measured **from the left edge of the column**. `Width` is therefore the position of
+the line's right limit, not the room between the two — the room is `Width - Start`. That is not the
+obvious reading, and it is the one the existing code already assumed: `HorizontalAlignLine` computes
+`layoutWidth - LineIndent - totalWidth`, and the justification and ellipsis arithmetic subtract the
+indent in the same way.
+
+The consequence is worth stating plainly. **Reserving room on the left moves `Start` and leaves
+`Width` alone.** A drop cap therefore never changes `Width` at all. Reserving on the right — a shape
+with text down its left side — is the case that moves `Width`, and it has no exercise here.
+
+So two of the corrections in task group 1 are unexercised by this change and are not dead: giving the
+justified blank-width calculation and `ApplyEllipsis` the line's measure rather than the column's is
+a no-op for a left-side reservation and is load-bearing for a right-side one. `shape-side-wrap`
+is where they earn their keep, and where they want a test that reads drawn positions.
+
+The measure is carried from the layout pass to the drawing pass on `Block.LineIndent` and
+`Block.LineWidth`, because the drawing pass aligns and justifies each line a second time.
+
 ## Open Questions
 
 - **What happens when the block has fewer lines than the cap is deep?** Draw and let it overhang is

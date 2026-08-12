@@ -26,41 +26,48 @@ leave every existing document identical. Groups 2 and 3 are the feature.
 
 ## 2. The drop cap
 
-- [ ] 2.1 Add the type carrying the cap's font, its depth in lines and its gutter, and the
+- [x] 2.1 Add the type carrying the cap's font, its depth in lines and its gutter, and the
       `XTextFormatter.DropCap` property. Depth in **lines**, not a font size: lines are what the
       surrounding text is measured in, and a size infers a fractional depth that has to be rounded
       somewhere the caller cannot see.
-- [ ] 2.2 Reserve the rectangle — the cap's width plus the gutter, by the depth in line heights —
+- [x] 2.2 Reserve the rectangle — the cap's width plus the gutter, by the depth in line heights —
       and narrow every line whose **box** overlaps it. By the box and not the baseline: a line whose
       baseline falls below the reserved depth still has ascenders that would collide.
-- [ ] 2.3 Draw the cap with its foot on the last reserved line's baseline, sized so its cap height
+- [x] 2.3 Draw the cap with its foot on the last reserved line's baseline, sized so its cap height
       spans from the first line's ascent to that baseline.
-- [ ] 2.4 Take the cap's left edge and reserved width from `XGraphicsPath.AddString` where
+- [x] 2.4 Take the cap's left edge and reserved width from `XGraphicsPath.AddString` where
       `GlobalFontSettings.GlyphOutlineProvider` is registered, and from `MeasureString` where it is
       not. **Test the unregistered path as its own case**: a drop cap that needs a backend seam
       would be a worse failure than the one it replaces, and an untried fallback is not a fallback.
-- [ ] 2.5 Test the requirements that catch the ways this goes wrong quietly: the first character
+- [x] 2.5 Test the requirements that catch the ways this goes wrong quietly: the first character
       appears once and not twice, every later word appears exactly once, and the fourth line starts
       at the block's left edge.
-- [ ] 2.6 Test the edges — text shorter than the cap is deep, and an empty string — and record the
+- [x] 2.6 Test the edges — text shorter than the cap is deep, and an empty string — and record the
       choice made for each rather than leaving it to whatever the code happens to do.
-- [ ] 2.7 Rasterize a page with a drop cap in a serif face and look at it. Flush is a thing the eye
+- [x] 2.7 Rasterize a page with a drop cap in a serif face and look at it. Flush is a thing the eye
       judges and no assertion does; that is how the four gaps in `fix-drawing-gaps` were found.
+      Note: the test resolver answers every family with Liberation Sans, so what was rasterized was
+      sans. The eye caught what looked like three lines starting at different places; measuring the
+      drawn positions showed all three at 72.032 and the rest at 40, and the appearance was the
+      cap's crossbar overhanging the text it sits beside.
 
 ## 3. Make the demo tell the truth
 
-- [ ] 3.1 Replace `MagazineDemo`'s measuring loop with the property. The loop is currently the most
+- [x] 3.1 Replace `MagazineDemo`'s measuring loop with the property. The loop is currently the most
       instructive thing on the page and it teaches a workaround as though it were a technique.
-- [ ] 3.2 Update `Shows` on `MagazineDemo`, and the demo's remarks, which explain the arithmetic
+- [x] 3.2 Update `Shows` on `MagazineDemo`, and the demo's remarks, which explain the arithmetic
       that is about to stop being necessary.
-- [ ] 3.3 Update `docs/specs/demonstration-app.md`, which lists the drop cap among the things
+- [x] 3.3 Update `docs/specs/demonstration-app.md`, which lists the drop cap among the things
       computed by hand.
-- [ ] 3.4 Re-run the demo smoke tests. `Magazine` declares two pages; a drop cap that reserves the
+- [x] 3.4 Re-run the demo smoke tests. `Magazine` declares two pages; a drop cap that reserves the
       wrong depth repaginates it and the test will say so.
 
 ## 4. Close out
 
-- [ ] 4.1 Add a line to the release notes. Additive public API, no signature changes.
-- [ ] 4.2 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks.
-- [ ] 4.3 Note in the change what shape the per-line measure took, so that `shape-side-wrap` extends
-      it rather than inventing a second one.
+- [x] 4.1 Add a line to the release notes. Additive public API, no signature changes.
+- [x] 4.2 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks.
+- [x] 4.3 Note in the change what shape the per-line measure took, so that `shape-side-wrap` extends
+      it rather than inventing a second one. Written up in `design.md` under "What the per-line
+      measure turned out to be", including the finding that a left-side reservation moves `Start`
+      and never touches `Width` - so two of group 1's corrections are unexercised here and
+      load-bearing there.
