@@ -38,7 +38,7 @@ public static class Backends
             return;
 
         if (!FontResolverIsSet())
-            GlobalFontSettings.FontResolver = new PdfSharpCore.Utils.SkiaFontResolver();
+            GlobalFontSettings.FontResolver = new BundledFontResolver();
 
         ImageSource.ImageSourceImpl ??= new SkiaImageSource();
     }

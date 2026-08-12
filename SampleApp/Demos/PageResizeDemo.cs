@@ -36,7 +36,7 @@ internal sealed class PageResizeDemo : PdfDemo
     {
         #region example
         PdfDocument document = new PdfDocument();
-        XFont font = new XFont("Arial", 14);
+        XFont font = new XFont("Liberation Sans", 14);
 
         PdfPage first = document.AddPage();
         first.Size = PageSize.A4;

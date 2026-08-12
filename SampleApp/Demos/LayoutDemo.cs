@@ -35,7 +35,7 @@ internal sealed class LayoutDemo : PdfDemo
         PdfPage page = document.AddPage();
 
         XGraphics gfx = XGraphics.FromPdfPage(page);
-        XFont font = new XFont("Arial", 12);
+        XFont font = new XFont("Liberation Sans", 12);
         XBrush brush = XBrushes.Black;
 
         // XGraphics.DrawString does not wrap. It draws one line, from a point, and a newline in the

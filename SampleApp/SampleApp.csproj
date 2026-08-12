@@ -47,6 +47,14 @@
       one. Embedding also survives publishing and does not care what the working directory is.
     -->
     <EmbeddedResource Include="Demos\**\*.cs" LogicalName="Sources/%(Filename)%(Extension)" />
+
+    <!--
+      The fonts, so that a document is laid out identically wherever it is built - including a
+      Linux agent with no fonts installed at all - and the photograph the image demos draw.
+    -->
+    <EmbeddedResource Include="Assets\Fonts\*.ttf" LogicalName="Fonts/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Fonts\*.otf" LogicalName="Fonts/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Images\*.jpg" LogicalName="Images/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
