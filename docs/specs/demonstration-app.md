@@ -278,8 +278,8 @@ therefore grew every time it was saved, stopped reporting its own size once it h
 `/TrimBox` on the wrong edges whenever the top and bottom margins differed. All three are fixed, and
 the tests that recorded them now assert the fix. A fourth thing the tests made plain was that
 `/BleedBox` was written equal to `/MediaBox`, leaving nowhere on the sheet for a crop mark; the boxes
-now nest properly and the marks are drawn. See
-`openspec/changes/cover-page-bleed/specs/page-bleed/spec.md`.
+now nest properly and the marks are drawn. See `openspec/specs/page-bleed/spec.md`, which is where
+that change's delta spec was promoted when it was archived.
 
 ## Item 5 — the smoke test
 
