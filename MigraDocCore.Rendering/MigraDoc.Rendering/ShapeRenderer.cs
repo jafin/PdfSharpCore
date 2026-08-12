@@ -94,6 +94,21 @@ internal abstract class ShapeRenderer : Renderer
       case WrapStyle.None:
       case WrapStyle.Through:
         return Floating.None;
+
+      // The wrap style names the side the text runs down; Floating names the same side. Both
+      // enumerations read the same way round, which is the point of saying so in each of them.
+      case WrapStyle.Left:
+        return Floating.Left;
+
+      case WrapStyle.Right:
+        return Floating.Right;
+
+      // A line is given one span of the width available to it rather than every span, so asking
+      // for the roomier side and asking for either side come to the same thing. See the remarks
+      // on WrapStyle.Both.
+      case WrapStyle.Largest:
+      case WrapStyle.Both:
+        return Floating.BothSides;
     }
     return Floating.TopBottom;
   }

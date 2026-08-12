@@ -64,6 +64,28 @@ internal struct LineInfo
   internal ArrayList tabOffsets;
   internal bool reMeasureLine;
   internal DocumentObject lastTab;
+
+  /// <summary>
+  /// The measure this line was broken to, where the area it was broken against had something
+  /// standing in it. Null otherwise, and null is the ordinary case.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// The rendering phase asks the paragraph's content area for this again, one line at a time.
+  /// That works only while the content area answers the same question the formatting area did,
+  /// and beside a floating shape it does not: the content area is accumulated by <c>Unite</c>,
+  /// which takes bounding boxes, so a paragraph straddling the foot of the shape ends up with a
+  /// content area spanning the full measure. Its overlapping lines were then broken narrow and
+  /// drawn wide - short lines starting at the margin, drawn across the shape.
+  /// </para>
+  /// <para>
+  /// So the line carries the answer forward, but <b>only for an obstructed area</b>. Everywhere
+  /// else the content area is the better source because it is the later one: a table formats its
+  /// cells in one place and renders them in another, and a rect kept from formatting would put
+  /// the cell's text back where the cell used to be.
+  /// </para>
+  /// </remarks>
+  internal Rectangle fittingRect;
 }
 
 /// <summary>

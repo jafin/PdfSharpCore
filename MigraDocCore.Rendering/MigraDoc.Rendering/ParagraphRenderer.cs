@@ -477,7 +477,7 @@ internal class ParagraphRenderer : Renderer
         {
             if (xPosition + currentLineWidth / 2.0 <= formattingArea.X + tabStopPosition)
             {
-                Rectangle rect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+                Rectangle rect = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height);
                 if (formattingArea.X + tabStopPosition + currentLineWidth / 2.0 > rect.X + rect.Width - RightIndent)
                 {
                     //the text is too long on the right hand side of the tabstop => align to right indent.
@@ -649,7 +649,7 @@ internal class ParagraphRenderer : Renderer
 
             if (phase == Phase.Formatting)
             {
-                xPos = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).X;
+                xPos = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height).X;
                 xPos += LeftIndent;
             }
             else //if (phase == Phase.Rendering)
@@ -659,7 +659,10 @@ internal class ParagraphRenderer : Renderer
                 XUnit rectX = contentArea.X;
                 XUnit rectWidth = contentArea.Width;
 
-                Rectangle fittingRect = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+                // The measure the formatting phase broke this line to, rather than the same
+                // question asked again of an area that has since forgotten the answer.
+                Rectangle fittingRect = currentLineFittingRect
+                                        ?? contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
                 if (fittingRect != null)
                 {
                     rectX = fittingRect.X;
@@ -693,6 +696,7 @@ internal class ParagraphRenderer : Renderer
     /// <param name="lineInfo"></param>
     void RenderLine(LineInfo lineInfo)
     {
+        currentLineFittingRect = lineInfo.fittingRect;
         currentVerticalInfo = lineInfo.vertical;
         currentLeaf = lineInfo.startIter;
         startLeaf = lineInfo.startIter;
@@ -751,9 +755,13 @@ internal class ParagraphRenderer : Renderer
         currentLineWidth = 0;
         currentWordsWidth = 0;
 
+        // No room for this line here - a band off the bottom of the area, or one with something
+        // standing across the whole of it. Either way there is nothing to lay out against, so the
+        // line is left alone and the caller moves on to a new area.
+        //
+        // This used to read "if (fittingRect == null) GetType();", which is a breakpoint someone
+        // left behind rather than a decision. The decision was always the one below: skip.
         Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
-        if (fittingRect == null)
-            GetType();
         if (fittingRect != null)
         {
             currentXPosition = fittingRect.X + LeftIndent;
@@ -798,7 +806,11 @@ internal class ParagraphRenderer : Renderer
                 if (currentBlankCount >= 1 && !(isLastLine && renderInfo.FormatInfo.IsEnding))
                 {
                     Area contentArea = renderInfo.LayoutInfo.ContentArea;
-                    XUnit width = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).Width;
+                    // Justification stretches blanks to fill the line's own measure. Reading the
+                    // content area's width here would stretch a line beside a shape to the full
+                    // measure, which is ragged rather than obviously broken.
+                    XUnit width = (currentLineFittingRect
+                                   ?? FittingRectOrBounds(contentArea, currentYPosition, currentVerticalInfo.height)).Width;
                     if (lastTabPosition > 0)
                     {
                         width -= (lastTabPosition -
@@ -1257,7 +1269,8 @@ internal class ParagraphRenderer : Renderer
         Area contentArea = renderInfo.LayoutInfo.ContentArea;
         currentYPosition = contentArea.Y + TopBorderOffset;
         // StL: GetFittingRect liefert manchmal null
-        Rectangle rect = contentArea.GetFittingRect(currentYPosition, lineInfo.vertical.height);
+        Rectangle rect = lineInfo.fittingRect
+                         ?? contentArea.GetFittingRect(currentYPosition, lineInfo.vertical.height);
         if (rect != null)
             currentXPosition = rect.X;
         currentLineWidth = 0;
@@ -2073,7 +2086,7 @@ internal class ParagraphRenderer : Renderer
             return FormatResult.Continue;
 
         RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
-        Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+        Rectangle fittingRect = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height);
 
         XUnit hyphenWidth = MeasureString("-");
         if (xPosition + hyphenWidth <= fittingRect.X + fittingRect.Width + Tolerance
@@ -2174,12 +2187,16 @@ internal class ParagraphRenderer : Renderer
         if (topBorderOffset > 0)//May only occure for the first line.
             contentArea = formattingArea.GetFittingRect(formattingArea.Y, topBorderOffset);
 
+        // The measure this line was broken to. Kept, because uniting it into the content area below
+        // loses it - see LineInfo.fittingRect.
+        Rectangle lineFittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+
         if (contentArea == null)
         {
-            contentArea = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+            contentArea = lineFittingRect;
         }
         else
-            contentArea = contentArea.Unite(formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height));
+            contentArea = contentArea.Unite(lineFittingRect);
 
         XUnit bottomBorderOffset = BottomBorderOffset;
         if (bottomBorderOffset > 0)
@@ -2192,6 +2209,11 @@ internal class ParagraphRenderer : Renderer
             HandleNonFittingLine();
 
         lineInfo.lastTab = lastTab;
+        // Carried only for an area with something standing in it. Elsewhere the content area
+        // answers the same question just as well, and it answers it later: a table formats its
+        // cells in one place and renders them in another, so a rect kept from formatting would be
+        // stale by the time the cell is drawn. See LineInfo.fittingRect.
+        lineInfo.fittingRect = formattingArea is ObstructedArea ? lineFittingRect : null;
         renderInfo.LayoutInfo.ContentArea = contentArea;
 
         lineInfo.startIter = startLeaf;
@@ -2613,6 +2635,32 @@ internal class ParagraphRenderer : Renderer
     /// The paragraph to format or render.
     /// </summary>
     private Paragraph paragraph;
+    /// <summary>
+    /// The rect a line of this height would occupy at this position, or the area's own bounds
+    /// where the area has no room for one.
+    /// </summary>
+    /// <remarks>
+    /// For the places that need a left edge and a width and have no way to decline. A line being
+    /// measured or drawn has to be somewhere, and where the area cannot say, the whole of it is a
+    /// better answer than a null reference - which is what several of these call sites would have
+    /// produced. The formatting phase declines properly instead, by asking for a new area.
+    /// <para>
+    /// It is the fallback <c>StartXPosition</c> already reached for in the rendering phase, under
+    /// the comment "next lines for non fitting lines that produce an empty fitting rect". This
+    /// gives the same answer one name.
+    /// </para>
+    /// </remarks>
+    static Rectangle FittingRectOrBounds(Area area, XUnit yPosition, XUnit height)
+    {
+        return area.GetFittingRect(yPosition, height)
+               ?? new Rectangle(area.X, yPosition, area.Width, height);
+    }
+
+    /// <summary>
+    /// While rendering, the measure the line being rendered was broken to. Null while formatting.
+    /// </summary>
+    Rectangle currentLineFittingRect;
+
     private XUnit currentWordsWidth;
     private int currentBlankCount;
     private XUnit currentLineWidth;

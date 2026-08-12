@@ -12,6 +12,46 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Added
 
+- **Text flows beside a shape in MigraDoc.** `WrapFormat.Style` takes four new values — `Left`,
+  `Right`, `Largest` and `Both` — and a shape carrying one of them stands in the area the following
+  elements are laid out in rather than pushing them down the page.
+
+  ```csharp
+  var frame = section.AddTextFrame();
+  frame.Width = Unit.FromCentimeter(4.5);
+  frame.Height = Unit.FromCentimeter(4);
+  frame.RelativeVertical = RelativeVertical.Paragraph;   // what makes it float at all
+  frame.RelativeHorizontal = RelativeHorizontal.Margin;
+  frame.Left = ShapePosition.Left;
+  frame.WrapFormat.Style = WrapStyle.Right;              // the text runs down its right
+  ```
+
+  `Left` and `Right` name **the side the text occupies**, not the side the shape sits on. The
+  opposite reading is equally natural and a caller who guesses wrong gets a page that looks
+  deliberate and is backwards, so it is worth reading twice. `Largest` gives each line whichever
+  side of the shape has more room. `Both` asks for either side; a line is given one span rather than
+  every span, so it lays out as `Largest` does today, and the two are kept apart because they say
+  different things and would part company if that changed.
+
+  All four `WrapFormat` distances now mean something for a side-wrapped shape. `DistanceLeft` and
+  `DistanceRight` hold the text off horizontally as they always claimed to; `DistanceTop` and
+  `DistanceBottom` grow the obstacle vertically, so a line whose box would otherwise clear the shape
+  by a hair is pushed past it instead. For a `TopBottom` shape they remain the element's own margins,
+  unchanged.
+
+  Not covered: contour wrapping (the shape is tested as a box), a shape spanning a page break, and
+  wrapping beside a table — a shape too tall for the area left to it falls back to `TopBottom`
+  rather than producing an obstacle that outlives its area. `XTextFormatter` is a drawing surface
+  with no notion of a shape and is unaffected.
+
+  **A document using one of the new styles cannot be read by an older version of this library.** The
+  values are appended, so `TopBottom`, `None` and `Through` keep the numbers they had and an older
+  document reads unchanged; but MDDDL writes the style by name, and an older reader meeting
+  `Style = Left` refuses the file rather than falling back to a layout the document did not ask for.
+
+  A document that asks for no side wrap lays out byte for byte as it did, pinned across ten
+  documents and fourteen pages.
+
 - `XTextFormatter.DropCap` — an initial letter set into the opening lines of a block, with those
   lines shortened to leave room for it.
 

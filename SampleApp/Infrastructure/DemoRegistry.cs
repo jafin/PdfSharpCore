@@ -33,6 +33,7 @@ public static class DemoRegistry
         new InvoiceDemo(),
         new NewspaperDemo(),
         new MagazineDemo(),
+        new SideWrapDemo(),
     };
 
     public static IReadOnlyList<string> Names { get; } = All.Select(demo => demo.Name).ToArray();
