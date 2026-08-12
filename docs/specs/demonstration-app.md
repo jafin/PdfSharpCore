@@ -180,6 +180,7 @@ Twelve, one PDF each.
 | `Invoice` | MigraDoc — styles, header and footer page fields, tab stops, line items, totals |
 | `Newspaper` | masthead, a headline across the measure, five columns of body, a sidebar, a captioned image |
 | `Magazine` | a full-bleed image under a gradient scrim, a title built with `AddString`, a slanted pull-quote, a drop cap from `XTextFormatter.DropCap` |
+| `SideWrap` | MigraDoc — `WrapFormat.Style` on a text frame, one page for each of the four side-wrapping styles |
 
 `Layout` and `PageResize` are where the two existing samples end up. Neither is deleted; both are
 given a name, a description and a file of their own.
@@ -190,6 +191,10 @@ has no multi-column page setup**, so a newspaper laid out through it would have 
 text frames. `XTextFormatter.Columns` does the job directly, which is why those two are drawn on the
 PdfSharp side. The three together are also the honest answer to "which API do I reach for" — the
 demos disagree with each other on purpose.
+
+`SideWrap` is the fourth in that argument and the sharpest of them. It is `Magazine`'s pull quote
+done the other way: one paragraph, one text frame, one property, and the renderer breaking the lines.
+Read the two side by side to see what the choice of engine actually costs.
 
 ### Where the drawing surface is thinner than it looks
 
@@ -203,9 +208,14 @@ Worth knowing before writing a demo that promises more than exists:
   should imply otherwise.
 - `XGraphics.DrawString` does not wrap, and draws `\n` literally. Wrapping is `XTextFormatter`'s job
   and the demos should not blur the two.
-- Nothing flows text **beside a shape**. `Magazine`'s pull quote is a rectangle with the body text
-  split into two blocks around it by hand, and that split is computed by the caller. `shape-side-wrap`
-  is the change that would remove it.
+- **`XTextFormatter` does not flow text beside a shape, and is not going to.** MigraDoc does, as of
+  `shape-side-wrap` — `WrapFormat.Style` takes `Left`, `Right`, `Largest` or `Both`, and `SideWrap`
+  shows all four. But that lives in the document object model, where a shape is an element of the
+  tree the renderer lays out. The formatter draws onto a surface that holds no shapes at all, so
+  `Magazine`'s pull quote is still a rectangle with the body text split into two blocks around it by
+  hand. That split stays. It is not a gap waiting to be filled: it is what drawing a page looks like
+  as against laying one out, and having both demos on the shelf is the clearest statement of the
+  difference the app makes.
 
 A drop cap used to be on this list. `XTextFormatter.DropCap` is now a property: it takes the first
 character of the text, scales it so its foot rests on the last reserved line's baseline, reserves the

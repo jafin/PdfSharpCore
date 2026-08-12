@@ -11,10 +11,20 @@ namespace SampleApp.Demos;
 ///   A feature opener and its continuation: a full bleed photograph, a drop cap, and a pull quote.
 /// </summary>
 /// <remarks>
-///   The drop cap is a property now. It used to be thirty lines that drew the letter separately and
-///   then added one word at a time to a probe rectangle until the answer stopped fitting - a
-///   workaround this demo was teaching as though it were a technique. The pull quote is still
-///   arithmetic: nothing in the library flows text beside a shape yet.
+///   <para>
+///     The drop cap is a property now. It used to be thirty lines that drew the letter separately
+///     and then added one word at a time to a probe rectangle until the answer stopped fitting - a
+///     workaround this demo was teaching as though it were a technique.
+///   </para>
+///   <para>
+///     The pull quote is still arithmetic, and unlike the drop cap it is going to stay that way.
+///     Text does flow beside a shape now - see the SideWrap demo - but that lives in MigraDoc,
+///     where a document is a tree of elements and a shape is one of them. This page is drawn with
+///     <c>XGraphics</c> and <c>XTextFormatter</c>, which have no notion of a shape to flow around:
+///     there is nothing here but a rectangle someone chose to paint and a text block someone chose
+///     to split. The two engines are separate, and the difference between them is exactly the
+///     difference between this page and that one.
+///   </para>
 /// </remarks>
 internal sealed class MagazineDemo : PdfDemo
 {
@@ -30,7 +40,7 @@ internal sealed class MagazineDemo : PdfDemo
         "A scrim that fades out as well as down, from a gradient with alpha in its colours",
         "A drop cap from XTextFormatter.DropCap - one property, three lines deep, set by its ink",
         "A title turned into a path by AddString and filled with a gradient",
-        "A pull quote slanted with ObliqueAngle",
+        "A pull quote slanted with ObliqueAngle, with the copy split around it by hand",
     };
 
     public override int PageCount => 2;
@@ -46,9 +56,10 @@ internal sealed class MagazineDemo : PdfDemo
         // the caller does not split it by hand.
         const string Opening =
             "There is a drop cap in this library now, and it is the property set below rather "
-            + "than the thirty lines this demo used to carry. There is still no pull quote: the "
-            + "one on the next page is a rectangle, a transform, and a text block split by hand "
-            + "around it, which is the last piece of arithmetic left on this spread. ";
+            + "than the thirty lines this demo used to carry. The pull quote on the next page is "
+            + "still a rectangle, a transform, and a text block split by hand around it - this "
+            + "page is drawn rather than laid out, and a drawing surface has no shape to flow "
+            + "around. The SideWrap demo is the same idea done properly, in MigraDoc. ";
 
         const string Body =
             "The letter beside these lines is not drawn separately. DropCap says how many lines "

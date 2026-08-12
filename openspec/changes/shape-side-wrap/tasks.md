@@ -81,19 +81,36 @@ groups 1 to 3 changes the output of any existing document.
 
 ## 5. Make the demo tell the truth
 
-- [ ] 5.1 Replace `MagazineDemo`'s hand-split flow around the pull quote with a wrap style. The
-      split is currently computed by the caller and is the thing the demo most conspicuously should
-      not have to do.
-- [ ] 5.2 Update `Shows` on `MagazineDemo` and the remarks that explain the workaround.
-- [ ] 5.3 Update `docs/specs/demonstration-app.md`, which lists the pull quote among the things
-      arithmetic has to fake.
-- [ ] 5.4 Re-run the demo smoke tests. `Magazine` declares two pages, and a wrap that reserves the
-      wrong area repaginates it.
+- [x] 5.1 ~~Replace `MagazineDemo`'s hand-split flow around the pull quote with a wrap style.~~
+      **Could not be done as written, and should not be.** `MagazineDemo` is drawn with `XGraphics`
+      and `XTextFormatter`; `WrapFormat.Style` is a MigraDoc DOM property. They are different
+      engines, and the formatter has no notion of a shape to flow around — there is nothing on that
+      page but a rectangle the caller chose to paint and a text block the caller chose to split.
+      The split stays, and the remarks now say why instead of calling it a missing feature.
+      Delivered instead: `SideWrapDemo`, four A5 pages, one per style, each one paragraph and one
+      text frame with nothing measured by the caller.
+- [x] 5.2 Update `Shows` on `MagazineDemo` and the remarks that explain the workaround. Now points
+      at `SideWrap` and gives the real reason the arithmetic remains, rather than implying it is
+      waiting on this change.
+- [x] 5.3 Update `docs/specs/demonstration-app.md`, which lists the pull quote among the things
+      arithmetic has to fake. The entry is rewritten rather than deleted: MigraDoc flows text beside
+      a shape, `XTextFormatter` does not and will not, and the pull quote is now an illustration of
+      that difference instead of a gap.
+- [x] 5.4 Re-run the demo smoke tests. **28 pass**, `Magazine` still two pages, `SideWrap` four.
 
 ## 6. Close out
 
-- [ ] 6.1 Add a line to the release notes, including that a document using a new wrap style cannot
-      be read by an older version of the library.
-- [ ] 6.2 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks.
-- [ ] 6.3 Rasterize a page with each of the four wrap styles and look at all four. A wrap on the
-      wrong side is a page that looks deliberate and is backwards, and no assertion catches that.
+- [x] 6.1 Add a line to the release notes, including that a document using a new wrap style cannot
+      be read by an older version of the library. The values are appended so the three that came
+      before keep their numbers, but MDDDL writes the style by name and an older reader refuses
+      `Style = Left` rather than falling back to a layout the document did not ask for.
+- [x] 6.2 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks. Clean Release
+      build, no warnings; **1751 passed, 1 skipped, 0 failed on each leg**, run separately. Run
+      together they both report green and the host then crashes — the intermittent memory-pressure
+      abort `CLAUDE.md` records, not a failing test.
+- [x] 6.3 Rasterize a page with each of the four wrap styles and look at all four. **Looked at all
+      four**, and it earned its place: `Largest` and `Both` were originally given a centred frame,
+      which left equal room either side and so demonstrated nothing — whichever side the text took
+      would have looked like the right answer. The frame now stands 1.2cm from the left margin, so
+      the text taking the right is visibly the roomier side rather than a coin toss. No assertion
+      would have said a word about that.
