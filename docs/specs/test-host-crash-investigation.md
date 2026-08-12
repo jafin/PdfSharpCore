@@ -1,100 +1,98 @@
-# Task — the test host crashes intermittently at the end of a full run
+# The test host crashed intermittently at the end of a full run
 
-Not a spec of work done: a brief for work not yet started. Everything below was observed while
-building the PDFKit text parity work (`docs/specs/pdfkit-text-parity.md`) and is written down
-because chasing it three separate times from scratch is how it will otherwise go.
+Found and fixed. What follows is what the fault turned out to be, how it was pinned down, and what
+was ruled out on the way — the ruling out is most of the value, because three of the four obvious
+suspects were wrong.
 
 ## The symptom
 
-A full `dotnet test` run ends with
+A full `dotnet test` run ended with
 
 ```text
 The active test run was aborted. Reason: Test host process crashed
 
-Passed!  - Failed:     0, Passed:  1388, Skipped:     1, Total:  1389, ...
+Passed!  - Failed:     0, Passed:  1474, Skipped:     1, Total:  1475, ...
 Test Run Aborted.
 ```
 
-and exit code 1. Every time:
+and exit code 1. No test failed, the counts came up short of the total, and the time to the crash
+looked like it varied. Roughly a third to a half of full runs died.
 
-- **`Failed: 0`.** No test fails. The host dies while the run is still going.
-- **The counts are short of the total.** 1388 of a suite that reports 1425 when it finishes. How
-  many are missing varies from run to run.
-- **The time to the crash varies wildly** — 24 seconds to 1 minute 29 on a suite that takes about
-  2 minutes 20 to finish. It is not one test, and not the end of the run.
+## What it was
 
-## What is known
+`Assets/FamilyTree.pdf` is a single page 58 inches wide by 23 — a poster, not a document. Every
+other page the tests rasterize is A4. At the 300 dpi `PdfHelper.Rasterize` asked for, that one page
+came to **122 megapixels**, took six seconds to draw, and took the process to about **940MB for the
+one page**. `PageResizeRenderingTests` drew it three times, `PruneUnusedResourcesRenderingTests`
+twice more, and `PdfHelper.Diff` then held two of them at once to compare them.
 
-**It is not caused by the text parity work.** The decisive run: `git checkout master`, no changes of
-any kind, `dotnet test -f net10.0` → crash at 1m11s, 1317 of 1318 passed. It reproduces on the
-branch, on the branch with the new work stashed, and on master.
+Ghostscript draws the page, and on Windows it is loaded into the test host rather than run as a
+command: `Ghostscript.NativeAssets` ships `gsdll64.dll` and no executable at all. When it cannot
+recover from something it does not report an error — it ends the process. So a page it could not
+draw took the test host with it: **exit status 1, no dump, nothing on stderr and no failing test.**
 
-**It is not specific to a target framework.** Seen on both `net8.0` and `net10.0`. An earlier
-reading that it was net8.0-only was wrong; net10.0 had simply been lucky for three runs.
+On its own the big page draws fine — ten rasterizations in a row in a fresh process all succeed. It
+only failed when that 940MB spike landed on a host already carrying the rest of the suite, which is
+why it was intermittent and why it always struck at the end.
 
-**It is intermittent, not flaky-per-test.** The same command passes and fails on the same commit.
-Roughly a third to a half of full runs crashed while this was being watched.
+## The fix
 
-**It gets likelier the more pages are rasterized.** The clearest evidence, all on one commit and
-one framework:
+`PdfHelper.Rasterize` now caps a page at 16 megapixels and drops the resolution of a document whose
+largest page would exceed it, leaving every other document at 300 dpi exactly. FamilyTree draws at
+108 dpi and 15.8 megapixels; every other page in the suite is unchanged, bit for bit, so the
+reference images and the tolerances they are compared under all still hold.
 
-| what was run | outcome |
-|---|---|
-| the whole suite | crash, twice running |
-| the whole suite, minus the two new rasterizing test classes | clean |
-| the whole suite, minus every new test class | clean |
-| the two new rasterizing classes on their own — 14 tests | clean |
+The two tests that use the big page compare renderings of it **with each other** — before and after
+a resize, before and after a prune — rather than against a checked-in image, so what resolution
+they run at was never part of what they assert. They still exercise the same document through the
+same code. The rasterizing tests went from 2m19s to 1m17s as a side effect.
 
-The new classes are not broken in themselves. Adding about 26 rasterizations to a suite that
-already had some moved it from crashing occasionally to crashing often.
+## What it was not
 
-**Holding the images open made it worse, and releasing them helped but did not fix it.** The
-rendering tests originally kept every `MagickImageCollection` until the class was torn down.
-Freeing each one as soon as its pixels had been read (`fb7ccd8`) took net8.0 from two crashes in
-two runs to two clean runs in two — and then net10.0 crashed anyway. Mitigation, not a cure.
+Each of these was measured, not argued about:
 
-**`dotnet test --blame` produced no `Sequence.xml`.** Nothing was written anywhere under the repo,
-so the run in flight was not recorded. `--blame-crash` was not tried and is the obvious next step.
+- **Not memory exhaustion of the machine.** Peak test host working set is 1.09GB, on a 64GB machine
+  with 26GB free. The `RADAR_PRE_LEAK_64` event in the Windows event log for `testhost.exe` is a
+  red herring.
+- **Not a crash at all.** The host exits with status **1**. An access violation would be
+  `0xC0000005`, a stack overflow `0xC00000FD`, an unhandled managed exception `0xE0434352` and a
+  dump. `DOTNET_DbgEnableMiniDump=1` with a full dump type produced nothing, because there is
+  nothing to dump: something called `exit(1)`.
+- **Not concurrency around the one in-process Ghostscript.** `RasterizingCollection` does hold: the
+  54 rasterizing tests run as one serial block *after* every parallel collection has finished, which
+  `Sequence.xml` shows directly. Nothing else is running beside them.
+- **Not the volume of rasterization.** The 83 rasterizing tests on their own, which draw more pages
+  than the serial block does, ran clean four times over.
+- **Not a test leaking global state.** The font and image seams are set only in `TestBackendSetup`,
+  and the Turkish-culture test puts the culture back in a `finally`.
+- **Not objects reaching a finalizer after the native library went away.** Disposal is already tight
+  everywhere — every `RasterizeOutput`, `MagickImage` and pixel collection is inside a `using`.
 
-## Where to look first
+## How it was pinned down
 
-The suspicion is native, and at teardown rather than during a test: every failure reports
-`Failed: 0`, so nothing was mid-assertion.
+Worth repeating on the next one of these:
 
-- `PdfSharpCore.Test/Helpers/PdfHelper.cs` — `Rasterize` builds a `MagickImageCollection` and calls
-  `images.Read(ms, readerSettings)` at 300 dpi, which is what drives Ghostscript.
-- `PdfSharpCore.Test/Helpers/GhostscriptSetup.cs` — how Ghostscript is found and configured.
-- `PdfSharpCore.Test/Helpers/RasterizingCollection.cs` — the collection exists *because* ImageMagick
-  drives one in-process Ghostscript and a second concurrent rasterization falls back to an
-  executable. Its comment is the best statement of the constraint anyone has written down. Worth
-  re-reading before assuming the collection covers every case: it serializes the tests that declare
-  it, and nothing stops a test that rasterizes without declaring it.
-- `PdfSharpCore.Test/TestBackendSetup.cs` — the module initializer that registers Skia. Skia is also
-  native and also torn down at process exit.
+1. **`dotnet test --blame-crash` did produce a `Sequence.xml`** where an earlier attempt had found
+   none. It is written under `--results-directory`, and it names every test that started and which
+   one never finished. Both captured crashes named exactly one: `FamilyTreeSurvivesBeingResized`.
+   That the location was the *same* both times is what turned this from "flaky suite" into one page.
+2. **The exit code is the diagnosis.** A watcher holding a handle on `testhost.exe` reports
+   `ExitCode` after it dies. Status 1 with no dump says "exited", not "faulted", and that alone
+   ruled out the entire class of theories about corruption and finalizers.
+3. **Rasterize the assets and look at the sizes.** One page 12 times bigger than every other was
+   visible in the output PNGs the whole time.
 
-## Things worth trying, roughly in order
+Two things that cost time and did not pay: `--diag` slows a run so much it is not usable for
+something that only happens on a full one, and `procdump` attaching as a debugger risks masking the
+very heap behaviour under suspicion — prefer `DOTNET_DbgEnableMiniDump`, which needs no debugger.
 
-1. **`dotnet test --blame-crash`** (and `--blame-crash-collect-always`) to get a dump and a faulting
-   module. Everything below is guesswork until that names something.
-2. **Windows Event Viewer / WER** for the faulting module of the `testhost` process — cheaper than a
-   dump and often enough to point at Ghostscript, Magick.NET or Skia.
-3. **Turn xUnit parallelism off** (`maxParallelThreads: 1`, or `parallelizeAssembly: false` in
-   `xunit.runner.json`) and see whether it survives. If it does, the fault is concurrency around the
-   one in-process Ghostscript rather than a leak.
-4. **Make it worse on purpose.** Duplicate the rasterizing tests until the crash is reliable. An
-   intermittent fault that can be made near-certain is much cheaper to bisect.
-5. **Check the Magick.NET and Ghostscript.NativeAssets versions** against their issue trackers.
-   In-process Ghostscript has a long history of being single-instance and unhappy about being
-   reinitialized.
-6. **Look at what finalizes.** If a `MagickImage` or `MagickImageCollection` reaches a finalizer
-   after the native library has been unloaded, the process dies with no managed stack — which
-   matches every symptom here.
+## What is still true
 
-## What this is not blocking
+CI runs on Linux, where Ghostscript is the system `gs` shelled out to rather than a library loaded
+into the test host, so a page it cannot draw fails a test there instead of killing the run. This was
+only ever a local Windows problem, and it never blocked the build.
 
-CI runs on Linux, where Ghostscript is the system `gs` shelled out to rather than
-`Ghostscript.NativeAssets` in process — a different path from the one crashing here, which is
-Windows. This has not been seen on CI. It costs local full-suite runs, not the build.
-
-Filtering to a subset, or to one test class, has never crashed. `dotnet test --filter` is the
-workaround until this is understood.
+The wider hazard remains: **on Windows every rasterization runs Ghostscript inside the test host,
+and its way of giving up is to end the process.** Anything that makes it fail — a much larger page,
+a malformed font, a document it will not parse — will read as "test host crashed" with no failing
+test. If that happens again, check the exit code first.
