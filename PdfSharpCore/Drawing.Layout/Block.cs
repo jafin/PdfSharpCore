@@ -76,6 +76,19 @@ internal class Block
 	public double LineIndent { get; set; }
 
 	/// <summary>
+	/// How wide the line this block sits on was allowed to be, measured from the left edge of its
+	/// column.
+	/// </summary>
+	/// <remarks>
+	/// The width of a column, until something narrows a line - a drop cap reserving room beside
+	/// the opening lines, say. Carried on the block because the drawing pass aligns and justifies
+	/// each line again, and it has to stretch a line to the measure that line was broken against
+	/// rather than to the column's. Getting those two out of step produces justified text that is
+	/// subtly ragged rather than obviously broken.
+	/// </remarks>
+	public double LineWidth { get; set; }
+
+	/// <summary>
 	/// Which column of the layout rectangle this block was placed in, counting from 0.
 	/// </summary>
 	/// <remarks>

@@ -3,22 +3,26 @@ leave every existing document identical. Groups 2 and 3 are the feature.
 
 ## 1. A measure that varies by line
 
-- [ ] 1.1 Pin the current output first: lay out several blocks through `XTextFormatter` — justified,
+- [x] 1.1 Pin the current output first: lay out several blocks through `XTextFormatter` — justified,
       centred, right-aligned, multi-column, indented, truncated with an ellipsis — save the
       document, and keep the bytes. Without this, "unchanged when unused" is an intention. The
       gradient work in `fix-drawing-gaps` did the same and it is what caught the one thing that
-      moved.
-- [ ] 1.2 In `CreateLayout`, replace the `columnWidth` and `lineStart` locals with a query answered
+      moved. **17 arrangements**, pinned in `Assets/Layout/formatter-baseline.txt` — a checked-in
+      file rather than a string literal, which is what #85 had to fix in the gradient pin.
+- [x] 1.2 In `CreateLayout`, replace the `columnWidth` and `lineStart` locals with a query answered
       from the line's top and height, returning the same pair every time. No behaviour changes yet;
       this is the shape of the change on its own, so that anything it breaks is visible before a
-      drop cap is added to the picture.
-- [ ] 1.3 Re-run 1.1. The bytes must be identical. If they are not, the difference is in this step
-      and nowhere else, which is the whole reason for doing it alone.
-- [ ] 1.4 Give the justified-line blank-width calculation the **line's** measure rather than the
+      drop cap is added to the picture. `MeasureOfLineAt` returns a `LineMeasure` of start and
+      width; the width is carried to the drawing pass on `Block.LineWidth`.
+- [x] 1.3 Re-run 1.1. The bytes must be identical. If they are not, the difference is in this step
+      and nowhere else, which is the whole reason for doing it alone. **Identical**, all 17.
+- [x] 1.4 Give the justified-line blank-width calculation the **line's** measure rather than the
       column's. This is the one place a careless change produces text that is subtly ragged rather
-      than obviously broken, so it gets a test of its own that reads the drawn positions.
-- [ ] 1.5 Check what `ApplyEllipsis` measures against, and give it the line's measure too if a
-      truncated line can fall inside a narrowed region. Answerable by reading the method.
+      than obviously broken, so it gets a test of its own that reads the drawn positions. Code done
+      here; the test needs something that narrows a line, so it is written in 2.5 where one exists.
+- [x] 1.5 Check what `ApplyEllipsis` measures against, and give it the line's measure too if a
+      truncated line can fall inside a narrowed region. Answerable by reading the method. It
+      measured to the right edge of the *column*; it now measures to the right edge of the line.
 
 ## 2. The drop cap
 

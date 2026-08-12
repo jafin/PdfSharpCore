@@ -341,8 +341,14 @@ public class XTextFormatter
                 var indent = lineBlocks.First().LineIndent;
 
                 // A line is laid out and aligned within its own column, so that is the left edge it
-                // is measured from and the width it is measured against.
+                // is measured from.
                 var columnLeft = dx + ColumnLeft(lineBlocks.First().Column, columnWidth);
+
+                // ...and against the measure that line was broken to, which is the column's width
+                // until something narrows it. Aligning to the column while breaking to something
+                // narrower is what makes justified text ragged in a way no assertion on the text
+                // itself would notice.
+                var lineWidth = lineBlocks.First().LineWidth;
 
                 // The last line of a paragraph keeps its natural width. Stretching it over the
                 // full width of the column would tear the few words it holds apart.
@@ -351,7 +357,7 @@ public class XTextFormatter
                     var locationX = columnLeft + indent;
                     var gaps = lineBlocks.Length - 1;
                     var gapSize = gaps > 0
-                        ? (columnWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
+                        ? (lineWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
                         : 0;
                     foreach (var block in lineBlocks)
                     {
@@ -366,9 +372,9 @@ public class XTextFormatter
                     // line to the right end of - is that much narrower.
                     var locationX = columnLeft + indent;
                     if (Alignment == XParagraphAlignment.Center)
-                        locationX = columnLeft + indent + (columnWidth - indent) / 2;
+                        locationX = columnLeft + indent + (lineWidth - indent) / 2;
                     if (Alignment == XParagraphAlignment.Right)
-                        locationX = columnLeft + columnWidth;
+                        locationX = columnLeft + lineWidth;
                     _gfx.DrawString(lineText, font, brush, locationX, lineY, GetXStringFormat());
                 }
             }
@@ -467,6 +473,50 @@ public class XTextFormatter
     }
 
     /// <summary>
+    /// Where a line begins and how wide it may be, within its column.
+    /// </summary>
+    /// <remarks>
+    /// Both are measured from the left edge of the column the line sits in, so a line running the
+    /// full measure has <see cref="Start"/> equal to its indent and <see cref="Width"/> equal to
+    /// the column's width.
+    /// </remarks>
+    readonly struct LineMeasure
+    {
+        internal LineMeasure(double start, double width)
+        {
+            Start = start;
+            Width = width;
+        }
+
+        /// <summary>How far in from the left edge of the column the line's first block goes.</summary>
+        internal double Start { get; }
+
+        /// <summary>How far from the left edge of the column the line may reach.</summary>
+        internal double Width { get; }
+    }
+
+    /// <summary>
+    /// The measure available to a line, given how far down its column the line's top sits.
+    /// </summary>
+    /// <remarks>
+    /// This is the one thing a drop cap needs that the formatter did not have: until it existed,
+    /// the width was computed once for the whole layout and the start varied by exactly one bit -
+    /// first line of a paragraph, or not. Everything else the loop does is already expressed in
+    /// terms of those two, so a measure that depends on the line's position is the whole of what
+    /// makes text flow around something.
+    /// <para>
+    /// With nothing reserved it returns the same pair for every line, and the loop behaves exactly
+    /// as it did. That is what makes "unchanged when unused" a property of the code rather than a
+    /// hope; <c>FormatterLayoutPinTests</c> is what checks it.
+    /// </para>
+    /// </remarks>
+    LineMeasure MeasureOfLineAt(double yTop, bool firstLineOfParagraph, double columnWidth, int column)
+    {
+        double start = IndentOf(firstLineOfParagraph);
+        return new LineMeasure(start, columnWidth);
+    }
+
+    /// <summary>
     /// Moves to the top of the next column when the one being filled has run out of room.
     /// Answers false when there is no next column and nowhere left to put the line.
     /// </summary>
@@ -498,7 +548,12 @@ public class XTextFormatter
         double columnWidth = ColumnWidthWithin(rectWidth);
         int firstIndex = 0;
         int column = 0;
-        double lineStart = IndentOf(true);
+
+        // The measure of the line being filled. Re-asked for at every line, because a drop cap -
+        // or anything else the text has to flow beside - makes the answer depend on how far down
+        // the column the line sits.
+        LineMeasure measure = MeasureOfLineAt(0, true, columnWidth, column);
+        double lineStart = measure.Start;
         double x = lineStart, y = 0;
         int count = _blocks.Count;
         for (int idx = 0; idx < count; idx++)
@@ -510,53 +565,59 @@ public class XTextFormatter
                     _blocks[idx - 1].EndsParagraph = true;
                 if (Alignment == XParagraphAlignment.Justify)
                     _blocks[firstIndex].Alignment = XParagraphAlignment.Left;
-                HorizontalAlignLine(firstIndex, idx - 1, columnWidth);
+                HorizontalAlignLine(firstIndex, idx - 1, measure.Width);
                 firstIndex = idx + 1;
                 // A written line break ends a paragraph, so the next line is indented again and
                 // the gap between paragraphs falls here.
-                lineStart = IndentOf(true);
-                x = lineStart;
                 y += _lineHeight + LineGap + ParagraphGap;
                 if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
                 {
                     block.Stop = true;
                     break;
                 }
+                // After the column move, not before: a line carried to the top of the next column
+                // is a line somewhere else, and its measure is whatever is free there.
+                measure = MeasureOfLineAt(y, true, columnWidth, column);
+                lineStart = measure.Start;
+                x = lineStart;
             }
             else
             {
                 double width = block.Width;
                 // A block that starts a line is placed whether it fits or not, since moving it to
                 // a line of its own would not make it any narrower.
-                if (!LineBreak || x + width <= columnWidth || x == lineStart)
+                if (!LineBreak || x + width <= measure.Width || x == lineStart)
                 {
                     block.Location = new XPoint(ColumnLeft(column, columnWidth) + x, y);
                     block.LineIndent = lineStart;
+                    block.LineWidth = measure.Width;
                     block.Column = column;
                     x += width + _spaceWidth;
                 }
                 else
                 {
-                    HorizontalAlignLine(firstIndex, idx - 1, columnWidth);
+                    HorizontalAlignLine(firstIndex, idx - 1, measure.Width);
 
                     // Begin implicit line break
                     firstIndex = idx;
-                    lineStart = IndentOf(false);
                     y += _lineHeight + LineGap;
                     if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
                     {
                         block.Stop = true;
                         break;
                     }
+                    measure = MeasureOfLineAt(y, false, columnWidth, column);
+                    lineStart = measure.Start;
                     block.Location = new XPoint(ColumnLeft(column, columnWidth) + lineStart, y);
                     block.LineIndent = lineStart;
+                    block.LineWidth = measure.Width;
                     block.Column = column;
                     x = lineStart + width + _spaceWidth;
                 }
             }
         }
         if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
-            HorizontalAlignLine(firstIndex, count - 1, columnWidth);
+            HorizontalAlignLine(firstIndex, count - 1, measure.Width);
 
         ApplyEllipsis(columnWidth);
 
@@ -605,7 +666,11 @@ public class XTextFormatter
             return;
 
         Block last = laidOut[laidOut.Length - 1];
-        double available = ColumnLeft(last.Column, columnWidth) + columnWidth - last.Location.X;
+
+        // To the right edge of the line rather than of the column. A truncated line that falls
+        // inside a drop cap's depth has less room than the column does, and measuring against the
+        // column would let the ellipsis run past the edge the line was broken to.
+        double available = ColumnLeft(last.Column, columnWidth) + last.LineWidth - last.Location.X;
 
         string text = last.Text;
         while (text.Length > 0 && _gfx.MeasureString(text + Ellipsis, _font).Width > available)
