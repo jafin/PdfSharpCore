@@ -21,6 +21,10 @@ public static class DemoRegistry
 {
     public static IReadOnlyList<PdfDemo> All { get; } = new PdfDemo[]
     {
+        new HelloWorldDemo(),
+        new FontsDemo(),
+        new OrientationDemo(),
+        new ImagesDemo(),
         new LayoutDemo(),
         new PageResizeDemo(),
     };
