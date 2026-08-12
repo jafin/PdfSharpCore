@@ -12,6 +12,38 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Added
 
+- `XTextFormatter.DropCap` — an initial letter set into the opening lines of a block, with those
+  lines shortened to leave room for it.
+
+  ```csharp
+  var formatter = new XTextFormatter(gfx)
+  {
+      DropCap = new XDropCap(new XFont("Liberation Serif", 10, XFontStyle.Bold), lines: 3),
+  };
+  formatter.DrawString(text, body, XBrushes.Black, area);
+  ```
+
+  The depth is given in **lines**, not as a font size: lines are what the surrounding text is
+  measured in, and a size implies a depth that is almost never a whole number of them. The formatter
+  takes the first character of the text, scales it so its head is level with the head of the letter
+  beside it and its foot rests on the baseline of the last line it is set into, reserves the room
+  and narrows the lines that stand against it.
+
+  The head is level by **cap height** rather than by the top of the line's box. A line's box reaches
+  an ascent above its baseline and the letters in it reach only a cap height, the difference being
+  the room the face keeps for accents; a cap hung from the box stands clear of the text it is set
+  into by that much, magnified by the size of the cap. A face that declares no cap height in its
+  OS/2 table gets the ascent, as it does everywhere else in the library.
+
+  Placed by the glyph's **ink** where `GlobalFontSettings.GlyphOutlineProvider` is registered, so the
+  cap sits flush with the margin rather than a side bearing's width inside it. Where no provider is
+  registered it is placed by the advance instead — a drop cap does not require a backend seam.
+
+  Behind it, `XTextFormatter` now works out the measure available to each line from where that line
+  sits, rather than once for the whole block. A block with nothing narrowing it lays out exactly as
+  it did, which is pinned byte for byte across the seventeen ways the formatter can be asked to lay
+  text out.
+
 - `PdfPage.Resize` and `PdfDocument.ResizePages` — change the size, shape or orientation of a page
   that already has content on it, in the document that holds it. The content is scaled into the new
   size rather than cropped by it, and the annotations of the page and the link destinations that

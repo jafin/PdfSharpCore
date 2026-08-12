@@ -47,8 +47,46 @@ public class EncryptedTextStringTests
     {
         var document = new StandardSecurity(SaveEncryptedDocument(level));
 
-        // The mark is encrypted with the text now, so it is no longer spelled out in the file.
-        document.RawInfoString("/Title").Should().NotStartWith("<FEFF");
+        // Read by decrypting the whole entry and looking at what comes out, rather than by
+        // checking that the file does not spell "<FEFF" out. The written form cannot tell the two
+        // arrangements apart: the first two bytes of the ciphertext are FE FF whenever the first
+        // two bytes of the keystream are zero, and the plaintext at that position is the mark
+        // itself, so the string reads as though the mark had been left outside when it was not.
+        //
+        // That is not the one-in-65536 it looks like either. RC4 emits zero as its second byte
+        // about twice as often as chance would have it - the Mantin-Shamir bias - which puts the
+        // coincidence near one save in 32768. Measured over 200000 saves it came up 8 times, and
+        // it is what failed this test in CI on a change that touched nothing but the text
+        // formatter. Every one of those 200000 decrypted to the right title.
+        document.DecryptedInfoBytes("/Title").Should().Equal(BigEndianWithMark(Title),
+            "the mark belongs to the value, so it is encrypted along with the text");
+    }
+
+    [Theory]
+    [InlineData(PdfDocumentSecurityLevel.Encrypted40Bit)]
+    [InlineData(PdfDocumentSecurityLevel.Encrypted128Bit)]
+    public void TheArrangementThatTestRulesOutWouldIndeedFailIt(PdfDocumentSecurityLevel level)
+    {
+        // An assertion is only worth making if the thing it forbids would fail it. Decrypting a
+        // document with the mark in front of the ciphertext yields the two bytes of the mark
+        // XORed with the keystream and the text two bytes out of step - never the title, whatever
+        // the ciphertext happens to begin with, which is the whole reason for reading the entry
+        // this way round.
+        var document = new StandardSecurity(SaveEncryptedDocument(level));
+        var asWrittenBefore = new StandardSecurity(document.RewriteAsWrittenBeforeTheFix("/Title", Title));
+
+        asWrittenBefore.DecryptedInfoBytes("/Title").Should().NotEqual(BigEndianWithMark(Title));
+    }
+
+    /// <summary>The bytes a conforming reader must find once it has decrypted the entry.</summary>
+    private static byte[] BigEndianWithMark(string text)
+    {
+        var bytes = Encoding.BigEndianUnicode.GetBytes(text);
+        var withMark = new byte[bytes.Length + 2];
+        withMark[0] = 0xFE;
+        withMark[1] = 0xFF;
+        bytes.CopyTo(withMark, 2);
+        return withMark;
     }
 
     [Theory]

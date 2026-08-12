@@ -58,6 +58,15 @@
     <None Update="Assets\Fonts\*.otf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!--
+      The pinned layout output. Checked in as a file rather than written into a test as a string
+      literal: it is six hundred lines, and a literal of that size is compared against text the
+      library writes with line feeds while the literal itself carries whatever line endings the
+      checkout gave the file - which is how the gradient pin came to fail on Windows and pass on CI.
+    -->
+    <None Update="Assets\Layout\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

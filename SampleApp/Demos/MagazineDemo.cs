@@ -11,9 +11,10 @@ namespace SampleApp.Demos;
 ///   A feature opener and its continuation: a full bleed photograph, a drop cap, and a pull quote.
 /// </summary>
 /// <remarks>
-///   Everything here that looks like a typographic feature is arithmetic. There is no drop cap, no
-///   full bleed and no pull quote in the library - there is a rectangle, a transform, and
-///   <c>MeasureString</c> to work out where things go.
+///   The drop cap is a property now. It used to be thirty lines that drew the letter separately and
+///   then added one word at a time to a probe rectangle until the answer stopped fitting - a
+///   workaround this demo was teaching as though it were a technique. The pull quote is still
+///   arithmetic: nothing in the library flows text beside a shape yet.
 /// </remarks>
 internal sealed class MagazineDemo : PdfDemo
 {
@@ -27,7 +28,7 @@ internal sealed class MagazineDemo : PdfDemo
     {
         "A photograph bled off three edges, clipped to its band",
         "A scrim that fades out as well as down, from a gradient with alpha in its colours",
-        "A drop cap sized by MeasureString, with the text broken to fit beside it",
+        "A drop cap from XTextFormatter.DropCap - one property, three lines deep, set by its ink",
         "A title turned into a path by AddString and filled with a gradient",
         "A pull quote slanted with ObliqueAngle",
     };
@@ -40,20 +41,21 @@ internal sealed class MagazineDemo : PdfDemo
         const string Serif = "Liberation Serif";
         const string Sans = "Liberation Sans";
 
+        // The text begins with the letter the cap is made from. The formatter takes the first
+        // character for the cap and lays out the rest, so the word reads whole on the page and
+        // the caller does not split it by hand.
         const string Opening =
-            "here is no drop cap in this library, and no pull quote, and nothing that bleeds "
-            + "a photograph off the edge of a page. There is a rectangle, a transform, and a "
-            + "way to ask how wide a piece of text will be. Everything on this spread is one "
-            + "of those three things used carefully, which is the point worth taking away "
-            + "from it. ";
+            "There is a drop cap in this library now, and it is the property set below rather "
+            + "than the thirty lines this demo used to carry. There is still no pull quote: the "
+            + "one on the next page is a rectangle, a transform, and a text block split by hand "
+            + "around it, which is the last piece of arithmetic left on this spread. ";
 
         const string Body =
-            "The first letter below is drawn on its own at four times the body size, and the "
-            + "opening lines are broken to fit the space left beside it. Nothing decides that "
-            + "break except a loop that adds one word at a time and asks the formatter how "
-            + "tall the result would be. When the answer stops fitting, the previous word was "
-            + "the last one. The remainder is flowed into two columns underneath, which the "
-            + "formatter will do in one call. ";
+            "The letter beside these lines is not drawn separately. DropCap says how many lines "
+            + "deep it sits; the formatter scales it so its foot rests on the baseline of the "
+            + "third one, reserves the room, and shortens the lines that stand against it. It is "
+            + "placed by the outline of the glyph rather than by its advance, so the ink sits "
+            + "flush with the margin instead of a side bearing's width inside it. ";
 
         PdfDocument document = new PdfDocument();
         document.Info.Title = "Feature";
@@ -119,47 +121,22 @@ internal sealed class MagazineDemo : PdfDemo
         double textTop = bleedHeight + 30;
         double measure = width - margin * 2;
 
-        XFont capFont = new XFont(Serif, 10 * 4, XFontStyle.Bold);
-        const string cap = "T";
-        XSize capSize = gfx.MeasureString(cap, capFont);
-
-        // The cap is drawn from its baseline, which is roughly its height below the top of
-        // the block it belongs to. Three body lines is the conventional depth and the one
-        // the height below is worked back from.
-        double capDepth = capSize.Height * 0.78;
-        gfx.DrawString(cap, capFont, XBrushes.Black, new XPoint(margin, textTop + capDepth));
-
-        XRect besideCap = new XRect(
-            margin + capSize.Width + 4, textTop, measure - capSize.Width - 4, capDepth);
-
-        // How much of the opening fits beside the cap is decided by measuring, one word at
-        // a time, rather than by counting characters and hoping. GetLayout reports what the
-        // formatter would need without drawing anything.
-        string[] words = Opening.Split(' ');
-        int taken = 0;
-        for (int count = 1; count <= words.Length; count++)
-        {
-            string candidate = string.Join(" ", words, 0, count);
-            XRect needed = formatter.GetLayout(candidate, body, XBrushes.Black,
-                new XRect(besideCap.X, besideCap.Y, besideCap.Width, double.MaxValue));
-
-            if (needed.Height > besideCap.Height)
-                break;
-
-            taken = count;
-        }
-
+        // The cap is one property. The formatter takes the first character of the text,
+        // scales it so that its foot rests on the baseline of the third line, reserves the
+        // room beside it and shortens the three lines that sit against it. The size is not
+        // given here: a depth in lines is what the surrounding text is measured in, and a
+        // size would imply a depth that is almost never a whole number of them.
+        formatter.DropCap = new XDropCap(new XFont(Serif, 10, XFontStyle.Bold), lines: 3);
         formatter.Alignment = XParagraphAlignment.Justify;
-        formatter.DrawString(string.Join(" ", words, 0, taken), body, XBrushes.Black, besideCap);
-
-        // The rest runs full width in two columns, in one call.
-        string remainder = string.Join(" ", words, taken, words.Length - taken) + " " + Body;
-
-        double columnsTop = textTop + capDepth + 8;
         formatter.Columns = 2;
         formatter.ColumnGap = 18;
-        formatter.DrawString(string.Concat(remainder, Body, Body, Body, Body, Body), body, XBrushes.Black,
-            new XRect(margin, columnsTop, measure, height - columnsTop - margin - 20));
+
+        // One call for the whole feature: the cap, the lines that clear it, and the two
+        // columns the rest of it flows down.
+        formatter.DrawString(string.Concat(Opening, Body, Body, Body, Body, Body), body,
+            XBrushes.Black, new XRect(margin, textTop, measure, height - textTop - margin - 20));
+
+        formatter.DropCap = null;
         formatter.Columns = 1;
         formatter.Alignment = XParagraphAlignment.Left;
 

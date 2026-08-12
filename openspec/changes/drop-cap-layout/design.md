@@ -98,10 +98,24 @@ A cap three lines deep has its baseline on the third line's baseline. That is th
 what makes the cap look set *into* the text rather than floating above it, and it is computable
 from the line height and the ascent the formatter already has.
 
-The cap's size follows from the depth: it is scaled so its cap height spans from the first line's
-ascent to the last line's baseline. A caller who wants a specific size instead can set the font and
-let the depth follow — but the property takes lines, because lines are what the surrounding text is
-measured in.
+The cap's size follows from the depth: it is scaled so its ink spans from the **cap height** of the
+first line to the baseline of the last. A caller who wants a specific size instead can set the font
+and let the depth follow — but the property takes lines, because lines are what the surrounding text
+is measured in.
+
+The head is the half that is easy to get wrong, and this is the second answer to it. A line is
+placed by the top of its **box**, which stands an ascent above the baseline, and the letters in that
+line reach only a **cap height** — the ascent keeps room above them for accents and for the tall
+lowercase. Hang the cap from the box and it stands clear of the letter beside it by the difference,
+which is a fifth of the body size in Liberation Sans and a third in Source Code Pro; at four times
+the body size that is a gap nobody has to measure to see. So the two heights the cap spans are
+
+```text
+first line's baseline − first line's cap height        ← the head
+last spanned line's baseline                           ← the foot
+```
+
+and neither is `lineHeight × lines`, which is the third wrong answer and matches neither end.
 
 ## Risks / Trade-offs
 
@@ -120,6 +134,35 @@ measured in.
 - **A drop cap deeper than the text is a caller error with no obvious right answer** → Draw the cap
   and let the text be short; do not throw. A page with a big letter and two words on it is visibly
   wrong in the way the caller can act on, which is the standard `fix-drawing-gaps` set.
+
+## What the per-line measure turned out to be
+
+Written down for `shape-side-wrap`, which needs the same idea and must extend this rather than
+invent a second one.
+
+```csharp
+readonly struct LineMeasure { double Start; double Width; }
+
+LineMeasure MeasureOfLineAt(double yTop, bool firstLineOfParagraph, double columnWidth, int column)
+```
+
+Both numbers are measured **from the left edge of the column**. `Width` is therefore the position of
+the line's right limit, not the room between the two — the room is `Width - Start`. That is not the
+obvious reading, and it is the one the existing code already assumed: `HorizontalAlignLine` computes
+`layoutWidth - LineIndent - totalWidth`, and the justification and ellipsis arithmetic subtract the
+indent in the same way.
+
+The consequence is worth stating plainly. **Reserving room on the left moves `Start` and leaves
+`Width` alone.** A drop cap therefore never changes `Width` at all. Reserving on the right — a shape
+with text down its left side — is the case that moves `Width`, and it has no exercise here.
+
+So two of the corrections in task group 1 are unexercised by this change and are not dead: giving the
+justified blank-width calculation and `ApplyEllipsis` the line's measure rather than the column's is
+a no-op for a left-side reservation and is load-bearing for a right-side one. `shape-side-wrap`
+is where they earn their keep, and where they want a test that reads drawn positions.
+
+The measure is carried from the layout pass to the drawing pass on `Block.LineIndent` and
+`Block.LineWidth`, because the drawing pass aligns and justifies each line a second time.
 
 ## Open Questions
 
