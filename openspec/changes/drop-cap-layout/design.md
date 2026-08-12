@@ -98,10 +98,24 @@ A cap three lines deep has its baseline on the third line's baseline. That is th
 what makes the cap look set *into* the text rather than floating above it, and it is computable
 from the line height and the ascent the formatter already has.
 
-The cap's size follows from the depth: it is scaled so its cap height spans from the first line's
-ascent to the last line's baseline. A caller who wants a specific size instead can set the font and
-let the depth follow — but the property takes lines, because lines are what the surrounding text is
-measured in.
+The cap's size follows from the depth: it is scaled so its ink spans from the **cap height** of the
+first line to the baseline of the last. A caller who wants a specific size instead can set the font
+and let the depth follow — but the property takes lines, because lines are what the surrounding text
+is measured in.
+
+The head is the half that is easy to get wrong, and this is the second answer to it. A line is
+placed by the top of its **box**, which stands an ascent above the baseline, and the letters in that
+line reach only a **cap height** — the ascent keeps room above them for accents and for the tall
+lowercase. Hang the cap from the box and it stands clear of the letter beside it by the difference,
+which is a fifth of the body size in Liberation Sans and a third in Source Code Pro; at four times
+the body size that is a gap nobody has to measure to see. So the two heights the cap spans are
+
+```text
+first line's baseline − first line's cap height        ← the head
+last spanned line's baseline                           ← the foot
+```
+
+and neither is `lineHeight × lines`, which is the third wrong answer and matches neither end.
 
 ## Risks / Trade-offs
 

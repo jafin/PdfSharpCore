@@ -25,8 +25,15 @@ This file starts at the entry below. Changes before that point are recorded only
 
   The depth is given in **lines**, not as a font size: lines are what the surrounding text is
   measured in, and a size implies a depth that is almost never a whole number of them. The formatter
-  takes the first character of the text, scales it so its foot rests on the baseline of the last
-  line it is set into, reserves the room and narrows the lines that stand against it.
+  takes the first character of the text, scales it so its head is level with the head of the letter
+  beside it and its foot rests on the baseline of the last line it is set into, reserves the room
+  and narrows the lines that stand against it.
+
+  The head is level by **cap height** rather than by the top of the line's box. A line's box reaches
+  an ascent above its baseline and the letters in it reach only a cap height, the difference being
+  the room the face keeps for accents; a cap hung from the box stands clear of the text it is set
+  into by that much, magnified by the size of the cap. A face that declares no cap height in its
+  OS/2 table gets the ascent, as it does everywhere else in the library.
 
   Placed by the glyph's **ink** where `GlobalFontSettings.GlyphOutlineProvider` is registered, so the
   cap sits flush with the margin rather than a side bearing's width inside it. Where no provider is

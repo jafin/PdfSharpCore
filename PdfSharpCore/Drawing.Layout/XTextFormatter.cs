@@ -79,6 +79,7 @@ public class XTextFormatter
             _lineSpace = _font.GetHeight(); // old: _font.GetHeight(_gfx);
             _cyAscent = _lineSpace * _font.CellAscent / _font.CellSpace;
             _cyDescent = _lineSpace * _font.CellDescent / _font.CellSpace;
+            _cyCapHeight = CapHeightOf(_font);
 
             // HACK in XTextFormatter
             _spaceWidth = _gfx.MeasureString("x x", value).Width;
@@ -89,8 +90,31 @@ public class XTextFormatter
     double _lineSpace;
     double _cyAscent;
     double _cyDescent;
+    double _cyCapHeight;
     double _spaceWidth;
     double _lineHeight;
+
+    /// <summary>
+    /// How tall a capital letter stands above the baseline in <paramref name="font"/>, in points.
+    /// </summary>
+    /// <remarks>
+    /// This, and not the ascent, is where the eye reads the top of a line of text as being. The
+    /// ascent is higher by the room the face keeps for accents and for the tall lowercase letters,
+    /// which is empty above a capital.
+    /// <para>
+    /// A face whose OS/2 table is older than <c>sCapHeight</c>, or fills it in with nonsense, gets
+    /// the ascent instead - which is what the font descriptor already substitutes, and what this
+    /// code used before there was a better number to ask for.
+    /// </para>
+    /// </remarks>
+    static double CapHeightOf(XFont font)
+    {
+        double lineSpace = font.GetHeight();
+        double ascent = lineSpace * font.CellAscent / font.CellSpace;
+        double capHeight = lineSpace * font.Metrics.CapHeight / font.CellSpace;
+
+        return capHeight > 0 && capHeight <= ascent ? capHeight : ascent;
+    }
 
     /// <summary>
     /// Gets or sets the bounding box of the layout.
@@ -606,9 +630,9 @@ public class XTextFormatter
     /// the text and line height in hand. Answers null when there is no cap to draw.
     /// </summary>
     /// <remarks>
-    /// The cap is scaled so that its ink spans from the top of the first line to the baseline of
-    /// the last line it is set into, which is what makes it look set <i>into</i> the text rather
-    /// than floating above it.
+    /// The cap is scaled so that its ink spans from the cap height of the first line to the
+    /// baseline of the last line it is set into, which is what makes it look set <i>into</i> the
+    /// text rather than floating above it.
     /// </remarks>
     DropCapMetrics MeasureDropCap(string text)
     {
@@ -619,8 +643,16 @@ public class XTextFormatter
         if (char.IsWhiteSpace(character[0]))
             return null;
 
-        // From the top of the first line down to the baseline of the last reserved one.
-        double depth = (DropCap.Lines - 1) * (_lineHeight + LineGap) + _cyAscent;
+        // The foot of the cap goes on the baseline of the last line it is set into. Lines are
+        // placed by the top of their box and the baseline sits an ascent below that.
+        double baseline = (DropCap.Lines - 1) * (_lineHeight + LineGap) + _cyAscent;
+
+        // The head goes on the cap height of the first line - the top of the letter standing
+        // beside it, not the top of the box that letter is set in. The two differ by the room the
+        // face keeps above a capital for accents, and a cap hung from the box stands that much
+        // clear of its neighbour: about a fifth of an em in Liberation Sans, which at the size a
+        // cap is set to is a gap nobody has to measure to see.
+        double depth = baseline - (_cyAscent - _cyCapHeight);
         if (depth <= 0)
             return null;
 
@@ -645,7 +677,7 @@ public class XTextFormatter
             Character = character,
             Font = capFont,
             InkOffset = ink.X,
-            Baseline = depth,
+            Baseline = baseline,
             Reserved = new XRect(0, 0, ink.Width + gutter,
                 (DropCap.Lines - 1) * (_lineHeight + LineGap) + _lineHeight),
         };
@@ -672,10 +704,13 @@ public class XTextFormatter
         Fonts.IGlyphOutlineProvider provider = OutlineProviderOrNull();
         if (provider == null)
         {
-            // Advance and ascent: the whole box the font would set the letter in.
+            // The advance across, and the cap height down: the nearest the font's own metrics come
+            // to the box a capital's ink fills. The ascent would be the whole box the letter is set
+            // in, which is taller than the letter by the room kept above it, and scaling that box
+            // to the cap's depth sets the letter itself short of the depth by the same amount.
             XSize measured = _gfx.MeasureString(text, font);
-            double ascent = font.GetHeight() * font.CellAscent / font.CellSpace;
-            return new XRect(0, -ascent, measured.Width, ascent);
+            double capHeight = CapHeightOf(font);
+            return new XRect(0, -capHeight, measured.Width, capHeight);
         }
 
         double left = double.MaxValue, right = double.MinValue;

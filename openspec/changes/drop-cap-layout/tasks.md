@@ -33,8 +33,12 @@ leave every existing document identical. Groups 2 and 3 are the feature.
 - [x] 2.2 Reserve the rectangle — the cap's width plus the gutter, by the depth in line heights —
       and narrow every line whose **box** overlaps it. By the box and not the baseline: a line whose
       baseline falls below the reserved depth still has ascenders that would collide.
-- [x] 2.3 Draw the cap with its foot on the last reserved line's baseline, sized so its cap height
-      spans from the first line's ascent to that baseline.
+- [x] 2.3 Draw the cap with its foot on the last reserved line's baseline, sized so its ink spans
+      from the first line's **cap height** to that baseline. Written first as "from the first line's
+      ascent", which is the top of the line's box rather than the top of the letters in it, and set
+      the cap two points clear of the text it stands beside at a body size of ten. The number to
+      hang it from is `firstLineBaseline - Metrics.CapHeight`, and the fallback for a face that
+      does not declare one is the ascent, which is what the descriptor already substitutes.
 - [x] 2.4 Take the cap's left edge and reserved width from `XGraphicsPath.AddString` where
       `GlobalFontSettings.GlyphOutlineProvider` is registered, and from `MeasureString` where it is
       not. **Test the unregistered path as its own case**: a drop cap that needs a backend seam
@@ -50,6 +54,15 @@ leave every existing document identical. Groups 2 and 3 are the feature.
       sans. The eye caught what looked like three lines starting at different places; measuring the
       drawn positions showed all three at 72.032 and the rest at 40, and the appearance was the
       cap's crossbar overhanging the text it sits beside.
+- [x] 2.8 Hang the cap by the head as well as by the foot. 2.3 sized it from the top of the first
+      line's *box* and the letter stood two points clear of the `h` beside it at a body size of
+      ten - the room the face keeps above its capitals, magnified four times by the size a cap is
+      set to. It is sized from the first line's cap height now, and the fallback for a face with no
+      outline provider is the declared cap height rather than the ascent, or the letter would land
+      a quarter of its own height short in the other direction. Rasterized at 600dpi and measured:
+      the cap's ink runs 22.20pt to 51.96pt against a first-line cap height of 22.17 and a third
+      baseline of 52.05, and the only thing now standing above the cap is the ascender of the `h`,
+      which is where an ascender belongs.
 
 ## 3. Make the demo tell the truth
 

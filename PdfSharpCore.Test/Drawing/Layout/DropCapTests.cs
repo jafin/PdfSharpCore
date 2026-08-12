@@ -53,6 +53,18 @@ public class DropCapTests
     /// <summary>The glyph a space is in the face the tests are pinned to.</summary>
     const int SpaceGlyph = 3;
 
+    /// <summary>The face and size the body text is set in unless a test says otherwise.</summary>
+    const string BodyFamily = "Arial";
+
+    const double BodySize = 10;
+
+    /// <summary>
+    ///   How far a placement may be out before the eye would call it misaligned. Wide enough to
+    ///   absorb the rounding the content stream writes numbers with, narrow enough that the two
+    ///   points a cap hung from the ascent stands clear by would fail it many times over.
+    /// </summary>
+    const double Tolerance = 0.1;
+
     // ----- the room the cap reserves --------------------------------------------------------------
 
     [Fact]
@@ -128,6 +140,74 @@ public class DropCapTests
         cap.Should().BeApproximately(bodyBaselines[2], 0.01, "the cap's foot is on the third line");
     }
 
+    // ----- where the cap sits against the text ------------------------------------------------------
+
+    [Theory]
+    [InlineData("T", 2)]
+    [InlineData("T", 3)]
+    [InlineData("H", 2)]
+    [InlineData("H", 3)]
+    [InlineData("A", 3)]
+    [InlineData("M", 3)]
+    [InlineData("M", 4)]
+    public void TheCapsHeadIsLevelWithTheHeadOfTheTextAndItsFootWithTheLastLinesBaseline(
+        string initial, int depth)
+    {
+        var cap = GeometryOf(ProseBeginningWith(initial), depth, initial);
+
+        cap.InkTop.Should().BeApproximately(cap.TextTop, Tolerance,
+            "the top of the cap's ink is level with the top of the letter standing beside it");
+        cap.Foot.Should().BeApproximately(cap.LastSpannedBaseline, Tolerance,
+            "the foot of the cap rests on the baseline of the last line it is set into");
+    }
+
+    [Fact]
+    public void TheCapIsHungFromTheHeadOfTheTextRatherThanTheTopOfTheLineBox()
+    {
+        // The regression this pins. A line's box reaches an ascent above its baseline and the
+        // letters in it reach only a cap height, so a cap hung from the box stands clear of the
+        // text it is set into by the difference - two points here, at the size of a body letter,
+        // and the cap is drawn four times that size.
+        var cap = GeometryOf(Prose, 3);
+
+        cap.InkTop.Should().BeLessThan(cap.FirstLineBoxTop - 1.5,
+            "the cap does not reach the top of the first line's box");
+        (cap.FirstLineBoxTop - cap.TextTop).Should().BeGreaterThan(1.5,
+            "and the two are far enough apart in this face for the distinction to be worth making");
+    }
+
+    [Theory]
+    [InlineData(BodyFamily, BodyFamily)]
+    [InlineData(PinnedFontResolver.CffFamilyName, PinnedFontResolver.CffFamilyName)]
+    [InlineData(BodyFamily, PinnedFontResolver.CffFamilyName)]
+    [InlineData(PinnedFontResolver.CffFamilyName, BodyFamily)]
+    public void TheCapIsHungFromTheBodysCapHeightWhicheverFaceEitherIsSetIn(string body, string capFamily)
+    {
+        // Two faces whose ascent stands a different distance above their capitals - a fifth of the
+        // body size in one and a third in the other - and the cap set in each of them against a
+        // body set in each of them. What decides where the head of the cap goes is the *body's*
+        // cap height; what has to reach it is the ink of the *cap's* glyph. Setting them in
+        // different faces is what tells the two apart.
+        var cap = GeometryOf(ProseBeginningWith("T"), 3, "T", body, capFamily);
+
+        cap.InkTop.Should().BeApproximately(cap.TextTop, Tolerance);
+        cap.Foot.Should().BeApproximately(cap.LastSpannedBaseline, Tolerance);
+    }
+
+    [Theory]
+    [InlineData(BodyFamily)]
+    [InlineData(PinnedFontResolver.CffFamilyName)]
+    public void TheFacesTestedAgainstEachHaveAnAscentWellAboveTheirCapitals(string family)
+    {
+        // Without this the alignment tests above would pass just as well on a face whose cap
+        // height is its ascent, where hanging the cap from either gives the same answer and
+        // nothing has been tested.
+        var font = new XFont(family, BodySize);
+
+        (AscentOf(font) - CapHeightOf(font)).Should().BeGreaterThan(1.5,
+            "the distinction only shows in a face that keeps room above its capitals");
+    }
+
     [Fact]
     public void ADeeperCapIsSetLargerAndReservesMoreRoom()
     {
@@ -157,6 +237,25 @@ public class DropCapTests
         var loose = BodyLinesOf(Prose, cap: 3, arrange: f => f.DropCap.Gutter = 20)[0].X;
 
         (loose - tight).Should().BeApproximately(20, 0.01);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(6)]
+    [InlineData(20)]
+    public void TheRoomLeftBetweenTheCapsInkAndTheTextIsTheGutterAndNothingElse(double gutter)
+    {
+        // The horizontal half of the placement, pinned beside the vertical one: resizing the cap
+        // moves its right edge, and the gap has to follow it rather than stay where the old size
+        // left it.
+        var page = Render(ProseBeginningWith("T"), 3, arrange: f => f.DropCap.Gutter = gutter);
+        var positions = TextBaselines.PositionsOf(page);
+        var capFont = new XFont(BodyFamily, FontSizesOn(page)[0]);
+
+        var inkRight = positions[0].X + InkOf("T", capFont).Right;
+
+        (positions[1].X - inkRight).Should().BeApproximately(gutter, Tolerance,
+            "the text begins a gutter's width past the right edge of the cap's ink");
     }
 
     // ----- justification and truncation against the narrowed measure --------------------------------
@@ -301,17 +400,39 @@ public class DropCapTests
     }
 
     [Fact]
-    public void MeasuringByInkSetsTheCapLargerThanMeasuringByAdvance()
+    public void TheCapsHeadIsLevelWithTheTextEvenWhenItWasSizedWithoutOutlines()
     {
-        var byInk = FontSizesOn(Render(Prose, cap: 3))[0];
+        // Rendered with no provider registered, so the cap is sized from the face's declared cap
+        // height rather than from the glyph's ink - and then measured against the ink anyway,
+        // with the provider back. Sizing the cap by the ascent, as the fallback once did, leaves
+        // the letter a quarter of its own height short of the line it should reach.
+        PdfPage page = null;
+        WithoutOutlineProvider(() => page = Render(ProseBeginningWith("T"), cap: 3));
 
-        double byAdvance = 0;
-        WithoutOutlineProvider(() => byAdvance = FontSizesOn(Render(Prose, cap: 3))[0]);
+        var cap = GeometryOf(page, "T", 3, new XFont(BodyFamily, BodySize), BodyFamily);
 
-        // A capital does not reach the font's ascender, so taking the ascent for the letter's
-        // height under-sizes the cap. That is the inaccuracy the fallback accepts, and it is
-        // recorded here rather than left to be discovered.
-        byInk.Should().BeGreaterThan(byAdvance);
+        cap.InkTop.Should().BeApproximately(cap.TextTop, Tolerance);
+        cap.Foot.Should().BeApproximately(cap.LastSpannedBaseline, Tolerance);
+    }
+
+    [Fact]
+    public void MeasuringByInkAndByMetricDifferInTheInsetRatherThanTheSize()
+    {
+        var byInk = Render(ProseBeginningWith("T"), cap: 3);
+
+        PdfPage byAdvance = null;
+        WithoutOutlineProvider(() => byAdvance = Render(ProseBeginningWith("T"), cap: 3));
+
+        // Both routes hang the cap from the same two lines, so both arrive at the same size - the
+        // declared cap height of this face is the height of its 'T' to within a rounding. What the
+        // fallback cannot know is the left side bearing, so it sets the pen on the margin and the
+        // ink a bearing's width inside it.
+        FontSizesOn(byInk)[0].Should().BeApproximately(FontSizesOn(byAdvance)[0], 0.5);
+
+        TextBaselines.PositionsOf(byAdvance)[0].X.Should().BeApproximately(Area.X, Tolerance,
+            "with no outlines to read, the pen is all there is to place");
+        TextBaselines.PositionsOf(byInk)[0].X.Should().BeLessThan(Area.X - Tolerance,
+            "with outlines, the pen moves left so that the ink lands on the margin");
     }
 
     static void WithoutOutlineProvider(Action test)
@@ -346,7 +467,8 @@ public class DropCapTests
         return formatter.GetLayout(text, new XFont("Arial", 10), XBrushes.Black, Area);
     }
 
-    static PdfPage Render(string text, int cap, XRect? area = null, Action<XTextFormatter> arrange = null)
+    static PdfPage Render(string text, int cap, XRect? area = null, Action<XTextFormatter> arrange = null,
+        string body = BodyFamily, string capFamily = null)
     {
         var document = new PdfDocument();
         var page = document.AddPage();
@@ -354,9 +476,9 @@ public class DropCapTests
         {
             var formatter = new XTextFormatter(gfx);
             if (cap > 0)
-                formatter.DropCap = new XDropCap(new XFont("Arial", 12), cap);
+                formatter.DropCap = new XDropCap(new XFont(capFamily ?? body, 12), cap);
             arrange?.Invoke(formatter);
-            formatter.DrawString(text, new XFont("Arial", 10), XBrushes.Black, area ?? Area);
+            formatter.DrawString(text, new XFont(body, BodySize), XBrushes.Black, area ?? Area);
         }
         return page;
     }
@@ -415,4 +537,110 @@ public class DropCapTests
             .ToList();
     }
 
+    // ----- reading the vertical placement off a rendered page --------------------------------------
+
+    /// <summary>The prose, with its first letter swapped for the one the cap is to be set in.</summary>
+    static string ProseBeginningWith(string initial) => initial + Prose.Substring(1);
+
+    /// <summary>
+    ///   The four heights a cap's vertical placement is judged by, in points up from the foot of
+    ///   the page as PDF measures them.
+    /// </summary>
+    sealed class CapGeometry
+    {
+        /// <summary>The top of the cap glyph's ink.</summary>
+        internal double InkTop;
+
+        /// <summary>The baseline the cap is drawn on.</summary>
+        internal double Foot;
+
+        /// <summary>
+        ///   The cap height of the first line of body text: where the eye reads the top of the
+        ///   text as being, and where the head of the cap belongs.
+        /// </summary>
+        internal double TextTop;
+
+        /// <summary>
+        ///   The top of the first line's box, an ascent above its baseline. Higher than
+        ///   <see cref="TextTop"/> by the room the face keeps above its capitals, and the line the
+        ///   cap used to be hung from.
+        /// </summary>
+        internal double FirstLineBoxTop;
+
+        /// <summary>The baseline of the last line the cap is set into.</summary>
+        internal double LastSpannedBaseline;
+    }
+
+    static CapGeometry GeometryOf(string text, int depth, string initial = "T",
+        string body = BodyFamily, string capFamily = null)
+    {
+        return GeometryOf(Render(text, depth, body: body, capFamily: capFamily), initial, depth,
+            new XFont(body, BodySize), capFamily ?? body);
+    }
+
+    /// <summary>
+    ///   Reads the placement back off a drawn page: the cap's pen and size from the content, the
+    ///   glyph's ink from the outlines of the face it was set in, and the body's lines from the
+    ///   baselines the runs after it were drawn on.
+    /// </summary>
+    /// <remarks>
+    ///   The font metrics are read here from the face's own tables rather than through the code
+    ///   that places the cap, so that the two have to agree rather than being the same arithmetic
+    ///   written twice.
+    /// </remarks>
+    static CapGeometry GeometryOf(PdfPage page, string initial, int depth, XFont bodyFont, string capFamily)
+    {
+        var positions = TextBaselines.PositionsOf(page);
+        var capFont = new XFont(capFamily, FontSizesOn(page)[0]);
+
+        // The cap is drawn first and the body follows it, one run or more per line.
+        var bodyBaselines = positions.Skip(1).Select(position => Math.Round(position.Y, 3))
+            .Distinct().OrderByDescending(y => y).ToList();
+
+        bodyBaselines.Count.Should().BeGreaterThanOrEqualTo(depth,
+            "there must be as many lines as the cap is deep for the placement to be readable");
+
+        return new CapGeometry
+        {
+            Foot = positions[0].Y,
+            InkTop = positions[0].Y - InkOf(initial, capFont).Top,
+            TextTop = bodyBaselines[0] + CapHeightOf(bodyFont),
+            FirstLineBoxTop = bodyBaselines[0] + AscentOf(bodyFont),
+            LastSpannedBaseline = bodyBaselines[depth - 1],
+        };
+    }
+
+    /// <summary>
+    ///   The box the glyph's ink fills, relative to the pen, with y measured down from the
+    ///   baseline as the formatter measures it.
+    /// </summary>
+    static XRect InkOf(string text, XFont font)
+    {
+        double left = double.MaxValue, right = double.MinValue;
+        double top = double.MinValue, bottom = double.MaxValue;
+
+        foreach (var outline in GlobalFontSettings.GlyphOutlineProvider.GetOutlines(text,
+                     font.FontFamily.Name, (font.Style & XFontStyle.Bold) != 0,
+                     (font.Style & XFontStyle.Italic) != 0, font.Size))
+        {
+            foreach (var segment in outline.Segments)
+            {
+                if (segment.Kind == XGlyphSegmentKind.Close)
+                    continue;
+
+                left = Math.Min(left, segment.End.X);
+                right = Math.Max(right, segment.End.X);
+                top = Math.Max(top, segment.End.Y);
+                bottom = Math.Min(bottom, segment.End.Y);
+            }
+        }
+
+        return new XRect(left, -top, right - left, top - bottom);
+    }
+
+    /// <summary>How tall a capital stands above the baseline, in points.</summary>
+    static double CapHeightOf(XFont font) => font.GetHeight() * font.Metrics.CapHeight / font.CellSpace;
+
+    /// <summary>How tall the line's box stands above the baseline, in points.</summary>
+    static double AscentOf(XFont font) => font.GetHeight() * font.CellAscent / font.CellSpace;
 }
