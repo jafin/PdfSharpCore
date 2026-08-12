@@ -25,6 +25,7 @@ public static class DemoRegistry
         new FontsDemo(),
         new OrientationDemo(),
         new ImagesDemo(),
+        new TextDemo(),
         new LayoutDemo(),
         new PageResizeDemo(),
     };
