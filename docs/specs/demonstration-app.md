@@ -9,8 +9,8 @@ before the work rather than after it, so the status column tracks progress.
 | 1 | A command line that runs one demo, several, or all of them | done |
 | 2 | Fonts that are the same on every machine | done |
 | 3 | The source of each demo, printed from the file that ran | done |
-| 4 | Eleven demos, one PDF each, covering the drawing surface | done |
-| 5 | A smoke test so a broken demo fails the build | done, 24 tests |
+| 4 | Twelve demos, one PDF each, covering the drawing surface | done |
+| 5 | A smoke test so a broken demo fails the build | done, 26 tests |
 
 ---
 
@@ -164,7 +164,7 @@ costs about 3MB inside a binary that is never packaged.
 
 ## Item 4 — the demos
 
-Eleven, one PDF each.
+Twelve, one PDF each.
 
 | name | shows |
 |---|---|
@@ -176,6 +176,7 @@ Eleven, one PDF each.
 | `Layout` | `XTextFormatter` — wrapping, the four alignments including justified, columns, indents and gaps, ellipsis truncation, rotation, and `GetLayout` measuring a box before it is drawn |
 | `Tables` | MigraDoc — repeated header rows, merged cells, shading, borders, a totals row |
 | `PageResize` | an A4 document with a link, shrunk to A5, content and link and destination moving together |
+| `Bleed` | `PdfPage.TrimMargins` — a photograph drawn from negative coordinates onto a sheet larger than the page, with the trim edge marked and the five page boxes listed |
 | `Invoice` | MigraDoc — styles, header and footer page fields, tab stops, line items, totals |
 | `Newspaper` | masthead, a headline across the measure, five columns of body, a sidebar, a captioned image |
 | `Magazine` | a full-bleed image under a gradient scrim, a title built with `AddString`, a slanted pull-quote, a drop cap |
@@ -233,6 +234,33 @@ conformant reader at all.** An RGB shading's ramp carried a fourth value, the co
 is not a colour component — and Ghostscript answers a function wider than its colour space by
 painting nothing. That is why the scrim above was built from solid fills rather than from a gradient
 that merely looked wrong.
+
+### And one that worked all along
+
+`Magazine`'s photograph is described above as "bled off three edges". It is not, in the sense a
+printer means: it runs to the edge of an ordinary page, so a cut landing a fraction inside it leaves
+a white line. A real bleed needs a sheet larger than the page and artwork drawn past the page's edge
+onto it.
+
+`PdfPage.TrimMargins` does exactly that, and always has. It moves the drawing origin to the trimmed
+page's corner, grows the sheet by the margins, and writes all five page boxes on save. It had **no
+test of any kind** and no demo, and nothing in the documentation said it existed — so a caller
+wanting a bleed had no way to find out that the library already did it.
+
+This is the same problem as the five above, arrived at from the other side. There, a feature
+silently did nothing. Here, a feature silently did the right thing and nobody knew. Both are one
+refactor away from being a broken feature nobody notices, and the demo is what makes the difference
+in each case: `Bleed` exists so that the feature is discoverable, and the tests behind it exist so
+that it stays working.
+
+Writing those tests found three defects in it, all sharing one cause — `PdfPage.PrepareForSave`
+derived the sheet from `Width`, and `Width` reads the media box it then overwrote. A trimmed page
+therefore grew every time it was saved, stopped reporting its own size once it had been, and put
+`/TrimBox` on the wrong edges whenever the top and bottom margins differed. All three are fixed, and
+the tests that recorded them now assert the fix. A fourth thing the tests made plain was that
+`/BleedBox` was written equal to `/MediaBox`, leaving nowhere on the sheet for a crop mark; the boxes
+now nest properly and the marks are drawn. See
+`openspec/changes/cover-page-bleed/specs/page-bleed/spec.md`.
 
 ## Item 5 — the smoke test
 

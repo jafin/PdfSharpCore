@@ -1408,8 +1408,11 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 XPoint trimOffset = new XPoint();
                 if (_page != null && _page.TrimMargins.AreSet)
                 {
-                    PageHeightPt += _page.TrimMargins.Top.Point + _page.TrimMargins.Bottom.Point;
-                    trimOffset = new XPoint(_page.TrimMargins.Left.Point, _page.TrimMargins.Top.Point);
+                    // The sheet is the page plus the bleed plus the room for printer's marks, and
+                    // the origin is the corner of the page rather than of the sheet. Both come
+                    // from the page so that this and XGraphics.Initialize cannot disagree.
+                    PageHeightPt += _page.SheetExtraHeight;
+                    trimOffset = _page.SheetOffset;
                 }
 
                 // Scale with page units.
