@@ -15,7 +15,7 @@ public sealed class DomValueModelGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValuesProvider<(ParsedMember? Member, Diagnostic? Error)> members = context.SyntaxProvider
+        IncrementalValuesProvider<(ParsedMember? Member, DiagnosticInfo? Error)> members = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 Parser.DvAttribute,
                 predicate: static (node, _) => node is VariableDeclaratorSyntax or PropertyDeclarationSyntax,
@@ -33,8 +33,10 @@ public sealed class DomValueModelGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(combined, static (spc, pair) =>
         {
-            foreach (Diagnostic error in pair.Right.Select(m => m.Error).OfType<Diagnostic>())
-                spc.ReportDiagnostic(error);
+            // Back to a Diagnostic only here. Everything upstream of this point is cached, and a
+            // Diagnostic holds a Location, which holds the syntax tree it came from.
+            foreach (DiagnosticInfo error in pair.Right.Select(m => m.Error).OfType<DiagnosticInfo>())
+                spc.ReportDiagnostic(error.ToDiagnostic());
 
             IEnumerable<ParsedType> allTypes = pair.Left.OfType<ParsedType>();
             IEnumerable<ParsedMember> allMembers = pair.Right.Select(m => m.Member).OfType<ParsedMember>();
