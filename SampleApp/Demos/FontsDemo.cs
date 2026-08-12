@@ -6,7 +6,7 @@ using SampleApp.Infrastructure;
 namespace SampleApp.Demos;
 
 /// <summary>
-///   The three families the app carries, the four styles of each, a size ramp, and the seven ways
+///   The three families the app carries, the four styles of each, a size ramp, and the six ways
 ///   a line can be drawn under or through a word.
 /// </summary>
 internal sealed class FontsDemo : PdfDemo
@@ -22,7 +22,7 @@ internal sealed class FontsDemo : PdfDemo
         "Three families: a sans, a serif and a monospace",
         "Real bold and italic beside simulated ones",
         "A size ramp placed by MeasureString rather than by a fixed step",
-        "The seven XTextDecoration styles, and a decoration in its own colour",
+        "The six XTextDecoration line styles, and a decoration in its own colour",
     };
 
     public override int PageCount => 2;

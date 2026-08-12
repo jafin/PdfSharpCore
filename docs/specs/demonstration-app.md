@@ -6,11 +6,11 @@ before the work rather than after it, so the status column tracks progress.
 
 | item | what | status |
 |---|---|---|
-| 1 | A command line that runs one demo, several, or all of them | to build |
-| 2 | Fonts that are the same on every machine | to build |
-| 3 | The source of each demo, printed from the file that ran | to build |
-| 4 | Eleven demos, one PDF each, covering the drawing surface | to build |
-| 5 | A smoke test so a broken demo fails the build | to build |
+| 1 | A command line that runs one demo, several, or all of them | done |
+| 2 | Fonts that are the same on every machine | done |
+| 3 | The source of each demo, printed from the file that ran | done |
+| 4 | Eleven demos, one PDF each, covering the drawing surface | done |
+| 5 | A smoke test so a broken demo fails the build | done, 24 tests |
 
 ---
 
@@ -164,7 +164,7 @@ Eleven, one PDF each.
 | name | shows |
 |---|---|
 | `HelloWorld` | the minimum document, and every field of `PdfDocument.Info` |
-| `Fonts` | three families × four styles, a size ramp, the seven `XTextDecoration` styles, simulated versus real bold and italic |
+| `Fonts` | three families × four styles, a size ramp, the six `XTextDecoration` line styles, simulated versus real bold and italic |
 | `Orientation` | portrait and landscape, A3/A4/A6/Letter/Legal captioned with their size in millimetres and points, and a page with `Rotate` set |
 | `Images` | one JPEG at natural size, half, double, stretched out of proportion, letterboxed to fit, centre-cropped, and rotated |
 | `Text` | colour through RGB, CMYK and grey; rotation; word, character and horizontal spacing; fill against stroke against both; text rise; baseline alignment; web and named links |
@@ -172,8 +172,8 @@ Eleven, one PDF each.
 | `Tables` | MigraDoc — repeated header rows, merged cells, shading, borders, a totals row |
 | `PageResize` | an A4 document with a link, shrunk to A5, content and link and destination moving together |
 | `Invoice` | MigraDoc — styles, header and footer page fields, tab stops, line items, totals |
-| `Newspaper` | masthead, a headline across the measure, four columns of body, a sidebar, a captioned image |
-| `Magazine` | a full-bleed image under a gradient scrim, a display title, a rotated pull-quote, a drop cap |
+| `Newspaper` | masthead, a headline across the measure, five columns of body, a sidebar, a captioned image |
+| `Magazine` | a full-bleed image under a scrim, a display title, a slanted pull-quote, a drop cap |
 
 `Layout` and `PageResize` are where the two existing samples end up. Neither is deleted; both are
 given a name, a description and a file of their own.
@@ -197,6 +197,22 @@ Worth knowing before writing a demo that promises more than exists:
   should imply otherwise.
 - `XGraphics.DrawString` does not wrap, and draws `\n` literally. Wrapping is `XTextFormatter`'s job
   and the demos should not blur the two.
+
+Four more turned up while building, each of which had a demo claiming something the library does
+not do. All four are now demonstrated the way that works, and say why on the page:
+
+- **A gradient carries no transparency.** `PdfShading` writes `/C0` and `/C1` and no soft mask, so a
+  gradient from a transparent colour to an opaque one renders as a flat opaque band. Translucent
+  *solid* fills do work, so `Magazine` builds its scrim from a hundred and forty of them.
+- **`XGraphicsPath.AddString` is not implemented.** It does not throw — it reports through
+  `DiagnosticsHelper` and draws nothing, so a title built that way silently disappears. `Magazine`
+  strokes its title with a pen instead, which is rendering mode 1 and does work.
+- **`XLineAlignment.BaseLine` demands a zero-height rectangle.** Passing a height throws rather than
+  being ignored, because there is nothing to align the text within when the baseline is the anchor.
+- **A repeated table heading must start at row zero.** `TableRenderer.CalcLastHeaderRow` walks from
+  the first row and stops at the first without `HeadingFormat`, so the heading is whatever unbroken
+  run of rows begins the table. A title band above the column names ends the run before it starts,
+  and nothing repeats at all.
 
 ## Item 5 — the smoke test
 
