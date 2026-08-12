@@ -32,10 +32,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.ComponentModel;
+using System.Text;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Annotations;
+using PdfSharpCore.Pdf.Internal;
 
 namespace PdfSharpCore.Pdf;
 
@@ -338,8 +340,48 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     }
 
     /// <summary>
-    /// Gets or sets the trim margins.
+    /// Gets or sets the trim margins: how much sheet there is outside the page, for artwork that
+    /// has to run past the edge of the paper.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Setting a margin does three things. The origin an <see cref="Drawing.XGraphics"/> draws in
+    /// moves to the top-left corner of the <b>trimmed</b> page, so a caller who never draws outside
+    /// it writes exactly the same code as on a page with no margin at all, and a caller who wants a
+    /// bleed reaches past the origin with negative coordinates. The sheet written to the file grows
+    /// by the margins - <see cref="Width"/> and <see cref="Height"/> go on reporting the trimmed
+    /// page while the document is being built. And saving writes all five page boxes rather than
+    /// <c>/MediaBox</c> alone: <c>/MediaBox</c>, <c>/CropBox</c> and <c>/BleedBox</c> are the whole
+    /// sheet, and <c>/TrimBox</c> and <c>/ArtBox</c> are the sheet inset by the margins, which is
+    /// where a guillotine cuts.
+    /// </para>
+    /// <para>
+    /// A page with no margin set is untouched: none of the extra boxes is written, so the whole
+    /// feature is invisible to every document that does not ask for it.
+    /// </para>
+    /// <para>
+    /// <b>The page must be drawn in points.</b> An <see cref="Drawing.XGraphics"/> opened on a
+    /// trimmed page with any other <see cref="Drawing.XGraphics.PageUnit"/> asserts in a debug
+    /// build and places the origin wrongly in a release one; the offset is applied after the unit
+    /// scale rather than through it.
+    /// </para>
+    /// <para>
+    /// <b>Save the document once.</b> The sheet is derived from <see cref="Width"/>, which is the
+    /// media box that saving then overwrites, so saving a second time adds the margins again. This
+    /// is a known defect rather than an intention.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// A photograph bled 3mm off the top-left corner of an A5 page:
+    /// <code>
+    /// page.Size = PageSize.A5;
+    /// page.TrimMargins.All = XUnit.FromMillimeter(3);
+    ///
+    /// XGraphics gfx = XGraphics.FromPdfPage(page);
+    /// double bleed = XUnit.FromMillimeter(3).Point;
+    /// gfx.DrawImage(photograph, -bleed, -bleed, page.Width.Point + 2 * bleed, 300);
+    /// </code>
+    /// </example>
     public TrimMargins TrimMargins
     {
         get
@@ -366,13 +408,84 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     TrimMargins _trimMargins = new();
 
     /// <summary>
+    /// Gets or sets the margins outside the bleed: the room on the sheet for printer's marks, and
+    /// the switch that decides whether crop marks are drawn there.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Five millimetres on each edge by default, which is the room a press wants and is enough for
+    /// the eight crop marks the library draws into it. It applies only to a page that has
+    /// <see cref="TrimMargins"/> set - a page with no bleed is a page going nowhere near a
+    /// guillotine, and nothing about it changes.
+    /// </para>
+    /// <para>
+    /// Setting it to zero takes the room away and, with it, the marks. That is also the setting
+    /// that reproduces the boxes this library wrote before crop marks existed, for a caller whose
+    /// downstream tooling expects them.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="DrawCropMarks()"/>
+    public TrimMargins MarkMargins
+    {
+        get => _markMargins;
+        set
+        {
+            if (value != null)
+            {
+                _markMargins.Left = value.Left;
+                _markMargins.Right = value.Right;
+                _markMargins.Top = value.Top;
+                _markMargins.Bottom = value.Bottom;
+            }
+            else
+                _markMargins.All = 0;
+        }
+    }
+    readonly TrimMargins _markMargins = new() { All = XUnit.FromMillimeter(5) };
+
+    /// <summary>
+    /// The distance from the corner of the sheet to the corner of the trimmed page: the bleed,
+    /// plus the room left outside it for printer's marks.
+    /// </summary>
+    /// <remarks>
+    /// Read by both the things that place the drawing origin - <c>XGraphics.Initialize</c> and
+    /// <c>XGraphicsPdfRenderer.BeginPage</c> - so that the two cannot come to different answers.
+    /// </remarks>
+    internal XPoint SheetOffset => new XPoint(
+        _markMargins.Left.Point + _trimMargins.Left.Point,
+        _markMargins.Top.Point + _trimMargins.Top.Point);
+
+    /// <summary>
+    /// How much taller the sheet is than the page that will be cut out of it.
+    /// </summary>
+    internal double SheetExtraHeight =>
+        _markMargins.Top.Point + _trimMargins.Top.Point +
+        _markMargins.Bottom.Point + _trimMargins.Bottom.Point;
+
+    /// <summary>
+    /// The size the page was asked to be, remembered before saving grows the media box into the
+    /// sheet. Null until then, and null again whenever the page is resized.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Width"/> reads the media box, and saving overwrites the media box with the
+    /// sheet. Without this the page would report the sheet ever afterwards, and - worse - a second
+    /// save would take the sheet for the page and add the margins to it all over again.
+    /// </remarks>
+    XSize? _trimmedSize;
+
+    /// <summary>
     /// Gets or sets the media box directly. XGrahics is not prepared to work with a media box
     /// with an origin other than (0,0).
     /// </summary>
     public PdfRectangle MediaBox
     {
         get => Elements.GetRectangle(Keys.MediaBox, true);
-        set => Elements.SetRectangle(Keys.MediaBox, value);
+        set
+        {
+            // Whatever the page was asked to be, it is not that any more.
+            _trimmedSize = null;
+            Elements.SetRectangle(Keys.MediaBox, value);
+        }
     }
 
     /// <summary>
@@ -419,6 +532,12 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     {
         get
         {
+            // The page a caller asked for, where saving has since grown the media box into a
+            // sheet larger than it. Trimming does not resize the page; it puts more paper
+            // around it.
+            if (_trimmedSize.HasValue)
+                return _trimmedSize.Value.Height;
+
             PdfRectangle rect = MediaBox;
             return VisibleSizeIsTurned ? rect.Width : rect.Height;
         }
@@ -443,6 +562,9 @@ public sealed class PdfPage : PdfDictionary, IContentStream
     {
         get
         {
+            if (_trimmedSize.HasValue)
+                return _trimmedSize.Value.Width;
+
             PdfRectangle rect = MediaBox;
             return VisibleSizeIsTurned ? rect.Height : rect.Width;
         }
@@ -1040,27 +1162,152 @@ public sealed class PdfPage : PdfDictionary, IContentStream
         RemoveEmptyContentStreams();
 
         if (_trimMargins.AreSet)
+            WriteSheetBoxes();
+    }
+
+    /// <summary>
+    /// Grows the page into the sheet it will be printed on and writes the five boxes that say
+    /// which part of that sheet is what.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The three areas nest, outermost first: the <b>sheet</b> is what goes through the press;
+    /// the <b>bleed</b> is how far the artwork may run, and everything between it and the sheet
+    /// edge is room for printer's marks; the <b>trim</b> is where the guillotine cuts, and is the
+    /// page the caller asked for. So <c>/MediaBox ⊇ /BleedBox ⊇ /TrimBox</c>, which is the
+    /// nesting the PDF specification describes and which this library did not used to produce -
+    /// it wrote <c>/BleedBox</c> equal to <c>/MediaBox</c>, leaving nowhere for a mark to go.
+    /// </para>
+    /// <para>
+    /// Y1 is the <i>bottom</i> edge of a PDF rectangle. The bottom margins therefore go into Y1
+    /// and the top margins come off Y2, which is the way round the arithmetic here did not use to
+    /// have them. No page with an even margin could show the difference.
+    /// </para>
+    /// </remarks>
+    void WriteSheetBoxes()
+    {
+        // Remembered before the media box is overwritten, because Width reads the media box and
+        // there would otherwise be nothing left to derive the sheet from - a second save would
+        // take the sheet for the page and add the margins to it again.
+        _trimmedSize ??= new XSize(Width.Point, Height.Point);
+
+        double bleedLeft = _trimMargins.Left.Point, bleedRight = _trimMargins.Right.Point;
+        double bleedTop = _trimMargins.Top.Point, bleedBottom = _trimMargins.Bottom.Point;
+        double markLeft = _markMargins.Left.Point, markRight = _markMargins.Right.Point;
+        double markTop = _markMargins.Top.Point, markBottom = _markMargins.Bottom.Point;
+
+        double width = markLeft + bleedLeft + _trimmedSize.Value.Width + bleedRight + markRight;
+        double height = markTop + bleedTop + _trimmedSize.Value.Height + bleedBottom + markBottom;
+
+        // Written through the elements rather than through the properties, which would throw the
+        // remembered size away as any other resize does.
+        SetBox(Keys.MediaBox, new PdfRectangle(0, 0, width, height));
+        SetBox(Keys.CropBox, new PdfRectangle(0, 0, width, height));
+        SetBox(Keys.BleedBox, new PdfRectangle(markLeft, markBottom, width - markRight, height - markTop));
+
+        PdfRectangle trim = new PdfRectangle(
+            markLeft + bleedLeft, markBottom + bleedBottom,
+            width - markRight - bleedRight, height - markTop - bleedTop);
+        SetBox(Keys.TrimBox, trim);
+        SetBox(Keys.ArtBox, trim.Clone());
+
+        if (_markMargins.AreSet)
+            DrawCropMarks();
+    }
+
+    void SetBox(string key, PdfRectangle box) => Elements.SetRectangle(key, box);
+
+    /// <summary>
+    /// Draws the eight standard crop marks in the room <see cref="MarkMargins"/> leaves outside
+    /// the bleed, telling the trimmer where to cut.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two marks meet at each corner of the trimmed page, one on each of its edges, and each runs
+    /// outwards from the bleed to the edge of the sheet. None crosses the bleed, so none can be
+    /// mistaken for artwork or land on any part of the page that survives the cut.
+    /// </para>
+    /// <para>
+    /// Called automatically when a page with both a bleed and a mark allowance is saved, so a
+    /// caller normally never calls it. It is public for the caller who wants the marks somewhere
+    /// else - on a form, say - and calling it twice draws them once.
+    /// </para>
+    /// <para>
+    /// The marks are appended as a content stream of their own, in the sheet's coordinates, so
+    /// they are unaffected by whatever transformation the page was drawn under and are painted
+    /// after everything already on the page - whenever this is called.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The page has no trim margin, or no room outside it to put the marks in.
+    /// </exception>
+    public void DrawCropMarks()
+    {
+        if (!_trimMargins.AreSet)
         {
-            // These are the values InDesign set for an A4 page with 3mm crop margin at each edge.
-            // (recall that PDF rect are two points and NOT a point and a width)
-            // /MediaBox[0.0 0.0 612.283 858.898]  216 302.7
-            // /CropBox[0.0 0.0 612.283 858.898]
-            // /BleedBox[0.0 0.0 612.283 858.898]
-            // /ArtBox[8.50394 8.50394 603.78 850.394] 3 3 213 300
-            // /TrimBox[8.50394 8.50394 603.78 850.394]
-
-            double width = _trimMargins.Left.Point + Width.Point + _trimMargins.Right.Point;
-            double height = _trimMargins.Top.Point + Height.Point + _trimMargins.Bottom.Point;
-
-            MediaBox = new PdfRectangle(0, 0, width, height);
-            CropBox = new PdfRectangle(0, 0, width, height);
-            BleedBox = new PdfRectangle(0, 0, width, height);
-
-            PdfRectangle rect = new PdfRectangle(_trimMargins.Left.Point, _trimMargins.Top.Point,
-                width - _trimMargins.Right.Point, height - _trimMargins.Bottom.Point);
-            TrimBox = rect;
-            ArtBox = rect.Clone();
+            throw new InvalidOperationException(
+                "Crop marks say where a page is to be cut out of a larger sheet, and this page " +
+                "has no TrimMargins, so there is no sheet and no cut. Set PdfPage.TrimMargins to " +
+                "the bleed the artwork runs into.");
         }
+
+        if (!_markMargins.AreSet)
+        {
+            throw new InvalidOperationException(
+                "Crop marks are drawn outside the bleed, and PdfPage.MarkMargins is zero, so " +
+                "there is no room on the sheet to put them. Set MarkMargins to the space the " +
+                "press needs around the bleed - five millimetres is the default and is enough.");
+        }
+
+        if (_cropMarksDrawn)
+            return;
+        _cropMarksDrawn = true;
+
+        double bleedLeft = _trimMargins.Left.Point, bleedRight = _trimMargins.Right.Point;
+        double bleedTop = _trimMargins.Top.Point, bleedBottom = _trimMargins.Bottom.Point;
+        double markLeft = _markMargins.Left.Point, markRight = _markMargins.Right.Point;
+        double markTop = _markMargins.Top.Point, markBottom = _markMargins.Bottom.Point;
+
+        double width = markLeft + bleedLeft + Width.Point + bleedRight + markRight;
+        double height = markTop + bleedTop + Height.Point + bleedBottom + markBottom;
+
+        // The four lines the guillotine follows, in the sheet's own coordinates.
+        double left = markLeft + bleedLeft;
+        double right = width - markRight - bleedRight;
+        double top = height - markTop - bleedTop;
+        double bottom = markBottom + bleedBottom;
+
+        StringBuilder marks = new StringBuilder();
+
+        // Black, and thin enough that the mark itself does not tell the trimmer a lie about
+        // where the cut is. Both are what every other producer writes.
+        marks.Append("q\n0 G\n0.25 w\n");
+
+        // Horizontal marks lie on the top and bottom cuts and reach out past the left and right
+        // bleed; vertical marks lie on the left and right cuts and reach out past the top and
+        // bottom bleed. Eight in all, two meeting at each corner.
+        Mark(marks, 0, top, markLeft, top);
+        Mark(marks, width - markRight, top, width, top);
+        Mark(marks, 0, bottom, markLeft, bottom);
+        Mark(marks, width - markRight, bottom, width, bottom);
+
+        Mark(marks, left, height - markTop, left, height);
+        Mark(marks, right, height - markTop, right, height);
+        Mark(marks, left, 0, left, markBottom);
+        Mark(marks, right, 0, right, markBottom);
+
+        marks.Append("Q\n");
+
+        PdfContent content = Contents.AppendContent();
+        content.CreateStream(PdfEncoders.RawEncoding.GetBytes(marks.ToString()));
+    }
+
+    bool _cropMarksDrawn;
+
+    static void Mark(StringBuilder marks, double x1, double y1, double x2, double y2)
+    {
+        marks.AppendFormat(CultureInfo.InvariantCulture, "{0:0.###} {1:0.###} m {2:0.###} {3:0.###} l S\n",
+            x1, y1, x2, y2);
     }
 
     /// <summary>
