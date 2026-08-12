@@ -9,8 +9,8 @@ before the work rather than after it, so the status column tracks progress.
 | 1 | A command line that runs one demo, several, or all of them | done |
 | 2 | Fonts that are the same on every machine | done |
 | 3 | The source of each demo, printed from the file that ran | done |
-| 4 | Twelve demos, one PDF each, covering the drawing surface | done |
-| 5 | A smoke test so a broken demo fails the build | done, 26 tests |
+| 4 | Thirteen demos, one PDF each, covering the drawing surface | done |
+| 5 | A smoke test so a broken demo fails the build | done, 28 tests |
 
 ---
 
@@ -164,7 +164,7 @@ costs about 3MB inside a binary that is never packaged.
 
 ## Item 4 — the demos
 
-Twelve, one PDF each.
+Thirteen, one PDF each.
 
 | name | shows |
 |---|---|

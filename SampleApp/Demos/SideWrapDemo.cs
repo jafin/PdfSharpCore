@@ -43,7 +43,7 @@ internal sealed class SideWrapDemo : PdfDemo
     {
         "WrapStyle.Right - the frame at the left margin, the text down the right of it",
         "WrapStyle.Left - the mirror of it, and the page that proves the names are not backwards",
-        "WrapStyle.Largest - the frame centred, the text taking whichever side has more room",
+        "WrapStyle.Largest - the frame standing clear of both margins, the text taking the roomier side",
         "WrapStyle.Both - the same arrangement, asking for either side rather than the roomier one",
         "The four WrapFormat distances holding the text off all four edges of the frame",
         "Lines above and below the frame running the full measure, with no line drawn across it",

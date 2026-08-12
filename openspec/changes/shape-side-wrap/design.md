@@ -152,4 +152,17 @@ the old meaning would leave them inert exactly where they are asked for.
 The obstacle handed to the area is therefore the shape's rectangle grown by all four distances, and
 the area needs to know nothing about wrapping at all.
 
-## Open Questions
+### The three questions above are answered
+
+`drop-cap-layout` landed first, and its per-line measure is the same idea as this one: work out the
+room available to a line from where that line sits, rather than once for the whole block. The two
+engines stay separate — `XTextFormatter` has no shapes and MigraDoc has no `XDropCap` — but they now
+agree about what a line is measured against.
+
+A drop cap in MigraDoc would indeed be a caller of this machinery, and `ObstructedArea` takes its
+obstacles from its constructor rather than from anything shape-shaped, so nothing stands in the way.
+It is not built here.
+
+`Largest` with equal room either side takes whichever span the scan reaches first, which is stable
+across formatting passes because it depends only on geometry. Stability was the requirement; which
+side wins is arbitrary and does not matter.

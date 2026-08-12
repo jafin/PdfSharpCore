@@ -384,14 +384,15 @@ public class ShapeSideWrapTests
 
         foreach (var run in TextOperators.ShownStrings(page))
         {
-            // Identity-H writes two bytes per glyph; the space is dropped because a line break eats
-            // one, so two layouts of the same text carry different numbers of them.
+            // Identity-H writes two bytes per glyph rather than one byte per character, so a run
+            // has to be read a pair at a time. Reading it a byte at a time shifts everything by
+            // half a glyph and produces two sequences that differ everywhere.
+            //
+            // Nothing is filtered out. MigraDoc draws one run per word and puts the spaces between
+            // them in the positioning, so no whitespace glyph is ever shown - which is also why
+            // comparing the sequences works at all across two different line breakings.
             for (var idx = 0; idx + 1 < run.Length; idx += 2)
-            {
-                var glyph = (run[idx] << 8) | run[idx + 1];
-                if (glyph != 3)
-                    glyphs.Add(glyph);
-            }
+                glyphs.Add((run[idx] << 8) | run[idx + 1]);
         }
 
         return glyphs;
