@@ -30,6 +30,9 @@ public static class DemoRunner
         {
             Ui.WriteDemoHeading(demo);
 
+            if (options.ShowCode)
+                Ui.WriteSource(demo);
+
             try
             {
                 DemoResult result = demo.Run(context);

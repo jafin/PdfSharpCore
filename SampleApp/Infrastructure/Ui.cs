@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Spectre.Console;
 
 namespace SampleApp.Infrastructure;
@@ -39,6 +40,41 @@ public static class Ui
             Style = Style.Parse("grey35"),
         });
         AnsiConsole.MarkupLine($"[grey]{Markup.Escape(demo.Summary)}[/]");
+    }
+
+    /// <summary>
+    ///   Prints the demo's own source - the code that is about to run, read back from the file it
+    ///   was compiled from or the copy embedded in this assembly.
+    /// </summary>
+    public static void WriteSource(PdfDemo demo)
+    {
+        string? example = DemoSource.Example(demo);
+        if (example is null)
+        {
+            AnsiConsole.MarkupLine(
+                $"[yellow]No '{DemoSource.BeginMarker}' region found in "
+                + $"{Markup.Escape(demo.SourceFileName)}.[/]");
+            return;
+        }
+
+        string[] lines = example.Split('\n');
+        StringBuilder markup = new StringBuilder();
+        for (int index = 0; index < lines.Length; index++)
+        {
+            if (index > 0)
+                markup.Append('\n');
+
+            markup.Append($"[grey30]{index + 1,3}[/] ")
+                  .Append(CSharpHighlighter.Highlight(lines[index].TrimEnd('\r')));
+        }
+
+        AnsiConsole.Write(new Panel(new Markup(markup.ToString()))
+        {
+            Header = new PanelHeader($" {Markup.Escape(demo.SourceFileName)} "),
+            Border = BoxBorder.Rounded,
+            BorderStyle = Style.Parse("grey35"),
+            Expand = true,
+        });
     }
 
     public static void WriteResult(DemoResult result)
