@@ -23,18 +23,21 @@ groups 1 to 3 changes the output of any existing document.
 
 ## 2. An area that knows about obstacles
 
-- [ ] 2.1 Add the `Area` implementation holding a base rectangle and a list of obstacles, whose
+- [x] 2.1 Add the `Area` implementation holding a base rectangle and a list of obstacles, whose
       `GetFittingRect(y, height)` returns the widest clear span in the band. **Widest span, not all
       spans**: the method returns one `Rectangle`, and text that hops across a pull quote and back
-      mid-line is unreadable anyway.
-- [ ] 2.2 Return null where a band is entirely blocked, which is the case group 1 made safe.
-- [ ] 2.3 Keep the obstacle area out of `Unite`. Uniting with it yields a plain rectangle covering
+      mid-line is unreadable anyway. `ObstructedArea`, with the obstacles copied in so a caller
+      still holding a rectangle cannot move one out from under text laid out around it.
+- [x] 2.2 Return null where a band is entirely blocked, which is the case group 1 made safe.
+- [x] 2.3 Keep the obstacle area out of `Unite`. Uniting with it yields a plain rectangle covering
       both, which is what every caller of `Unite` already assumes — its own comment concedes it is
       "of course not correct" and takes bounding boxes. Write down that this is deliberate.
-- [ ] 2.4 Unit-test the area directly, with no renderer in sight: an obstacle at the left, at the
+- [x] 2.4 Unit-test the area directly, with no renderer in sight: an obstacle at the left, at the
       right, in the middle, spanning the full width, above the band, below the band, and two
       obstacles at once. This is the piece where correctness is cheap to establish and expensive to
-      debug through a rendered page.
+      debug through a rendered page. **20 tests.** Reached through `AreaProbe`, which keeps the
+      reflection in one file rather than adding an `InternalsVisibleTo` this repository does not
+      use; `FittingRectContractTests` was moved onto it too.
 
 ## 3. The document object model
 

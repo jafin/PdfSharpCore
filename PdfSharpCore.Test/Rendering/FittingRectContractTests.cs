@@ -36,42 +36,39 @@ public class FittingRectContractTests
     [Fact]
     public void ABandInsideTheAreaFitsAndKeepsTheAreasWidth()
     {
-        var area = RectangleOf(x: 10, y: 20, width: 300, height: 200);
+        var area = AreaProbe.Rectangle(x: 10, y: 20, width: 300, height: 200);
 
-        var rect = FittingRect(area, yPosition: 50, height: 12);
+        var rect = area.FittingRect(yPosition: 50, height: 12);
 
         rect.Should().NotBeNull();
-        rect.X.Point.Should().Be(10);
-        rect.Y.Point.Should().Be(50);
-        rect.Width.Point.Should().Be(300);
-        rect.Height.Point.Should().Be(12);
+        rect.Bounds().Should().Be((10, 50, 300, 12));
     }
 
     [Fact]
     public void ABandRunningOffTheBottomHasNowhereToGo()
     {
-        var area = RectangleOf(x: 10, y: 20, width: 300, height: 200);
+        var area = AreaProbe.Rectangle(x: 10, y: 20, width: 300, height: 200);
 
         // The area ends at y = 220; a 12pt line starting at 215 would need to reach 227.
-        FittingRect(area, yPosition: 215, height: 12).Should().BeNull();
+        area.FittingRect(yPosition: 215, height: 12).Should().BeNull();
     }
 
     [Fact]
     public void ABandEndingExactlyOnTheBottomStillFits()
     {
-        var area = RectangleOf(x: 10, y: 20, width: 300, height: 200);
+        var area = AreaProbe.Rectangle(x: 10, y: 20, width: 300, height: 200);
 
         // Flush with the bottom edge, which is inside the area rather than past it. The tolerance
         // is what keeps arithmetic that lands a thousandth of a point over from losing a line.
-        FittingRect(area, yPosition: 208, height: 12).Should().NotBeNull();
+        area.FittingRect(yPosition: 208, height: 12).Should().NotBeNull();
     }
 
     [Fact]
     public void ATallerBandThanTheWholeAreaHasNowhereToGo()
     {
-        var area = RectangleOf(x: 10, y: 20, width: 300, height: 40);
+        var area = AreaProbe.Rectangle(x: 10, y: 20, width: 300, height: 40);
 
-        FittingRect(area, yPosition: 20, height: 100).Should().BeNull();
+        area.FittingRect(yPosition: 20, height: 100).Should().BeNull();
     }
 
     // ----- what the renderer does with it ---------------------------------------------------------
@@ -170,30 +167,7 @@ public class FittingRectContractTests
         render.Should().NotThrow();
     }
 
-    // ----- reaching the area through the renderer --------------------------------------------------
-
-    /// <summary>
-    ///   A <c>Rectangle</c> built the way the renderer builds one. Both it and
-    ///   <c>GetFittingRect</c> are internal to the rendering assembly, so they are reached the way
-    ///   any other test reaches internals here.
-    /// </summary>
-    static object RectangleOf(double x, double y, double width, double height)
-    {
-        var type = typeof(Area).Assembly.GetType("MigraDocCore.Rendering.Rectangle", throwOnError: true);
-        return Activator.CreateInstance(type,
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-            null,
-            new object[] { XUnit.FromPoint(x), XUnit.FromPoint(y), XUnit.FromPoint(width), XUnit.FromPoint(height) },
-            null);
-    }
-
-    static Area FittingRect(object area, double yPosition, double height)
-    {
-        var method = typeof(Area).GetMethod("GetFittingRect",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        return (Area)method.Invoke(area, new object[] { XUnit.FromPoint(yPosition), XUnit.FromPoint(height) });
-    }
+    // ----- rendering ------------------------------------------------------------------------------
 
     static int Render(Action<Document> build)
     {
