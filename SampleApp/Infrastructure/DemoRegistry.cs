@@ -29,6 +29,9 @@ public static class DemoRegistry
         new LayoutDemo(),
         new TablesDemo(),
         new PageResizeDemo(),
+        new InvoiceDemo(),
+        new NewspaperDemo(),
+        new MagazineDemo(),
     };
 
     public static IReadOnlyList<string> Names { get; } = All.Select(demo => demo.Name).ToArray();
