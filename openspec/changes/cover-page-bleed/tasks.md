@@ -42,24 +42,48 @@ Group 3 is the only one that changes behaviour, and is gated on that decision be
 
 ## 3. Crop marks
 
-- [ ] 3.1 **Settle the open question in `design.md` before writing anything here.** Option 3 — a
-      separate opt-in mark allowance, leaving `TrimMargins` writing exactly the boxes it writes
-      today — is the recommendation, because it is the only one of the three that is not a breaking
-      change to the boxes of every trimmed page.
-- [ ] 3.2 If marks are taken up: grow `MediaBox` past `BleedBox` by the mark allowance and draw the
-      eight standard marks in the space that opens up, on the sheet and clear of the bleed.
-- [ ] 3.3 If marks are taken up: test that a page with the allowance unset is written byte for byte
-      as it is today. This is what makes "not a breaking change" a fact rather than an intention.
-- [ ] 3.4 If marks are declined: record the reasoning in the spec, state the nesting rule the
-      library does follow, and say plainly that a caller wanting marks draws them — so that
-      `BleedBox == MediaBox` reads as a decision rather than as an oversight.
-- [ ] 3.5 Add a line to the release notes either way. A new option is an addition; a documented
-      refusal is worth a note under the bleed entry.
+- [x] 3.1 **Settled: option 2, correct the boxes properly.** `TrimMargins` itself now produces the
+      nesting the specification describes, `MarkMargins` gives the room outside the bleed, and the
+      marks are drawn. This is a breaking change to the boxes of every trimmed page, chosen over
+      the recommended option 3 deliberately — `MarkMargins.All = 0` is the escape hatch and
+      reproduces the old boxes exactly.
+- [x] 3.2 Grow `MediaBox` past `BleedBox` by the mark allowance and draw the eight standard marks in
+      the space that opens up, on the sheet and clear of the bleed. Two meet at each corner, each
+      running outward from the bleed to the sheet edge; drawn in a content stream of their own, in
+      sheet coordinates, so no transformation the caller was under can move them.
+- [x] 3.3 Test that a page with the allowance cleared is written as it was before the change, and
+      that a page with no trim margin is untouched by any of it. That is what makes "nothing changes
+      for a document that does not ask for it" a fact rather than an intention.
+- [x] 3.4 Record the nesting rule in the spec — sheet, bleed, trim, and what each is the answer to —
+      so the boxes read as a decision rather than as numbers copied from an InDesign file.
+- [x] 3.5 Add a line to the release notes: an addition for `MarkMargins` and `DrawCropMarks`, and a
+      **BREAKING** entry for the boxes.
+
+## 3b. The three defects, fixed
+
+Added after task group 1 found them. Their tests were written before the fix and now assert it.
+
+- [x] 3b.1 Remember the size the page was asked for before the media box is grown into the sheet, so
+      that a second save writes the same sheet rather than adding the margins again.
+- [x] 3b.2 Have `Width` and `Height` go on reporting the page after it has been saved, rather than
+      the sheet the media box has become.
+- [x] 3b.3 Inset each edge of `/TrimBox` by its own margin. Y1 is the bottom edge in PDF space, so
+      the bottom margins go there and the top margins come off Y2.
+- [x] 3b.4 Add the release-note entries under Fixed.
 
 ## 4. Close out
 
-- [ ] 4.1 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks.
-- [ ] 4.2 Rasterize the `Bleed` demo and look at it. A bleed that is wrong by 3mm is invisible in any
-      assertion that does not go to the pixel, and obvious to the eye against the trim rule.
-- [ ] 4.3 Open the demo's PDF in a reader that shows page boxes, or dump them, and check the sheet
-      and trim are where a prepress operator would expect.
+- [x] 4.1 `./ci-build.ps1` clean and `dotnet test` green on both target frameworks. 1652 passed,
+      1 skipped, on each of net8.0 and net10.0.
+- [x] 4.2 Rasterize the `Bleed` demo and look at it. A bleed that is wrong by 3mm is invisible in any
+      assertion that does not go to the pixel, and obvious to the eye against the trim rule. The
+      photograph runs past the dashed rule and stops at the bleed; the eight marks are at the
+      corners, clear of it.
+- [x] 4.3 Open the demo's PDF in a reader that shows page boxes, or dump them, and check the sheet
+      and trim are where a prepress operator would expect:
+
+      /MediaBox [0 0 465.354 640.354]      the sheet
+      /CropBox  [0 0 465.354 640.354]
+      /BleedBox [14.173 14.173 451.181 626.181]    inset by 5mm
+      /TrimBox  [22.677 22.677 442.677 617.677]    inset by 5mm + 3mm, and measuring A5 exactly
+      /ArtBox   [22.677 22.677 442.677 617.677]

@@ -23,7 +23,8 @@ internal sealed class BleedDemo : PdfDemo
     {
         "PdfPage.TrimMargins: a sheet larger than the page, with the origin still on the page",
         "Drawing at negative coordinates to reach past the trim and onto the bleed",
-        "Width and Height still reporting the trimmed size while the document is being built",
+        "PdfPage.MarkMargins: the room outside the bleed, and the eight crop marks drawn in it",
+        "Width and Height reporting the trimmed size, before the save and after it",
         "The five page boxes a trimmed page is saved with, listed on the page itself",
     };
 
@@ -47,6 +48,11 @@ internal sealed class BleedDemo : PdfDemo
         // paper will be cut. Nothing in this demo would have to change if the margin were
         // removed - it would simply lose its bleed.
         page.TrimMargins.All = bleed;
+
+        // Outside the bleed there is a further margin, five millimetres unless it is changed,
+        // which is the room the press needs around the artwork. The eight crop marks are drawn
+        // into it when the document is saved. Setting it to zero takes both away.
+        XUnit marks = page.MarkMargins.Left;
 
         // Points, because that is the only unit TrimMargins supports. XGraphics asserts it.
         XGraphics gfx = XGraphics.FromPdfPage(page);
@@ -94,10 +100,11 @@ internal sealed class BleedDemo : PdfDemo
         string[] paragraph =
         {
             "The photograph above runs off the top, left and right of this page. It was drawn",
-            "from (-3mm, -3mm) onto a sheet three millimetres larger than the page on every",
-            "edge, and the guillotine cuts along the dashed rule below - through the middle of",
-            "the ink, so that a cut a fraction off the mark still lands on the picture rather",
-            "than on white paper.",
+            "from (-3mm, -3mm) onto a sheet larger than the page on every edge, and the",
+            "guillotine cuts along the dashed rule below - through the middle of the ink, so",
+            "that a cut a fraction off the mark still lands on the picture rather than on white",
+            "paper. The crop marks at the corners of the sheet are where the trimmer lines the",
+            "cut up, and the library drew them without being asked.",
         };
 
         double y = textTop + 26;
@@ -120,16 +127,22 @@ internal sealed class BleedDemo : PdfDemo
         //
         // Worked out here rather than read back from the saved page, because the boxes are
         // written during the save and this demo hands the document to its caller unsaved.
-        double sheetWidth = width + 2 * over;
-        double sheetHeight = height + 2 * over;
+        //
+        // The three areas nest, outermost first: the sheet that goes through the press, the
+        // bleed the artwork may run to, and the trim where it is cut. The room between the
+        // bleed and the sheet edge is the mark allowance, and is where the crop marks are.
+        double room = marks.Point;
+        double inset = room + over;
+        double sheetWidth = width + 2 * inset;
+        double sheetHeight = height + 2 * inset;
 
         (string Box, string Value)[] boxes =
         {
             ("MediaBox", $"[0 0 {sheetWidth:0.###} {sheetHeight:0.###}]  the sheet"),
             ("CropBox",  $"[0 0 {sheetWidth:0.###} {sheetHeight:0.###}]  what a reader shows"),
-            ("BleedBox", $"[0 0 {sheetWidth:0.###} {sheetHeight:0.###}]  how far the ink may run"),
-            ("TrimBox",  $"[{over:0.###} {over:0.###} {sheetWidth - over:0.###} {sheetHeight - over:0.###}]  where it is cut"),
-            ("ArtBox",   $"[{over:0.###} {over:0.###} {sheetWidth - over:0.###} {sheetHeight - over:0.###}]  the meaningful content"),
+            ("BleedBox", $"[{room:0.###} {room:0.###} {sheetWidth - room:0.###} {sheetHeight - room:0.###}]  how far the ink may run"),
+            ("TrimBox",  $"[{inset:0.###} {inset:0.###} {sheetWidth - inset:0.###} {sheetHeight - inset:0.###}]  where it is cut"),
+            ("ArtBox",   $"[{inset:0.###} {inset:0.###} {sheetWidth - inset:0.###} {sheetHeight - inset:0.###}]  the meaningful content"),
         };
 
         y += 18;

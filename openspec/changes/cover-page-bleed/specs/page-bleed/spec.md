@@ -11,12 +11,13 @@ page with no trim margin at all. Bleeding is reaching past the origin, not rebui
 #### Scenario: Drawing at the origin lands on the trim corner
 
 - **WHEN** a page has a trim margin of 3mm on every edge and a mark is drawn at `(0, 0)`
-- **THEN** it lands on the trim corner, 3mm in from the sheet's edge on both axes
+- **THEN** it lands on the trim corner, one bleed and one mark allowance in from the sheet's edge on
+  both axes
 
 #### Scenario: A negative coordinate reaches into the bleed
 
 - **WHEN** a rectangle is drawn from `(-3mm, -3mm)` on a page with a 3mm trim margin
-- **THEN** its corner is flush with the corner of the sheet
+- **THEN** its corner is flush with the corner of the bleed
 
 #### Scenario: The same drawing is unmoved by a trim margin
 
@@ -26,74 +27,164 @@ page with no trim margin at all. Bleeding is reaching past the origin, not rebui
 
 ### Requirement: A trim margin does not change the size of the page a caller draws on
 
-`PdfPage.Width` and `PdfPage.Height` SHALL report the size of the trimmed page for as long as the
-document is being built. The sheet is larger by the trim margins, and that difference SHALL be
-visible only in the page boxes.
+`PdfPage.Width` and `PdfPage.Height` SHALL report the size of the trimmed page, before the document
+is saved and after. The sheet is larger, and that difference SHALL be visible only in the page boxes.
 
-Stated because the alternative — a page that silently grows when a margin is set — would move every
-right-aligned and bottom-aligned thing on it.
-
-Scoped to "while the document is being built" because saving does not honour it. See the departures
-recorded at the foot of this specification.
+Stated because the alternative — a page that silently grows when a margin is set — moves every
+right-aligned and bottom-aligned thing measured off it. That is what the library used to do: `Width`
+reads the media box, and saving overwrote the media box with the sheet.
 
 #### Scenario: Width and height are the trimmed size
 
 - **WHEN** an A5 page is given a trim margin of 3mm on every edge
 - **THEN** `Width` and `Height` still report A5
 
+#### Scenario: The page still reports itself after it has been saved
+
+- **WHEN** that page is saved and its `Width` and `Height` are read afterwards
+- **THEN** they still report A5
+
 #### Scenario: The sheet is larger than the page
 
 - **WHEN** that page is saved
-- **THEN** the media box is larger than the trimmed page by the trim margins on each edge
+- **THEN** the media box is larger than the trimmed page by the bleed and the mark allowance on each
+  edge
 
-### Requirement: A trimmed page is saved with its five boxes
+#### Scenario: Saving twice writes the same sheet
+
+- **WHEN** a document containing a trimmed page is saved twice — to a stream and then to a file, say
+- **THEN** both files carry the same media box
+
+### Requirement: A trimmed page is saved with its five boxes, and they nest
 
 Saving a page with a trim margin SHALL write `/MediaBox`, `/CropBox`, `/BleedBox`, `/TrimBox` and
-`/ArtBox`.
+`/ArtBox`, and they SHALL nest: `/MediaBox` ⊇ `/BleedBox` ⊇ `/TrimBox`, with `/ArtBox` equal to
+`/TrimBox` and `/CropBox` equal to `/MediaBox`.
 
-`/TrimBox` SHALL be the trimmed page: the media box inset by the trim margin on each edge. `/ArtBox`
-SHALL match it. The boxes SHALL nest — every box SHALL lie within `/MediaBox`, and `/TrimBox` SHALL
-lie within `/BleedBox`.
+There are three areas, and each is the answer to a different question. The **sheet** is what goes
+through the press. The **bleed** is how far the artwork may run; the room between it and the sheet
+edge is where printer's marks go. The **trim** is where the guillotine cuts, and is the page the
+caller asked for.
 
-`/BleedBox` is written equal to `/MediaBox`, which satisfies the nesting rule and leaves no room
-between the bleed and the sheet edge for crop marks. That is recorded here as the state of things
-rather than as an intention; the crop-mark decision is where it is settled.
+Each edge SHALL be inset by its own margin. `/TrimBox` Y1 is the *bottom* edge in PDF space, so the
+bottom margins belong there and the top margins come off Y2 — the arithmetic used to have the two
+the other way round, which no page with an even margin could show.
+
+`/ArtBox` equals `/TrimBox` deliberately: `/ArtBox` bounds the meaningful content, which for a
+designed page is the page.
 
 #### Scenario: The boxes of a trimmed page
 
 - **WHEN** an A5 page with a 3mm trim margin on every edge is saved
-- **THEN** `/MediaBox` measures A5 plus 3mm on each edge
-- **AND** `/TrimBox` and `/ArtBox` are both that box inset by 3mm on each edge
-- **AND** `/CropBox` and `/BleedBox` are present
+- **THEN** `/MediaBox` measures A5 plus the bleed and the mark allowance on each edge
+- **AND** `/BleedBox` is that box inset by the mark allowance
+- **AND** `/TrimBox` and `/ArtBox` are `/BleedBox` inset by the bleed, and measure A5
 
 #### Scenario: The boxes nest
 
 - **WHEN** a page with a trim margin is saved
 - **THEN** `/TrimBox` lies within `/BleedBox`, which lies within `/MediaBox`
 
+#### Scenario: Each edge is inset by its own margin
+
+- **WHEN** a page is given different trim margins at its top and bottom
+- **THEN** `/TrimBox`'s top edge is one top margin below the sheet's top edge, which is where the
+  drawing origin is
+- **AND** its bottom edge is one bottom margin above the sheet's bottom edge
+
 #### Scenario: An untrimmed page gains no boxes
 
 - **WHEN** a page with no trim margin is saved
 - **THEN** it carries no `/TrimBox`, `/BleedBox` or `/ArtBox` of its own
+- **AND** its media box is the size the page was asked for
+
+### Requirement: The sheet leaves room outside the bleed for printer's marks
+
+`PdfPage.MarkMargins` SHALL give the room on the sheet outside the bleed, and SHALL default to 5mm
+on each edge. It SHALL apply only to a page that has a trim margin.
+
+Without it there is no such room: the library used to write `/BleedBox` equal to `/MediaBox`, which
+satisfies the nesting rule and leaves nowhere for a crop mark to go. A press needs somewhere to put
+its marks, and the artwork needs somewhere to stop.
+
+Setting it to zero SHALL take the room away, reproducing exactly the boxes the library wrote before
+crop marks existed — which is the setting for a caller whose downstream tooling expects them.
+
+#### Scenario: The room is outside the bleed
+
+- **WHEN** a trimmed page is saved
+- **THEN** `/BleedBox` is `/MediaBox` inset by the mark allowance on each edge
+
+#### Scenario: A page with no bleed is untouched by it
+
+- **WHEN** a page with no trim margin is saved
+- **THEN** the mark allowance does nothing to it and no boxes are written
+
+#### Scenario: Clearing the allowance gives back the old boxes
+
+- **WHEN** a trimmed page's mark allowance is set to zero and it is saved
+- **THEN** `/BleedBox` equals `/MediaBox`
+- **AND** `/TrimBox` is `/MediaBox` inset by the bleed alone
+
+### Requirement: A trimmed page is given crop marks
+
+Saving a page that has both a bleed and a mark allowance SHALL draw the eight standard crop marks in
+the room outside the bleed, and `PdfPage.DrawCropMarks` SHALL be public so a caller can draw them
+elsewhere.
+
+Two marks meet at each corner of the trimmed page, one on each of its edges, and each runs outward
+from the bleed to the edge of the sheet. None crosses the bleed, so none can be mistaken for artwork
+or land on any part of the page that survives the cut.
+
+The marks SHALL be drawn once however many times the document is saved.
+
+#### Scenario: The eight marks
+
+- **WHEN** a trimmed page with a mark allowance is saved
+- **THEN** it carries eight marks, two at each corner
+
+#### Scenario: The marks line up with the cuts
+
+- **WHEN** those marks are read back
+- **THEN** four lie on the two horizontal cuts and four on the two vertical cuts
+- **AND** every one of them lies wholly outside `/BleedBox`
+
+#### Scenario: No room means no marks
+
+- **WHEN** a trimmed page whose mark allowance is zero is saved
+- **THEN** no marks are drawn
+- **AND** asking for them explicitly throws, saying that `MarkMargins` leaves no room for them
+
+#### Scenario: No bleed means no marks
+
+- **WHEN** a page with no trim margin is saved
+- **THEN** no marks are drawn
+- **AND** asking for them explicitly throws, saying that the page has no `TrimMargins`
+
+#### Scenario: Saving twice draws them once
+
+- **WHEN** a document containing a trimmed page is saved twice
+- **THEN** the second file carries eight marks, not sixteen
 
 ### Requirement: Content drawn into the bleed is kept
 
-Content drawn outside the trimmed page but within the sheet SHALL be written to the content stream
+Content drawn outside the trimmed page but within the bleed SHALL be written to the content stream
 and SHALL NOT be clipped away.
 
-The whole purpose of a bleed is content that survives as far as the sheet edge so that a cut a
-fraction off the mark still lands on ink.
+The whole purpose of a bleed is content that survives as far as its edge so that a cut a fraction
+off the mark still lands on ink.
 
-#### Scenario: A band bled off an edge reaches the sheet
+#### Scenario: A band bled off an edge reaches the bleed
 
 - **WHEN** a filled band is drawn from `(-3mm, -3mm)` across the full width of a page with a 3mm
   trim margin
-- **THEN** the operators written for it reach the edge of the media box
+- **THEN** the operators written for it reach the edge of the bleed box
 
-#### Scenario: A bled page rasterizes with ink to its edge
+#### Scenario: A bled page rasterizes with ink to the edge of its bleed
 
 - **WHEN** such a page is rasterized
-- **THEN** the pixels at the edge of the sheet carry the band's colour rather than the paper's
+- **THEN** the pixels at the edge of the bleed carry the band's colour rather than the paper's
+- **AND** the pixels in the mark allowance outside it carry the paper's
 
 ### Requirement: A trimmed page is measured in points
 
@@ -121,37 +212,3 @@ is the one that exists. It is specified because it works and nothing says so.
   document is rendered to that surface a page at a time
 - **THEN** the document's margins are measured from the trimmed page, not from the sheet
 - **AND** the saved page carries the boxes of a trimmed page
-
-### Requirement: Three departures from this specification are recorded rather than fixed
-
-The behaviour that departs from the requirements above SHALL be covered by tests that name it as a
-departure, so that it is visible and reviewable rather than merely absent.
-
-All three were found by writing the tests, not by reading the code, which is why this change pinned
-the behaviour before touching any of it. All three share one cause: `PdfPage.PrepareForSave` derives
-the sheet from `Width`, and `Width` is the media box that `PrepareForSave` then overwrites. None is
-fixed here — a change to the boxes is a change to the output of every trimmed page ever written, and
-that needs its own decision rather than a quiet correction inside a task called "pin what is there".
-
-#### Scenario: The page reports the sheet once it has been saved
-
-- **WHEN** a trimmed page is saved and its `Width` and `Height` are read afterwards
-- **THEN** they report the sheet rather than the trimmed page
-- **AND** a test records this as a departure
-
-#### Scenario: Saving a second time grows the sheet again
-
-- **WHEN** a document containing a trimmed page is saved twice — to a stream and then to a file, say
-- **THEN** the second file's media box is larger than the first's by another trim margin on each edge
-- **AND** a test records this as a departure
-
-#### Scenario: An uneven trim margin swaps the vertical edges of the trim box
-
-- **WHEN** a page is given different trim margins at its top and bottom
-- **THEN** the drawing origin is placed one *top* margin below the sheet's top edge, which is right
-- **AND** `/TrimBox` places the trimmed page one *bottom* margin below it, which disagrees with the
-  origin
-- **AND** a test records this as a departure
-
-An even trim margin — the case a printer asks for and the case InDesign's numbers came from — hides
-it completely.

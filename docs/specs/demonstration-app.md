@@ -254,8 +254,12 @@ in each case: `Bleed` exists so that the feature is discoverable, and the tests 
 that it stays working.
 
 Writing those tests found three defects in it, all sharing one cause — `PdfPage.PrepareForSave`
-derives the sheet from `Width`, and `Width` reads the media box it then overwrites. They are pinned
-by tests that name themselves as defects rather than fixed in passing; see
+derived the sheet from `Width`, and `Width` reads the media box it then overwrote. A trimmed page
+therefore grew every time it was saved, stopped reporting its own size once it had been, and put
+`/TrimBox` on the wrong edges whenever the top and bottom margins differed. All three are fixed, and
+the tests that recorded them now assert the fix. A fourth thing the tests made plain was that
+`/BleedBox` was written equal to `/MediaBox`, leaving nowhere on the sheet for a crop mark; the boxes
+now nest properly and the marks are drawn. See
 `openspec/changes/cover-page-bleed/specs/page-bleed/spec.md`.
 
 ## Item 5 — the smoke test

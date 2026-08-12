@@ -340,8 +340,8 @@ public sealed class XGraphics : IDisposable
         XPoint trimOffset = new XPoint();
         if (targetPage != null && targetPage.TrimMargins.AreSet)
         {
-            pageHeight += targetPage.TrimMargins.Top.Point + targetPage.TrimMargins.Bottom.Point;
-            trimOffset = new XPoint(targetPage.TrimMargins.Left.Point, targetPage.TrimMargins.Top.Point);
+            pageHeight += targetPage.SheetExtraHeight;
+            trimOffset = targetPage.SheetOffset;
         }
 
         XMatrix matrix = new XMatrix();

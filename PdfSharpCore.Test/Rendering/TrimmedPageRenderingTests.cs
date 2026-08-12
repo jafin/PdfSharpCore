@@ -29,6 +29,10 @@ namespace PdfSharpCore.Test.Rendering;
 public class TrimmedPageRenderingTests
 {
     static readonly XUnit Bleed = PdfSharpCore.Drawing.XUnit.FromMillimeter(3);
+    static readonly XUnit Marks = PdfSharpCore.Drawing.XUnit.FromMillimeter(5);
+
+    /// <summary>From the corner of the sheet to the corner of the trimmed page.</summary>
+    static double Inset => Bleed.Point + Marks.Point;
 
     const double A5Width = 420;
     const double A5Height = 595;
@@ -45,7 +49,7 @@ public class TrimmedPageRenderingTests
         // every line is in the same place. The margins came from the page the caller asked for,
         // not from the larger sheet that will be cut down to it.
         for (var line = 0; line < onPlain.Count; line++)
-            (onTrimmed[line] - Bleed.Point).Should().BeApproximately(onPlain[line], 0.01);
+            (onTrimmed[line] - Inset).Should().BeApproximately(onPlain[line], 0.01);
     }
 
     [Fact]
@@ -53,10 +57,11 @@ public class TrimmedPageRenderingTests
     {
         var first = BaselinesOnTheSheet(trimmed: true).First();
 
-        // A 2.5cm top margin is MigraDoc's default, and the bleed is on top of it. Asserted as a
-        // range because the first baseline sits a line's ascent below the margin, not on it.
-        first.Should().BeGreaterThan(Bleed.Point + PdfSharpCore.Drawing.XUnit.FromCentimeter(2.5).Point);
-        first.Should().BeLessThan(Bleed.Point + PdfSharpCore.Drawing.XUnit.FromCentimeter(3.5).Point);
+        // A 2.5cm top margin is MigraDoc's default, and the sheet's own margins are on top of it.
+        // Asserted as a range because the first baseline sits a line's ascent below the margin,
+        // not on it.
+        first.Should().BeGreaterThan(Inset + PdfSharpCore.Drawing.XUnit.FromCentimeter(2.5).Point);
+        first.Should().BeLessThan(Inset + PdfSharpCore.Drawing.XUnit.FromCentimeter(3.5).Point);
     }
 
     [Fact]
@@ -68,8 +73,8 @@ public class TrimmedPageRenderingTests
             saved.Elements[key].Should().NotBeNull(key + " is written for a trimmed page");
 
         var mediaBox = saved.Elements.GetRectangle("/MediaBox");
-        mediaBox.Width.Should().BeApproximately(A5Width + 2 * Bleed.Point, 0.01);
-        mediaBox.Height.Should().BeApproximately(A5Height + 2 * Bleed.Point, 0.01);
+        mediaBox.Width.Should().BeApproximately(A5Width + 2 * Inset, 0.01);
+        mediaBox.Height.Should().BeApproximately(A5Height + 2 * Inset, 0.01);
     }
 
     [Fact]
@@ -81,7 +86,7 @@ public class TrimmedPageRenderingTests
         var content = Encoding.ASCII.GetString(PageContent.Of(saved));
 
         // The band's corner in the content is the drawing origin less one bleed on each axis,
-        // which is the corner of the sheet. MigraDoc laid out inside it and knew nothing about it.
+        // which is the corner of the bleed. MigraDoc laid out inside it and knew nothing about it.
         content.Should().MatchRegex(@"-8\.504 \d+\.?\d* 60 60 re");
     }
 

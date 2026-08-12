@@ -130,7 +130,37 @@ This file starts at the entry below. Changes before that point are recorded only
   up from the bottom left, and everything drawn is placed in world space, measured down from the top
   left — the conversion was the whole of what stood between drawing a piece of text and linking it.
 
+- `PdfPage.MarkMargins` and `PdfPage.DrawCropMarks` — the room on the sheet outside the bleed, and
+  the eight standard crop marks drawn into it. A page with a trim margin gets both without asking:
+  the allowance is 5mm on each edge, and the marks are drawn when the document is saved.
+
+  ```csharp
+  page.Size = PageSize.A5;
+  page.TrimMargins.All = XUnit.FromMillimeter(3);   // the bleed, as before
+  page.MarkMargins.All = XUnit.FromMillimeter(5);   // the room for marks; this is the default
+  page.MarkMargins.All = 0;                         // no room, and so no marks
+  ```
+
+  Two marks meet at each corner of the trimmed page, one on each of its edges, and each runs
+  outward from the bleed to the edge of the sheet. None crosses the bleed, so none can be mistaken
+  for artwork or land on the part of the page that survives the cut.
+
+- A `Bleed` demo in the demonstration app: a photograph drawn from negative coordinates so that it
+  runs off three edges of the page, with the trim edge marked and the five page boxes listed. See
+  `docs/specs/demonstration-app.md`.
+
 ### Changed
+
+- **BREAKING:** a page with `PdfPage.TrimMargins` set is saved with different page boxes. The three
+  areas now nest as the PDF specification describes them — `/MediaBox` ⊇ `/BleedBox` ⊇ `/TrimBox` —
+  where `/BleedBox` used to be written equal to `/MediaBox`, leaving nowhere on the sheet for a crop
+  mark to go. The sheet is correspondingly larger, by the new `MarkMargins` on each edge.
+
+  Nothing changes for a page that sets no trim margin, which is almost every page: the whole feature
+  stays invisible to a document that does not ask for it.
+
+  `page.MarkMargins.All = 0` reproduces exactly the boxes this library wrote before, for a caller
+  whose downstream tooling expects them.
 
 - **BREAKING:** `IXGraphicsRenderer.DrawString` takes an `XPen` before its `XBrush`, so that text
   can be outlined as well as filled. The interface is public; anything implementing it outside this
@@ -247,6 +277,25 @@ This file starts at the entry below. Changes before that point are recorded only
   written, so a caller never receives half a document because of it.
 
 ### Fixed
+
+- **A trimmed page grew every time it was saved.** `PrepareForSave` derived the sheet by adding the
+  trim margins to `PdfPage.Width`, and `Width` reads the media box that `PrepareForSave` had just
+  overwritten with the sheet. So saving a document to a stream and then to a file — an ordinary
+  thing to do — produced two files of different sizes, the second larger by another sheet's worth of
+  margin on every edge.
+
+  The size the page was asked for is now remembered before the media box is grown into the sheet.
+  The same fix makes `Width` and `Height` go on reporting the page after it has been saved, where
+  they used to start reporting the sheet, which moved every right-aligned and bottom-aligned thing
+  measured off them.
+
+- **An uneven trim margin put `/TrimBox` on the wrong edges.** `PrepareForSave` inset Y1 by the
+  *top* margin and Y2 by the *bottom* one, and Y1 is the bottom edge of a PDF rectangle — so the two
+  were swapped, and the trim box disagreed with the drawing origin, which was placed correctly. A
+  page whose top and bottom margins match, which is the usual case and the case the original
+  numbers were copied from, could not show the difference.
+
+  Both this and the growth above were found by writing the first tests `TrimMargins` has ever had.
 
 - **No gradient this library produced was visible in a conformant reader.** The interpolation
   function of an RGB shading was given a fourth value — the colour's alpha, which is not a colour
