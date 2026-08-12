@@ -66,9 +66,20 @@ public abstract class Area
   /// <param name="yPosition">Top bound of the searched rectangle.</param>
   /// <param name="height">Height of the searched rectangle.</param>
   /// <returns>
-  /// The largest fitting rect with the given y position and height.
-  /// Null if yPosition exceeds the area.
+  /// The largest clear rectangle of that height whose top is at that position, or <c>null</c>
+  /// where the area has no room for one.
   /// </returns>
+  /// <remarks>
+  /// <b>Null means "there is nowhere here to put a line of that height".</b> For a
+  /// <see cref="Rectangle"/> that happens in one way only - the band runs off the bottom - which is
+  /// why it has been rare enough to leave half-handled. An area with something standing in it can
+  /// answer null for a second reason: the band is there, and every part of it is taken.
+  /// <para>
+  /// A caller that receives null must move on rather than fail. In the formatting phase that means
+  /// asking for a new area; in the rendering phase, where the line has already been placed, it
+  /// means falling back to the area's own bounds.
+  /// </para>
+  /// </remarks>
   internal abstract Rectangle GetFittingRect(XUnit yPosition, XUnit height);
 
   /// <summary>
@@ -141,7 +152,8 @@ internal class Rectangle : Area
   /// <returns>The largest fitting rect with the given y position and height</returns>
   internal override Rectangle GetFittingRect(XUnit yPosition, XUnit height)
   {
-    // BUG: Code removed because null is not handled in caller
+    // Null past the bottom, which is the only way a rectangle can have nowhere to put a line.
+    // The callers honour it: see the remarks on Area.GetFittingRect.
     if (yPosition + height > y + this.height + Renderer.Tolerance)
       return null;
     return new Rectangle(x, yPosition, width, height);

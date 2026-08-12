@@ -4,17 +4,22 @@ groups 1 to 3 changes the output of any existing document.
 
 ## 1. Make the ground firm first
 
-- [ ] 1.1 Pin the current output: render a corpus of MigraDoc documents — floating images, text
+- [x] 1.1 Pin the current output: render a corpus of MigraDoc documents — floating images, text
       frames, tables crossing pages, multi-column text — save them, and keep the bytes to compare
       against at the end of every group. This change is layout, and layout regressions are silent.
-- [ ] 1.2 Establish what `Area.GetFittingRect` returning null means and make `ParagraphRenderer`
+      **10 documents, 14 pages**, pinned in `Assets/Layout/migradoc-baseline.txt`.
+- [x] 1.2 Establish what `Area.GetFittingRect` returning null means and make `ParagraphRenderer`
       honour it. It returns null past the bottom of the area today, the code carries a standing
       `// BUG: Code removed because null is not handled in caller`, and one caller contains an
-      `if (fittingRect == null) GetType();` whose only purpose is to be a breakpoint.
-- [ ] 1.3 Test the null path against the plain `Rectangle`, before any new area exists. A band with
+      `if (fittingRect == null) GetType();` whose only purpose is to be a breakpoint. Contract
+      written onto `Area.GetFittingRect`; the breakpoint replaced by the decision it stood in for;
+      the four call sites that dereferenced without looking routed through `FittingRectOrBounds`,
+      which is the fallback the rendering phase already reached for under a comment.
+- [x] 1.3 Test the null path against the plain `Rectangle`, before any new area exists. A band with
       no room must advance the paragraph rather than fail. Doing this first is what makes a later
       failure in the obstacle area attributable to the obstacle area.
-- [ ] 1.4 Re-run 1.1. Identical bytes. If they are not, the cause is in this group and nowhere else.
+- [x] 1.4 Re-run 1.1. Identical bytes. If they are not, the cause is in this group and nowhere else.
+      **Identical**, all 10.
 
 ## 2. An area that knows about obstacles
 

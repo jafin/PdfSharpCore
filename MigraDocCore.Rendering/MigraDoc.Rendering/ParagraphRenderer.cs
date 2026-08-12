@@ -477,7 +477,7 @@ internal class ParagraphRenderer : Renderer
         {
             if (xPosition + currentLineWidth / 2.0 <= formattingArea.X + tabStopPosition)
             {
-                Rectangle rect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+                Rectangle rect = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height);
                 if (formattingArea.X + tabStopPosition + currentLineWidth / 2.0 > rect.X + rect.Width - RightIndent)
                 {
                     //the text is too long on the right hand side of the tabstop => align to right indent.
@@ -649,7 +649,7 @@ internal class ParagraphRenderer : Renderer
 
             if (phase == Phase.Formatting)
             {
-                xPos = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).X;
+                xPos = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height).X;
                 xPos += LeftIndent;
             }
             else //if (phase == Phase.Rendering)
@@ -751,9 +751,13 @@ internal class ParagraphRenderer : Renderer
         currentLineWidth = 0;
         currentWordsWidth = 0;
 
+        // No room for this line here - a band off the bottom of the area, or one with something
+        // standing across the whole of it. Either way there is nothing to lay out against, so the
+        // line is left alone and the caller moves on to a new area.
+        //
+        // This used to read "if (fittingRect == null) GetType();", which is a breakpoint someone
+        // left behind rather than a decision. The decision was always the one below: skip.
         Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
-        if (fittingRect == null)
-            GetType();
         if (fittingRect != null)
         {
             currentXPosition = fittingRect.X + LeftIndent;
@@ -798,7 +802,7 @@ internal class ParagraphRenderer : Renderer
                 if (currentBlankCount >= 1 && !(isLastLine && renderInfo.FormatInfo.IsEnding))
                 {
                     Area contentArea = renderInfo.LayoutInfo.ContentArea;
-                    XUnit width = contentArea.GetFittingRect(currentYPosition, currentVerticalInfo.height).Width;
+                    XUnit width = FittingRectOrBounds(contentArea, currentYPosition, currentVerticalInfo.height).Width;
                     if (lastTabPosition > 0)
                     {
                         width -= (lastTabPosition -
@@ -2073,7 +2077,7 @@ internal class ParagraphRenderer : Renderer
             return FormatResult.Continue;
 
         RestoreAfterProbing(iter, blankCount, wordsWidth, xPosition, lineWidth, blankWidth);
-        Rectangle fittingRect = formattingArea.GetFittingRect(currentYPosition, currentVerticalInfo.height);
+        Rectangle fittingRect = FittingRectOrBounds(formattingArea, currentYPosition, currentVerticalInfo.height);
 
         XUnit hyphenWidth = MeasureString("-");
         if (xPosition + hyphenWidth <= fittingRect.X + fittingRect.Width + Tolerance
@@ -2613,6 +2617,27 @@ internal class ParagraphRenderer : Renderer
     /// The paragraph to format or render.
     /// </summary>
     private Paragraph paragraph;
+    /// <summary>
+    /// The rect a line of this height would occupy at this position, or the area's own bounds
+    /// where the area has no room for one.
+    /// </summary>
+    /// <remarks>
+    /// For the places that need a left edge and a width and have no way to decline. A line being
+    /// measured or drawn has to be somewhere, and where the area cannot say, the whole of it is a
+    /// better answer than a null reference - which is what several of these call sites would have
+    /// produced. The formatting phase declines properly instead, by asking for a new area.
+    /// <para>
+    /// It is the fallback <c>StartXPosition</c> already reached for in the rendering phase, under
+    /// the comment "next lines for non fitting lines that produce an empty fitting rect". This
+    /// gives the same answer one name.
+    /// </para>
+    /// </remarks>
+    static Rectangle FittingRectOrBounds(Area area, XUnit yPosition, XUnit height)
+    {
+        return area.GetFittingRect(yPosition, height)
+               ?? new Rectangle(area.X, yPosition, area.Width, height);
+    }
+
     private XUnit currentWordsWidth;
     private int currentBlankCount;
     private XUnit currentLineWidth;
