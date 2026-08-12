@@ -44,7 +44,19 @@ public sealed class SkiaGlyphOutlineProvider : IGlyphOutlineProvider
         using SKTypeface typeface = SKTypeface.FromStream(stream)
                                     ?? throw new InvalidOperationException(
                                         "SkiaSharp could not read the font '" + info.FaceName + "'.");
-        using SKFont font = new SKFont(typeface, (float)emSize);
+        using SKFont font = new SKFont(typeface, (float)emSize)
+        {
+            // Hinting and rounded advances are for fitting glyphs to a grid of pixels. There is no
+            // grid here: these outlines become a path in a PDF, drawn at whatever size the reader
+            // decides. Left at Skia's defaults the advances come back rounded to whole points on a
+            // platform whose font host hints - Linux does, Windows does not - so the same document
+            // built on two machines put its glyphs in different places, and a path drawn beside
+            // text drawn by DrawString drifted away from it, since that measures the font file
+            // directly and never rounds.
+            Hinting = SKFontHinting.None,
+            LinearMetrics = true,
+            Subpixel = true,
+        };
 
         ushort[] glyphs = font.GetGlyphs(text);
         float[] advances = font.GetGlyphWidths(glyphs);

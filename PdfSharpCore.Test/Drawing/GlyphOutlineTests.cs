@@ -212,10 +212,59 @@ public class GlyphOutlineTests
 
         // Bounds, not points: the two subdivide curves differently, and an assertion on
         // coordinates would pin one backend's arithmetic rather than the agreement that matters.
-        imageSharp.X.Should().BeApproximately(skia.X, 1.0);
-        imageSharp.Y.Should().BeApproximately(skia.Y, 1.0);
-        imageSharp.Width.Should().BeApproximately(skia.Width, 1.0);
-        imageSharp.Height.Should().BeApproximately(skia.Height, 1.0);
+        //
+        // A quarter of a point, not a whole one. Both read the same font file through the same
+        // resolver, so they agree to within the last digit of the curve arithmetic - and a
+        // tolerance of a whole point is wide enough to swallow an advance width rounded to the
+        // nearest point, which is exactly the disagreement this test exists to catch.
+        imageSharp.X.Should().BeApproximately(skia.X, 0.25);
+        imageSharp.Y.Should().BeApproximately(skia.Y, 0.25);
+        imageSharp.Width.Should().BeApproximately(skia.Width, 0.25);
+        imageSharp.Height.Should().BeApproximately(skia.Height, 0.25);
+    }
+
+    /// <summary>
+    ///   Each backend, against the advance widths the library measures text with.
+    /// </summary>
+    /// <remarks>
+    ///   The pen has to move by the font's own advance and nothing else. Skia's default is to hint
+    ///   the outline and round the advance to whole pixels, which is right for a glyph being fitted
+    ///   to a grid and wrong for one becoming a path in a PDF: it drew the same document differently
+    ///   on Linux and on Windows, and it moved a path built by <c>AddString</c> away from text drawn
+    ///   by <c>DrawString</c>, which measures the font file directly and never rounds.
+    ///   <para>
+    ///     Repeated characters, so that the distance from one glyph's outline to the next is the
+    ///     advance exactly, with the side bearings cancelling out.
+    ///   </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("HHHH")]
+    [InlineData("llll")]
+    [InlineData("oooo")]
+    public void EachBackendMovesThePenByTheFontsOwnAdvanceWidth(string repeated)
+    {
+        var one = repeated.Substring(0, 1);
+        var advance = Measure(one + one, TrueTypeFamily).Width - Measure(one, TrueTypeFamily).Width;
+
+        foreach (var provider in new IGlyphOutlineProvider[]
+                 { new SkiaGlyphOutlineProvider(), new ImageSharpGlyphOutlineProvider() })
+        {
+            // Close carries no point of its own, so it would contribute an origin the glyph
+            // never went near.
+            var lefts = provider.GetOutlines(repeated, TrueTypeFamily, false, false, EmSize)
+                .Select(outline => outline.Segments
+                    .Where(segment => segment.Kind != XGlyphSegmentKind.Close)
+                    .Min(segment => segment.End.X))
+                .ToList();
+
+            lefts.Should().HaveCount(repeated.Length, "one outline per glyph");
+
+            for (var glyph = 1; glyph < lefts.Count; glyph++)
+            {
+                (lefts[glyph] - lefts[glyph - 1]).Should().BeApproximately(advance, 0.001,
+                    provider.GetType().Name + " must advance by the font's own width, unrounded");
+            }
+        }
     }
 
     static XRect OutlineBoundsFrom(IGlyphOutlineProvider provider, string text)
