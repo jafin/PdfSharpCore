@@ -6,8 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```powershell
 dotnet build PdfSharpCore.slnx           # SDK is pinned to 10.0.100 by global.json
-dotnet test                              # whole suite, both test target frameworks
-dotnet test -f net10.0                   # one framework; the test project targets net8.0;net10.0
+dotnet test                              # whole suite; the test project targets net10.0 alone
 dotnet test --filter "FullyQualifiedName~CLexerTests"                  # one class
 dotnet test --filter "FullyQualifiedName~CLexerTests.ScanNextToken"    # one test
 ./ci-build.ps1                           # what CI builds: clean + Release build
@@ -17,6 +16,13 @@ CI (`.github/workflows/build.yml`) runs on Linux only, builds with `ci-build.ps1
 Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 
 There is no lint or format step in the build or in CI.
+
+**Judge a test run by its exit code, not by the word `Passed`.** The host dies intermittently on
+the heavy rasterizing tests at the end of a full run - see
+`docs/specs/test-host-crash-investigation.md` - and when it does, `dotnet test` prints
+`Test host process crashed`, exits 1, and *still* prints a `Passed!` line with a total sixty-odd
+short of what was discovered. A run that reports fewer tests than `dotnet test --list-tests` finds
+did not pass; it stopped.
 
 A lexer or parser change can hang the test host rather than fail it. Tests that scan malformed
 input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests — hence the
@@ -32,7 +38,7 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
    └── PdfSharpCore.Test  (the only test project; covers MigraDoc and SampleApp too)
            ▲
-           └── SampleApp  (the demonstration CLI; net8.0 alone, so both test legs can reference it)
+           └── SampleApp  (the demonstration CLI; net8.0, which net10.0 can reference)
 ```
 
 `SampleApp` is the demonstration app: `dotnet run --project SampleApp -- list` says what it covers,

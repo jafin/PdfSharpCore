@@ -1,7 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <!--
+      One framework, not the library's set, so a full run takes one pass rather than two.
+
+      What this gives up is real and worth naming: nothing now executes the net8.0 build of the
+      library. The netstandard2.1 and net8.0 legs are still compiled, so the polyfills under
+      PdfSharpCore/!internal/ are still type-checked, but they are no longer exercised. A defect
+      that only shows on net8.0 - and the polyfills exist precisely because those frameworks differ
+      - will not be caught here.
+
+      It does NOT fix the intermittent short run described in
+      docs/specs/test-host-crash-investigation.md. That is the test host dying, and it still
+      happens on one framework: the run reports "Test host process crashed", exits 1, prints
+      "Passed!" anyway and comes up short of the total. Judge a run by its exit code, not by the
+      word Passed.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

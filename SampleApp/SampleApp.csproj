@@ -3,11 +3,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <!--
-      One target framework rather than the library's two, because "dotnet run" refuses to pick
-      between them and this app exists to be easy to run. net8.0 rather than net10.0
-      because PdfSharpCore.Test references this project and builds a net8.0 leg, which could not
-      reference a net10.0 one. What builds here therefore builds on the lowest framework the library
-      supports; the multi-framework matrix stays the test project's job.
+      One target framework rather than the library's set, because "dotnet run" refuses to pick
+      between them and this app exists to be easy to run.
+
+      net8.0 rather than net10.0 so that what builds here builds on the lowest framework the
+      library ships for. That used to be forced: PdfSharpCore.Test built a net8.0 leg and could not
+      have referenced a net10.0 project. The test project targets net10.0 alone now, which can
+      reference this one either way, so the reason is a choice rather than a constraint - and it is
+      the only thing left that compiles a demo against net8.0.
     -->
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
