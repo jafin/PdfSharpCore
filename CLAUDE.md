@@ -18,6 +18,15 @@ Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 
 There is no lint or format step in the build or in CI.
 
+**Judge a test run by its exit code, not by the word `Passed`.** Every rasterization on Windows
+runs Ghostscript *inside* the test host, and its way of giving up is to end the process — so a
+document it will not draw reads as `Test host process crashed`, exit 1, no failing test, and a
+`Passed!` line printed anyway with a total short of what was discovered. Reading the tail of
+`dotnet test` reports such a run as green. A run whose total is below what `dotnet test
+--list-tests` finds did not pass; it stopped. `--blame-crash` then names the test that never
+finished. Twice now that name has been the whole diagnosis — see
+`docs/specs/test-host-crash-investigation.md`.
+
 A lexer or parser change can hang the test host rather than fail it. Tests that scan malformed
 input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests — hence the
 `Task.Run` wrappers in `CLexerTests`.
