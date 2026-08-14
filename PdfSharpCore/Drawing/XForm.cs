@@ -187,7 +187,11 @@ public class XForm : XImage, IContentStream
         }
 
         _formState = FormState.Finished;
-        Gfx.Dispose();
+
+        // A form that was never drawn on has no XGraphics to dispose. That is not a mistake: an
+        // empty form is an empty content stream, which is exactly what the "off" appearance of a
+        // check box or a radio button is. Finishing one threw a NullReferenceException.
+        Gfx?.Dispose();
         Gfx = null;
 
         if (PdfRenderer != null)

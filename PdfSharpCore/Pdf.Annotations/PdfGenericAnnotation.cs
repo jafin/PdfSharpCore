@@ -27,12 +27,34 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
+using PdfSharpCore.Drawing;
+
 namespace PdfSharpCore.Pdf.Annotations;
 
 /// <summary>
-/// Represents a generic annotation. Used for annotation dictionaries unknown to PdfSharpCore.
+/// An annotation of any subtype: the ones this library has a class for, and the ones it does not.
 /// </summary>
-internal sealed class PdfGenericAnnotation : PdfAnnotation
+/// <remarks>
+/// <para>
+/// Read back out of a document, this is what an annotation dictionary PdfSharpCore has no class
+/// for becomes. Written, it is the way to put one into a document - <c>/Square</c>, <c>/Circle</c>,
+/// <c>/Line</c>, <c>/FreeText</c>, or anything else a reader understands - by naming the subtype
+/// and filling in the entries it calls for.
+/// </para>
+/// <para>
+/// It was <c>internal</c>, which with <see cref="PdfAnnotation"/> being abstract with no public way
+/// to set <c>/Subtype</c> meant a subtype without a class of its own could not be added to a page
+/// at all: <see cref="PdfAnnotations.Add"/> takes a <see cref="PdfAnnotation"/>, and there was no
+/// way to make one.
+/// </para>
+/// <para>
+/// Nothing here writes an appearance. Subtypes that a reader draws from <c>/AP</c> and nothing else
+/// need <see cref="PdfAnnotation.SetAppearance(XForm)"/>, or they occupy their rectangle and paint
+/// none of it.
+/// </para>
+/// </remarks>
+public sealed class PdfGenericAnnotation : PdfAnnotation
 {
     //DMH 6/7/06
     //Make this public so we can use it in PdfAnnotations to
@@ -40,6 +62,44 @@ internal sealed class PdfGenericAnnotation : PdfAnnotation
     public PdfGenericAnnotation(PdfDictionary dict)
         : base(dict)
     { }
+
+    /// <summary>
+    /// Creates an annotation of the named subtype.
+    /// </summary>
+    /// <param name="subtype">
+    /// The value of <c>/Subtype</c>, as ISO 32000-1 Table 169 names it - <c>/Square</c>,
+    /// <c>/FreeText</c> and so on. A leading solidus is added if it is left off.
+    /// </param>
+    public PdfGenericAnnotation(string subtype)
+    {
+        Elements.SetName(Keys.Subtype, NameOf(subtype));
+    }
+
+    /// <summary>
+    /// Creates an annotation of the named subtype, owned by the given document.
+    /// </summary>
+    /// <param name="document">The document the annotation belongs to.</param>
+    /// <param name="subtype">
+    /// The value of <c>/Subtype</c>. A leading solidus is added if it is left off.
+    /// </param>
+    public PdfGenericAnnotation(PdfDocument document, string subtype)
+        : base(document)
+    {
+        Elements.SetName(Keys.Subtype, NameOf(subtype));
+    }
+
+    /// <summary>
+    /// The subtype this annotation names itself with, including its solidus.
+    /// </summary>
+    public string Subtype => Elements.GetName(Keys.Subtype);
+
+    static string NameOf(string subtype)
+    {
+        if (string.IsNullOrWhiteSpace(subtype))
+            throw new ArgumentException("An annotation must name its subtype.", nameof(subtype));
+
+        return subtype[0] == '/' ? subtype : "/" + subtype;
+    }
 
     /// <summary>
     /// Predefined keys of this dictionary.
