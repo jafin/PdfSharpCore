@@ -358,6 +358,23 @@ public abstract class PdfAnnotation : PdfDictionary
     }
 
     /// <summary>
+    /// Checks a subtype is named at all and gives it the solidus a PDF name carries, for the
+    /// annotations that are told their subtype rather than knowing it.
+    /// </summary>
+    /// <remarks>
+    /// A dictionary with no <c>/Subtype</c> is not something a reader can act on: it ignores the
+    /// annotation, and the mistake surfaces far away as "the annotation does nothing". Refusing it
+    /// here turns that into an exception at the call that made it.
+    /// </remarks>
+    private protected static string SubtypeName(string subtype)
+    {
+        if (string.IsNullOrWhiteSpace(subtype))
+            throw new ArgumentException("An annotation must name its subtype.", nameof(subtype));
+
+        return subtype[0] == '/' ? subtype : "/" + subtype;
+    }
+
+    /// <summary>
     /// Turns the <c>/Name</c> of an annotation that names its icon into the member of
     /// <typeparamref name="T"/> that stands for it, or <paramref name="fallback"/> when the entry
     /// is absent or names something this enumeration does not have.

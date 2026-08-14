@@ -106,9 +106,9 @@ cannot now be corrected without a breaking change.
 
 Measured against [PDFKit's annotation API](https://pdfkit.org/docs/annotations.html), which is a
 fair yardstick because it is a list somebody else wrote. That page documents eleven helper methods;
-eight have a counterpart here and three do not.
+nine have a counterpart here and two do not.
 
-### 3 — four subtypes had no counterpart — one done, three left
+### 3 — four subtypes had no counterpart — two done, two left
 
 | PDFKit | here |
 |---|---|
@@ -121,29 +121,35 @@ eight have a counterpart here and three do not.
 | `fileAnnotation` | `PdfFileAttachmentAnnotation` |
 | `lineAnnotation` | **missing** — no `/Line` |
 | `rectAnnotation` | `PdfSquareAnnotation` |
-| `ellipseAnnotation` | **missing** — no `/Circle` |
+| `ellipseAnnotation` | `PdfCircleAnnotation` |
 | `textAnnotation` | **missing** — no `/FreeText` |
 
-The four missing ones are all appearance-bearing: a viewer will not draw a `/Square` from its
-`/Rect` alone, so adding them means writing appearance streams the way `PdfTextMarkupAnnotation`
-already does for its four subtypes. That is the work, not the subtype wrapper — the same lesson
+All four were appearance-bearing: a viewer will not draw a `/Square` from its `/Rect` alone, so
+adding them meant writing appearance streams the way `PdfTextMarkupAnnotation` already does for its
+four subtypes. That is the work, not the subtype wrapper — the same lesson
 `text-markup-annotations.md` records for `/Highlight`.
 
-**All four are reachable; one is wrapped.** Items 4 and 5 were what made this a wall: with
+**All four are reachable; two are wrapped.** Items 4 and 5 were what made this a wall: with
 `PdfGenericAnnotation` public and `PdfAnnotation.SetAppearance` taking an `XForm`, a caller writes
 the subtype and draws its appearance without leaving the public API, and a reader paints it. There
 is a test that does exactly that and counts the pixels, beside one that shows the same annotation
 without an appearance rasterizing to nothing at all.
 
-`PdfSquareAnnotation` is the first with a class of its own. It carries `/IC`, `/BS` and `/RD`, and
-builds the appearance itself — through `XForm` and `XGraphics` rather than by writing operators —
-rebuilding it whenever the rectangle, the colour, the interior, the border width or the opacity
-changes. A square asked for neither a border nor a fill draws nothing and **removes** the appearance
-it had, so a border set back to zero does not leave the last one on the page.
+`PdfSquareAnnotation` and `PdfCircleAnnotation` have classes of their own. ISO 32000-1 puts both in
+one section, and so does this: `PdfSquareCircleAnnotation` carries `/IC`, `/BS` and `/RD` and builds
+the appearance itself — through `XForm` and `XGraphics` rather than by writing operators — rebuilding
+it whenever the rectangle, the colour, the interior, the border width or the opacity changes. The two
+subclasses are a subtype name and one `DrawShape` override each. Asked for neither a border nor a
+fill, either draws nothing and **removes** the appearance it had, so a border set back to zero does
+not leave the last one on the page.
 
-`/Circle` is the same table of the specification, differing in the subtype and in an ellipse where
-the rectangle is; `/Line` and `/FreeText` carry geometry and text of their own. Those three are what
-item 3 has left in it, and they are ordinary work now rather than blocked work.
+`/Circle` is a circle only when its rectangle is square — the specification names the subtype and
+then describes an ellipse inscribed in `/Rect`. A test paints one in a 200 × 100 rectangle and
+checks the four corners are *not* painted, which is the one thing a square would fail.
+
+`/Line` and `/FreeText` are what item 3 has left. Both carry geometry or text of their own rather
+than filling their rectangle, so neither fits the base above, and they are ordinary work now rather
+than blocked work.
 
 Going the other way, this library has what PDFKit does not: `PdfSquigglyAnnotation`,
 `PdfRubberStampAnnotation` with fifteen standard names, `PdfAnnotation.Opacity` (`/CA`),
