@@ -86,6 +86,42 @@ Two things that cost time and did not pay: `--diag` slows a run so much it is no
 something that only happens on a full one, and `procdump` attaching as a debugger risks masking the
 very heap behaviour under suspicion — prefer `DOTNET_DbgEnableMiniDump`, which needs no debugger.
 
+## It came back, and the limit was measuring the wrong thing
+
+Same symptom, same class, a different document. `--blame-crash` named
+`PageResizeRenderingTests.TestDocumentSurvivesBeingResized` — and named it on **both framework legs
+of the same run**, one incomplete test in each `Sequence.xml`, which is the same "the location is
+the same both times" signal that settled it the first time.
+
+The limit above was per **page**: `PixelsIn` took the largest page and left the rest out of it. But
+`Rasterize` reads *every* page of a document into one collection, so a document of many ordinary
+pages was never reduced at all:
+
+| document | pages | per page | held at once | reduced? |
+|---|---|---|---|---|
+| `FamilyTree.pdf` | 1 | 15.8 MP | 15.8 MP | yes — this is the page the limit was written for |
+| `test.pdf` | 4 | 9.7 MP | **38.7 MP** | **no** — every page is comfortably "small" |
+
+So the document that actually asked for the most memory was the one the limit never touched, at two
+and a half times the page it was built to catch. `ResizingDoesNotChangeTheDrawing` then renders it
+three times over — `before`, `wrapped`, `returned` — and holds the first alongside the others to
+compare them, so the one test wanted 80–115 megapixels at once, and with two target frameworks
+running it wanted two of those at the same time.
+
+**The limit is now on the whole document**, `MaxPixelsPerDocument`, and `PixelsIn` sums the pages
+rather than maxing them. A single ordinary page still draws at 300 dpi, so the reference images and
+the tolerances they are compared under are untouched — there is a test that says so, beside one for
+the gap this closed.
+
+Before: reproduced on the first run of both legs. After: four consecutive runs of both legs, exit 0,
+no crash, and the same count every time.
+
+### What this adds to the lesson
+
+The first fix was right about the cause and too narrow about the measure. "Pages are around 9
+megapixels each, so cap the big one" was true of the document in front of it and not of the suite.
+Anything that holds a whole document in memory should be sized by the whole document.
+
 ## What is still true
 
 CI runs on Linux, where Ghostscript is the system `gs` shelled out to rather than a library loaded
