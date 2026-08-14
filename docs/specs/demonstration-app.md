@@ -10,7 +10,8 @@ before the work rather than after it, so the status column tracks progress.
 | 2 | Fonts that are the same on every machine | done |
 | 3 | The source of each demo, printed from the file that ran | done |
 | 4 | Thirteen demos, one PDF each, covering the drawing surface | done |
-| 5 | A smoke test so a broken demo fails the build | done, 28 tests |
+| 5 | A smoke test so a broken demo fails the build | done, 34 tests |
+| 6 | Three more, covering the interactive layer: forms, annotations, outlines | done |
 
 ---
 
@@ -196,6 +197,8 @@ demos disagree with each other on purpose.
 done the other way: one paragraph, one text frame, one property, and the renderer breaking the lines.
 Read the two side by side to see what the choice of engine actually costs.
 
+Item 6 adds three more, listed under it below.
+
 ### Where the drawing surface is thinner than it looks
 
 Worth knowing before writing a demo that promises more than exists:
@@ -292,6 +295,69 @@ nothing.
 That is a test that a demo still *runs*, not that it still demonstrates what it claims. Nothing
 automatic can check the second thing, which is why item 4's table is written in terms of what a
 reader should look for.
+
+## Item 6 — the interactive layer
+
+The thirteen demos above are all about ink. Nothing among them touched the part of PDF that a reader
+*does* something with: form fields, annotations, bookmarks. Three more, on the same terms — one PDF
+each, enrolled in the smoke test by being added to the registry.
+
+| name | shows |
+|---|---|
+| `Forms` | an AcroForm: four text fields (plain, required, password, multiline), a check box, a three-widget radio group, a combo box, a list box, a push button carrying a URI action |
+| `Annotations` | the four text markup subtypes over the words they mark, a markup spanning a line break as two quads in one annotation, the seven note icons, web/page/named links, a file attachment carrying its bytes, four rubber stamps, and a parity table against PDFKit |
+| `Outline` | a three-level bookmark tree, entries landing on the heading rather than the page, the entry styles and colours, and all eight destination types |
+
+The three were chosen against [PDFKit's documentation](https://pdfkit.org/docs/annotations.html)
+rather than against this library's own surface, because a parity list only means something measured
+from outside. That is also what makes the gaps below findable.
+
+### `Forms` is the odd one out, and says so on the page
+
+**The typed AcroForm API cannot author a form.** `PdfAcroForm`, all eight `PdfAcroField` subclasses
+and `PdfWidgetAnnotation` have `internal` constructors; `PdfAcroFieldCollection` has no `Add`; and
+`PdfDocument.Catalog` is `internal`. The API reads and fills a form somebody else wrote, which is a
+real and useful thing, and is not the thing anybody asking "how do I add a text box" wants.
+
+So the demo assembles ISO 32000-1 §12.7 out of `PdfDictionary` — which is possible from outside the
+assembly, through `PdfInternals.AddObject` and `PdfInternals.Catalog`. Page two of the PDF is the
+table of what the typed API *does* offer, so the demo is a workaround and the documentation of why
+one is needed at the same time.
+
+It round-trips: reopening the file gives `PdfTextField`, `PdfCheckBoxField`, `PdfRadioButtonField`,
+`PdfComboBoxField`, `PdfListBoxField` and `PdfPushButtonField`, each with the right flags and, where
+the field type has one, the right value — a push button has none, since it exists for its action.
+The dictionaries are right, in other words; only the way in is missing.
+
+### Four things these three found
+
+Two are defects in the library, and two are traps that caught this app's own first draft. The full
+inventory — ten items, including the ones the demos worked around rather than tripped over — is
+`interactive-layer-gaps.md`.
+
+- **`PdfOutline.Opened` was never written.** A reader takes an entry's expanded state from
+  `/Count`, and `PrepareForSave` wrote that key only `if (OpenCount > 0)` — a field assigned in
+  one place, `PdfOutlineCollection.Add`, which credited the new entry's *ancestors* and ran once.
+  So the `opened` argument on four constructors and four `Outlines.Add` overloads was accepted and
+  dropped, no outline item carried `/Count` at all, and every tree arrived collapsed. `Style` and
+  `TextColor` beside it both wrote correctly, which is what made it look as though `Opened` should
+  have. **Fixed**, with 7 tests — see `bookmarks-and-outlines.md` item 5. `Outline`'s chapter 2 is
+  now the branch that arrives shut, and is a regression test a human can see.
+- **`PdfInternals.CreateIndirectObject<T>()` cannot work.** Its body declares
+  `ConstructorInfo ctorInfo = null; // TODO`, tests it for null, and so always falls through to
+  `return result` with `result` still null — behind a `Debug.Assert` that fires in a debug build and
+  says nothing in a release one. `AddObject` is the working route, and is what `Forms` uses.
+- **`/DA` with a zero font size is not portable.** Zero means auto-size. On a single-line field
+  every viewer does something sensible; on a multiline one Ghostscript scales the first line to the
+  height of the whole box, so a two-line value fills the page. Every field in `Forms` names its
+  size. This is the demo working as intended — it was found by rasterizing the page and looking.
+- **A content stream has no `arc` operator.** That is PostScript. The first draft of the radio group
+  drew its rings with `arc`, a viewer handed one draws *nothing* rather than complaining, and the
+  result was two invisible radio buttons and one that showed only because its dot is a ZapfDingbats
+  glyph. The rings are four Béziers now.
+
+The first two are the same shape as the four gaps item 4 found: no exception, no warning, a
+property that reads back exactly as it was set, and a file that quietly does not contain it.
 
 ---
 

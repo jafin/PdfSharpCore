@@ -13,6 +13,7 @@ destinations that named a page and nothing more.
 | 2 | A local hyperlink lands on the page, not on the bookmark | done |
 | 3 | A bookmark put on a section is dropped without a word | done |
 | 4 | Nothing documents how outlines and tables of contents are built | done |
+| 5 | `PdfOutline.Opened` is accepted and never written | done, later |
 
 ---
 
@@ -149,6 +150,96 @@ sample, and nobody looking for how to make a table of contents was going to find
 
 ---
 
+## Item 5 — every tree arrived collapsed
+
+Added after the rest, and found by `SampleApp`'s `Outline` demo rather than by the issue: a
+bookmark panel built with `opened: true` throughout still showed nothing but its top level.
+
+A reader takes an entry's expanded state from `/Count` — [ISO 32000-1 Table 153][table153]:
+positive when the entry is open, giving the number of descendants that would then be visible;
+negative with the same magnitude when it is closed; **absent** when it has no descendants. The
+outline dictionary at the root carries the same key with the total number of visible rows, and
+never a negative one (Table 152).
+
+`PdfOutline.PrepareForSave` wrote that key only `if (OpenCount > 0)`. `OpenCount` was an
+`internal int` field, and the one thing that ever assigned it was `PdfOutlineCollection.Add`:
+
+```csharp
+if (outline.Opened)
+{
+    outline = _parent;
+    while (outline != null)
+    {
+        outline.OpenCount++;
+        outline = outline.Parent;
+    }
+}
+```
+
+Three things wrong with that, and the third is the one that made it useless:
+
+- it ran **once**, as the entry was added, so an `Opened` assigned at any point afterwards was
+  never seen, and `Remove` never took a contribution back;
+- it counted the wrong thing — *open descendants*, where the specification asks for descendants
+  that would be **visible**, a walk that stops at a closed child instead of counting through it;
+- it credited the new entry's **ancestors**, never the entry itself. So a chapter whose sections
+  were added with the default `opened: false` finished with `OpenCount == 0`, wrote no `/Count`,
+  and arrived shut — which is every chapter anybody writes.
+
+The net effect was that no outline *item* in a document this library produced carried `/Count` at
+all. Only the root dictionary got one, from the ancestor walk, and its value was a count of opened
+top-level entries rather than of visible rows.
+
+`CountOpen()`, the method that looks like it would compute this, was marked *"Not yet used"*, was
+called from nowhere, and returned a constant zero in the collection overload — under a file-level
+comment reading `// Review: CountOpen does not work. - StL/14-10-05`.
+
+### The change
+
+`OpenCount`, `CountOpen()` and the `Count` property that was read into and never read from are all
+gone. The tree is measured once per save, in a post-order pass the root starts before anything is
+written:
+
+```csharp
+int MeasureVisibleDescendants()
+{
+    int count = 0;
+    if (_outlines != null)
+        foreach (PdfOutline child in _outlines)
+        {
+            // Every child is measured. Only an open one contributes what is under it.
+            int below = child.MeasureVisibleDescendants();
+            count += 1 + (child.Opened ? below : 0);
+        }
+
+    _visibleDescendants = count;
+    return count;
+}
+```
+
+`PdfCatalog.PrepareForSave` calls the root's `PrepareForSave` and that walks down, so the root is
+the one entry point and the only place the measuring starts. `PrepareForSave` then writes
+`_visibleDescendants` on the root, and `_opened ? n : -n` on an entry with children — removing the
+key from one without, which matters for an entry read in with `/Count` whose children have since
+been deleted.
+
+**Post-order rather than a property read on demand.** The first version of this fix derived the
+count from a property, which walked the subtree each time it was read. `PrepareForSave` reads it
+once per node, so every node re-measured everything below it: a chain of `n` open entries measured
+suffixes of length `n-1`, `n-2` … 1, making a save O(n²). A document with a chapter per page and a
+heading per section is exactly that shape. Measuring bottom-up visits each node once.
+
+Either way it is derived at save time rather than maintained incrementally, so it cannot go stale
+however the tree is assembled.
+
+`Initialize` now also sets `_opened` from the sign of `/Count`. It never did, so a document that
+was opened and saved again lost every expanded branch in it — a silent loss, since `Opened` read
+back as whatever the caller had last assigned.
+
+[table153]: https://www.iso.org/standard/63534.html
+
+---
+
 ## Verification
 
 `PdfSharpCore.Test/Outlines/BookmarkAndOutlineTests.cs`, 9 tests:
@@ -167,6 +258,23 @@ sample, and nobody looking for how to make a table of contents was going to find
 
 Whole suite green on net8.0 and net10.0, 337 passed on each, one pre-existing skip
 (`CanCreatePdfOver2gb`). Solution builds with 0 warnings.
+
+`PdfSharpCore.Test/Outlines/OutlineOpenStateTests.cs`, 9 tests, for item 5:
+
+- an open entry counts its children up, and a closed one counts the same number down;
+- `Opened` assigned **after** the entry was added is still written — the case the old bookkeeping
+  could not see;
+- an entry with no children carries no `/Count`;
+- a closed child hides its own descendants from the count above it, where a count of open
+  descendants would have said five rather than three;
+- the outline dictionary counts every row a reader would show, and not the top level alone;
+- `Opened` survives a read and another save, in both states;
+- a 40-deep chain, open all the way down, counts every level beneath it — the shape the post-order
+  pass exists for, and the arithmetic it has to get right;
+- closing one link of a deep chain hides everything under it from the level above, while the shut
+  entry still carries its own subtree so it knows what to show when it is opened.
+
+Whole suite green on both frameworks afterwards: 1715 passed on each, same one skip.
 
 ## Cost
 
