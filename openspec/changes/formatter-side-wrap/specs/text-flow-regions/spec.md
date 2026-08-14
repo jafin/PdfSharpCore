@@ -104,8 +104,13 @@ any document that already exists.
 
 #### Scenario: An obstacle rotates with the text it reserves room in
 
-- **WHEN** a block with an obstacle is drawn and then drawn again rotated
+- **WHEN** a block with an obstacle is drawn, and drawn again with the caller's own rotation applied
+  to the drawing surface before the call — the formatter's own rotation being zero in both
 - **THEN** the text breaks in the same places in both
+
+This is the route that stays open, and it is the reason the refusal below costs nothing. A transform
+the caller applies to the surface rotates the laid-out text and the region reserved inside it
+together, because both were worked out in the same unrotated frame.
 
 #### Scenario: An obstacle supplied under rotation is refused
 

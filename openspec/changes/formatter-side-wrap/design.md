@@ -108,8 +108,11 @@ touching the column's left edge leaves free space only on the right, and that is
 
 ## Risks / Trade-offs
 
-- **The blocked-band path is new and is reached by ordinary content**, not by an edge case → its own
-  task group, landing first, tested against the drop cap, which cannot produce a blocked band.
+- **The blocked-band path is not new and is already reached by ordinary content.** This was drafted
+  the other way round — the path was thought to be unreachable until a caller could supply an
+  obstacle — and probing the loop before touching it showed a drop cap deep enough in a column
+  narrow enough already produces one, and puts the text outside the column when it does → its own
+  task group, landed first and on its own, tested against the drop cap that produces it.
 - **iText7's shift-under-floats rule relies on a bounded box.** `AllowVerticalOverflow` may leave
   none here, so an unbounded advance could spin → the termination guard is written before the skip,
   not after.

@@ -587,7 +587,7 @@ public class XTextFormatter
         /// </summary>
         internal static LineMeasure Blocked(double start, double width, double clearsAt)
         {
-            return new LineMeasure(start, width, blocked: true, clearsAt);
+            return new LineMeasure(start, width, blocked: true, clearsAt: clearsAt);
         }
 
         /// <summary>How far in from the left edge of the column the line's first block goes.</summary>

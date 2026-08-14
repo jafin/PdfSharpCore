@@ -224,6 +224,16 @@ while (!paragraph.End)
     cursorY += lineHeight;
 }
 
+> **Note added after implementing this.** The `spans.IsEmpty` branch above has no way out. It
+> advances `cursorY` and tries again, and nothing stops it when no span ever opens below — which
+> happens whenever the text is allowed to overflow the region vertically, because then no bound is
+> ever reached. The loop needs an exhaustion check as well as the advance: give up once the band has
+> left the layout and drop the remaining text, as text that runs past the last column already is.
+>
+> This turned out to be the subtlest part of the first piece of work built from these notes. See
+> `openspec/specs/variable-line-measure/spec.md` for what is required, and `XTextFormatter
+> .MeasureLineWithRoom` for the guard.
+
 There is one subtlety here: whether multiple intervals at the same Y constitute one line or effectively multiple columns.
 
 For normal wrapping around an image, you typically want:
