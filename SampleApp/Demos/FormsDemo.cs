@@ -249,7 +249,10 @@ internal sealed class FormsDemo : PdfDemo
         PdfDictionary secret = Field("/Tx", "name.secret", "Typed back as bullets", secretBox);
         SetFlags(secret, PdfAcroFieldFlags.Password);
         Decorate(secret, 0.96);
-        EndRow(secretBox, "Password: shown as bullets, and never saved with the document.");
+        // The flag masks what is typed and nothing more. ISO 32000-1 Table 228 adds only a note
+        // that a reader "should never store the value", which is advice to the reader rather than
+        // a guarantee to the author - so a form field is not somewhere to keep a secret.
+        EndRow(secretBox, "Password: echoed as bullets. Advisory only - not secret storage.");
 
         XRect notesBox = Row("Notes", 56);
         PdfDictionary notes = Field("/Tx", "name.notes", "Anything else we should know", notesBox);

@@ -14,9 +14,9 @@ namespace SampleApp.Demos;
 /// </summary>
 /// <remarks>
 ///   The last page is a parity table against PDFKit's annotation API, because the useful thing to
-///   know about an annotation library is as often what it will not do. Four of PDFKit's twelve
-///   methods have no counterpart here, and saying so on the page is cheaper than letting somebody
-///   find out by writing the call.
+///   know about an annotation library is as often what it will not do. Four of the eleven methods
+///   PDFKit documents have no counterpart here, and saying so on the page is cheaper than letting
+///   somebody find out by writing the call.
 /// </remarks>
 internal sealed class AnnotationsDemo : PdfDemo
 {
@@ -333,8 +333,8 @@ internal sealed class AnnotationsDemo : PdfDemo
         XGraphics thirdGfx = XGraphics.FromPdfPage(third);
 
         Title(thirdGfx, "Parity with PDFKit's annotations");
-        Note(thirdGfx, "pdfkit.org/docs/annotations.html lists twelve methods. Eight of them have "
-            + "something here; four do not.", 94);
+        Note(thirdGfx, "pdfkit.org/docs/annotations.html documents eleven methods. Seven of them "
+            + "have something here; four do not.", 94);
 
         XFont mono = new XFont("Source Code Pro", 8);
 
@@ -347,7 +347,6 @@ internal sealed class AnnotationsDemo : PdfDemo
             ("underline(x, y, w, h)", "PdfUnderlineAnnotation"),
             ("strike(x, y, w, h)", "PdfStrikeOutAnnotation"),
             ("fileAnnotation(x, y, w, h, file)", "PdfFileAttachmentAnnotation"),
-            ("annotate(x, y, w, h, options)", "subclass PdfAnnotation - the generic one is internal"),
             ("lineAnnotation(x1, y1, x2, y2)", "MISSING - no /Line annotation"),
             ("rectAnnotation(x, y, w, h)", "MISSING - no /Square annotation"),
             ("ellipseAnnotation(x, y, w, h)", "MISSING - no /Circle annotation"),
@@ -402,6 +401,18 @@ internal sealed class AnnotationsDemo : PdfDemo
         rowY += 12;
         thirdGfx.DrawString(
             "PdfTextMarkupAnnotation already does. Until then, draw the shape with XGraphics.",
+            noteFont, XBrushes.DimGray, new XPoint(56, rowY));
+        rowY += 18;
+        thirdGfx.DrawString(
+            "Nor can a caller supply one: PdfAnnotation is abstract with no public way to set",
+            noteFont, XBrushes.DimGray, new XPoint(56, rowY));
+        rowY += 12;
+        thirdGfx.DrawString(
+            "/Subtype, PdfGenericAnnotation is internal, and PdfAnnotations.Add takes neither -",
+            noteFont, XBrushes.DimGray, new XPoint(56, rowY));
+        rowY += 12;
+        thirdGfx.DrawString(
+            "so a subtype this library has no class for cannot be added through the typed API.",
             noteFont, XBrushes.DimGray, new XPoint(56, rowY));
         #endregion
 

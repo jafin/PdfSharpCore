@@ -138,28 +138,41 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
     /// between this and a count of the subtree.
     /// </summary>
     /// <remarks>
-    /// Derived on demand rather than kept up to date as the tree is built. The bookkeeping this
-    /// replaced ran once, inside <see cref="PdfOutlineCollection.Add(PdfOutline)"/>, walking the
-    /// ancestors of whatever was being added - so it recorded the state an entry was constructed
-    /// with, missed every later assignment to <see cref="Opened"/>, and was never undone by a
-    /// removal. Reading the tree at save time cannot go stale.
+    /// Filled in by <see cref="MeasureVisibleDescendants"/> at the start of a save, and meaningless
+    /// outside one. It is not maintained as the tree is built: the bookkeeping this replaced tried
+    /// that, from <see cref="PdfOutlineCollection.Add(PdfOutline)"/>, and so recorded the state an
+    /// entry was constructed with, missed every later assignment to <see cref="Opened"/>, and was
+    /// never undone by a removal.
     /// </remarks>
-    internal int VisibleDescendants
+    int _visibleDescendants;
+
+    /// <summary>
+    /// Measures this entry and everything under it, child first, storing each node's count as it
+    /// comes back up. One pass over the tree measures all of it.
+    /// </summary>
+    /// <remarks>
+    /// Post-order for a reason. Deriving the count on demand instead - reading a property that
+    /// walked the subtree - meant every node re-walked everything below it as the writer came to
+    /// it, which is O(n^2) on a deep tree that is open all the way down: a chain of n entries
+    /// measured suffixes of length n-1, n-2 ... 1. A document with a chapter per page and a heading
+    /// per section is exactly that shape.
+    /// </remarks>
+    int MeasureVisibleDescendants()
     {
-        get
+        int count = 0;
+        if (_outlines != null)
         {
-            int count = 0;
-            if (_outlines != null)
+            foreach (PdfOutline child in _outlines)
             {
-                foreach (PdfOutline child in _outlines)
-                {
-                    count++;
-                    if (child.Opened)
-                        count += child.VisibleDescendants;
-                }
+                // Every child is measured, open or not, because it has to carry its own count
+                // when it is written. Only an open one contributes what is under it to this one.
+                int below = child.MeasureVisibleDescendants();
+                count += 1 + (child.Opened ? below : 0);
             }
-            return count;
         }
+
+        _visibleDescendants = count;
+        return count;
     }
 
     /// <summary>
@@ -588,6 +601,13 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
     internal override void PrepareForSave()
     {
         bool hasKids = HasChildren;
+
+        // The root is the only entry point - PdfCatalog.PrepareForSave calls it, and it walks
+        // down from here - so this is where the tree gets measured, once, before anything below
+        // reads a count.
+        if (_parent == null)
+            MeasureVisibleDescendants();
+
         // Is something to do at all?
         if (_parent != null || hasKids)
         {
@@ -602,7 +622,7 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 // Table 152: the outline dictionary's /Count is the number of rows a reader shows
                 // with nothing expanded by hand - every top-level entry, plus what the open ones
                 // bring with them. Always non-negative; the root is not something that closes.
-                Elements[Keys.Count] = new PdfInteger(VisibleDescendants);
+                Elements[Keys.Count] = new PdfInteger(_visibleDescendants);
             }
             else
             {
@@ -649,7 +669,7 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
                 // to expand a branch from: every tree arrived collapsed however it was built, and
                 // the flag read back exactly as it had been set.
                 if (hasKids)
-                    Elements[Keys.Count] = new PdfInteger(_opened ? VisibleDescendants : -VisibleDescendants);
+                    Elements[Keys.Count] = new PdfInteger(_opened ? _visibleDescendants : -_visibleDescendants);
                 else
                     Elements.Remove(Keys.Count);
 

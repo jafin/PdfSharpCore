@@ -197,30 +197,40 @@ comment reading `// Review: CountOpen does not work. - StL/14-10-05`.
 ### The change
 
 `OpenCount`, `CountOpen()` and the `Count` property that was read into and never read from are all
-gone, replaced by one derived quantity on `PdfOutline`:
+gone. The tree is measured once per save, in a post-order pass the root starts before anything is
+written:
 
 ```csharp
-internal int VisibleDescendants
+int MeasureVisibleDescendants()
 {
-    get
-    {
-        int count = 0;
-        if (_outlines != null)
-            foreach (PdfOutline child in _outlines)
-            {
-                count++;
-                if (child.Opened)
-                    count += child.VisibleDescendants;
-            }
-        return count;
-    }
+    int count = 0;
+    if (_outlines != null)
+        foreach (PdfOutline child in _outlines)
+        {
+            // Every child is measured. Only an open one contributes what is under it.
+            int below = child.MeasureVisibleDescendants();
+            count += 1 + (child.Opened ? below : 0);
+        }
+
+    _visibleDescendants = count;
+    return count;
 }
 ```
 
-`PrepareForSave` writes `VisibleDescendants` on the root, and `_opened ? n : -n` on an entry with
-children — removing the key from one without, which matters for an entry read in with `/Count`
-whose children have since been deleted. Derived at save time rather than maintained incrementally,
-so it cannot go stale however the tree is assembled.
+`PdfCatalog.PrepareForSave` calls the root's `PrepareForSave` and that walks down, so the root is
+the one entry point and the only place the measuring starts. `PrepareForSave` then writes
+`_visibleDescendants` on the root, and `_opened ? n : -n` on an entry with children — removing the
+key from one without, which matters for an entry read in with `/Count` whose children have since
+been deleted.
+
+**Post-order rather than a property read on demand.** The first version of this fix derived the
+count from a property, which walked the subtree each time it was read. `PrepareForSave` reads it
+once per node, so every node re-measured everything below it: a chain of `n` open entries measured
+suffixes of length `n-1`, `n-2` … 1, making a save O(n²). A document with a chapter per page and a
+heading per section is exactly that shape. Measuring bottom-up visits each node once.
+
+Either way it is derived at save time rather than maintained incrementally, so it cannot go stale
+however the tree is assembled.
 
 `Initialize` now also sets `_opened` from the sign of `/Count`. It never did, so a document that
 was opened and saved again lost every expanded branch in it — a silent loss, since `Opened` read
@@ -249,7 +259,7 @@ back as whatever the caller had last assigned.
 Whole suite green on net8.0 and net10.0, 337 passed on each, one pre-existing skip
 (`CanCreatePdfOver2gb`). Solution builds with 0 warnings.
 
-`PdfSharpCore.Test/Outlines/OutlineOpenStateTests.cs`, 7 tests, for item 5:
+`PdfSharpCore.Test/Outlines/OutlineOpenStateTests.cs`, 9 tests, for item 5:
 
 - an open entry counts its children up, and a closed one counts the same number down;
 - `Opened` assigned **after** the entry was added is still written — the case the old bookkeeping
@@ -258,7 +268,11 @@ Whole suite green on net8.0 and net10.0, 337 passed on each, one pre-existing sk
 - a closed child hides its own descendants from the count above it, where a count of open
   descendants would have said five rather than three;
 - the outline dictionary counts every row a reader would show, and not the top level alone;
-- `Opened` survives a read and another save, in both states.
+- `Opened` survives a read and another save, in both states;
+- a 40-deep chain, open all the way down, counts every level beneath it — the shape the post-order
+  pass exists for, and the arithmetic it has to get right;
+- closing one link of a deep chain hides everything under it from the level above, while the shut
+  entry still carries its own subtree so it knows what to show when it is opened.
 
 Whole suite green on both frameworks afterwards: 1715 passed on each, same one skip.
 

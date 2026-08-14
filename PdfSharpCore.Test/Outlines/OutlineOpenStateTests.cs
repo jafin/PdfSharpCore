@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -36,7 +37,7 @@ public class OutlineOpenStateTests
         chapter.Outlines.Add("1.1", document.Pages[1]);
         chapter.Outlines.Add("1.2", document.Pages[2]);
 
-        Reload(document);
+        Save(document);
 
         // Two children, both leaves, and the entry is open: two rows appear under it.
         CountOf(chapter).Should().Be(2);
@@ -50,7 +51,7 @@ public class OutlineOpenStateTests
         chapter.Outlines.Add("1.1", document.Pages[1]);
         chapter.Outlines.Add("1.2", document.Pages[2]);
 
-        Reload(document);
+        Save(document);
 
         // The magnitude says how many would appear if it were reopened; the sign says it is shut.
         CountOf(chapter).Should().Be(-2);
@@ -66,7 +67,7 @@ public class OutlineOpenStateTests
         // The assignment the old bookkeeping could not see: it ran once, inside Add.
         chapter.Opened = true;
 
-        Reload(document);
+        Save(document);
 
         CountOf(chapter).Should().Be(1);
     }
@@ -77,7 +78,7 @@ public class OutlineOpenStateTests
         PdfDocument document = ThreePages();
         PdfOutline leaf = document.Outlines.Add("Leaf", document.Pages[0], opened: true);
 
-        Reload(document);
+        Save(document);
 
         leaf.Elements.ContainsKey("/Count").Should().BeFalse();
     }
@@ -95,7 +96,7 @@ public class OutlineOpenStateTests
         PdfOutline open = chapter.Outlines.Add("1.2", document.Pages[1], opened: true);
         open.Outlines.Add("1.2.1", document.Pages[2]);
 
-        Reload(document);
+        Save(document);
 
         // 1.1 and 1.2 are visible; 1.2.1 is visible because 1.2 is open; the two under 1.1 are
         // not, because it is shut. A count of open descendants would have said five.
@@ -114,7 +115,7 @@ public class OutlineOpenStateTests
         PdfOutline second = document.Outlines.Add("Two", document.Pages[1], opened: false);
         second.Outlines.Add("2.1", document.Pages[2]);
 
-        using PdfDocument reopened = Reload(document);
+        using PdfDocument reopened = SaveAndOpen(document);
 
         // Two top-level entries, plus the two under the open one. The closed one's child does
         // not show, and the root's count is never negative.
@@ -131,7 +132,7 @@ public class OutlineOpenStateTests
         PdfOutline shut = document.Outlines.Add("Shut", document.Pages[1], opened: false);
         shut.Outlines.Add("2.1", document.Pages[2]);
 
-        using PdfDocument once = Reload(document);
+        using PdfDocument once = SaveAndOpen(document);
 
         // Reading did not used to set Opened at all, so a document opened and saved again lost
         // every expanded branch it had.
@@ -146,14 +147,62 @@ public class OutlineOpenStateTests
         twice.Outlines[1].Elements.GetInteger("/Count").Should().Be(-1);
     }
 
-    /// <summary>
-    ///   Saves the document, which is what fills in <c>/Count</c>, and hands back what a reader
-    ///   would see. The entries of the original are asserted against directly: <c>PrepareForSave</c>
-    ///   writes into the live dictionaries.
-    /// </summary>
-    static PdfDocument Reload(PdfDocument document)
+    [Fact]
+    public void ADeepChainCountsEveryLevelBeneathIt()
     {
-        return SaveAndOpen(document);
+        PdfDocument document = ThreePages();
+
+        // A chapter per page and a heading per section is the shape that used to cost the most:
+        // the counts are now taken in one post-order pass rather than each level re-walking
+        // everything below it, so this also pins the arithmetic that pass has to get right.
+        const int Depth = 40;
+        List<PdfOutline> chain = new List<PdfOutline>();
+        PdfOutline current = document.Outlines.Add("0", document.Pages[0], opened: true);
+        chain.Add(current);
+
+        for (int level = 1; level < Depth; level++)
+        {
+            current = current.Outlines.Add(level.ToString(), document.Pages[level % 3], opened: true);
+            chain.Add(current);
+        }
+
+        Save(document);
+
+        // Every entry is open, so each one shows everything beneath it: the deepest is a leaf
+        // with no key at all, its parent shows one row, and so on up to the first.
+        chain[Depth - 1].Elements.ContainsKey("/Count").Should().BeFalse();
+        for (int level = 0; level < Depth - 1; level++)
+            CountOf(chain[level]).Should().Be(Depth - 1 - level);
+    }
+
+    [Fact]
+    public void ClosingOneLinkOfADeepChainHidesEverythingUnderIt()
+    {
+        PdfDocument document = ThreePages();
+
+        PdfOutline top = document.Outlines.Add("top", document.Pages[0], opened: true);
+        PdfOutline middle = top.Outlines.Add("middle", document.Pages[1], opened: false);
+        PdfOutline bottom = middle.Outlines.Add("bottom", document.Pages[2], opened: true);
+        bottom.Outlines.Add("leaf", document.Pages[0]);
+
+        Save(document);
+
+        // The shut link still carries its own subtree, because it has to know what to show when
+        // it is opened - but the level above it counts only the shut entry itself.
+        CountOf(top).Should().Be(1);
+        CountOf(middle).Should().Be(-2);
+        CountOf(bottom).Should().Be(1);
+    }
+
+    /// <summary>
+    ///   Saves the document, which is what fills in <c>/Count</c>, and throws the bytes away. The
+    ///   entries of the original are what get asserted against, because <c>PrepareForSave</c>
+    ///   writes into the live dictionaries - so nothing has to be reopened to read them back.
+    /// </summary>
+    static void Save(PdfDocument document)
+    {
+        using MemoryStream stream = new MemoryStream();
+        document.Save(stream, false);
     }
 
     static PdfDocument SaveAndOpen(PdfDocument document)

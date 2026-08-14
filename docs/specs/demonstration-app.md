@@ -325,7 +325,8 @@ table of what the typed API *does* offer, so the demo is a workaround and the do
 one is needed at the same time.
 
 It round-trips: reopening the file gives `PdfTextField`, `PdfCheckBoxField`, `PdfRadioButtonField`,
-`PdfComboBoxField`, `PdfListBoxField` and `PdfPushButtonField`, each with the right flags and value.
+`PdfComboBoxField`, `PdfListBoxField` and `PdfPushButtonField`, each with the right flags and, where
+the field type has one, the right value — a push button has none, since it exists for its action.
 The dictionaries are right, in other words; only the way in is missing.
 
 ### Four things these three found

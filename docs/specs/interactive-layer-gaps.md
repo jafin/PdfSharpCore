@@ -78,7 +78,8 @@ never be assigned. Widgets go into a `PdfArray` set as the page's `/Annots`, bec
 
 **It round-trips.** The nine fields `Forms` builds this way come back from `PdfReader` fully typed —
 `PdfTextField`, `PdfCheckBoxField`, `PdfRadioButtonField`, `PdfComboBoxField`, `PdfListBoxField`,
-`PdfPushButtonField` — with the right `Flags` and `Value` on each. The dictionaries are correct;
+`PdfPushButtonField` — each with the right `Flags`, and the right `Value` where the field type has
+one at all: a push button carries an action rather than a value. The dictionaries are correct;
 only the way in is missing.
 
 **What closing it would take.** Public constructors taking a `PdfDocument`, an `Add` on the field
@@ -104,7 +105,8 @@ cannot now be corrected without a breaking change.
 ## Annotations
 
 Measured against [PDFKit's annotation API](https://pdfkit.org/docs/annotations.html), which is a
-fair yardstick because it is a list somebody else wrote.
+fair yardstick because it is a list somebody else wrote. That page documents eleven helper methods;
+seven have a counterpart here and four do not.
 
 ### 3 — four subtypes have no counterpart
 
@@ -117,7 +119,6 @@ fair yardstick because it is a list somebody else wrote.
 | `underline` | `PdfUnderlineAnnotation` |
 | `strike` | `PdfStrikeOutAnnotation` |
 | `fileAnnotation` | `PdfFileAttachmentAnnotation` |
-| `annotate` | subclass `PdfAnnotation` — but see item 4 |
 | `lineAnnotation` | **missing** — no `/Line` |
 | `rectAnnotation` | **missing** — no `/Square` |
 | `ellipseAnnotation` | **missing** — no `/Circle` |
