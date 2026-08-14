@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Drawing.Layout;
 
 namespace MigraDocCore.Rendering;
 
@@ -76,47 +77,22 @@ internal class ObstructedArea : Area
         if (yPosition + height > _bounds.Y + _bounds.Height + Renderer.Tolerance)
             return null;
 
-        double left = _bounds.X;
-        double right = _bounds.X + _bounds.Width;
-
         List<(double Start, double End)> blocked = BlockedSpansIn(yPosition, height);
+
+        // Nothing standing in this band, so the whole of it is free. Kept ahead of the scan rather
+        // than folded into it: the scan judges a run against the tolerance and would answer null
+        // for an area no wider than that, where this answers with the area. The two differ only for
+        // an area of no width, which is exactly the sort of case a pinned layout is made of.
         if (blocked.Count == 0)
             return new Rectangle(_bounds.X, yPosition, _bounds.Width, height);
 
-        blocked.Sort((first, second) => first.Start.CompareTo(second.Start));
-
-        double widestStart = 0, widestWidth = 0;
-        double cursor = left;
-
-        foreach ((double Start, double End) span in blocked)
-        {
-            if (span.Start > cursor)
-                Consider(cursor, Math.Min(span.Start, right), ref widestStart, ref widestWidth);
-
-            cursor = Math.Max(cursor, span.End);
-            if (cursor >= right)
-                break;
-        }
-
-        if (cursor < right)
-            Consider(cursor, right, ref widestStart, ref widestWidth);
-
         // Every part of the band is taken. Not an error: the paragraph moves down past whatever is
         // standing here and carries on below it.
-        if (widestWidth <= Renderer.Tolerance)
+        if (!LineSpans.TryWidestFree(_bounds.X, _bounds.X + _bounds.Width, blocked, Renderer.Tolerance,
+                out double widestStart, out double widestWidth))
             return null;
 
         return new Rectangle(widestStart, yPosition, widestWidth, height);
-    }
-
-    static void Consider(double start, double end, ref double widestStart, ref double widestWidth)
-    {
-        double width = end - start;
-        if (width <= widestWidth)
-            return;
-
-        widestStart = start;
-        widestWidth = width;
     }
 
     /// <summary>
