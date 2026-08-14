@@ -121,5 +121,8 @@ touching the column's left edge leaves free space only on the right, and that is
 
 ## Open Questions
 
-- Does `XTextSegmentFormatter`, which shares the layout loop, want obstacles of its own or merely to
-  inherit the blocked-band fix? Checking is in scope; changing it is not.
+- ~~Does `XTextSegmentFormatter`, which shares the layout loop, want obstacles of its own or merely to
+  inherit the blocked-band fix?~~ **Checked, and the premise was wrong.** It does not share the loop:
+  it carries its own `CreateLayout` with no per-line measure at all, so it inherits nothing and
+  cannot reach the blocked-band defect either. Giving it obstacles would mean giving it the per-line
+  measure first, which is a change of its own and not this one.

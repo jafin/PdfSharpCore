@@ -570,9 +570,24 @@ public class XTextFormatter
     readonly struct LineMeasure
     {
         internal LineMeasure(double start, double width)
+            : this(start, width, blocked: false, clearsAt: 0)
+        {
+        }
+
+        LineMeasure(double start, double width, bool blocked, double clearsAt)
         {
             Start = start;
             Width = width;
+            IsBlocked = blocked;
+            ClearsAt = clearsAt;
+        }
+
+        /// <summary>
+        /// A band with no room in it at all, and how far down the thing standing in it reaches.
+        /// </summary>
+        internal static LineMeasure Blocked(double start, double width, double clearsAt)
+        {
+            return new LineMeasure(start, width, blocked: true, clearsAt);
         }
 
         /// <summary>How far in from the left edge of the column the line's first block goes.</summary>
@@ -583,7 +598,34 @@ public class XTextFormatter
         /// limit, not the room between the two. The room is <c>Width - Start</c>.
         /// </summary>
         internal double Width { get; }
+
+        /// <summary>
+        /// Whether the band this was measured for has no room for text at all, which is a
+        /// different answer from a narrow measure and cannot be expressed as one.
+        /// </summary>
+        /// <remarks>
+        /// Without it the loop has only "here is your measure" to say, and a measure that starts
+        /// at or past its own limit reads to the loop as a very narrow line rather than as no
+        /// line - so the loop puts a word on it anyway, outside the column.
+        /// </remarks>
+        internal bool IsBlocked { get; }
+
+        /// <summary>
+        /// The line top at which whatever blocks this band stops blocking it. Meaningless unless
+        /// <see cref="IsBlocked"/>.
+        /// </summary>
+        internal double ClearsAt { get; }
     }
+
+    /// <summary>
+    /// How much room a line has to have before anything is put on it.
+    /// </summary>
+    /// <remarks>
+    /// Zero, give or take what arithmetic on doubles leaves behind. A merely narrow line is not
+    /// this: a word wider than its measure is placed anyway and always has been, and a threshold
+    /// that turned "narrow" into "no room" would move text that is pinned where it is.
+    /// </remarks>
+    const double MinimumRoom = 1e-6;
 
     /// <summary>
     /// The measure available to a line, given how far down its column the line's top sits.
@@ -618,7 +660,15 @@ public class XTextFormatter
                 // how much room it has - which is what makes a reservation on the left a change to
                 // one number. A reservation on the *right*, which is what a shape wrapped on its
                 // left side would want, is the other one.
-                return new LineMeasure(start + _dropCap.Reserved.Width, columnWidth);
+                double besideTheCap = start + _dropCap.Reserved.Width;
+
+                // A cap can be wider than the column it is set in - it is scaled to its depth and
+                // nothing holds its width to the measure - and then there is no line beside it to
+                // narrow, only the lines below it.
+                if (besideTheCap >= columnWidth - MinimumRoom)
+                    return LineMeasure.Blocked(besideTheCap, columnWidth, _dropCap.Reserved.Bottom);
+
+                return new LineMeasure(besideTheCap, columnWidth);
             }
         }
 
@@ -780,6 +830,38 @@ public class XTextFormatter
         return AllowVerticalOverflow;
     }
 
+    /// <summary>
+    /// Measures the line at <paramref name="y"/>, moving down past anything that leaves its band
+    /// no room at all and on to the next column where that runs out of one. Answers false when
+    /// there is nowhere left to put the line.
+    /// </summary>
+    /// <remarks>
+    /// With nothing in the way this measures once and returns, which is what the loop did before
+    /// there was anything to be in the way.
+    /// <para>
+    /// Where there is something, the skip goes to the foot of it rather than down a line at a
+    /// time, so how many measures it takes to get clear is a fact about the obstruction rather
+    /// than about the line height. The floor of one line under that is what guarantees the loop
+    /// ends: a foot level with the band it blocks would otherwise be asked about for ever, and
+    /// with the floor the worst case is the line-at-a-time advance this replaces.
+    /// </para>
+    /// </remarks>
+    bool MeasureLineWithRoom(bool firstLineOfParagraph, double columnWidth, double rectHeight,
+        ref LineMeasure measure, ref int column, ref double y)
+    {
+        measure = MeasureOfLineAt(y, firstLineOfParagraph, columnWidth, column);
+        while (measure.IsBlocked)
+        {
+            y = Math.Max(measure.ClearsAt, y + _lineHeight + LineGap);
+            if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
+                return false;
+
+            measure = MeasureOfLineAt(y, firstLineOfParagraph, columnWidth, column);
+        }
+
+        return true;
+    }
+
     void CreateLayout()
     {
         double rectWidth = _layoutRectangle.Width;
@@ -791,11 +873,22 @@ public class XTextFormatter
         // The measure of the line being filled. Re-asked for at every line, because a drop cap -
         // or anything else the text has to flow beside - makes the answer depend on how far down
         // the column the line sits.
-        LineMeasure measure = MeasureOfLineAt(0, true, columnWidth, column);
-        double lineStart = measure.Start;
-        double x = lineStart, y = 0;
+        LineMeasure measure = default;
+        double y = 0;
         int count = _blocks.Count;
-        for (int idx = 0; idx < count; idx++)
+
+        // Asked before the first block rather than at it: a first band with no room in it is
+        // answered by starting the text further down, and there is no text placed yet to move.
+        // Where that runs out of layout there is nowhere for any of the text to go.
+        int placeable = MeasureLineWithRoom(true, columnWidth, rectHeight, ref measure, ref column, ref y)
+            ? count
+            : 0;
+        if (placeable == 0 && count > 0)
+            _blocks[0].Stop = true;
+
+        double lineStart = measure.Start;
+        double x = lineStart;
+        for (int idx = 0; idx < placeable; idx++)
         {
             Block block = _blocks[idx];
             if (block.Type == BlockType.LineBreak)
@@ -809,14 +902,14 @@ public class XTextFormatter
                 // A written line break ends a paragraph, so the next line is indented again and
                 // the gap between paragraphs falls here.
                 y += _lineHeight + LineGap + ParagraphGap;
-                if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
+                // After the column move, not before: a line carried to the top of the next column
+                // is a line somewhere else, and its measure is whatever is free there.
+                if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight)
+                    || !MeasureLineWithRoom(true, columnWidth, rectHeight, ref measure, ref column, ref y))
                 {
                     block.Stop = true;
                     break;
                 }
-                // After the column move, not before: a line carried to the top of the next column
-                // is a line somewhere else, and its measure is whatever is free there.
-                measure = MeasureOfLineAt(y, true, columnWidth, column);
                 lineStart = measure.Start;
                 x = lineStart;
             }
@@ -840,12 +933,12 @@ public class XTextFormatter
                     // Begin implicit line break
                     firstIndex = idx;
                     y += _lineHeight + LineGap;
-                    if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight))
+                    if (!MoveToNextColumnIfFull(ref column, ref y, rectHeight)
+                        || !MeasureLineWithRoom(false, columnWidth, rectHeight, ref measure, ref column, ref y))
                     {
                         block.Stop = true;
                         break;
                     }
-                    measure = MeasureOfLineAt(y, false, columnWidth, column);
                     lineStart = measure.Start;
                     block.Location = new XPoint(ColumnLeft(column, columnWidth) + lineStart, y);
                     block.LineIndent = lineStart;
@@ -855,8 +948,8 @@ public class XTextFormatter
                 }
             }
         }
-        if (firstIndex < count && Alignment != XParagraphAlignment.Justify)
-            HorizontalAlignLine(firstIndex, count - 1, measure.Width);
+        if (firstIndex < placeable && Alignment != XParagraphAlignment.Justify)
+            HorizontalAlignLine(firstIndex, placeable - 1, measure.Width);
 
         ApplyEllipsis(columnWidth);
 

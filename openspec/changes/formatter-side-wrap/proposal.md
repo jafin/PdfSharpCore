@@ -122,10 +122,10 @@ special case to reject something that costs nothing.
 
 ### Modified Capabilities
 
-- `variable-line-measure`: gains the requirement that a line with no room is skipped rather than
-  filled, which the capability says nothing about today because a drop cap cannot produce one. The
-  existing requirement that an unobstructed block lays out exactly as before is unchanged and still
-  pinned.
+- `variable-line-measure`: gains the requirement that a line with no room is moved past the
+  obstruction rather than filled — which the capability says nothing about today, though a drop cap
+  can already produce one. The existing requirement that an unobstructed block lays out exactly as
+  before is unchanged and still pinned.
 - `drop-cap`: no behaviour changes and every existing requirement still holds. Listed because the
   cap becomes an ordinary obstacle rather than a branch, and a requirement that says the cap reserves
   room should say it in terms of the mechanism that now does it.
@@ -145,10 +145,16 @@ block is placed at the column's right edge — past the column, on top of whatev
 line breaks, `y` advances, the measure is re-asked, and it repeats for as many lines as the
 obstruction is deep. Nothing is thrown.
 
-A drop cap cannot trigger this, so it is latent today and reachable the moment a caller can supply
-an obstacle. It is fixed **first**, against the drop cap, before anything can produce it — the same
-sequencing `shape-side-wrap` used for `GetFittingRect` returning null, and for the same reason: a
-later failure in the obstacle logic is then attributable to the obstacle logic.
+**It was drafted here as latent. It is not.** A drop cap is scaled to its own depth and nothing
+holds its width to the measure, so a cap deep enough in a column narrow enough leaves the lines
+beside it no room at all — and then the text goes outside the column, one word to a line, for as
+many lines as the cap is deep. Measured, not reasoned: a 30pt-wide area with a five-line cap draws
+five lines sixteen points past its own right edge.
+
+So this is a shipped defect with a reproduction, not a trap set for a feature that has not arrived.
+It is fixed **first** and on its own — the same sequencing `shape-side-wrap` used for
+`GetFittingRect` returning null, and for the same reason: a later failure in the obstacle logic is
+then attributable to the obstacle logic.
 
 **A naming collision to settle before any enum is written.** MigraDoc ships
 `WrapStyle { TopBottom, None, Through, Left, Right, Largest, Both }`. A parallel `TextWrapSide` or
@@ -163,8 +169,9 @@ does, that needs deciding rather than defaulting.
 - `Drawing.Layout/XTextFormatter.cs` — `MeasureOfLineAt`, `CreateLayout`, `ApplyEllipsis`,
   `MeasureDropCap`.
 - `Drawing.Layout/XDropCap.cs` — unchanged as an API; its reservation is expressed differently.
-- `XTextSegmentFormatter` shares the layout loop and inherits the behaviour. Needs checking, not
-  changing.
+- `XTextSegmentFormatter` — **checked, and it turns out not to share the loop.** It carries its own
+  `CreateLayout` with no per-line measure in it, so it inherits neither the defect nor the fix.
+  Giving it obstacles would mean giving it the per-line measure first, which is not this change.
 
 **Not affected.** MigraDoc's `ObstructedArea` and `WrapFormat` are a separate engine and are not
 touched. The two remain deliberately separate implementations of one idea, which
@@ -203,7 +210,8 @@ widest-span rule becomes a **policy in the loop** rather than a property of the 
 makes contour obstacles a new implementation instead of a redesign. Recorded here because the
 cheaper, proven alternative was available and was not taken.
 
-**Open question, not yet investigated.** `XTextFormatter.Rotation` exists. Whether an obstacle is
-given in the rotated frame or the page frame is undecided, and if rotation makes the column's edges
-ambiguous then interval subtraction needs a defined frame to happen in. This is the first thing the
-design must settle and the likeliest source of scope.
+**Rotation — settled in the design, decision 3.** Layout runs in unrotated local coordinates and
+rotation is a draw-time transform, so obstacles are given in the formatter's own layout frame and
+cost nothing. Page-space obstacles under arbitrary rotation would inverse-rotate a rectangle into a
+quad and drag the polygon implementation onto the critical path to support rectangles, so a caller
+supplying an obstacle while `Rotation != 0` is refused rather than silently reinterpreted.
