@@ -12,6 +12,41 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Added
 
+- **`XTextFormatter` flows text around things the caller puts in the block.** Give it obstacles and
+  the lines whose band they stand in are narrowed around them, on either side, in any column.
+
+  ```csharp
+  var quote = new XRect(140, 150, 220, 108);        // where you drew it, in the block's own frame
+  formatter.Obstacles.Add(new RectangleObstacle(quote, padding: 14));
+  formatter.Columns = 2;
+  formatter.DrawString(copy, font, XBrushes.Black, block);
+  ```
+
+  The geometry is asked one question per line — *at this band, which runs are free?* — and answers
+  with a set of them, so an obstacle standing clear of both edges honestly reports a run either side.
+  **The line is laid out in the widest run and the others are left empty.** That is a decision rather
+  than a limitation: filling several would make one logical line span them, which justification,
+  alignment and truncation all assume never happens. MigraDoc's `WrapStyle` settled the same way.
+
+  `RectangleObstacle` is the only `IFlowObstacle` that ships. An ellipse, a polygon or an
+  `XGraphicsPath` is a new implementation of that interface rather than a redesign — flatten,
+  intersect the band, pair the crossings — but none is written, so text does not follow a silhouette
+  yet. **Padding belongs to the obstacle**, not the formatter, because how much air a thing wants
+  around it is a fact about that thing; it holds text off vertically as well as horizontally, so a
+  line that would otherwise clear an image by a hair is pushed past it instead.
+
+  Obstacles are positioned **relative to the layout rectangle and unrotated**. Layout is worked out
+  in that frame and `Rotation` turns the drawing surface afterwards, so an obstacle given in it turns
+  with the text. Supplying one while `Rotation` is set throws rather than guessing which frame was
+  meant — rotate the `XGraphics` instead and leave `Rotation` alone.
+
+  A band with nothing left in it moves the line down past what blocks it and tries again, rather than
+  drawing across it. The drop cap is now an obstacle like any other, which is why a cap reserves room
+  in the first column only: not a test on the column index any more, just where it stands.
+
+  Not covered: contour wrapping, more than one run per line, per-side padding, and obstacles that
+  push the block's top down — an obstacle narrows lines and never moves or grows the block.
+
 - **Text flows beside a shape in MigraDoc.** `WrapFormat.Style` takes four new values — `Left`,
   `Right`, `Largest` and `Both` — and a shape carrying one of them stands in the area the following
   elements are laid out in rather than pushing them down the page.

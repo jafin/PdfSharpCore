@@ -132,13 +132,27 @@ Landed on its own as PR #96, ahead of the rest of the change.
 
 ## 5. Make it visible, and close out
 
-- [ ] 5.1 `MagazineDemo` drops its hand-split pull quote and becomes a caller.
-- [ ] 5.2 `docs/specs/demonstration-app.md` says the formatter does not flow text beside a shape and
-      is not going to, and that the hand-split quote is therefore not a gap. Both statements go.
-- [ ] 5.3 Release notes.
-- [ ] 5.4 `./ci-build.ps1` clean; `dotnet test -f net8.0` and `-f net10.0` **separately** — run
+- [x] 5.1 `MagazineDemo` drops its hand-split pull quote and becomes a caller. One block and one
+      obstacle in place of two blocks with a gap arithmetic'd between them. The quote was widened
+      out to nearly the full measure before; it is narrower and centred now, so it straddles the
+      gutter and leaves a usable run down the outside of each column — which is the arrangement that
+      actually shows something.
+- [x] 5.2 `docs/specs/demonstration-app.md` says the formatter does not flow text beside a shape and
+      is not going to, and that the hand-split quote is therefore not a gap. Both statements go. The
+      `SideWrap`-versus-`Magazine` argument stays but changes its point: what differs between the
+      engines is no longer *whether* they wrap but what you hand them — a shape in a tree, or a
+      rectangle a caller drew and therefore knows the position of. Two new entries take the old
+      bullet's place on the "thinner than it looks" list: rectangles only, and one run per line.
+- [x] 5.3 Release notes.
+- [x] 5.4 `./ci-build.ps1` clean; `dotnet test -f net8.0` and `-f net10.0` **separately** — run
       together they report green and the host then crashes, which is the documented memory-pressure
-      abort rather than a failure.
-- [ ] 5.5 Rasterize a page per arrangement and **look at it**. On `shape-side-wrap` this caught a
-      demo that demonstrated nothing — equal room either side of the shape — which no assertion
-      would have flagged.
+      abort rather than a failure. **1952 passing on each.** Worth adding to the note: the abort can
+      also truncate a *single* leg, and it wears a green label when it does — three runs of the same
+      suite reported 1950, 1952 and 1953 tests, all of them saying "Passed!", two of them also
+      exiting non-zero. The count and the duration are what give it away, not the word.
+- [x] 5.5 Rasterize a page per arrangement and **look at it**. Caught two things no assertion did:
+      the second column was empty, because there was not enough copy to reach it and a test that
+      asks "is the second column untouched" passes perfectly on a column with nothing in it; and the
+      quote's own text overflowed its tint, because the box got narrower and the 16pt lines set into
+      it did not. Page one re-checked too — the drop cap is drawn by different code now and had to
+      look identical, and does.

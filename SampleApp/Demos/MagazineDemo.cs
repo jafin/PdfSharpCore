@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Drawing.Layout.enums;
@@ -17,13 +18,17 @@ namespace SampleApp.Demos;
 ///     workaround this demo was teaching as though it were a technique.
 ///   </para>
 ///   <para>
-///     The pull quote is still arithmetic, and unlike the drop cap it is going to stay that way.
-///     Text does flow beside a shape now - see the SideWrap demo - but that lives in MigraDoc,
-///     where a document is a tree of elements and a shape is one of them. This page is drawn with
-///     <c>XGraphics</c> and <c>XTextFormatter</c>, which have no notion of a shape to flow around:
-///     there is nothing here but a rectangle someone chose to paint and a text block someone chose
-///     to split. The two engines are separate, and the difference between them is exactly the
-///     difference between this page and that one.
+///     The pull quote is a property now too. It used to be two text blocks with a gap arithmetic'd
+///     between them, and this demo's own notes said it was going to stay that way - that the
+///     formatter had no notion of a shape to flow around, and that MigraDoc's side wrap was the
+///     nearest thing there would ever be. That turned out to be a fact about the formatter's API
+///     rather than about the formatter: it already flowed text beside a drop cap, and what was
+///     missing was a way for a caller to say where something else was.
+///   </para>
+///   <para>
+///     The two engines are still separate and still deliberately so. MigraDoc wraps a
+///     <i>shape in a document tree</i>; this wraps a rectangle a caller drew and knows the position
+///     of. Same idea, different level, and neither is the other's implementation.
 ///   </para>
 /// </remarks>
 internal sealed class MagazineDemo : PdfDemo
@@ -40,7 +45,8 @@ internal sealed class MagazineDemo : PdfDemo
         "A scrim that fades out as well as down, from a gradient with alpha in its colours",
         "A drop cap from XTextFormatter.DropCap - one property, three lines deep, set by its ink",
         "A title turned into a path by AddString and filled with a gradient",
-        "A pull quote slanted with ObliqueAngle, with the copy split around it by hand",
+        "A pull quote slanted with ObliqueAngle, straddling the gutter",
+        "Copy flowing down both sides of it from one DrawString, via XTextFormatter.Obstacles",
     };
 
     public override int PageCount => 2;
@@ -56,10 +62,10 @@ internal sealed class MagazineDemo : PdfDemo
         // the caller does not split it by hand.
         const string Opening =
             "There is a drop cap in this library now, and it is the property set below rather "
-            + "than the thirty lines this demo used to carry. The pull quote on the next page is "
-            + "still a rectangle, a transform, and a text block split by hand around it - this "
-            + "page is drawn rather than laid out, and a drawing surface has no shape to flow "
-            + "around. The SideWrap demo is the same idea done properly, in MigraDoc. ";
+            + "than the thirty lines this demo used to carry. The pull quote on the next page used "
+            + "to be two text blocks with a gap measured out between them; it is one block and one "
+            + "obstacle now, and the copy finds its own way down both sides of it. The SideWrap "
+            + "demo does the same thing a level up, for a shape in a MigraDoc document. ";
 
         const string Body =
             "The letter beside these lines is not drawn separately. DropCap says how many lines "
@@ -182,24 +188,48 @@ internal sealed class MagazineDemo : PdfDemo
                 XLinearGradientMode.Horizontal),
             title);
 
-        double upperTop = margin + 86;
-        formatter.Alignment = XParagraphAlignment.Justify;
-        formatter.Columns = 2;
-        formatter.ColumnGap = 18;
-        formatter.DrawString(string.Concat(Body, Body, Body), body, XBrushes.Black,
-            new XRect(margin, upperTop, measure, 210));
-        formatter.Columns = 1;
+        // ---- The pull quote, and the copy that flows around it -----------------------------
+        // One text block for the whole page and one obstacle standing in it. The quote is
+        // narrower than the measure and centred, so it straddles the gutter and takes the
+        // right of the first column and the left of the second - which leaves a usable run
+        // down each outside edge, and that is where the copy goes.
+        //
+        // Nothing here measures text. The two blocks with a gap arithmetic'd between them
+        // that this used to be needed the quote's height, the gap either side of it and the
+        // line height all kept in step by hand, and got them wrong whenever the font changed.
+        double textTopOfPage = margin + 86;
+        double textHeight = height - textTopOfPage - margin - 20;
 
-        // ---- The pull quote ---------------------------------------------------------------
+        // Positioned relative to the layout rectangle, which is what an obstacle is measured
+        // in - so the page coordinates the quote is drawn at are these plus the block's corner.
+        XRect quoteInBlock = new XRect(140, 150, measure - 280, 108);
+        XRect quote = new XRect(margin + quoteInBlock.X, textTopOfPage + quoteInBlock.Y,
+            quoteInBlock.Width, quoteInBlock.Height);
+
         // Set on a tint, at a slight slant. ObliqueAngle skews the glyphs where a real
         // italic would redraw them, which is the honest tool for display type that has no
         // italic of its own to reach for.
-        double quoteTop = upperTop + 232;
-        XRect quote = new XRect(margin + 40, quoteTop, measure - 80, 96);
-
         gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(255, 248, 232)), quote);
         gfx.DrawLine(new XPen(XColors.DarkSlateGray, 2), quote.X, quote.Y,
             quote.X, quote.Y + quote.Height);
+
+        formatter.Alignment = XParagraphAlignment.Justify;
+        formatter.Columns = 2;
+        formatter.ColumnGap = 18;
+
+        // The padding is the obstacle's own, because how much air a thing wants around it is a
+        // fact about that thing rather than about the text.
+        formatter.Obstacles.Add(new RectangleObstacle(quoteInBlock, padding: 14));
+
+        // Enough copy to fill both columns, because a column left empty would show nothing about
+        // an obstacle standing in it.
+        formatter.DrawString(
+            string.Concat(Enumerable.Repeat(Body, 17)), body,
+            XBrushes.Black, new XRect(margin, textTopOfPage, measure, textHeight));
+
+        formatter.Obstacles.Clear();
+        formatter.Columns = 1;
+        formatter.Alignment = XParagraphAlignment.Left;
 
         // Drawn a line at a time with XGraphics rather than flowed, because the slant lives
         // on XStringFormat and XTextFormatter's own DrawString does not take one.
@@ -209,30 +239,26 @@ internal sealed class MagazineDemo : PdfDemo
             LineAlignment = XLineAlignment.Near,
         };
 
-        XFont quoteFont = new XFont(Serif, 16);
+        // Set to the width of the quote rather than of the page: it straddles the gutter and is
+        // narrower than either, so the lines are broken to suit it.
+        XFont quoteFont = new XFont(Serif, 14);
         string[] quoteLines =
         {
-            "“Nothing decides that break except a loop",
-            "that adds one word at a time.”",
+            "“Nothing decides",
+            "that break except a",
+            "loop that adds one",
+            "word at a time.”",
         };
 
         for (int line = 0; line < quoteLines.Length; line++)
         {
             gfx.DrawString(quoteLines[line], quoteFont, XBrushes.DarkSlateGray,
-                new XRect(quote.X + 20, quote.Y + 22 + line * 24, quote.Width - 36, 22),
+                new XRect(quote.X + 18, quote.Y + 16 + line * 21, quote.Width - 32, 21),
                 slanted);
         }
 
         gfx.DrawString("Set with ObliqueAngle, on a tint", new XFont(Sans, 7),
             XBrushes.Gray, new XPoint(quote.X + 20, quote.Y + quote.Height + 14));
-
-        double lowerTop = quoteTop + 130;
-        formatter.Alignment = XParagraphAlignment.Justify;
-        formatter.Columns = 2;
-        formatter.DrawString(string.Concat(Body, Body, Body), body, XBrushes.Black,
-            new XRect(margin, lowerTop, measure, height - lowerTop - margin - 20));
-        formatter.Columns = 1;
-        formatter.Alignment = XParagraphAlignment.Left;
 
         RunningFoot(gfx, "2");
         #endregion
