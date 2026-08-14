@@ -305,6 +305,96 @@ public class DropCapTests
         starts.Should().OnlyContain(x => x < shallow.X + shallow.Width);
     }
 
+    // ----- a cap with no room beside it -----------------------------------------------------------
+
+    /// <summary>
+    ///   A rectangle narrower than the cap set into it. The cap is scaled to its own depth and
+    ///   nothing holds its width to the measure, so a deep cap in a narrow column can leave the
+    ///   lines beside it no room at all.
+    /// </summary>
+    static readonly XRect NarrowerThanTheCap = new XRect(40, 40, 30, 300);
+
+    [Fact]
+    public void TextIsKeptInsideAColumnTooNarrowToSetAnythingBesideTheCap()
+    {
+        // Before this was fixed the words went to the right of the column - one to a line, for as
+        // many lines as the cap was deep - because a line that starts past its own right limit
+        // reads to the layout loop as a narrow line rather than as no line, and the first block of
+        // a line is placed whether it fits or not.
+        var page = Render(Prose, cap: 5, area: NarrowerThanTheCap);
+
+        var starts = TextBaselines.PositionsOf(page).Skip(1).Select(p => p.X).ToList();
+
+        starts.Should().NotBeEmpty("the text is drawn, not dropped");
+        starts.Should().OnlyContain(x => x <= NarrowerThanTheCap.X + NarrowerThanTheCap.Width + Tolerance);
+    }
+
+    [Fact]
+    public void TextWithNoRoomBesideTheCapBeginsBelowItRatherThanLevelWithIt()
+    {
+        var page = Render(Prose, cap: 5, area: NarrowerThanTheCap);
+
+        var positions = TextBaselines.PositionsOf(page);
+        var cap = positions[0];
+        var firstBodyLine = positions.Skip(1).Max(p => p.Y);
+
+        // Down the page is down in y here, so the first line of body text sits below the cap's foot.
+        firstBodyLine.Should().BeLessThan(cap.Y + Tolerance,
+            "the text clears the cap in one move rather than being set beside it");
+    }
+
+    [Fact]
+    public void ACapTooWideForItsColumnLosesNoTextOnTheWayPastIt()
+    {
+        // The skip moves the text down and a column this narrow then runs out of room for the end
+        // of it, which is ordinary truncation. What must not happen is text going missing at the
+        // point of the skip - so what is set has to be the beginning of the text and unbroken.
+        var narrow = GlyphsOn(Render(Prose, cap: 5, area: NarrowerThanTheCap));
+        var roomy = GlyphsOn(Render(Prose, cap: 5, area: new XRect(40, 40, 300, 300)));
+
+        narrow.Should().NotBeEmpty();
+        narrow.Should().HaveCountLessThan(roomy.Count, "a column this narrow cannot hold it all");
+        roomy.Take(narrow.Count).Should().Equal(narrow, "what is set is the start of the text, in order");
+    }
+
+    [Fact]
+    public void ACapWithNoRoomBesideItAndNoRoomBelowItDrawsTheCapAndStops()
+    {
+        // Nowhere for the text to go at all: too narrow to sit beside the cap and too short to sit
+        // under it. The cap is still drawn; the text is dropped rather than the layout looping.
+        var draw = () => Render(Prose, cap: 5, area: new XRect(40, 40, 30, 40));
+
+        draw.Should().NotThrow();
+        TextOperators.ShownStrings(Render(Prose, cap: 5, area: new XRect(40, 40, 30, 40)))
+            .Should().ContainSingle("only the cap is drawn");
+    }
+
+    [Fact]
+    public void TextWithNoRoomBesideTheCapMovesToTheNextColumnWhenThereIsNoRoomBelowIt()
+    {
+        // The cap belongs to the first column only, so clearing it can mean going across rather
+        // than down - and the move past an obstruction has to be able to end up in a column that
+        // the obstruction was never in.
+        var page = Render(Prose, cap: 6, area: new XRect(40, 40, 120, 60),
+            arrange: f => f.Columns = 2);
+
+        var starts = TextBaselines.PositionsOf(page).Skip(1).Select(p => p.X).ToList();
+
+        starts.Should().NotBeEmpty("the text is set in the column the cap is not in");
+        starts.Should().OnlyContain(x => x > 40 + 50, "all of it is in the second column");
+    }
+
+    [Fact]
+    public void ACapWithNoRoomBesideItStillEndsWhenOverflowIsAllowed()
+    {
+        // Overflow means no column ever fills, so nothing outside the skip can stop it. What stops
+        // it is that the cap has a foot and the skip always moves at least a line towards it.
+        var draw = () => Render(Prose, cap: 5, area: new XRect(40, 40, 30, 40),
+            arrange: f => f.AllowVerticalOverflow = true);
+
+        draw.Should().NotThrow();
+    }
+
     // ----- the edges ------------------------------------------------------------------------------
 
     [Fact]

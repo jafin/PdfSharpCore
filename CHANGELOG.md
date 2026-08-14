@@ -350,6 +350,21 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Fixed
 
+- **A drop cap too wide for its column threw the text outside the column.** The cap is scaled to its
+  own depth and nothing holds its width to the measure, so a deep cap set into a narrow column can
+  leave the lines beside it no room at all. `XTextFormatter` had no way to say that: a measure
+  starting at or past its own right limit read to the layout loop as a very narrow line rather than
+  as no line, and the loop places the first block of a line whether it fits or not — which is right
+  for a word wider than its measure and wrong here. The result was one word per line, drawn past the
+  right edge of the column, for as many lines as the cap was deep, with nothing thrown.
+
+  A line whose band has no room in it is now moved down to the foot of what blocks it and laid out
+  there, so the text begins below the cap instead of beside it. The move always advances by at least
+  one line, so an obstruction level with the band it blocks cannot stall the loop; where there is no
+  room below either, the text is dropped exactly as text that runs past the last column is.
+
+  Text that fits beside its cap is unaffected, and output with no cap at all is unchanged.
+
 - **A trimmed page grew every time it was saved.** `PrepareForSave` derived the sheet by adding the
   trim margins to `PdfPage.Width`, and `Width` reads the media box that `PrepareForSave` had just
   overwritten with the sheet. So saving a document to a stream and then to a file — an ordinary
