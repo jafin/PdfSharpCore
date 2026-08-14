@@ -73,6 +73,53 @@ public class CircleAnnotationTests : IDisposable
         circle.Elements.GetDictionary("/AP").Should().NotBeNull();
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ASubtypeIsRequiredOfWhateverDerivesFromTheSharedBase(string subtype)
+    {
+        // The constructors are protected on a public class, so a subtype can come from outside
+        // this assembly. A dictionary with no /Subtype is ignored by readers, and the mistake
+        // would otherwise surface far away as "the annotation does nothing".
+        Action act = () => new Nameless(subtype);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void AskingForNothingClearsTheAppearanceStateAsWellAsTheAppearance()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfCircleAnnotation circle = new PdfCircleAnnotation();
+        document.AddPage().Annotations.Add(circle);
+        circle.Rectangle = new PdfRectangle(Where);
+
+        // A named appearance, which is what puts /AS on the annotation in the first place.
+        circle.SetAppearance("/On", new XForm(document, Where.Size));
+        circle.Elements.ContainsKey("/AS").Should().BeTrue();
+
+        circle.BorderWidth = 0;
+        circle.Interior = XColor.Empty;
+
+        // /AS naming a state in an /AP that is no longer there is a dictionary a reader has to
+        // guess at, so both go together.
+        circle.Elements.ContainsKey("/AP").Should().BeFalse();
+        circle.Elements.ContainsKey("/AS").Should().BeFalse();
+    }
+
+    /// <summary>A shape that names no subtype, which is the thing the base has to refuse.</summary>
+    sealed class Nameless : PdfSquareCircleAnnotation
+    {
+        public Nameless(string subtype)
+            : base(subtype)
+        { }
+
+        protected override void DrawShape(XGraphics gfx, XPen pen, XBrush brush, XRect box)
+        {
+        }
+    }
+
     [GoldenImageFact]
     public void AFilledCircleIsAnEllipseInscribedInTheRectangle()
     {
