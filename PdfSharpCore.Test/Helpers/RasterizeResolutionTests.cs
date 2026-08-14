@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -101,19 +102,28 @@ public class RasterizeResolutionTests
         // be, and Rasterize holds all of them at once - which is how test.pdf, four pages of 9.7
         // megapixels, came to ask for 38.7 and took the test host with it.
         var a4 = (595.276, 841.89);
-        var manyPages = Enumerable.Repeat(a4, 12).ToArray();
+        var document = DocumentOf(Enumerable.Repeat(a4, 12).ToArray());
 
-        PdfHelper.ResolutionFor(DocumentOf(manyPages)).Should().BeLessThan(300);
-        PdfHelper.PixelsIn(DocumentOf(manyPages), PdfHelper.ResolutionFor(DocumentOf(manyPages)))
+        var resolution = PdfHelper.ResolutionFor(document);
+
+        resolution.Should().BeLessThan(300);
+        PdfHelper.PixelsIn(document, resolution)
             .Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerDocument);
     }
 
     [Fact]
-    public void ASingleOrdinaryPageIsStillDrawnAtFullResolution()
+    public void ADocumentTooBigToDrawEvenAtOneDotPerInchIsRefused()
     {
-        // The reference images and the tolerances they are compared under all assume 300 dpi, so
-        // the ordinary case must not move.
-        PdfHelper.ResolutionFor(DocumentOf((595.276, 841.89))).Should().Be(300);
+        // The largest page a reader will accept is 14400 points a side, and 401 of them come to
+        // more than the limit at 1 dpi. Absurd, and reachable only now that every page counts -
+        // which is why it is refused out loud rather than floored at 1 dpi and drawn over the
+        // limit anyway.
+        var biggest = (14400.0, 14400.0);
+        var document = DocumentOf(Enumerable.Repeat(biggest, 401).ToArray());
+
+        var resolve = () => PdfHelper.ResolutionFor(document);
+
+        resolve.Should().Throw<InvalidOperationException>();
     }
 
     /// <summary>

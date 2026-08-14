@@ -11,12 +11,12 @@ public class PdfHelper
     private static readonly string _rootPath = PathHelper.GetInstance().RootDir;
 
     /// <summary>
-    /// The resolution pages are rasterized at, unless one is too big to be drawn at it.
+    /// The resolution pages are rasterized at, unless the document is too big to be drawn at it.
     /// </summary>
     private const int Dpi = 300;
 
     /// <summary>
-    /// The most pixels one rasterized page may come to.
+    /// The most pixels a rasterized document may come to, counting every page of it.
     /// </summary>
     /// <remarks>
     /// A page is drawn by Ghostscript, which on Windows is loaded into the test host rather than
@@ -114,16 +114,26 @@ public class PdfHelper
         // Halving the resolution quarters the pixels, so the resolution scales by the square root.
         var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerDocument / pixelsAtFullResolution));
 
-        // One dot per inch is a floor against a document that says something absurd about how big
-        // its pages are - a resolution of zero is not a resolution, and Ghostscript is being asked
-        // for one number. It is never what a real page reduces to: readers stop at 14400 points a
-        // side, and even that whole page is 40 thousand pixels at 1 dpi, which is far inside the
-        // limit. So a page that reaches this floor is already outside what could be drawn at all.
-        return Math.Max(reduced, 1);
+        // A resolution of zero is not a resolution, and Ghostscript is being asked for one number.
+        //
+        // This used to be a floor - Math.Max(reduced, 1) - and that was sound while the limit was
+        // per page: readers stop at 14400 points a side, and even that whole page is 40 thousand
+        // pixels at 1 dpi, far inside the limit, so nothing real could reach it. Counting every
+        // page makes it reachable, because enough pages of any size will get there. A floor would
+        // then hand Ghostscript a document over the limit anyway, which is the one thing this
+        // exists to prevent, and it would do it silently.
+        if (reduced < 1)
+        {
+            throw new InvalidOperationException(
+                $"A document of {document.PageCount} pages cannot be rasterized within "
+                + $"{MaxPixelsPerDocument:N0} pixels even at 1 dpi.");
+        }
+
+        return reduced;
     }
 
     /// <summary>
-    /// How many pixels the largest page of a document comes to when drawn at a resolution.
+    /// How many pixels every page of a document comes to together when drawn at a resolution.
     /// </summary>
     internal static double PixelsIn(PdfDocument document, int dpi)
     {
