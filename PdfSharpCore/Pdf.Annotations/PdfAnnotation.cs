@@ -29,6 +29,7 @@
 
 using System;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf.Advanced;
 
 namespace PdfSharpCore.Pdf.Annotations;
 
@@ -243,6 +244,122 @@ public abstract class PdfAnnotation : PdfDictionary
     }
 
     /// <summary>
+    /// Gives this annotation the appearance a reader draws for it, from a form drawn with
+    /// <see cref="XGraphics.FromForm"/>.
+    /// </summary>
+    /// <param name="form">
+    /// The drawing. Its coordinates are the annotation's own space, so a form the size of
+    /// <see cref="Rectangle"/> covers it exactly. Drawing on it is finished by this call and it
+    /// cannot be drawn on afterwards.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// Most annotation subtypes are drawn by the reader from their own entries, and need none of
+    /// this. Four of them - <c>/Square</c>, <c>/Circle</c>, <c>/Line</c> and <c>/FreeText</c> -
+    /// are drawn from <c>/AP</c> and from nothing else, so an annotation of one of those subtypes
+    /// without an appearance is a rectangle a reader paints nothing into.
+    /// </para>
+    /// <para>
+    /// The whole of what stood in the way of writing one was reach rather than capability:
+    /// <see cref="XForm"/> has public constructors and <see cref="XGraphics.FromForm"/> draws onto
+    /// it, but the form XObject underneath is internal, so the drawing could be made and not
+    /// handed to anything.
+    /// </para>
+    /// </remarks>
+    public void SetAppearance(XForm form)
+    {
+        PdfDictionary appearance = new PdfDictionary(RequireOwner());
+        appearance.Elements["/N"] = FinishedForm(form).Reference;
+        Elements[Keys.AP] = appearance;
+
+        // A single appearance is not one of a set, so any state left naming one of a set would
+        // now name something that is not there.
+        Elements.Remove(Keys.AS);
+        OnAppearanceInvalidated();
+    }
+
+    /// <summary>
+    /// Gives this annotation one of several appearances, each named, and shows the one named here.
+    /// </summary>
+    /// <param name="state">
+    /// The name of the state this drawing is the appearance of - the value a check box or a radio
+    /// button holds when it is showing it, such as <c>/Yes</c> or <c>/Off</c>. A leading solidus
+    /// is added if it is left off.
+    /// </param>
+    /// <param name="form">The drawing, as for <see cref="SetAppearance(XForm)"/>.</param>
+    /// <remarks>
+    /// Calling this more than once adds to the set rather than replacing it, because that is what
+    /// a set of states is for: a check box needs both its states in the file at once, and which of
+    /// them is showing is <c>/AS</c>.
+    /// </remarks>
+    public void SetAppearance(string state, XForm form)
+    {
+        if (string.IsNullOrEmpty(state))
+            throw new ArgumentException("An appearance state must be named.", nameof(state));
+
+        string name = state[0] == '/' ? state : "/" + state;
+        PdfDocument owner = RequireOwner();
+
+        // The states already written are kept: /AP /N holds all of them, and /AS picks one.
+        PdfDictionary appearance = Elements.GetDictionary(Keys.AP);
+        if (appearance == null)
+        {
+            appearance = new PdfDictionary(owner);
+            Elements[Keys.AP] = appearance;
+        }
+
+        PdfDictionary states = appearance.Elements.GetDictionary("/N");
+        if (states == null || states.Elements.ContainsKey("/BBox"))
+        {
+            // Either nothing yet, or a single appearance set by the overload above - which is a
+            // form XObject rather than a dictionary of states, and cannot be added to.
+            states = new PdfDictionary(owner);
+            appearance.Elements["/N"] = states;
+        }
+
+        states.Elements[name] = FinishedForm(form).Reference;
+        Elements.SetName(Keys.AS, name);
+        OnAppearanceInvalidated();
+    }
+
+    /// <summary>
+    /// Finishes the form and hands back the object a reference can be taken to, having checked it
+    /// belongs to the same document as this annotation.
+    /// </summary>
+    PdfFormXObject FinishedForm(XForm form)
+    {
+        if (form == null)
+            throw new ArgumentNullException(nameof(form));
+
+        if (form.Owner != Owner)
+        {
+            throw new ArgumentException(
+                "The form was made for another document. An appearance and the annotation that "
+                + "wears it must belong to the same one.", nameof(form));
+        }
+
+        // Closes the content stream and sets its length. Drawing on the form after this throws,
+        // which is why it is documented on the two methods above rather than left to be found.
+        form.DrawingFinished();
+
+        // The getter adds the form to the reference table if it is not there, so the reference
+        // read on the way back is always one that will be written.
+        return form.PdfForm;
+    }
+
+    PdfDocument RequireOwner()
+    {
+        if (Owner == null)
+        {
+            throw new InvalidOperationException(
+                "The annotation does not belong to a document yet. Add it to a page - "
+                + "page.Annotations.Add(annotation) - before giving it an appearance.");
+        }
+
+        return Owner;
+    }
+
+    /// <summary>
     /// Turns the <c>/Name</c> of an annotation that names its icon into the member of
     /// <typeparamref name="T"/> that stands for it, or <paramref name="fallback"/> when the entry
     /// is absent or names something this enumeration does not have.
@@ -266,7 +383,7 @@ public abstract class PdfAnnotation : PdfDictionary
     /// naming its icon <c>/3</c> would read back as whichever member happens to be 3.
     /// </para>
     /// </remarks>
-    private protected static T IconFromName<T>(string name, T fallback) where T : struct
+    private protected static T IconFromName<T>(string name, T fallback) where T : struct, Enum
     {
         if (string.IsNullOrEmpty(name))
             return fallback;

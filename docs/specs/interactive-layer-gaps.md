@@ -13,16 +13,16 @@ worth writing down: each item is a thing somebody trying to use the library woul
 | 1 | forms | the typed AcroForm API cannot author a form | open, worked around |
 | 2 | forms | `PdfAcroFieldFlags` has no `Comb` | open |
 | 3 | annotations | four PDFKit annotation types have no subtype here | open |
-| 4 | annotations | no public way to add an annotation of an arbitrary subtype | open |
-| 5 | annotations | no public way to build an appearance stream | open, worked around |
+| 4 | annotations | no public way to add an annotation of an arbitrary subtype | **fixed** |
+| 5 | annotations | no public way to give an annotation an appearance | **fixed** |
 | 6 | annotations | `PdfFileAttachmentAnnotation.Icon`'s getter always throws | **fixed** |
 | 7 | outlines | `PdfOutline.Opened` was never written | **fixed** |
 | 8 | outlines | reading a document lost every expanded branch | **fixed** |
 | 9 | general | `PdfInternals.CreateIndirectObject<T>()` always returns null | open |
 | 10 | general | bookmarks and links do not survive page import | open, known |
 
-Items 7 and 8 are done, under `docs/specs/bookmarks-and-outlines.md` item 5. Item 6 is done under
-this one. The rest are recorded rather than fixed: each wants a change of its own, and several are
+Items 7 and 8 are done, under `docs/specs/bookmarks-and-outlines.md` item 5. Items 4, 5 and 6 are
+done under this one. The rest are recorded rather than fixed: each wants a change of its own, and several are
 API-surface decisions rather than defects.
 
 Two more entries at the end are not library gaps at all — they are traps that caught this app's own
@@ -129,8 +129,15 @@ The four missing ones are all appearance-bearing: a viewer will not draw a `/Squ
 already does for its four subtypes. That is the work, not the subtype wrapper — the same lesson
 `text-markup-annotations.md` records for `/Highlight`.
 
-Until then the honest answer is to draw the shape with `XGraphics`, which is page content rather
-than an annotation and therefore not editable, hideable or printable-separately.
+**They are reachable now, if not yet wrapped.** Items 4 and 5 were what made this a wall: with
+`PdfGenericAnnotation` public and `PdfAnnotation.SetAppearance` taking an `XForm`, a caller writes
+the subtype and draws its appearance without leaving the public API, and a reader paints it. There
+is a test that does exactly that and counts the pixels, beside one that shows the same annotation
+without an appearance rasterizing to nothing at all.
+
+What is still missing is the convenience: a `PdfSquareAnnotation` that turns `/IC`, `/C` and a
+border width into that appearance for you, rather than the caller drawing it. That is a smaller and
+much more ordinary piece of work now than it was, and it is what item 3 has left in it.
 
 Going the other way, this library has what PDFKit does not: `PdfSquigglyAnnotation`,
 `PdfRubberStampAnnotation` with fifteen standard names, `PdfAnnotation.Opacity` (`/CA`),
@@ -139,37 +146,73 @@ Going the other way, this library has what PDFKit does not: `PdfSquigglyAnnotati
 There is also no `/Popup` annotation type. `PdfAnnotation.Keys.Popup` is defined and no class uses
 it, so a note's popup is positioned entirely by the reader.
 
-### 4 — no public way to add an arbitrary subtype
+### 4 — no public way to add an arbitrary subtype — **fixed**
 
 `PdfAnnotations.Add` takes a `PdfAnnotation`. `PdfAnnotation` is `abstract` with no public way to
-set `/Subtype`, and `PdfGenericAnnotation` — the one general-purpose subclass — is `internal`. So
-an annotation type the library has no class for cannot be added through the typed collection at
-all, and the only route is `page.Elements["/Annots"]` built by hand.
+set `/Subtype`, and `PdfGenericAnnotation` — the one general-purpose subclass — was `internal`. So
+an annotation type the library has no class for could not be added through the typed collection at
+all, and the only route was `page.Elements["/Annots"]` built by hand.
 
-This is already recorded in `text-markup-annotations.md` as the reason the StackOverflow workaround
-for issue #342 could not be made to work. It is repeated here because it is what makes item 3 a
-hard wall rather than an inconvenience: without it, a caller could add a `/Square` themselves.
+This is also recorded in `text-markup-annotations.md` as the reason the StackOverflow workaround for
+issue #342 could not be made to work. It is what made item 3 a hard wall rather than an
+inconvenience: without it, a caller could not add a `/Square` even knowing exactly what one is.
 
-`PdfAnnotations.Insert` is commented out, so annotations can only be appended.
-
-### 5 — no public way to build an appearance stream
-
-Every constructor of `PdfFormXObject` is `internal` — all four of them. An appearance stream is a
-form XObject, so nothing in the typed API can produce one.
-
-The raw route works and is what `Forms` uses for its check box, radio group and push button:
+`PdfGenericAnnotation` is now public, with constructors that take the subtype:
 
 ```csharp
-PdfDictionary form = new PdfDictionary(document);
-document.Internals.AddObject(form);
-form.Elements.SetName("/Type", "/XObject");
-form.Elements.SetName("/Subtype", "/Form");
-form.Elements["/BBox"] = new PdfArray(document, …);
-form.CreateStream(Encoding.ASCII.GetBytes(content));
+var square = new PdfGenericAnnotation("/Square");   // or "Square"; the solidus is added
+page.Annotations.Add(square);
+square.Rectangle = new PdfRectangle(gfx.Transformer.WorldToDefaultPage(box));
 ```
 
-`PdfDictionary.CreateStream(byte[])` being public is what makes this possible at all. The content
-has to be written as PDF operators by hand — see the second trap at the end.
+It keeps its `PdfDictionary` constructor, which is what `PdfAnnotations` already used to give a
+type to annotations read out of a document it has no class for — so the same class is now both
+what an unknown subtype is read into and how one is written.
+
+An empty subtype is refused at the call rather than written, because a dictionary with no
+`/Subtype` is not something a reader can do anything with, and the failure would otherwise surface
+as a silently ignored annotation.
+
+`PdfAnnotations.Insert` is still commented out, so annotations can only be appended.
+
+### 5 — no public way to give an annotation an appearance — **fixed**
+
+Recorded originally as "no public way to build an appearance stream", which was not quite right and
+worth correcting: the drawing could always be *built*, just never *handed over*.
+
+`XForm` has public constructors and `XGraphics.FromForm` draws onto one, so an appearance stream was
+always reachable as a drawing. What was not reachable was the form XObject underneath it —
+`XForm.PdfForm` is `internal`, and every constructor of `PdfFormXObject` is too — so there was no
+way to put the result in an annotation's `/AP`.
+
+`PdfAnnotation` now takes it directly:
+
+```csharp
+var form = new XForm(document, new XSize(120, 60));
+using (var gfx = XGraphics.FromForm(form))
+    gfx.DrawRectangle(XBrushes.RoyalBlue, 0, 0, 120, 60);
+
+square.SetAppearance(form);                 // /AP /N
+square.SetAppearance("/Off", blankForm);    // one of a named set, and /AS names it
+```
+
+The named overload accumulates rather than replaces, because that is what a set of states is for: a
+check box needs both of its states in the file at once and `/AS` picks between them. The unnamed one
+replaces the set and clears `/AS`, since a single appearance is not one of a set and a state naming
+something no longer there leaves a reader with nothing to draw.
+
+`PdfFormXObject` stays internal. Nothing needs it now, and keeping it in means the appearance is
+described by the same drawing API as the rest of the library rather than by a second one.
+
+**A defect turned up under this.** `XForm.Finish` did `Gfx.Dispose()` unconditionally, so finishing
+a form that had never been drawn on threw `NullReferenceException` — reachable before this change
+through the public `DrawingFinished()`, and unavoidable after it, because *an empty appearance is a
+real thing*: the "off" state of a check box or a radio button is an empty content stream. Now
+`Gfx?.Dispose()`.
+
+The raw dictionary route still works, and is what the `Forms` demo uses for its check box, radio
+group and push button — it needs one appearance per state on many fields and writes its own
+operators. `PdfDictionary.CreateStream(byte[])` being public is what makes that possible.
 
 ### 6 — `PdfFileAttachmentAnnotation.Icon`'s getter always threw — **fixed**
 
