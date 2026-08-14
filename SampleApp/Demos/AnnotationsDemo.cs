@@ -14,7 +14,7 @@ namespace SampleApp.Demos;
 /// </summary>
 /// <remarks>
 ///   The last page is a parity table against PDFKit's annotation API, because the useful thing to
-///   know about an annotation library is as often what it will not do. Four of the eleven methods
+///   know about an annotation library is as often what it will not do. Three of the eleven methods
 ///   PDFKit documents have no counterpart here, and saying so on the page is cheaper than letting
 ///   somebody find out by writing the call.
 /// </remarks>
@@ -333,8 +333,8 @@ internal sealed class AnnotationsDemo : PdfDemo
         XGraphics thirdGfx = XGraphics.FromPdfPage(third);
 
         Title(thirdGfx, "Parity with PDFKit's annotations");
-        Note(thirdGfx, "pdfkit.org/docs/annotations.html documents eleven methods. Seven of them "
-            + "have something here; four do not.", 94);
+        Note(thirdGfx, "pdfkit.org/docs/annotations.html documents eleven methods. Eight of them "
+            + "have something here; three do not.", 94);
 
         XFont mono = new XFont("Source Code Pro", 8);
 
@@ -348,7 +348,7 @@ internal sealed class AnnotationsDemo : PdfDemo
             ("strike(x, y, w, h)", "PdfStrikeOutAnnotation"),
             ("fileAnnotation(x, y, w, h, file)", "PdfFileAttachmentAnnotation"),
             ("lineAnnotation(x1, y1, x2, y2)", "MISSING - no /Line annotation"),
-            ("rectAnnotation(x, y, w, h)", "MISSING - no /Square annotation"),
+            ("rectAnnotation(x, y, w, h)", "PdfSquareAnnotation"),
             ("ellipseAnnotation(x, y, w, h)", "MISSING - no /Circle annotation"),
             ("textAnnotation(x, y, w, h, text)", "MISSING - no /FreeText annotation"),
         };
@@ -392,7 +392,7 @@ internal sealed class AnnotationsDemo : PdfDemo
 
         rowY += 22;
         thirdGfx.DrawString(
-            "The four missing subtypes are all appearance-bearing: a viewer will not draw a /Square",
+            "The three missing subtypes are all appearance-bearing: a viewer will not draw a /Circle",
             noteFont, XBrushes.DimGray, new XPoint(56, rowY));
         rowY += 12;
         thirdGfx.DrawString(
