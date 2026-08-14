@@ -94,27 +94,41 @@ Landed on its own as PR #96, ahead of the rest of the change.
 
 ## 4. Wire it into the formatter
 
-- [ ] 4.1 Give `XTextFormatter` a flow region: bounds plus obstacles, supplied by the caller.
-- [ ] 4.2 Refuse an obstacle where `Rotation != 0`, with an error naming the frame obstacles are
+- [x] 4.1 Give `XTextFormatter` a flow region: bounds plus obstacles, supplied by the caller. The
+      bounds come from the layout rectangle the formatter already has, so `Obstacles` is the whole
+      of the new surface and there is nothing for a caller to keep in step. The region is built only
+      where something stands in the block, so the ordinary case reaches the same code it always did.
+- [x] 4.2 Refuse an obstacle where `Rotation != 0`, with an error naming the frame obstacles are
       given in. Layout runs unrotated and rotation is a draw-time transform, so a layout-local
       obstacle costs nothing while a page-space one would inverse-rotate a rectangle into a quad —
-      dragging the polygon implementation onto the critical path to support rectangles.
-- [ ] 4.3 Make the drop cap an obstacle the formatter creates. Only the formatter can size it, since
+      dragging the polygon implementation onto the critical path to support rectangles. **Only
+      caller-supplied obstacles are refused**: the drop cap is one the formatter makes for itself in
+      the frame it lays out in, and caps under rotation have always worked.
+- [x] 4.3 Make the drop cap an obstacle the formatter creates. Only the formatter can size it, since
       it scales the glyph to the line depth. `MeasureOfLineAt` loses its `_dropCap` branch **and**
       its `column == 0` test: with the reservation in layout coordinates, "first column only" falls
-      out geometrically. `Reserved.X == 0` currently hides that choice, because column-local and
-      layout-global coincide there.
-- [ ] 4.4 Clip each obstacle to the column of the line being measured, so an obstacle straddling the
+      out geometrically. The cap is **clipped to the first column** when the obstacle is made — it
+      is scaled by its depth and can come out wider than the column it is set in, and unclipped it
+      would reach across the gutter and narrow the next column too.
+- [x] 4.4 Clip each obstacle to the column of the line being measured, so an obstacle straddling the
       gutter becomes two ordinary reductions with nothing to do about the gutter itself.
-- [ ] 4.5 Measure `ApplyEllipsis` against the line it lands on rather than the column it sits in. It
-      cannot be wrong while every line shares a limit and becomes wrong on the first narrowed last
-      line — the same shape as the MigraDoc defect fixed in #92, where a later phase re-derived what
-      an earlier phase already knew.
-- [ ] 4.6 Test: both sides narrowed, an obstacle spanning two columns, ellipsis on a narrowed last
+      `IntervalSet.Intersect`, which group 3 did not need and this does.
+- [x] 4.5 Measure `ApplyEllipsis` against the line it lands on rather than the column it sits in.
+      **Already so** — `drop-cap-layout` did it when it introduced `Block.LineWidth`, and the
+      comment there says why. Covered now by a test with a caller's obstacle rather than a cap.
+- [x] 4.6 Test: both sides narrowed, an obstacle spanning two columns, ellipsis on a narrowed last
       line, a cap and an obstacle narrowing one line together, and the drop cap unchanged in a
-      two-column layout.
-- [ ] 4.7 Re-run the pins, and `DropCapTests` unchanged and green — the cap's behaviour must survive
-      the change of mechanism untouched.
+      two-column layout. **15 tests**, including the two rotation cases and the one that pins the
+      nearest-foot rule below.
+- [x] 4.7 Re-run the pins, and `DropCapTests` unchanged and green — the cap's behaviour must survive
+      the change of mechanism untouched. **Both**: 49 cap tests and the seventeen pinned
+      arrangements, none of them edited.
+- [x] 4.8 Not planned: the skip needs a foot to move to, and with more than one obstacle there is a
+      choice of feet. It has to be the **nearest** one below, not the furthest. Two obstacles can
+      cover a line between them while neither covers it alone, and the deeper one may go on long
+      after the shallower ends — so moving to the deepest steps over bands that do have room.
+      `IFlowObstacle` gains `Bottom` and `TextFlowRegion` gains `NextClearanceBelow` for it. My own
+      first test of this asserted the opposite and was wrong, which is how the rule got pinned.
 
 ## 5. Make it visible, and close out
 

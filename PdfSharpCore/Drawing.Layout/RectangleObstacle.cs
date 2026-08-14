@@ -92,6 +92,10 @@ public sealed class RectangleObstacle : IFlowObstacle
     public XRect Reserved { get; }
 
     /// <inheritdoc />
+    /// <remarks>The foot of <see cref="Reserved"/>, so a line moved here is clear of the padding too.</remarks>
+    public double Bottom => _bottom;
+
+    /// <inheritdoc />
     public IReadOnlyList<XInterval> GetExcludedIntervals(FlowBand band)
     {
         // Judged against the reserved rectangle, so the padding holds a line off vertically as well

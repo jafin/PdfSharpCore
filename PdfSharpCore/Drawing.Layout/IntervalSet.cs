@@ -127,6 +127,31 @@ public sealed class IntervalSet : IReadOnlyList<XInterval>
     }
 
     /// <summary>
+    /// Keeps only the parts of this set that lie inside the given run.
+    /// </summary>
+    /// <remarks>
+    /// What clips a block's room to the column a line actually sits in. An obstacle straddling a
+    /// gutter then becomes an ordinary reduction of each column it reaches into, with nothing to
+    /// say about the gutter itself, because no text was ever going there.
+    /// </remarks>
+    public IntervalSet Intersect(XInterval bounds)
+    {
+        if (_intervals.Length == 0 || bounds.IsEmpty)
+            return Empty;
+
+        var kept = new List<XInterval>(_intervals.Length);
+        foreach (XInterval interval in _intervals)
+        {
+            XInterval part = interval.Intersect(bounds);
+            if (!part.IsEmpty)
+                kept.Add(part);
+        }
+
+        // Already in order and already disjoint: clipping cannot reorder runs or make two meet.
+        return kept.Count == 0 ? Empty : new IntervalSet(kept.ToArray());
+    }
+
+    /// <summary>
     /// Finds the widest run in the set, where any run is wide enough to be worth having.
     /// </summary>
     /// <param name="tolerance">

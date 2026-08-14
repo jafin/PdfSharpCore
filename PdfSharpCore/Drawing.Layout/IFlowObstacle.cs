@@ -36,4 +36,18 @@ public interface IFlowObstacle
     /// for most lines of most blocks.
     /// </returns>
     IReadOnlyList<XInterval> GetExcludedIntervals(FlowBand band);
+
+    /// <summary>
+    /// How far down the obstacle reaches, past which it takes nothing from any line.
+    /// </summary>
+    /// <remarks>
+    /// What a caller with no room left needs in order to do something about it. Without this the
+    /// only move is down one line and ask again, which works but makes the number of tries a fact
+    /// about the line height rather than about the obstacle.
+    /// <para>
+    /// It has to include whatever room the obstacle keeps clear around itself, or a line moved to
+    /// exactly this depth would still be inside it and the caller would move again for nothing.
+    /// </para>
+    /// </remarks>
+    double Bottom { get; }
 }

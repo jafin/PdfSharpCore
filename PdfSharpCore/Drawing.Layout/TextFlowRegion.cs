@@ -81,4 +81,42 @@ public sealed class TextFlowRegion
 
         return free;
     }
+
+    /// <summary>
+    /// How far down a line has to move to get out from under something standing in the given band.
+    /// </summary>
+    /// <returns>
+    /// The nearest depth below the band's top at which the set of things blocking it changes, or
+    /// null where nothing stands in the band at all.
+    /// </returns>
+    /// <remarks>
+    /// <b>The nearest foot, not the furthest.</b> Two obstacles can cover a line between them while
+    /// neither covers it alone, and the deeper one may go on for a long way after the shallower one
+    /// has ended - so moving to the deepest foot would step over bands that do have room in them.
+    /// Moving to the nearest foot cannot overshoot: below it the obstacles in the way are a
+    /// different set, and the caller asks again.
+    /// </remarks>
+    public double? NextClearanceBelow(FlowBand band)
+    {
+        double? nearest = null;
+
+        foreach (IFlowObstacle obstacle in _obstacles)
+        {
+            if (obstacle == null)
+                continue;
+
+            IReadOnlyList<XInterval> taken = obstacle.GetExcludedIntervals(band);
+            if (taken == null || taken.Count == 0)
+                continue;
+
+            double bottom = obstacle.Bottom;
+            if (bottom <= band.Top)
+                continue;
+
+            if (nearest == null || bottom < nearest.Value)
+                nearest = bottom;
+        }
+
+        return nearest;
+    }
 }
