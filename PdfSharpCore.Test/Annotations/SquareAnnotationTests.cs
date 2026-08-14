@@ -97,6 +97,24 @@ public class SquareAnnotationTests : IDisposable
     }
 
     [Fact]
+    public void ChangingTheInteriorOrTheBorderStampsTheModificationDate()
+    {
+        PdfSquareAnnotation square = OnAPage(out _);
+
+        // Rewound rather than read, so that the assertion does not turn on the clock ticking
+        // between two statements.
+        DateTime before = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        square.Elements.SetDateTime("/M", before);
+        square.Interior = XColors.RoyalBlue;
+        square.Elements.GetDateTime("/M", DateTime.MinValue).Should().BeAfter(before);
+
+        square.Elements.SetDateTime("/M", before);
+        square.BorderWidth = 3;
+        square.Elements.GetDateTime("/M", DateTime.MinValue).Should().BeAfter(before);
+    }
+
+    [Fact]
     public void ANegativeBorderIsRefused()
     {
         PdfSquareAnnotation square = OnAPage(out _);

@@ -71,6 +71,7 @@ public sealed class PdfSquareAnnotation : PdfAnnotation
         {
             _interior = value;
             WriteInteriorColor();
+            Elements.SetDateTime(Keys.M, DateTime.Now);
             OnAppearanceInvalidated();
         }
     }
@@ -102,6 +103,7 @@ public sealed class PdfSquareAnnotation : PdfAnnotation
             border.Elements.SetName("/S", "/S");
             Elements[Keys.BS] = border;
 
+            Elements.SetDateTime(Keys.M, DateTime.Now);
             OnAppearanceInvalidated();
         }
     }
@@ -135,6 +137,11 @@ public sealed class PdfSquareAnnotation : PdfAnnotation
     /// <summary>
     /// Draws the rectangle into a form and gives it to this annotation as its appearance.
     /// </summary>
+    /// <remarks>
+    /// Does not stamp <c>/M</c>. The properties above do, as the ones on
+    /// <see cref="PdfAnnotation"/> do, because a modification date records a change somebody made
+    /// rather than the redrawing that follows from it - and this runs from every one of them.
+    /// </remarks>
     void RebuildAppearance()
     {
         // Until it is on a page there is no document to make a form in. OnAddedToPage calls this
