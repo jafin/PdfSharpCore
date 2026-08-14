@@ -66,16 +66,7 @@ public sealed class PdfRubberStampAnnotation : PdfAnnotation
     /// </summary>
     public PdfRubberStampAnnotationIcon Icon
     {
-        get
-        {
-            string value = Elements.GetName(Keys.Name);
-            if (value == "")
-                return PdfRubberStampAnnotationIcon.NoIcon;
-            value = value.Substring(1);
-            if (!Enum.IsDefined(typeof(PdfRubberStampAnnotationIcon), value))
-                return PdfRubberStampAnnotationIcon.NoIcon;
-            return (PdfRubberStampAnnotationIcon)Enum.Parse(typeof(PdfRubberStampAnnotationIcon), value, false);
-        }
+        get => IconFromName(Elements.GetName(Keys.Name), PdfRubberStampAnnotationIcon.NoIcon);
         set
         {
             if (Enum.IsDefined(typeof(PdfRubberStampAnnotationIcon), value) &&
