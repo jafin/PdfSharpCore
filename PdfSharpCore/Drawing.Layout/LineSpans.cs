@@ -25,6 +25,19 @@ namespace PdfSharpCore.Drawing.Layout;
 /// deliberately carries no <c>InternalsVisibleTo</c>. Pure and stateless, so being public costs
 /// little.
 /// </para>
+/// <para>
+/// <b>The sweep itself lives in <see cref="IntervalSet"/> and this is the shorthand for it.</b> It
+/// began as its own hand-rolled scan, written before there was an interval type; keeping both would
+/// have been two implementations of one idea sitting in one folder, which is the thing this class
+/// was extracted to stop. What is left here is the signature MigraDoc calls - doubles in, doubles
+/// out - over geometry that is now written once.
+/// </para>
+/// <para>
+/// It allocates where the hand-rolled scan did not: a list of intervals and a set or two, once per
+/// line. Deliberate, and cheap against what a page of glyphs costs. If it ever stops being cheap,
+/// the specialisation can come back - with a test that it and <see cref="IntervalSet"/> agree,
+/// which is what would have made keeping both defensible in the first place.
+/// </para>
 /// </remarks>
 public static class LineSpans
 {
@@ -34,10 +47,10 @@ public static class LineSpans
     /// <param name="left">The left edge of the line.</param>
     /// <param name="right">The right edge of the line.</param>
     /// <param name="blocked">
-    /// The horizontal spans obstacles take up. May overlap each other and may run outside
-    /// <paramref name="left"/> and <paramref name="right"/>; both are handled.
-    /// <b>Sorted in place</b> - the list is the caller's working list, sorted rather than copied so
-    /// that a per-line call does not allocate a second one.
+    /// The horizontal spans obstacles take up. May overlap each other, may be given in any order,
+    /// and may run outside <paramref name="left"/> and <paramref name="right"/>; all three are
+    /// handled. Left as it was found - a span given end-first is read the way round it was plainly
+    /// meant rather than refused.
     /// </param>
     /// <param name="tolerance">
     /// How wide a run has to be to count as room. A run no wider than this is treated as no room at
@@ -88,42 +101,21 @@ public static class LineSpans
                 "A tolerance narrower than nothing would make a run of no width count as room.");
         }
 
-        blocked.Sort((first, second) => first.Start.CompareTo(second.Start));
-
-        double cursor = left;
-
+        var taken = new List<XInterval>(blocked.Count);
         foreach ((double Start, double End) span in blocked)
         {
-            // A gap between where the last obstacle ended and where this one starts. Clipped to the
-            // right edge, since an obstacle may begin outside the line entirely.
-            if (span.Start > cursor)
-                Consider(cursor, Math.Min(span.Start, right), ref start, ref width);
-
-            // Max, not assignment: the spans are sorted by where they start, so a wide obstacle can
-            // still end further right than the one after it.
-            cursor = Math.Max(cursor, span.End);
-            if (cursor >= right)
-                break;
+            // Read the way round it was plainly meant. This never refuses, because it did not
+            // refuse before there was an interval type to have an opinion about it.
+            taken.Add(span.End < span.Start
+                ? new XInterval(span.End, span.Start)
+                : new XInterval(span.Start, span.End));
         }
 
-        if (cursor < right)
-            Consider(cursor, right, ref start, ref width);
+        if (!IntervalSet.Of(left, right).Subtract(taken).TryWidest(tolerance, out XInterval widest))
+            return false;
 
-        if (width > tolerance)
-            return true;
-
-        start = 0;
-        width = 0;
-        return false;
-    }
-
-    static void Consider(double start, double end, ref double widestStart, ref double widestWidth)
-    {
-        double width = end - start;
-        if (width <= widestWidth)
-            return;
-
-        widestStart = start;
-        widestWidth = width;
+        start = widest.Start;
+        width = widest.Width;
+        return true;
     }
 }

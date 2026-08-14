@@ -167,15 +167,22 @@ public class LineSpansTests
     }
 
     [Fact]
-    public void TheSpansGivenAreSortedInPlaceRatherThanCopied()
+    public void TheSpansGivenAreLeftAsTheyWere()
     {
-        // Documented behaviour rather than an accident: the list is the caller's working list and a
-        // per-line call does not allocate a second one. Pinned so it cannot change unremarked.
+        // This used to sort the caller's list in place, which was worth an allocation when the scan
+        // was hand-rolled here and needed the order. The scan is IntervalSet's now and orders its
+        // own copy, so the argument is no longer touched at all.
         var blocked = new List<(double Start, double End)> { (80, 90), (10, 20) };
 
         LineSpans.TryWidestFree(Left, Right, blocked, Tolerance, out _, out _);
 
-        blocked.Should().BeInAscendingOrder(span => span.Start);
+        blocked.Should().Equal((80, 90), (10, 20));
+    }
+
+    [Fact]
+    public void ASpanGivenEndFirstIsReadTheWayRoundItWasMeant()
+    {
+        WidestFree((30, 0)).Should().Be((true, 30d, 70d));
     }
 
     // ----- what the arguments have to be ----------------------------------------------------------

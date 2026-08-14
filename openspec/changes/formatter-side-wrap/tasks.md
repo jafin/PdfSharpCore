@@ -62,22 +62,35 @@ Landed on its own as PR #96, ahead of the rest of the change.
 
 ## 3. The abstraction
 
-- [ ] 3.1 A band type: a top and a bottom, the **line box** rather than the baseline. A line whose
-      baseline clears an obstacle can still have ascenders inside it.
-- [ ] 3.2 An interval set with subtraction, and the free-span query answering with it. More general
+- [x] 3.1 A band type: a top and a bottom, the **line box** rather than the baseline. A line whose
+      baseline clears an obstacle can still have ascenders inside it. `FlowBand`, which owns the
+      overlap test as well, so every obstacle answers by one rule rather than each choosing.
+- [x] 3.2 An interval set with subtraction, and the free-span query answering with it. More general
       than either reference implementation — iText7 coalesces to one span, QuestPDF has no per-line
       seam at all — and chosen anyway so that taking the widest span is a policy in the loop rather
-      than a property of the type.
-- [ ] 3.3 An obstacle interface returning excluded intervals for a band, with a rectangle
+      than a property of the type. `XInterval` and `IntervalSet`, immutable, with `TryWidest` as the
+      place the one-run-per-line decision is taken.
+- [x] 3.3 An obstacle interface returning excluded intervals for a band, with a rectangle
       implementation. This is where an ellipse, a polygon and an `XGraphicsPath` become new
-      implementations rather than a redesign.
-- [ ] 3.4 Padding **on the obstacle** — `Inflate` for a rectangle. A margin is a fact about the thing
-      being avoided, and two obstacles in one block can want different distances.
-- [ ] 3.5 Unit-test the geometry with no formatter in sight: obstacle left, right, in the middle
+      implementations rather than a redesign. `IFlowObstacle` and `RectangleObstacle`, composed by
+      `TextFlowRegion`.
+- [x] 3.4 Padding **on the obstacle** — `Inflate` for a rectangle. A margin is a fact about the thing
+      being avoided, and two obstacles in one block can want different distances. One distance
+      rather than four; growing it to four sides later changes `RectangleObstacle` and nothing else.
+      It holds text off **vertically as well as horizontally**, so a line that would otherwise clear
+      the obstacle by a hair is pushed past it, which is what MigraDoc's `DistanceTop` does.
+- [x] 3.5 Unit-test the geometry with no formatter in sight: obstacle left, right, in the middle
       (two spans), spanning the full width, above the band, below the band, two at once, and
       touching an edge exactly. Correctness is cheap to establish here and expensive to debug
-      through a rendered page.
-- [ ] 3.6 Re-run the pins.
+      through a rendered page. **61 tests** across `FlowGeometryTests` and `TextFlowRegionTests`.
+- [x] 3.6 Re-run the pins. **Byte-identical.**
+- [x] 3.7 Not planned, and not optional once 3.2 existed: `LineSpans` had hand-rolled the same
+      sweep, written before there was an interval type. Two implementations of one idea in one
+      folder is the thing group 2 was for, so `LineSpans` now delegates to `IntervalSet` and keeps
+      only the doubles-in-doubles-out signature MigraDoc calls. It stops sorting the caller's list
+      in place — a wart flagged when it was written and now gone, since the set orders its own copy.
+      Costs a few allocations per line, which is cheap against a page of glyphs and is recorded on
+      the class along with what to do if it ever stops being.
 
 ## 4. Wire it into the formatter
 
