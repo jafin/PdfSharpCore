@@ -69,6 +69,25 @@ public static class LineSpans
         if (blocked == null)
             throw new ArgumentNullException(nameof(blocked));
 
+        // A line may have no width - that is an ordinary answer of "no room", and there is a test
+        // for it - but it cannot end to the left of where it began. Left unchecked the scan walks
+        // a negative line and reports no room, which is the right answer arrived at by accident
+        // and hides the caller's mistake.
+        if (right < left)
+        {
+            throw new ArgumentOutOfRangeException(nameof(right), right,
+                "A line cannot end to the left of where it starts.");
+        }
+
+        // A negative tolerance is worse than useless: the test at the end is "wider than the
+        // tolerance", so a run of no width at all would pass it and be offered to the caller as
+        // room. Zero is allowed and means exactly that - any width at all will do.
+        if (tolerance < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(tolerance), tolerance,
+                "A tolerance narrower than nothing would make a run of no width count as room.");
+        }
+
         blocked.Sort((first, second) => first.Start.CompareTo(second.Start));
 
         double cursor = left;

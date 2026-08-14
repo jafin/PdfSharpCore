@@ -178,11 +178,47 @@ public class LineSpansTests
         blocked.Should().BeInAscendingOrder(span => span.Start);
     }
 
+    // ----- what the arguments have to be ----------------------------------------------------------
+
     [Fact]
-    public void NoSpansAtAllIsRefused()
+    public void AMissingListOfSpansIsRefused()
     {
+        // No list at all, which is a caller mistake. An *empty* list is not: it says the line has
+        // nothing standing in it, and AnUnobstructedLineIsFreeEndToEnd is that case.
         var scan = () => LineSpans.TryWidestFree(Left, Right, null, Tolerance, out _, out _);
 
         scan.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ALineEndingLeftOfWhereItStartsIsRefused()
+    {
+        var scan = () => LineSpans.TryWidestFree(Right, Left, new List<(double, double)>(),
+            Tolerance, out _, out _);
+
+        // A line of no width is allowed and answers "no room" - see ALineOfNoWidthHasNoRoom - but
+        // one of negative width is a mistake rather than an answer.
+        scan.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void ANegativeToleranceIsRefused()
+    {
+        var scan = () => LineSpans.TryWidestFree(Left, Right, new List<(double, double)>(),
+            -1, out _, out _);
+
+        // The test at the end is "wider than the tolerance", so a negative one would let a run of
+        // no width count as room - the opposite of what a tolerance is for.
+        scan.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void AToleranceOfNothingAllowsAnyWidthAtAll()
+    {
+        bool found = LineSpans.TryWidestFree(Left, Right, new List<(double, double)>(),
+            0, out _, out double width);
+
+        found.Should().BeTrue();
+        width.Should().Be(Right - Left);
     }
 }
