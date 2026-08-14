@@ -15,15 +15,15 @@ worth writing down: each item is a thing somebody trying to use the library woul
 | 3 | annotations | four PDFKit annotation types have no subtype here | open |
 | 4 | annotations | no public way to add an annotation of an arbitrary subtype | open |
 | 5 | annotations | no public way to build an appearance stream | open, worked around |
-| 6 | annotations | `PdfFileAttachmentAnnotation.Icon`'s getter always throws | open |
+| 6 | annotations | `PdfFileAttachmentAnnotation.Icon`'s getter always throws | **fixed** |
 | 7 | outlines | `PdfOutline.Opened` was never written | **fixed** |
 | 8 | outlines | reading a document lost every expanded branch | **fixed** |
 | 9 | general | `PdfInternals.CreateIndirectObject<T>()` always returns null | open |
 | 10 | general | bookmarks and links do not survive page import | open, known |
 
-Items 7 and 8 are done, under `docs/specs/bookmarks-and-outlines.md` item 5. The rest are recorded
-rather than fixed: each wants a change of its own, and several are API-surface decisions rather
-than defects.
+Items 7 and 8 are done, under `docs/specs/bookmarks-and-outlines.md` item 5. Item 6 is done under
+this one. The rest are recorded rather than fixed: each wants a change of its own, and several are
+API-surface decisions rather than defects.
 
 Two more entries at the end are not library gaps at all — they are traps that caught this app's own
 first draft, kept here because both fail silently and both will catch the next person.
@@ -171,7 +171,7 @@ form.CreateStream(Encoding.ASCII.GetBytes(content));
 `PdfDictionary.CreateStream(byte[])` being public is what makes this possible at all. The content
 has to be written as PDF operators by hand — see the second trap at the end.
 
-### 6 — `PdfFileAttachmentAnnotation.Icon`'s getter always throws
+### 6 — `PdfFileAttachmentAnnotation.Icon`'s getter always threw — **fixed**
 
 A plain defect, and the only one in this document that is not a missing feature.
 
@@ -202,11 +202,50 @@ Two faults, and together they mean the property can never be read successfully:
 Confirmed by direct probe: both paths throw. The setter is fine, which is why the `Annotations` demo
 works — it only ever sets.
 
-The same property exists three times over, and the other two are right.
-`PdfTextAnnotation.Icon` does `value.Substring(1)` and checks `Enum.IsDefined` before parsing;
-`PdfRubberStampAnnotation.Icon` does the same. Both were probed and both return what was set. So the
-fix is to make the third copy match the two beside it — or better, to have one helper the three
-share.
+The same property existed three times over, and the other two were right.
+`PdfTextAnnotation.Icon` did `value.Substring(1)` and checked `Enum.IsDefined` before parsing;
+`PdfRubberStampAnnotation.Icon` did the same, character for character, differing only in the
+enumeration named. Both were probed and both returned what was set.
+
+#### The change
+
+Three copies that drifted is the defect, so the fix is one implementation rather than a corrected
+third copy: `PdfAnnotation.IconFromName<T>` — `private protected`, so it adds nothing to the public
+surface — and all three properties now read through it.
+
+```csharp
+private protected static T IconFromName<T>(string name, T fallback) where T : struct
+{
+    if (string.IsNullOrEmpty(name))
+        return fallback;
+
+    string member = name[0] == '/' ? name.Substring(1) : name;
+
+    return Enum.IsDefined(typeof(T), member)
+        ? (T)Enum.Parse(typeof(T), member, false)
+        : fallback;
+}
+```
+
+The fallback is what differs between the three, and it is the only thing that does.
+`PdfFileAttachmentAnnotation.IconType` has no `NoIcon` member, and does not need one: Table 184
+gives `/Name` a default of `PushPin`, so an attachment without the entry is a push pin. The other
+two fall back to `NoIcon`.
+
+`Enum.IsDefined` rather than `Enum.TryParse`, which the two working copies also used and which is
+worth keeping deliberately: handed a string of digits `TryParse` succeeds and returns that number as
+the enumeration value, so a document naming its icon `/1` would read back as whichever member
+happens to be 1.
+
+The attachment's **setter** changed too, in the one way it also differed: it wrote
+`value.ToString()` for any value, so a cast from an out-of-range integer put something like `/42`
+into the file. It now removes the entry instead, which is what the other two do and what leaves a
+reader on its documented default rather than on a name it cannot know.
+
+Covered by `PdfSharpCore.Test/Annotations/AnnotationIconTests.cs`, 31 tests: every icon of all three
+enumerations round-tripping, the absent and unrecognised cases falling back rather than throwing,
+the digit-named icon that `TryParse` would have accepted, an out-of-range value not being written,
+and every name being written with its solidus.
 
 ---
 

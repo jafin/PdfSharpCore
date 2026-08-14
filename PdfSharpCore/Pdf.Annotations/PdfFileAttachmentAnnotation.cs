@@ -37,18 +37,24 @@ public class PdfFileAttachmentAnnotation : PdfAnnotation
         Flags = PdfAnnotationFlags.Locked;
     }
 
+    /// <summary>
+    /// The icon a viewer draws for the attachment. Unlike the icon of a text annotation or a
+    /// rubber stamp there is no "none": an attachment with no <c>/Name</c> is a push pin, which
+    /// is the default ISO 32000-1 Table 184 gives the entry.
+    /// </summary>
     public IconType Icon
     {
-        get
+        get => IconFromName(Elements.GetName(Keys.Name), IconType.PushPin);
+        set
         {
-            var iconName = Elements.GetName(Keys.Name);
-
-            if (iconName == null)
-                return IconType.PushPin;
-
-            return (IconType)(Enum.Parse(typeof(IconType), iconName));
+            // Removing the key rather than writing a name for a value the enumeration does not
+            // have. A cast from an out-of-range integer would otherwise put something like /42
+            // into the file, and a reader handed a name it does not know draws nothing at all.
+            if (Enum.IsDefined(typeof(IconType), value))
+                Elements.SetName(Keys.Name, value.ToString());
+            else
+                Elements.Remove(Keys.Name);
         }
-        set => Elements.SetName(Keys.Name, value.ToString());
     }
 
     public PdfFileSpecification File

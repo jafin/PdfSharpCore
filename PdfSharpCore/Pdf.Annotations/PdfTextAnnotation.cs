@@ -84,16 +84,7 @@ public sealed class PdfTextAnnotation : PdfAnnotation
     /// </summary>
     public PdfTextAnnotationIcon Icon
     {
-        get
-        {
-            string value = Elements.GetName(Keys.Name);
-            if (value == "")
-                return PdfTextAnnotationIcon.NoIcon;
-            value = value.Substring(1);
-            if (!Enum.IsDefined(typeof(PdfTextAnnotationIcon), value))
-                return PdfTextAnnotationIcon.NoIcon;
-            return (PdfTextAnnotationIcon)Enum.Parse(typeof(PdfTextAnnotationIcon), value, false);
-        }
+        get => IconFromName(Elements.GetName(Keys.Name), PdfTextAnnotationIcon.NoIcon);
         set
         {
             if (Enum.IsDefined(typeof(PdfTextAnnotationIcon), value) &&
