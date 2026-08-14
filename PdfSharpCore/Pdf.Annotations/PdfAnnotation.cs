@@ -266,7 +266,7 @@ public abstract class PdfAnnotation : PdfDictionary
     /// naming its icon <c>/3</c> would read back as whichever member happens to be 3.
     /// </para>
     /// </remarks>
-    private protected static T IconFromName<T>(string name, T fallback) where T : struct
+    private protected static T IconFromName<T>(string name, T fallback) where T : struct, Enum
     {
         if (string.IsNullOrEmpty(name))
             return fallback;
