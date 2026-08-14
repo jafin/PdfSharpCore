@@ -72,7 +72,7 @@ public sealed class PdfGenericAnnotation : PdfAnnotation
     /// </param>
     public PdfGenericAnnotation(string subtype)
     {
-        Elements.SetName(Keys.Subtype, NameOf(subtype));
+        Elements.SetName(Keys.Subtype, SubtypeName(subtype));
     }
 
     /// <summary>
@@ -85,21 +85,13 @@ public sealed class PdfGenericAnnotation : PdfAnnotation
     public PdfGenericAnnotation(PdfDocument document, string subtype)
         : base(document)
     {
-        Elements.SetName(Keys.Subtype, NameOf(subtype));
+        Elements.SetName(Keys.Subtype, SubtypeName(subtype));
     }
 
     /// <summary>
     /// The subtype this annotation names itself with, including its solidus.
     /// </summary>
     public string Subtype => Elements.GetName(Keys.Subtype);
-
-    static string NameOf(string subtype)
-    {
-        if (string.IsNullOrWhiteSpace(subtype))
-            throw new ArgumentException("An annotation must name its subtype.", nameof(subtype));
-
-        return subtype[0] == '/' ? subtype : "/" + subtype;
-    }
 
     /// <summary>
     /// Predefined keys of this dictionary.

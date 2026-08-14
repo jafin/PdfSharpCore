@@ -14,7 +14,7 @@ namespace SampleApp.Demos;
 /// </summary>
 /// <remarks>
 ///   The last page is a parity table against PDFKit's annotation API, because the useful thing to
-///   know about an annotation library is as often what it will not do. Three of the eleven methods
+///   know about an annotation library is as often what it will not do. Two of the eleven methods
 ///   PDFKit documents have no counterpart here, and saying so on the page is cheaper than letting
 ///   somebody find out by writing the call.
 /// </remarks>
@@ -333,8 +333,8 @@ internal sealed class AnnotationsDemo : PdfDemo
         XGraphics thirdGfx = XGraphics.FromPdfPage(third);
 
         Title(thirdGfx, "Parity with PDFKit's annotations");
-        Note(thirdGfx, "pdfkit.org/docs/annotations.html documents eleven methods. Eight of them "
-            + "have something here; three do not.", 94);
+        Note(thirdGfx, "pdfkit.org/docs/annotations.html documents eleven methods. Nine of them "
+            + "have something here; two do not.", 94);
 
         XFont mono = new XFont("Source Code Pro", 8);
 
@@ -349,7 +349,7 @@ internal sealed class AnnotationsDemo : PdfDemo
             ("fileAnnotation(x, y, w, h, file)", "PdfFileAttachmentAnnotation"),
             ("lineAnnotation(x1, y1, x2, y2)", "MISSING - no /Line annotation"),
             ("rectAnnotation(x, y, w, h)", "PdfSquareAnnotation"),
-            ("ellipseAnnotation(x, y, w, h)", "MISSING - no /Circle annotation"),
+            ("ellipseAnnotation(x, y, w, h)", "PdfCircleAnnotation"),
             ("textAnnotation(x, y, w, h, text)", "MISSING - no /FreeText annotation"),
         };
 
@@ -392,11 +392,11 @@ internal sealed class AnnotationsDemo : PdfDemo
 
         rowY += 22;
         thirdGfx.DrawString(
-            "The three missing subtypes are all appearance-bearing: a viewer will not draw a /Circle",
+            "The two missing subtypes are appearance-bearing: a viewer will not draw a /Line from",
             noteFont, XBrushes.DimGray, new XPoint(56, rowY));
         rowY += 12;
         thirdGfx.DrawString(
-            "from its /Rect alone, so adding them means writing appearance streams the way",
+            "its endpoints alone, so adding them means writing appearance streams the way",
             noteFont, XBrushes.DimGray, new XPoint(56, rowY));
         rowY += 12;
         thirdGfx.DrawString(
