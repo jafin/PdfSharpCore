@@ -275,7 +275,6 @@ public abstract class PdfAnnotation : PdfDictionary
         // A single appearance is not one of a set, so any state left naming one of a set would
         // now name something that is not there.
         Elements.Remove(Keys.AS);
-        OnAppearanceInvalidated();
     }
 
     /// <summary>
@@ -319,7 +318,6 @@ public abstract class PdfAnnotation : PdfDictionary
 
         states.Elements[name] = FinishedForm(form).Reference;
         Elements.SetName(Keys.AS, name);
-        OnAppearanceInvalidated();
     }
 
     /// <summary>
