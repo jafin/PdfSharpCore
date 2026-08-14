@@ -11,12 +11,12 @@ public class PdfHelper
     private static readonly string _rootPath = PathHelper.GetInstance().RootDir;
 
     /// <summary>
-    /// The resolution pages are rasterized at, unless one is too big to be drawn at it.
+    /// The resolution pages are rasterized at, unless the document is too big to be drawn at it.
     /// </summary>
     private const int Dpi = 300;
 
     /// <summary>
-    /// The most pixels one rasterized page may come to.
+    /// The most pixels a rasterized document may come to, counting every page of it.
     /// </summary>
     /// <remarks>
     /// A page is drawn by Ghostscript, which on Windows is loaded into the test host rather than
@@ -25,10 +25,20 @@ public class PdfHelper
     /// which at 300 dpi is 122 megapixels and takes the process to about 940MB for the one page.
     /// On its own that succeeds; landing on a test host that is already carrying the rest of the
     /// suite it sometimes does not, and the host exits with status 1, no dump, no message and no
-    /// failing test. Every other page in these tests is around 9 megapixels, so a page over this
-    /// limit is drawn at whatever lower resolution brings it under, and the rest are untouched.
+    /// failing test.
+    ///
+    /// This limit was once per page, which left a gap: Rasterize reads *every* page of a document
+    /// into one collection, so a document of many ordinary pages was never reduced at all.
+    /// test.pdf is four pages of 9.7 megapixels - each one comfortably inside a per-page limit,
+    /// and 38.7 megapixels together, two and a half times the single page the limit was written
+    /// for. PageResizeRenderingTests renders it three times and holds the first alongside the
+    /// others to compare them, so that one test asked for something over a hundred megapixels at
+    /// once, and with two target frameworks running it was two of those at the same time.
+    ///
+    /// --blame-crash named TestDocumentSurvivesBeingResized as the test that never finished, on
+    /// both framework legs of the same run. The limit is therefore on the whole document now.
     /// </remarks>
-    internal const double MaxPixelsPerPage = 16e6;
+    internal const double MaxPixelsPerDocument = 16e6;
 
     /// <summary>
     ///   Rasterize all pages within a PDF to PNG images
@@ -87,7 +97,7 @@ public class PdfHelper
         
     /// <summary>
     /// What to draw a document at: <see cref="Dpi"/>, or as much less as it takes to keep its
-    /// largest page inside <see cref="MaxPixelsPerPage"/>.
+    /// whole document inside <see cref="MaxPixelsPerDocument"/>.
     /// </summary>
     /// <remarks>
     /// One resolution for the whole document, because a reader is given one and the pages of a
@@ -98,32 +108,44 @@ public class PdfHelper
     internal static int ResolutionFor(PdfDocument document)
     {
         var pixelsAtFullResolution = PixelsIn(document, Dpi);
-        if (pixelsAtFullResolution <= MaxPixelsPerPage)
+        if (pixelsAtFullResolution <= MaxPixelsPerDocument)
             return Dpi;
 
         // Halving the resolution quarters the pixels, so the resolution scales by the square root.
-        var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerPage / pixelsAtFullResolution));
+        var reduced = (int)(Dpi * Math.Sqrt(MaxPixelsPerDocument / pixelsAtFullResolution));
 
-        // One dot per inch is a floor against a document that says something absurd about how big
-        // its pages are - a resolution of zero is not a resolution, and Ghostscript is being asked
-        // for one number. It is never what a real page reduces to: readers stop at 14400 points a
-        // side, and even that whole page is 40 thousand pixels at 1 dpi, which is far inside the
-        // limit. So a page that reaches this floor is already outside what could be drawn at all.
-        return Math.Max(reduced, 1);
+        // A resolution of zero is not a resolution, and Ghostscript is being asked for one number.
+        //
+        // This used to be a floor - Math.Max(reduced, 1) - and that was sound while the limit was
+        // per page: readers stop at 14400 points a side, and even that whole page is 40 thousand
+        // pixels at 1 dpi, far inside the limit, so nothing real could reach it. Counting every
+        // page makes it reachable, because enough pages of any size will get there. A floor would
+        // then hand Ghostscript a document over the limit anyway, which is the one thing this
+        // exists to prevent, and it would do it silently.
+        if (reduced < 1)
+        {
+            throw new InvalidOperationException(
+                $"A document of {document.PageCount} pages cannot be rasterized within "
+                + $"{MaxPixelsPerDocument:N0} pixels even at 1 dpi.");
+        }
+
+        return reduced;
     }
 
     /// <summary>
-    /// How many pixels the largest page of a document comes to when drawn at a resolution.
+    /// How many pixels every page of a document comes to together when drawn at a resolution.
     /// </summary>
     internal static double PixelsIn(PdfDocument document, int dpi)
     {
-        var largestPage = 0.0;
+        var area = 0.0;
 
+        // Summed rather than maxed. Every page is held in memory at once, so what the host has to
+        // carry is the whole document rather than its biggest page.
         foreach (var page in document.Pages)
-            largestPage = Math.Max(largestPage, page.Width.Point * page.Height.Point);
+            area += page.Width.Point * page.Height.Point;
 
         // Points are 1/72 inch, so a page is (points / 72 * dpi) pixels along each side.
-        return largestPage * dpi * dpi / (72.0 * 72.0);
+        return area * dpi * dpi / (72.0 * 72.0);
     }
 
     public static List<string> WriteImageCollection(MagickImageCollection images, string outDir, string filePrefix)

@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -25,7 +27,7 @@ namespace PdfSharpCore.Test.Helpers;
 public class RasterizeResolutionTests
 {
     /// <summary>
-    ///   A square page of exactly <see cref="PdfHelper.MaxPixelsPerPage" /> pixels at full
+    ///   A square page of exactly <see cref="PdfHelper.MaxPixelsPerDocument" /> pixels at full
     ///   resolution. 300 dpi over 72 points to the inch is 25/6 pixels per point, so a page of
     ///   960 points square comes to 4000 pixels square, which is 16 million of them.
     /// </summary>
@@ -61,7 +63,7 @@ public class RasterizeResolutionTests
         var document = DocumentOf((PointsAtExactlyTheLimit, PointsAtExactlyTheLimit));
 
         PdfHelper.PixelsIn(document, PdfHelper.ResolutionFor(document))
-            .Should().Be(PdfHelper.MaxPixelsPerPage, "the page was chosen to land exactly on it");
+            .Should().Be(PdfHelper.MaxPixelsPerDocument, "the page was chosen to land exactly on it");
         PdfHelper.ResolutionFor(document).Should().Be(300);
     }
 
@@ -75,7 +77,7 @@ public class RasterizeResolutionTests
         var document = DocumentOf((PointsAtExactlyTheLimit * 2, PointsAtExactlyTheLimit * 2));
 
         PdfHelper.ResolutionFor(document).Should().Be(150);
-        PdfHelper.PixelsIn(document, 150).Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerPage);
+        PdfHelper.PixelsIn(document, 150).Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerDocument);
     }
 
     /// <summary>
@@ -84,12 +86,44 @@ public class RasterizeResolutionTests
     ///   each other, so they cannot be drawn at sizes that do not correspond.
     /// </summary>
     [Fact]
-    public void TheLargestPageOfADocumentDecidesTheResolution()
+    public void OneOversizedPageBringsTheWholeDocumentDown()
     {
         var oversized = (PointsAtExactlyTheLimit * 2, PointsAtExactlyTheLimit * 2);
 
+        // Four times the limit in that page alone, plus two A4s beside it.
         PdfHelper.ResolutionFor(DocumentOf((595.276, 841.89), oversized, (595.276, 841.89)))
-            .Should().Be(150, "the one big page decides it however few of them there are");
+            .Should().BeLessThan(150, "the big page alone is over the limit, and it is not alone");
+    }
+
+    [Fact]
+    public void ManyOrdinaryPagesCountTowardsTheLimitToo()
+    {
+        // The gap the per-page limit left. Every one of these is far inside what a single page may
+        // be, and Rasterize holds all of them at once - which is how test.pdf, four pages of 9.7
+        // megapixels, came to ask for 38.7 and took the test host with it.
+        var a4 = (595.276, 841.89);
+        var document = DocumentOf(Enumerable.Repeat(a4, 12).ToArray());
+
+        var resolution = PdfHelper.ResolutionFor(document);
+
+        resolution.Should().BeLessThan(300);
+        PdfHelper.PixelsIn(document, resolution)
+            .Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerDocument);
+    }
+
+    [Fact]
+    public void ADocumentTooBigToDrawEvenAtOneDotPerInchIsRefused()
+    {
+        // The largest page a reader will accept is 14400 points a side, and 401 of them come to
+        // more than the limit at 1 dpi. Absurd, and reachable only now that every page counts -
+        // which is why it is refused out loud rather than floored at 1 dpi and drawn over the
+        // limit anyway.
+        var biggest = (14400.0, 14400.0);
+        var document = DocumentOf(Enumerable.Repeat(biggest, 401).ToArray());
+
+        var resolve = () => PdfHelper.ResolutionFor(document);
+
+        resolve.Should().Throw<InvalidOperationException>();
     }
 
     /// <summary>
@@ -112,6 +146,6 @@ public class RasterizeResolutionTests
 
         resolution.Should().Be(108);
         PdfHelper.PixelsIn(document, resolution)
-            .Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerPage);
+            .Should().BeLessThanOrEqualTo(PdfHelper.MaxPixelsPerDocument);
     }
 }
