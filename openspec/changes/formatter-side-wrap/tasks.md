@@ -36,18 +36,29 @@ Landed on its own as PR #96, ahead of the rest of the change.
 
 ## 2. The one piece of arithmetic the two engines share
 
-- [ ] 2.1 Extract the tolerance-aware widest-free-span scan into `PdfSharpCore/Drawing.Layout/` as a
+- [x] 2.1 Extract the tolerance-aware widest-free-span scan into `PdfSharpCore/Drawing.Layout/` as a
       pure static helper taking and returning **plain doubles**. No `Rectangle`, `XRect` or `XUnit`
       in the signature — that is what sidesteps the type mismatch between the engines. Public,
       because this repository deliberately carries no `InternalsVisibleTo` and MigraDoc must call it.
-- [ ] 2.2 A **pure lift**: same comparison operators, same tie-breaking, tolerance threaded as a
+      `LineSpans.TryWidestFree`.
+- [x] 2.2 A **pure lift**: same comparison operators, same tie-breaking, tolerance threaded as a
       parameter rather than hardcoded. Any tidying belongs in a later commit — tidying here is what
-      would break the pin and make the cause hard to find.
-- [ ] 2.3 Point `ObstructedArea.GetFittingRect` at it, wrapping the result back into a `Rectangle`.
+      would break the pin and make the cause hard to find. The spans are still sorted **in place**
+      rather than copied, for the same reason: it is what the code did, and a per-line call in a
+      layout loop should not allocate a second list. Said plainly on the parameter and pinned.
+- [x] 2.3 Point `ObstructedArea.GetFittingRect` at it, wrapping the result back into a `Rectangle`.
       `BlockedSpansIn` stays: obstacle collection and band filtering are per-engine, because
       MigraDoc's obstacles are page-absolute and the formatter's are block-relative.
-- [ ] 2.4 Verify against `ObstructedAreaTests` (20, which exercise the tolerance boundaries) **and**
-      `MigraDocLayoutPinTests` (10 documents, 14 pages). Both byte-identical.
+      **The "nothing is standing here" early-out stays in the area too**, which the first pass had
+      folded into the scan: the scan judges a run against the tolerance and answers null for an area
+      no wider than that, where the area answers with itself. They differ only for an area of no
+      width, which is exactly the sort of case a pinned layout is made of. Pinned by a test of its
+      own so a later tidy cannot quietly undo it.
+- [x] 2.4 Verify against `ObstructedAreaTests` (now 21, which exercise the tolerance boundaries)
+      **and** `MigraDocLayoutPinTests` (10 documents, 14 pages). **Byte-identical.** Plus 20 tests on
+      the helper directly, since it is public API and an area cannot produce some of the inputs it
+      has to accept: an obstacle hanging outside the line, obstacles in any order, one swallowed by
+      another, and a caller passing nothing at all.
 
 ## 3. The abstraction
 

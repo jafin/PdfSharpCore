@@ -229,6 +229,18 @@ public class ObstructedAreaTests
     }
 
     [Fact]
+    public void AnAreaWithNoWidthAndNothingInItStillAnswersWithItself()
+    {
+        // The band is clear, so this answers with the area however narrow the area is. The scan the
+        // obstructed path shares with XTextFormatter would answer null here, because it judges a
+        // run against the tolerance and this one is narrower than that - which is why the clear
+        // case is settled before the scan is reached rather than folded into it.
+        var area = AreaProbe.Obstructed(AreaProbe.Rectangle(0, 0, 0, 100));
+
+        area.FittingRect(0, 10).Bounds().Should().Be((0, 0, 0, 10));
+    }
+
+    [Fact]
     public void ChangingTheListAfterwardsCannotMoveAnObstacle()
     {
         var obstacle = AreaProbe.Rectangle(0, 0, 30, 40);
