@@ -4,6 +4,7 @@
   </Folder>
   <Project Path="MigraDocCore.AotSmokeTest/MigraDocCore.AotSmokeTest.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel/MigraDocCore.DocumentObjectModel.csproj" />
+  <Project Path="MigraDocCore.DocumentObjectModel.Tests/MigraDocCore.DocumentObjectModel.Tests.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel.Generators/MigraDocCore.DocumentObjectModel.Generators.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel.Generators.Tests/MigraDocCore.DocumentObjectModel.Generators.Tests.csproj" />
   <Project Path="MigraDocCore.Rendering/MigraDocCore.Rendering.csproj" />
