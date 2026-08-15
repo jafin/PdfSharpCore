@@ -67,7 +67,24 @@ internal abstract class LegendRenderer : Renderer
 
       maxMarkerArea.Width = Math.Max(leri.MarkerArea.Width, maxMarkerArea.Width);
       maxMarkerArea.Height = Math.Max(leri.MarkerArea.Height, maxMarkerArea.Height);
+    }
 
+    // Widen every entry to the widest marker *before* measuring, not after. Draw lays the entries
+    // out by advancing along leri.Width and paints each marker at the equalized MarkerArea, so
+    // totalling the widths first and equalizing afterwards measured a legend that was never the one
+    // drawn. It only shows when the entries disagree about their marker width, which is a
+    // combination chart: LegendEntryRenderer.Format gives a Line entry three times the marker of a
+    // column, every column entry was then drawn three times wider than it had been measured, and
+    // the entries printed on top of one another.
+    foreach (LegendEntryRendererInfo leri in lri.Entries)
+    {
+      leri.Width += maxMarkerArea.Width - leri.MarkerArea.Width;
+      leri.Height = Math.Max(leri.Height, maxMarkerArea.Height);
+      leri.MarkerArea = maxMarkerArea;
+    }
+
+    foreach (LegendEntryRendererInfo leri in lri.Entries)
+    {
       if (verticalLegend)
       {
         lri.Width = Math.Max(lri.Width, leri.Width);
@@ -90,9 +107,6 @@ internal abstract class LegendRenderer : Renderer
       lri.Height += LegendRenderer.EntrySpacing * (lri.Entries.Length - 1);
     else
       lri.Width += LegendRenderer.EntrySpacing * (lri.Entries.Length - 1);
-
-    foreach (LegendEntryRendererInfo leri in lri.Entries)
-      leri.MarkerArea = maxMarkerArea;
   }
 
   /// <summary>

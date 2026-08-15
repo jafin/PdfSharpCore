@@ -73,8 +73,20 @@ internal class PieDataLabelRenderer : DataLabelRenderer
       {
         if (sri.dataLabelRendererInfo.Type == DataLabelType.Percent)
         {
-          double percent = 100 / (sumValues / Math.Abs(sector.Value));
-          dleri.Text = percent.ToString(sri.dataLabelRendererInfo.Format) + "%";
+          // Two ways of asking for a percentage, and the caller's format says which. A format
+          // carrying '%' is a .NET percent format, which scales by a hundred and writes the sign
+          // itself, so it is handed the fraction and its result is used as it stands. Anything else
+          // is a plain numeric format, is handed the number out of a hundred, and has the sign
+          // appended - which is what this always did.
+          //
+          // Appending unconditionally made the natural format the broken one: "0%" over a share of
+          // 0.1875 produced "1875%%" rather than "19%", because 18.75 was scaled by a hundred a
+          // second time and signed twice. It read back exactly as it was set and printed nonsense.
+          double share = Math.Abs(sector.Value) / sumValues;
+          string format = sri.dataLabelRendererInfo.Format;
+          dleri.Text = format != null && format.Contains("%")
+            ? share.ToString(format)
+            : (share * 100).ToString(format) + "%";
         }
         else if (sri.dataLabelRendererInfo.Type == DataLabelType.Value)
           dleri.Text = sector.Value.ToString(sri.dataLabelRendererInfo.Format);
