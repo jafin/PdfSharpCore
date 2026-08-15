@@ -190,4 +190,19 @@ internal class ObstructedArea : Area
             new Rectangle(_bounds.X, _bounds.Y + verticalOffset, _bounds.Width, _bounds.Height - verticalOffset),
             _obstacles);
     }
+
+    /// <summary>
+    /// Takes the offset off the bottom, keeping whatever stands in the area where it stands.
+    /// </summary>
+    /// <remarks>
+    /// The obstacles are in page coordinates and are left alone, for the same reason
+    /// <see cref="Lower"/> leaves them alone: one that now falls below the area simply stops
+    /// overlapping any band it is asked about.
+    /// </remarks>
+    internal override Area Shorten(XUnit verticalOffset)
+    {
+        return new ObstructedArea(
+            new Rectangle(_bounds.X, _bounds.Y, _bounds.Width, _bounds.Height - verticalOffset),
+            _obstacles);
+    }
 }

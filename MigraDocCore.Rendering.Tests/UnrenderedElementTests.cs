@@ -28,40 +28,61 @@ namespace MigraDocCore.Rendering.Tests;
 /// </remarks>
 public class UnrenderedElementTests
 {
-    // ----- the footnote -----
+    // ----- the footnote, where it cannot go -----
+    //
+    // A footnote in a paragraph of a section renders now; see FootnoteTests. What is still refused
+    // is a note somewhere that owns no page to put it at the foot of.
 
     [Fact]
-    public void AFootnoteInAParagraphIsRefusedRatherThanDropped()
+    public void AFootnoteInATableCellIsRefusedRatherThanDropped()
     {
         var document = new Document();
-        var paragraph = document.AddSection().AddParagraph("A claim that wants support");
-        paragraph.AddFootnote("The support.");
+        var table = document.AddSection().AddTable();
+        table.AddColumn(Unit.FromCentimeter(8));
+        table.AddRow().Cells[0].AddParagraph("A claim in a cell").AddFootnote("The support.");
 
         Action render = () => Rendered.Of(document);
 
         render.Should().Throw<NotSupportedException>()
-            .WithMessage("*no renderer for a Footnote*");
+            .WithMessage("*laid out on a page*");
     }
 
     [Fact]
-    public void TheFootnoteRefusalNamesSomethingThatDoesWork()
+    public void AFootnoteInAHeaderIsRefusedRatherThanDropped()
     {
+        // A header is formatted once per position and repeated on every page it applies to, so a
+        // note in one has no single page to belong to.
         var document = new Document();
-        document.AddSection().AddParagraph("Text").AddFootnote("Note");
+        var section = document.AddSection();
+        section.AddParagraph("Body");
+        section.Headers.Primary.AddParagraph("Running head").AddFootnote("The support.");
 
         Action render = () => Rendered.Of(document);
 
-        // The value of the message is the way out of it. A caller who wanted a note at the foot of
-        // the page has one, and it is not obvious from the name of the thing that refused them.
         render.Should().Throw<NotSupportedException>()
-            .WithMessage("*Section.Footers*");
+            .WithMessage("*laid out on a page*");
+    }
+
+    [Fact]
+    public void TheRefusalNamesTheThingToDoInstead()
+    {
+        var document = new Document();
+        var table = document.AddSection().AddTable();
+        table.AddColumn(Unit.FromCentimeter(8));
+        table.AddRow().Cells[0].AddParagraph("Text").AddFootnote("Note");
+
+        Action render = () => Rendered.Of(document);
+
+        // The value of the message is the way out of it.
+        render.Should().Throw<NotSupportedException>()
+            .WithMessage("*Move the footnote*");
     }
 
     [Fact]
     public void AParagraphWithNoFootnoteInItStillRenders()
     {
-        // The guard on the case above. FormatElement switches on the element's type name, and a
-        // switch that throws is one typo away from throwing for something else.
+        // The guard on the cases above. FormatElement switches on the element's type name, and a
+        // switch with a new case in it is one typo away from taking the wrong one.
         var document = new Document();
         document.AddSection().AddParagraph("Nothing unusual here.");
 

@@ -135,6 +135,17 @@ internal class TopDownFormatter
                 area = area.Lower(distance);
             }
 
+            // Room for whatever footnotes this element carries, taken off the bottom of the area
+            // before the element is laid out in it - so the element sees the space that is really
+            // left and breaks the page where it should. Nothing already placed above moves: the
+            // notes go at the foot, and what is above the foot fits either way.
+            //
+            // Nothing here has to be undone when an element does not fit. The shrunken area is
+            // discarded with the page, the element is formatted again on the next one, and the
+            // notes are registered again against that page - which is what makes a single pass
+            // enough for what would otherwise be a fixed point.
+            area = area.Shorten(ReserveFootnotes(docObj, area));
+
             renderer.Format(area, prevFormatInfo);
             areaProvider.PositionHorizontally(renderer.RenderInfo.LayoutInfo);
             var pagebreakBefore = areaProvider.IsAreaBreakBefore(renderer.RenderInfo.LayoutInfo) && !isFirstOnPage;
@@ -244,6 +255,31 @@ internal class TopDownFormatter
                 ready = true;
             }
         }
+    }
+
+    /// <summary>
+    /// How much of the area to set aside for the footnotes this element carries.
+    /// </summary>
+    /// <remarks>
+    /// Zero for the overwhelming majority of elements, and the scan that establishes that costs a
+    /// walk of a paragraph's own children. Only <see cref="FormattedDocument"/> can answer for
+    /// real: a footnote goes at the foot of a page, and a cell, a text frame or a header does not
+    /// own one. Rather than drop the note - which is what this assembly did for twenty years -
+    /// that case says so.
+    /// </remarks>
+    XUnit ReserveFootnotes(DocumentObject docObj, Area area)
+    {
+        if (areaProvider is IFootnoteAreaProvider provider)
+            return provider.ReserveFootnotes(docObj, area.Width, gfx);
+
+        if (Footnotes.In(docObj).Count == 0)
+            return 0;
+
+        throw new NotSupportedException(
+            "A footnote can only be attached to a paragraph that is laid out on a page. This one is "
+            + "inside a table cell, a text frame, a header or footer, or another footnote, none of "
+            + "which owns the page its note would have to appear at the foot of. Move the footnote "
+            + "to a paragraph in the section itself, or put its text where it stands.");
     }
 
     /// <summary>

@@ -113,6 +113,17 @@ public abstract class Area
   /// <param name="verticalOffset">The measure of lowering.</param>
   /// <returns>The lowered Area.</returns>
   internal abstract Area Lower(XUnit verticalOffset);
+
+  /// <summary>
+  /// Raises the area's bottom, leaving its top where it is.
+  /// </summary>
+  /// <remarks>
+  /// The other half of <see cref="Lower"/>, which moves the top and leaves the bottom. This is what
+  /// sets room aside at the foot of a page: the content already placed keeps its position and
+  /// everything laid out afterwards has less room to run into.
+  /// </remarks>
+  /// <param name="verticalOffset">How much to take off the bottom.</param>
+  internal abstract Area Shorten(XUnit verticalOffset);
 }
 
 internal class Rectangle : Area
@@ -219,5 +230,10 @@ internal class Rectangle : Area
   internal override Area Lower(XUnit verticalOffset)
   {
     return new Rectangle(x, y + verticalOffset, width, height - verticalOffset);
+  }
+
+  internal override Area Shorten(XUnit verticalOffset)
+  {
+    return new Rectangle(x, y, width, height - verticalOffset);
   }
 }

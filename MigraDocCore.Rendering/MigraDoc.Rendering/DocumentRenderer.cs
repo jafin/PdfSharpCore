@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
@@ -55,6 +56,7 @@ public class DocumentRenderer
     public DocumentRenderer(Document document)
     {
         this.document = document;
+        footnotes = new FootnoteRegistry(document);
     }
 
     /// <summary>
@@ -76,8 +78,21 @@ public class DocumentRenderer
         //gfx.MFEH = this.fontEmbedding;
 
         previousListInfo = null;
+        footnotes.Reset();
         formattedDocument.Format(gfx);
     }
+
+    /// <summary>
+    /// Every footnote in the document, with the page each one's mark landed on.
+    /// </summary>
+    /// <remarks>
+    /// Filled during formatting and read during rendering, which is why it hangs off the renderer
+    /// rather than off the formatted document: the numbering of a note depends on where every other
+    /// note ended up, and only the renderer sees both passes.
+    /// </remarks>
+    internal FootnoteRegistry Footnotes => footnotes;
+
+    FootnoteRegistry footnotes;
 
     /// <summary>
     /// Occurs while the document is being prepared (can be used to show a progress bar).
@@ -170,7 +185,43 @@ public class DocumentRenderer
                 Renderer renderer = Renderer.Create(gfx, this, renderInfo, fieldInfos);
                 renderer.Render();
             }
+
+            RenderFootnotes(gfx, page, fieldInfos);
         }
+    }
+
+    /// <summary>
+    /// Draws the notes whose reference marks landed on this page, in the band
+    /// <see cref="FormattedDocument"/> set aside for them while the page was being filled.
+    /// </summary>
+    /// <remarks>
+    /// Part of the content rather than of the footer, and deliberately: a footer is formatted once
+    /// per position and repeated, where this belongs to one page and to no other.
+    /// </remarks>
+    void RenderFootnotes(XGraphics gfx, int page, FieldInfos fieldInfos)
+    {
+        IReadOnlyList<Footnote> notes = footnotes.On(page);
+        if (notes.Count == 0)
+            return;
+
+        Rectangle content = formattedDocument.ContentRectOf(page);
+        XUnit height = formattedDocument.FootnoteBlockHeight(page);
+
+        // BottomOfPage pins the block to the foot of the text area, whatever the page holds.
+        // BeneathText puts it directly under the last thing laid out, which on a page that is not
+        // full is a good deal higher up. Both reserved the same room while formatting, so neither
+        // can collide with the body text; they differ only in where the room that was kept clear
+        // is actually used.
+        XUnit top = content.Y + content.Height - height;
+        if (document.FootnoteLocation == FootnoteLocation.BeneathText)
+        {
+            XUnit afterText = formattedDocument.BottomOfContentOn(page);
+            if (afterText > 0 && afterText < top)
+                top = afterText;
+        }
+
+        new FootnoteRenderer(gfx, this, fieldInfos)
+            .Render(notes, content.X, top, content.Width);
     }
 
     /// <summary>
