@@ -664,17 +664,19 @@ protect` is told the password rather than having to read the source to find it.
 `DemoRegistry` is a curriculum, not an alphabetical list. The twelve new demos slot in by subject:
 
 ```text
-   1 HelloWorld     10 Tables          19 Forms
-   2 Fonts          11 PageResize      20 Annotations
-   3 Unicode   ★    12 Bleed           21 Outline
-   4 Orientation    13 Assemble   ★    22 Invoice
-   5 Images         14 Imposition ★    23 Structure   ★
-   6 Text           15 Navigation ★    24 Charts      ★
-   7 Vectors   ★    16 Protect    ★    25 Ddl         ★
-   8 Barcodes  ★    17 Compress   ★    26 Newspaper
-   9 Layout         18 Inspect    ★    27 Magazine
-                                       28 SideWrap
+   1 HelloWorld     11 PageResize      21 Outline
+   2 Fonts          12 Bleed           22 Invoice
+   3 Unicode   ★    13 Assemble   ★    23 Structure   ★
+   4 Orientation    14 Imposition ★    24 Ddl         ★
+   5 Images    ★    15 Protect    ★    25 Charts      ★
+   6 Text           16 Navigation ★    26 Newspaper
+   7 Vectors   ★    17 Compress   ★    27 Magazine
+   8 Barcodes  ★    18 Inspect    ★    28 SideWrap
+   9 Layout         19 Forms
+  10 Tables         20 Annotations
 ```
+
+Twenty-eight demos, twelve of them new and one - `Images` - extended. ★ marks what this spec added.
 
 Fonts then Unicode; the drawing surface then the vector methods then the codes drawn with them; the
 page-level demos then the document-level ones; the interactive layer then MigraDoc, ending as it
