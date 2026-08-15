@@ -45,6 +45,7 @@ public static class DemoRegistry
         new OutlineDemo(),
         new InvoiceDemo(),
         new StructureDemo(),
+        new FootnotesDemo(),
         new DdlDemo(),
         new ChartsDemo(),
         new NewspaperDemo(),
