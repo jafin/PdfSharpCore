@@ -42,20 +42,43 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
     dependency of its own)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
-   │              ▲
+   │              ▲                                                              ▲
    │              └── MigraDocCore.DocumentObjectModel.Tests  (the DOM alone; no backend)
+   │                                                                             │
+   │                             PdfSharpCore.Charting.Tests  (charting alone; no backend) ─┘
    └── PdfSharpCore.Test  (the broad one; covers MigraDoc and SampleApp too)
            ▲
            └── SampleApp  (the demonstration CLI; net8.0 alone, so both test legs can reference it)
 ```
 
-Four test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
+Five test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
 is the broad one and the default. `MigraDocCore.DocumentObjectModel.Generators.Tests` drives the
 DOM's source generator through `CSharpGeneratorDriver`. `MigraDocCore.Rendering.Tests` covers
 MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and deliberately
 rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four content-stream
 readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in place and both
 projects get the change.
+
+`PdfSharpCore.Charting.Tests` covers the charting renderers — axis scales, category axes, plot
+areas, data labels, axis titles — and links three of those same readers. Every renderer in the
+package is `internal` and this repository carries no `InternalsVisibleTo`, so they are reached the
+only way a caller can reach them: a `Chart` handed to a `ChartFrame`, drawn, saved, reopened, and
+read back out of the content stream. The three helpers under `Helpers/` are what make that legible —
+`Drawn` puts a chart on a page, `PaintedRectangles` reads the `re` operators the columns and bars
+are drawn with, and `ShownText` turns the Identity-H glyph runs back into text through the font's
+own `/ToUnicode` map, so a test can assert `"0.0"` rather than a glyph number. Like the DOM's tests
+it references no backend: a chart draws lines, rectangles, wedges and strings, so of the three
+static seams it reads only `GlobalFontSettings.FontResolver`.
+
+Writing those tests turned up seven defects, all reachable through public API and all since fixed:
+`docs/specs/charting-renderer-findings.md` sets out each with the code, the fix and the test that
+pins it. Two are worth carrying in your head, because both were one renderer having a guard its
+twin lacked, and the pairs are still near-copies of each other. **The category axis renderers are
+copies of one another** — `HorizontalXAxisRenderer` and `VerticalXAxisRenderer`, and likewise the
+horizontal and vertical Y renderers — so a change to one nearly always belongs in the other.
+**A blank is a null**, both in a series (`Series.AddBlank`) and in a category series
+(`XSeries.AddBlank`); read a point's value through `PointRendererInfo.Value`, which answers `NaN`
+for one, rather than through `point.value`, which throws.
 
 `MigraDocCore.DocumentObjectModel.Tests` covers the DOM itself — `Unit`, page sizes, the chart
 object model, MDDDL reading and writing, and the flattening visitors. It references the DOM **and

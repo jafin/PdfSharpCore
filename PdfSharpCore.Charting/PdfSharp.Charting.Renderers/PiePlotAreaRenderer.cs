@@ -59,7 +59,7 @@ internal abstract class PiePlotAreaRenderer : PlotAreaRenderer
   {
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
     XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaRect.IsEmpty)
+    if (HasNoRoom(plotAreaRect))
       return;
 
     if (cri.seriesRendererInfos.Length == 0)

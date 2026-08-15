@@ -66,15 +66,18 @@ internal class PieDataLabelRenderer : DataLabelRenderer
     foreach (SectorRendererInfo sector in sri.pointRendererInfos)
     {
       DataLabelEntryRendererInfo dleri = new DataLabelEntryRendererInfo();
-      if (sri.dataLabelRendererInfo.Type != DataLabelType.None)
+
+      // A blank draws no wedge, so it is left with no text either and Draw passes over it.
+      // Writing what NaN formats to would label a wedge that is not there.
+      if (sri.dataLabelRendererInfo.Type != DataLabelType.None && !double.IsNaN(sector.Value))
       {
         if (sri.dataLabelRendererInfo.Type == DataLabelType.Percent)
         {
-          double percent = 100 / (sumValues / Math.Abs(sector.point.value));
+          double percent = 100 / (sumValues / Math.Abs(sector.Value));
           dleri.Text = percent.ToString(sri.dataLabelRendererInfo.Format) + "%";
         }
         else if (sri.dataLabelRendererInfo.Type == DataLabelType.Value)
-          dleri.Text = sector.point.value.ToString(sri.dataLabelRendererInfo.Format);
+          dleri.Text = sector.Value.ToString(sri.dataLabelRendererInfo.Format);
 
         if (dleri.Text.Length > 0)
           dleri.Size = gfx.MeasureString(dleri.Text, sri.dataLabelRendererInfo.Font);
@@ -168,12 +171,19 @@ internal class PieDataLabelRenderer : DataLabelRenderer
               break;
 
             case DataLabelPosition.InsideBase:
-              // Aligned at the base/center of the circle
+              // Aligned at the base of the sector, which for a pie is the centre of the circle.
+              // The label is laid out away from that point along its own sector, so that the
+              // corner of it nearest the centre is the one that sits there.
+              //
+              // The two tests are on the direction the sector runs in. They used to be on the
+              // label's own position, which had just been set to the centre and so could not be
+              // to the left of it or above it - meaning neither adjustment ever ran, and every
+              // label of every sector was drawn at one point on top of the others.
               dleri.X = origin.X;
               dleri.Y = origin.Y;
-              if (dleri.X < origin.X)
+              if (Math.Cos(radMidAngle) < 0)
                 dleri.X -= dleri.Width;
-              if (dleri.Y < origin.Y)
+              if (Math.Sin(radMidAngle) < 0)
                 dleri.Y -= dleri.Height;
               break;
           }

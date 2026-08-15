@@ -52,7 +52,7 @@ internal class AreaPlotAreaRenderer : ColumnLikePlotAreaRenderer
   {
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
     XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaRect.IsEmpty)
+    if (HasNoRoom(plotAreaRect))
       return;
 
     XGraphics gfx = this.rendererParms.Graphics;
@@ -64,12 +64,15 @@ internal class AreaPlotAreaRenderer : ColumnLikePlotAreaRenderer
     double xMajorTick = cri.xAxisRendererInfo.MajorTick;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
     {
-      int count = sri.series.Elements.Count;
+      int count = sri.pointRendererInfos.Length;
       XPoint[] points = new XPoint[count + 2];
       points[0] = new XPoint(xMajorTick / 2, 0);
       for (int idx = 0; idx < count; idx++)
       {
-        double pointValue = sri.series.Elements[idx].Value;
+        // Read through the renderer info rather than off the series, which would dereference a
+        // blank. A blank reads as NaN and so joins the values that are already drawn at zero: an
+        // area is a closed shape and has to have a point for every category to close over.
+        double pointValue = sri.pointRendererInfos[idx].Value;
         if (double.IsNaN(pointValue))
           pointValue = 0;
         points[idx + 1] = new XPoint(idx + xMajorTick / 2, pointValue);

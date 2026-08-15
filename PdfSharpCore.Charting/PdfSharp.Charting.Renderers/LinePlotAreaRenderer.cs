@@ -52,7 +52,7 @@ internal class LinePlotAreaRenderer : ColumnLikePlotAreaRenderer
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
     XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaRect.IsEmpty)
+    if (HasNoRoom(plotAreaRect))
       return;
 
     XGraphics gfx = this.rendererParms.Graphics;
@@ -71,10 +71,20 @@ internal class LinePlotAreaRenderer : ColumnLikePlotAreaRenderer
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
     {
       int count = sri.series.Elements.Count;
+
+      // A line needs two points to be a line, and DrawLines says so by throwing. A series with
+      // fewer has nothing to draw rather than something to complain about.
+      if (count < 2)
+        continue;
+
       XPoint[] points = new XPoint[count];
       for (int idx = 0; idx < count; idx++)
       {
-        double v = sri.series.Elements[idx].Value;
+        // Off the series rather than through pointRendererInfos, which the line chart renderer
+        // does not fill in. A blank is a null element, and joins the values that are already
+        // drawn at zero - which is what the TODO above is about, and is not settled here.
+        Point element = sri.series.Elements[idx];
+        double v = element == null ? double.NaN : element.Value;
         if (double.IsNaN(v))
           v = 0;
         points[idx] = new XPoint(idx + xMajorTick / 2, v);

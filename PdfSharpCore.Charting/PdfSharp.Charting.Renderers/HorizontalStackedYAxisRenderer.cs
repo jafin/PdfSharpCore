@@ -57,7 +57,7 @@ internal class HorizontalStackedYAxisRenderer : HorizontalYAxisRenderer
 
     int maxPoints = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
+      maxPoints = Math.Max(maxPoints, sri.series.Elements.Count);
 
     for (int pointIdx = 0; pointIdx < maxPoints; ++pointIdx)
     {
@@ -68,12 +68,12 @@ internal class HorizontalStackedYAxisRenderer : HorizontalYAxisRenderer
           break;
 
         ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-        if (column.point != null && !double.IsNaN(column.point.value))
+        if (!double.IsNaN(column.Value))
         {
-          if (column.point.value < 0)
-            valueSumNeg += column.point.value;
+          if (column.Value < 0)
+            valueSumNeg += column.Value;
           else
-            valueSumPos += column.point.value;
+            valueSumPos += column.Value;
         }
       }
       yMin = Math.Min(valueSumNeg, yMin);

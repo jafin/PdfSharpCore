@@ -52,7 +52,7 @@ internal class WallRenderer : Renderer
     if (cri.plotAreaRendererInfo.FillFormat != null)
     {
       XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
-      if (plotAreaBox.IsEmpty)
+      if (HasNoRoom(plotAreaBox))
         return;
 
       this.rendererParms.Graphics.DrawRectangle(cri.plotAreaRendererInfo.FillFormat, plotAreaBox);

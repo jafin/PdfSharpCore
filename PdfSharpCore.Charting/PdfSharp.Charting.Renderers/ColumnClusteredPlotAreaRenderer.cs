@@ -59,7 +59,7 @@ internal class ColumnClusteredPlotAreaRenderer : ColumnPlotAreaRenderer
 
     int pointCount = 0;
     foreach (SeriesRendererInfo sr in cri.seriesRendererInfos)
-      pointCount += sr.series.seriesElements.Count;
+      pointCount += sr.series.Elements.Count;
 
     // Space shared by one clustered column.
     double groupWidth = cri.xAxisRendererInfo.MajorTick;
@@ -79,12 +79,12 @@ internal class ColumnClusteredPlotAreaRenderer : ColumnPlotAreaRenderer
 
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
-        if (column.point != null)
+        if (!double.IsNaN(column.Value))
         {
           double x0 = x + dx;
           double x1 = x + dx + columnWidth;
           double y0 = yMin;
-          double y1 = column.point.Value;
+          double y1 = column.Value;
 
           // Draw from zero base line, if it exists.
           if (y0 < 0 && yMax >= 0)

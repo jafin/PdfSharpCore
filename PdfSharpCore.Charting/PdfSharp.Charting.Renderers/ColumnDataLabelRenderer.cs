@@ -63,12 +63,14 @@ internal class ColumnDataLabelRenderer : DataLabelRenderer
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
         DataLabelEntryRendererInfo dleri = new DataLabelEntryRendererInfo();
-        if (sri.dataLabelRendererInfo.Type != DataLabelType.None)
+        if (sri.dataLabelRendererInfo.Type == DataLabelType.Percent)
+          throw new InvalidOperationException(PSCSR.PercentNotSupportedByColumnDataLabel);
+
+        // A blank has no value to write, so it is left with no text at all and Draw passes over
+        // it. Writing what NaN formats to would put the word NaN on the plot area.
+        if (sri.dataLabelRendererInfo.Type == DataLabelType.Value && !double.IsNaN(column.Value))
         {
-          if (sri.dataLabelRendererInfo.Type == DataLabelType.Value)
-            dleri.Text = column.point.value.ToString(sri.dataLabelRendererInfo.Format);
-          else if (sri.dataLabelRendererInfo.Type == DataLabelType.Percent)
-            throw new InvalidOperationException(PSCSR.PercentNotSupportedByColumnDataLabel);
+          dleri.Text = column.Value.ToString(sri.dataLabelRendererInfo.Format);
 
           if (dleri.Text.Length > 0)
             dleri.Size = gfx.MeasureString(dleri.Text, sri.dataLabelRendererInfo.Font);
@@ -130,7 +132,7 @@ internal class ColumnDataLabelRenderer : DataLabelRenderer
           case DataLabelPosition.InsideEnd:
             // Inner border of the column.
             dleri.Y = column.Rect.Y;
-            if (column.point.value < 0)
+            if (column.Value < 0)
               dleri.Y = column.Rect.Y + column.Rect.Height - dleri.Height;
             break;
 
@@ -142,14 +144,14 @@ internal class ColumnDataLabelRenderer : DataLabelRenderer
           case DataLabelPosition.InsideBase:
             // Aligned at the base of the column.
             dleri.Y = column.Rect.Y + column.Rect.Height - dleri.Height;
-            if (column.point.value < 0)
+            if (column.Value < 0)
               dleri.Y = column.Rect.Y;
             break;
 
           case DataLabelPosition.OutsideEnd:
             // Outer border of the column.
             dleri.Y = column.Rect.Y - dleri.Height;
-            if (column.point.value < 0)
+            if (column.Value < 0)
               dleri.Y = column.Rect.Y  + column.Rect.Height;
             break;
         }

@@ -59,7 +59,7 @@ internal class ColumnStackedPlotAreaRenderer : ColumnPlotAreaRenderer
 
     int maxPoints = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
+      maxPoints = Math.Max(maxPoints, sri.series.Elements.Count);
 
     double x = xMin + xMajorTick / 2;
 
@@ -80,9 +80,9 @@ internal class ColumnStackedPlotAreaRenderer : ColumnPlotAreaRenderer
           break;
 
         ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-        if (column.point != null && !double.IsNaN(column.point.value))
+        if (!double.IsNaN(column.Value))
         {
-          double y = column.point.value;
+          double y = column.Value;
           if (y < 0)
           {
             y0 = yMin + y;
@@ -118,6 +118,9 @@ internal class ColumnStackedPlotAreaRenderer : ColumnPlotAreaRenderer
   /// </summary>
   protected override bool IsDataInside(double yMin, double yMax, double yValue)
   {
-    return true;
+    // A stacked column is inside the scale by construction - the scale was worked out from the
+    // totals it is part of - so the range is not tested. A blank still is: there is no column for
+    // it, and nothing to draw one with.
+    return !double.IsNaN(yValue);
   }
 }

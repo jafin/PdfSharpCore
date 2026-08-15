@@ -59,7 +59,7 @@ internal class BarClusteredPlotAreaRenderer : BarPlotAreaRenderer
 
     int pointCount = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      pointCount += sri.series.seriesElements.Count;
+      pointCount += sri.series.Elements.Count;
 
     // Space shared by one clustered bar.
     double groupWidth = cri.xAxisRendererInfo.MajorTick;
@@ -80,11 +80,11 @@ internal class BarClusteredPlotAreaRenderer : BarPlotAreaRenderer
 
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
-        if (column.point != null)
+        if (!double.IsNaN(column.Value))
         {
           double x0 = x - dx;
           double x1 = x - dx - columnWidth;
-          double y1 = column.point.Value;
+          double y1 = column.Value;
 
           // Draw from zero base line, if it exists.
           if (y0 < 0 && yMax >= 0)
