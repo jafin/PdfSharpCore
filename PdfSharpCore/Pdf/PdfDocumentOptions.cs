@@ -57,14 +57,12 @@ public sealed class PdfDocumentOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The default depends on how the library was compiled.</b> It is <c>false</c> in a debug
-    /// build, so that the content of a page can be read straight out of the file while debugging,
-    /// and <c>true</c> otherwise. The same calling code therefore writes a materially larger PDF
-    /// from a debug build than from a release one, which is worth knowing before comparing the
-    /// size of two files produced by two builds.
-    /// </para>
-    /// <para>
-    /// Code that cares about the size of what it writes should set this rather than rely on it.
+    /// The default is <c>true</c>, in every build. It used to be <c>false</c> under <c>#if DEBUG</c>
+    /// so that a page's content could be read straight out of the file while debugging, which meant
+    /// the same calling code wrote a materially larger PDF from a debug build than from a release
+    /// one - a difference that belonged to whoever built the library rather than to whoever called
+    /// it, and that made two files impossible to compare without knowing which configuration each
+    /// came from. Set it to <c>false</c> to get the readable content stream back.
     /// </para>
     /// </remarks>
     public bool CompressContentStreams
@@ -72,11 +70,7 @@ public sealed class PdfDocumentOptions
         get => _compressContentStreams;
         set => _compressContentStreams = value;
     }
-#if DEBUG
-    bool _compressContentStreams = false;
-#else
-        bool _compressContentStreams = true;
-#endif
+    bool _compressContentStreams = true;
 
     /// <summary>
     /// Gets or sets a value indicating that all objects are not compressed.

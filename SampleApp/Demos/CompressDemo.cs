@@ -23,7 +23,7 @@ internal sealed class CompressDemo : PdfDemo
     public override IReadOnlyList<string> Shows => new[]
     {
         "CompressContentStreams and NoCompression, against the same page of content",
-        "That CompressContentStreams defaults differently in a debug build than in a release one",
+        "That every measurement sets its options explicitly rather than measuring a default",
         "FlateEncodeMode - the trade between how long a save takes and how small it comes out",
         "UseFlateDecoderForJpegImages, Always against Automatic, measured on a real photograph",
         "ColorMode RGB against CMYK, and what changes in the file when it is switched",
@@ -97,10 +97,10 @@ internal sealed class CompressDemo : PdfDemo
             return buffer.Length;
         }
 
-        // Every row sets CompressContentStreams explicitly rather than leaving it alone, because
-        // its default is not a constant: PdfDocumentOptions declares it false under #if DEBUG and
-        // true otherwise, so the same code produces a materially larger file from a debug build
-        // than from a release one. Measuring "the defaults" would measure the build.
+        // Every row sets CompressContentStreams explicitly rather than leaving it alone. A table of
+        // "the defaults" would go quietly wrong the day a default changed, and this one did change:
+        // it used to be declared false under #if DEBUG and true otherwise, so the same code wrote a
+        // materially larger file from a debug build than from a release one.
         bool defaultCompression = new PdfDocument().Options.CompressContentStreams;
 
         long compressed = Measure(options => options.CompressContentStreams = true);
@@ -189,18 +189,18 @@ internal sealed class CompressDemo : PdfDemo
                 y += 28;
             }
 
-            gfx.DrawString("The default is not a constant", label, XBrushes.Firebrick,
+            gfx.DrawString("The default used not to be a constant", label, XBrushes.Firebrick,
                 new XPoint(50, y + 15));
 
             prose.DrawString(
-                $"CompressContentStreams defaults to {defaultCompression.ToString().ToLowerInvariant()} "
-                + "in the build this page was produced by, and that is a property of the build "
-                + "rather than of the library: PdfDocumentOptions declares the field false under "
-                + "#if DEBUG and true otherwise. The same code therefore writes a materially "
-                + "larger PDF from a debug build than from a release one. Every row above sets it "
-                + "explicitly for that reason - a table of \"the defaults\" would have been a "
-                + "table of how this app happened to be compiled.",
-                body, XBrushes.Black, new XRect(50, y + 28, 495, 70));
+                $"CompressContentStreams defaults to {defaultCompression.ToString().ToLowerInvariant()}, "
+                + "and now does so in every build. It used to be declared false under #if DEBUG and "
+                + "true otherwise, which made the size of the output a property of how the library "
+                + "had been compiled rather than of the code calling it: the same program wrote a "
+                + "materially larger PDF from a debug build, and two files could not be compared "
+                + "without knowing which configuration each came from. Set it to false to get the "
+                + "readable content stream back - that was the only thing the conditional bought.",
+                body, XBrushes.Black, new XRect(50, y + 28, 495, 80));
 
             gfx.DrawString("What to make of the rest", label, XBrushes.Black, new XPoint(50, y + 105));
 
