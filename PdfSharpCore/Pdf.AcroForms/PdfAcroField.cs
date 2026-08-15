@@ -239,6 +239,30 @@ public abstract class PdfAcroField : PdfDictionary
         }
     }
 
+    /// <summary>
+    /// Gets the text an option array entry holds, as the value of /V would spell it.
+    /// </summary>
+    /// <remarks>
+    /// PdfString.ToString writes the string as it appears in the file, delimiters and all, so
+    /// "Sussex" comes back as "(Sussex)". Option arrays are compared against /V, which
+    /// PdfDictionary.DictionaryElements.GetString reads without them, so the two only ever agree
+    /// on the value itself.
+    /// </remarks>
+    internal static string TextOfOption(PdfItem item)
+    {
+        if (item is Advanced.PdfReference reference)
+            item = reference.Value;
+
+        return item switch
+        {
+            PdfString str => str.Value,
+            PdfStringObject strObject => strObject.Value,
+            PdfName name => name.Value,
+            PdfNameObject nameObject => nameObject.Value,
+            _ => item?.ToString()
+        };
+    }
+
     internal virtual void GetDescendantNames(ref List<string> names, string partialName)
     {
         if (HasKids)

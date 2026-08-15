@@ -27,8 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
-
 namespace PdfSharpCore;
 
 /// <summary>
@@ -46,10 +44,9 @@ static class Config
 
 static class Const
 {
-    /// <summary>
-    /// Factor to convert from degree to radian measure.
-    /// </summary>
-    public const double Deg2Rad = Math.PI / 180;  // = 0.017453292519943295
+    // The degree-to-radian factor lives on Internal.Calc, which is where the arc and Bezier code
+    // has always taken it from. It was declared here as well, identically, and the two copies
+    // meant a caller could pick either without knowing there was a choice.
 
     /// <summary>
     /// Sinus of the angle to turn a regular font to look oblique. Used for italic simulation.

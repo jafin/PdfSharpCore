@@ -91,9 +91,13 @@ public class LzwDecode : Filter
                 }
                 else
                 {
-                    str = _stringTable[oldCode];
+                    // The encoder is allowed to emit the code for the entry it is in the middle of
+                    // defining, which it does whenever the input repeats a run. That entry is the
+                    // previous string followed by that string's own first byte, so writing the
+                    // previous string alone drops the repeated byte.
+                    byte[] previous = _stringTable[oldCode];
+                    str = AddEntry(previous, previous[0]);
                     outputStream.Write(str, 0, str.Length);
-                    AddEntry(str, str[0]);
                     oldCode = code;
                 }
             }
@@ -101,7 +105,9 @@ public class LzwDecode : Filter
 
         if (outputStream.Length >= 0)
         {
-            if (parms.DecodeParms != null)
+            // No parameters at all is not an error: it is what DecodeToString passes, and it says
+            // the same thing as parameters with no predictor in them.
+            if (parms?.DecodeParms != null)
                 return StreamDecoder.Decode(outputStream.ToArray(), parms.DecodeParms);
             return outputStream.ToArray();
         }
@@ -126,9 +132,9 @@ public class LzwDecode : Filter
     }
 
     /// <summary>
-    /// Add a new entry to the Dictionary.
+    /// Add a new entry to the Dictionary and return it.
     /// </summary>
-    void AddEntry(byte[] oldstring, byte newstring)
+    byte[] AddEntry(byte[] oldstring, byte newstring)
     {
         int length = oldstring.Length;
         byte[] str = new byte[length + 1];
@@ -143,6 +149,8 @@ public class LzwDecode : Filter
             _bitsToGet = 11;
         else if (_tableIndex == 2047)
             _bitsToGet = 12;
+
+        return str;
     }
 
     /// <summary>

@@ -395,7 +395,7 @@ public struct XMatrix : IFormattable
     {
         throw new InvalidOperationException("Temporarily out of order.");
         //angle = angle % 360.0;
-        //this *= CreateRotationRadians(angle * Const.Deg2Rad);
+        //this *= CreateRotationRadians(angle * Calc.Deg2Rad);
     }
 
     /// <summary>
@@ -404,7 +404,7 @@ public struct XMatrix : IFormattable
     public void RotateAppend(double angle) // TODO: will become default Rotate
     {
         angle = angle % 360.0;
-        this *= CreateRotationRadians(angle * Const.Deg2Rad);
+        this *= CreateRotationRadians(angle * Calc.Deg2Rad);
     }
 
     /// <summary>
@@ -413,7 +413,7 @@ public struct XMatrix : IFormattable
     public void RotatePrepend(double angle)
     {
         angle = angle % 360.0;
-        this = CreateRotationRadians(angle * Const.Deg2Rad) * this;
+        this = CreateRotationRadians(angle * Calc.Deg2Rad) * this;
     }
 
     /// <summary>
@@ -424,7 +424,7 @@ public struct XMatrix : IFormattable
         if (_type == XMatrixTypes.Identity)
             this = CreateIdentity();
 
-        angle = angle * Const.Deg2Rad;
+        angle = angle * Calc.Deg2Rad;
         double cos = Math.Cos(angle);
         double sin = Math.Sin(angle);
         if (order == XMatrixOrder.Append)
@@ -464,7 +464,7 @@ public struct XMatrix : IFormattable
     {
         throw new InvalidOperationException("Temporarily out of order.");
         //angle = angle % 360.0;
-        //this *= CreateRotationRadians(angle * Const.Deg2Rad, centerX, centerY);
+        //this *= CreateRotationRadians(angle * Calc.Deg2Rad, centerX, centerY);
     }
 
     /// <summary>
@@ -473,7 +473,7 @@ public struct XMatrix : IFormattable
     public void RotateAtAppend(double angle, double centerX, double centerY)  // TODO: will become default
     {
         angle = angle % 360.0;
-        this *= CreateRotationRadians(angle * Const.Deg2Rad, centerX, centerY);
+        this *= CreateRotationRadians(angle * Calc.Deg2Rad, centerX, centerY);
     }
 
     /// <summary>
@@ -482,7 +482,7 @@ public struct XMatrix : IFormattable
     public void RotateAtPrepend(double angle, double centerX, double centerY)
     {
         angle = angle % 360.0;
-        this = CreateRotationRadians(angle * Const.Deg2Rad, centerX, centerY) * this;
+        this = CreateRotationRadians(angle * Calc.Deg2Rad, centerX, centerY) * this;
     }
 
     /// <summary>
@@ -519,7 +519,7 @@ public struct XMatrix : IFormattable
         if (order == XMatrixOrder.Append)
         {
             angle = angle % 360.0;
-            this *= CreateRotationRadians(angle * Const.Deg2Rad, point.X, point.Y);
+            this *= CreateRotationRadians(angle * Calc.Deg2Rad, point.X, point.Y);
 
             //Translate(point.X, point.Y, order);
             //Rotate(angle, order);
@@ -528,7 +528,7 @@ public struct XMatrix : IFormattable
         else
         {
             angle = angle % 360.0;
-            this = CreateRotationRadians(angle * Const.Deg2Rad, point.X, point.Y) * this;
+            this = CreateRotationRadians(angle * Calc.Deg2Rad, point.X, point.Y) * this;
         }
         DeriveMatrixType();
     }
@@ -601,7 +601,7 @@ public struct XMatrix : IFormattable
         throw new InvalidOperationException("Temporarily out of order.");
         //skewX = skewX % 360.0;
         //skewY = skewY % 360.0;
-        //this *= CreateSkewRadians(skewX * Const.Deg2Rad, skewY * Const.Deg2Rad);
+        //this *= CreateSkewRadians(skewX * Calc.Deg2Rad, skewY * Calc.Deg2Rad);
     }
 
     /// <summary>
@@ -611,7 +611,7 @@ public struct XMatrix : IFormattable
     {
         skewX = skewX % 360.0;
         skewY = skewY % 360.0;
-        this *= CreateSkewRadians(skewX * Const.Deg2Rad, skewY * Const.Deg2Rad);
+        this *= CreateSkewRadians(skewX * Calc.Deg2Rad, skewY * Calc.Deg2Rad);
     }
 
     /// <summary>
@@ -621,7 +621,7 @@ public struct XMatrix : IFormattable
     {
         skewX = skewX % 360.0;
         skewY = skewY % 360.0;
-        this = CreateSkewRadians(skewX * Const.Deg2Rad, skewY * Const.Deg2Rad) * this;
+        this = CreateSkewRadians(skewX * Calc.Deg2Rad, skewY * Calc.Deg2Rad) * this;
     }
 
     /// <summary>
@@ -1355,7 +1355,7 @@ public struct XMatrix : IFormattable
 
             // Calculate the angle in degrees.
             XPoint point = new XMatrix(_m11, _m12, _m21, _m22, 0, 0).Transform(new XPoint(1, 0));
-            double φ = Math.Atan2(point.Y, point.X) / Const.Deg2Rad;
+            double φ = Math.Atan2(point.Y, point.X) / Calc.Deg2Rad;
             return String.Format(CultureInfo.InvariantCulture,
                 "matrix=({0:" + format + "}, {1:" + format + "}, {2:" + format + "}, {3:" + format + "}, {4:" + format + "}, {5:" + format + "}), φ={6:0.0#########}°",
                 _m11, _m12, _m21, _m22, _offsetX, _offsetY, φ);

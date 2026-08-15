@@ -61,15 +61,8 @@ public class AsciiFilterTests
         decoded.Should().Equal(original);
     }
 
-    /// <summary>
-    ///   Runs of zero bytes whose length leaves no trailing group, or a trailing group of three.
-    ///   The other two tail lengths are the defect below.
-    /// </summary>
-    public static TheoryData<int> ZeroRunLengthsThatSurvive =>
-        new() { 0, 1, 2, 3, 4, 7, 8, 11, 12, 15, 16, 19, 20, 23, 24 };
-
     [Theory]
-    [MemberData(nameof(ZeroRunLengthsThatSurvive))]
+    [MemberData(nameof(Lengths))]
     public void Ascii85CarriesRunsOfZeroBytesThereAndBack(int length)
     {
         // Four zero bytes are written as the single character z rather than as five exclamation
@@ -84,25 +77,16 @@ public class AsciiFilterTests
     }
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
+    ///   The lengths at which the decoder's main loop used to stop one group early.
     /// </summary>
     /// <remarks>
-    ///   <para>
-    ///   The decoder's main loop runs <c>while (idx + 4 &lt; length)</c>, which assumes every turn
-    ///   of it consumes five characters. A <c>z</c> consumes one. So a stream that uses the
-    ///   shortcut leaves the loop with four characters still to read, and the code that reads the
-    ///   trailing group reads <c>z</c> characters as though they were part of it.
-    ///   </para>
-    ///   <para>
-    ///   It bites when a <c>z</c> is followed by a trailing group of two or three characters -
-    ///   lengths of 4n+1 and 4n+2 bytes. A group of four leaves the loop in the right place by
-    ///   coincidence, which is why three quarters of the round trips above pass.
-    ///   </para>
-    ///   <para>
-    ///   The encoder in this same class writes those streams, so this is PDFsharp failing to read
-    ///   back what PDFsharp wrote, and zero runs are exactly what image and embedded-file data is
-    ///   full of. The bytes come back in the wrong places rather than merely mangled at the end.
-    ///   </para>
+    ///   The loop ran <c>while (idx + 4 &lt; length)</c>, which assumes every turn of it consumes
+    ///   five characters, and a <c>z</c> consumes one. A stream using the shortcut therefore left
+    ///   the loop with characters still to read, and the code that reads the trailing group read
+    ///   the <c>z</c> as part of it. It bit at 4n+1 and 4n+2 bytes, where the tail is a group of
+    ///   two or three; a group of four happened to leave the loop in the right place. The encoder
+    ///   in this same class writes those streams, so PDFsharp could not read back what PDFsharp
+    ///   wrote, and zero runs are what image and embedded-file data is full of.
     /// </remarks>
     [Theory]
     [InlineData(5)]
@@ -111,15 +95,39 @@ public class AsciiFilterTests
     [InlineData(10)]
     [InlineData(13)]
     [InlineData(14)]
-    public void Ascii85LosesARunOfZeroBytesThatEndsInAPartialGroup(int length)
+    public void Ascii85CarriesARunOfZeroBytesThatEndsInAPartialGroup(int length)
     {
         var original = new byte[length];
 
         var encoded = Filtering.ASCII85Decode.Encode(original);
         var decoded = Filtering.ASCII85Decode.Decode(encoded, (FilterParms)null);
 
-        decoded.Should().HaveCount(length, "only the contents are wrong, not the length");
-        decoded.Should().NotEqual(original, "a z shortcut before a partial group is misread");
+        decoded.Should().Equal(original);
+    }
+
+    [Fact]
+    public void Ascii85ReadsAZeroRunWhereverItFalls()
+    {
+        // The shortcut is taken wherever four zero bytes land on a group boundary, not only at the
+        // start, so every combination of run length, run position and total length has to come
+        // back with the bytes on either side of the run where they belong.
+        for (var length = 0; length <= 24; length++)
+        {
+            for (var start = 0; start < length; start++)
+            {
+                for (var run = 1; start + run <= length; run++)
+                {
+                    var original = Bytes(length);
+                    Array.Clear(original, start, run);
+
+                    var encoded = Filtering.ASCII85Decode.Encode(original);
+                    var decoded = Filtering.ASCII85Decode.Decode(encoded, (FilterParms)null);
+
+                    decoded.Should().Equal(original,
+                        "{0} zero bytes from {1} of {2} should survive", run, start, length);
+                }
+            }
+        }
     }
 
     [Fact]
@@ -265,26 +273,22 @@ public class AsciiFilterTests
     }
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
-    /// </summary>
-    /// <remarks>
     ///   The reference is explicit: if the filter reaches the end of data having read an odd number
-    ///   of hexadecimal digits, it must behave as though a <c>0</c> digit followed the last one. So
-    ///   "4" is 0x40. This decoder instead lengthens its byte array, which pads with the byte 0x00
-    ///   rather than the character '0', and 0x00 goes through the digit arithmetic as -48. Every
-    ///   odd-length stream therefore ends in a byte 48 too small.
-    /// </remarks>
+    ///   of hexadecimal digits, it must behave as though a <c>0</c> digit followed the last one, so
+    ///   "4" is 0x40. Lengthening the byte array alone pads with the byte 0x00 rather than the
+    ///   character '0', and 0x00 goes through the digit arithmetic as -48, which used to leave
+    ///   every odd-length stream ending in a byte 48 too small.
+    /// </summary>
     [Theory]
-    [InlineData("4", 0x40, 0x10)]
-    [InlineData("41424", 0x40, 0x10)]
-    [InlineData("F", 0xF0, 0xC0)]
-    public void AsciiHexGetsTheLastByteOfAnOddNumberOfDigitsWrong(
-        string hex, int required, int actual)
+    [InlineData("4", 0x40)]
+    [InlineData("41424", 0x40)]
+    [InlineData("F", 0xF0)]
+    [InlineData("414243F>", 0xF0)]
+    public void AsciiHexTreatsAMissingLastDigitAsZero(string hex, int expected)
     {
         var decoded = Filtering.ASCIIHexDecode.Decode(Encoding.ASCII.GetBytes(hex), (FilterParms)null);
 
-        decoded.Last().Should().Be((byte)actual);
-        decoded.Last().Should().NotBe((byte)required, "the reference asks for a trailing zero digit");
+        decoded.Last().Should().Be((byte)expected);
     }
 
     // ----- what every filter has in common -------------------------------------------------------

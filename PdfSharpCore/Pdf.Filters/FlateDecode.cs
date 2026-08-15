@@ -98,7 +98,9 @@ public class FlateDecode : Filter
         msOutput.Flush();
         if (msOutput.Length >= 0)
         {
-            if (parms.DecodeParms != null)
+            // No parameters at all is not an error: it is what DecodeToString passes, and it says
+            // the same thing as parameters with no predictor in them.
+            if (parms?.DecodeParms != null)
                 return StreamDecoder.Decode(msOutput.ToArray(), parms.DecodeParms);
             return msOutput.ToArray();
         }
