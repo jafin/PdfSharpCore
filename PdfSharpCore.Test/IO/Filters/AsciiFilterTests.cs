@@ -17,7 +17,7 @@ namespace PdfSharpCore.Test.IO.Filters;
 ///   ASCII85 is the one worth testing exhaustively. Its encoder has a separate arm for a trailing
 ///   group of one, two and three bytes, its decoder has a matching arm for each, and the decoder's
 ///   arms carry a correction its own author could not derive - "in some rare cases the value must
-///   not be increased by one, but I cannot found a general formula or a proof". Round-tripping
+///   not be increased by one, but I cannot found [sic] a general formula or a proof". Round-tripping
 ///   every length settles all of it at once.
 ///   </para>
 /// </summary>

@@ -215,6 +215,37 @@ public class AcroFormFieldTests
             .Should().BeEquivalentTo(new[] { "town", "postcode" });
     }
 
+    [Fact]
+    public void AFieldTreeIsWrittenAsAFormAViewerWouldAccept()
+    {
+        // PDFsharp's tree walking reads /Kids and /T and would be satisfied with less than this,
+        // so what the assertions above prove depends on the fixture being a real form rather than
+        // the least a reader will tolerate. The reference asks that the leaves of the tree are the
+        // widget annotations - each with a rectangle, each pointing back at its parent, each
+        // listed on the page it is drawn on - while /Fields holds only the root.
+        var document = new AcroFormBuilder()
+            .With("/Tx", "surname")
+            .WithParent("address", ("/Tx", "town"), ("/Tx", "postcode"))
+            .Build();
+
+        var fields = document.Internals.Catalog.Elements.GetDictionary("/AcroForm")
+            .Elements.GetArray(PdfAcroForm.Keys.Fields);
+        var annotations = document.Pages[0].Elements.GetArray("/Annots");
+
+        fields.Elements.Count.Should().Be(2, "the children are reached through the parent");
+        annotations.Elements.Count.Should().Be(3, "every widget is drawn on the page");
+
+        var parent = document.AcroForm.Fields["address"];
+        foreach (var name in new[] { "town", "postcode" })
+        {
+            var kid = document.AcroForm.Fields["address." + name];
+            kid.Elements.GetDictionary(PdfAcroField.Keys.Parent)
+                .Should().BeSameAs(parent, "a child names the field above it");
+            kid.Elements.GetRectangle(PdfAcroField.Keys.Rect)
+                .Should().NotBe(new PdfRectangle(), "a widget is somewhere on the page");
+        }
+    }
+
     // ----- appearances ---------------------------------------------------------------------------
 
     [Fact]

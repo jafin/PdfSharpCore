@@ -28,6 +28,7 @@ internal sealed class AcroFormBuilder
 {
     readonly PdfDocument _document = new();
     readonly List<PdfDictionary> _fields = new();
+    readonly List<PdfDictionary> _widgets = new();
     readonly PdfPage _page;
 
     internal AcroFormBuilder()
@@ -63,25 +64,38 @@ internal sealed class AcroFormBuilder
     ///   Adds a field with children of its own, so that the parts of the API that walk the tree
     ///   have a tree to walk.
     /// </summary>
+    /// <remarks>
+    ///   The children are widget annotations in their own right: each carries a rectangle and a
+    ///   <c>/Parent</c> back to the field above it, and each is listed in the page's
+    ///   <c>/Annots</c>, while only the parent goes into the form's <c>/Fields</c>. PDFsharp's
+    ///   tree walking reads <c>/Kids</c> and <c>/T</c> and would be satisfied with less, but a
+    ///   fixture that is not a form a viewer would accept is not worth much as a fixture.
+    /// </remarks>
     internal AcroFormBuilder WithParent(string name, params (string Type, string Name)[] kids)
     {
         var parent = new PdfDictionary(_document);
         parent.Elements.SetString(PdfAcroField.Keys.T, name);
+        // Before the children, so that they have something to point at.
+        _document.Internals.AddObject(parent);
 
         var children = new PdfArray(_document);
-        foreach (var (type, kidName) in kids)
+        for (var idx = 0; idx < kids.Length; idx++)
         {
+            var (type, kidName) = kids[idx];
             var kid = new PdfDictionary(_document);
             kid.Elements.SetName("/Type", "/Annot");
             kid.Elements.SetName("/Subtype", "/Widget");
             kid.Elements.SetName(PdfAcroField.Keys.FT, type);
             kid.Elements.SetString(PdfAcroField.Keys.T, kidName);
+            kid.Elements[PdfAcroField.Keys.Parent] = parent.Reference;
+            kid.Elements[PdfAcroField.Keys.Rect] =
+                new PdfRectangle(new XRect(20, 20 + 30 * idx, 200, 20));
             _document.Internals.AddObject(kid);
             children.Elements.Add(kid.Reference);
+            _widgets.Add(kid);
         }
         parent.Elements[PdfAcroField.Keys.Kids] = children;
 
-        _document.Internals.AddObject(parent);
         _fields.Add(parent);
         return this;
     }
@@ -93,10 +107,14 @@ internal sealed class AcroFormBuilder
         var fields = new PdfArray(_document);
         foreach (var field in _fields)
         {
+            // Only the top of the tree is a form field. A field that is its own widget is drawn on
+            // the page as well; a parent that only holds children is not.
             fields.Elements.Add(field.Reference);
             if (field.Elements.ContainsKey(PdfAcroField.Keys.Rect))
                 annotations.Elements.Add(field.Reference);
         }
+        foreach (var widget in _widgets)
+            annotations.Elements.Add(widget.Reference);
         _page.Elements.SetObject("/Annots", annotations);
 
         var form = new PdfDictionary(_document);
