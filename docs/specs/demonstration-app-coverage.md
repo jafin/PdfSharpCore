@@ -17,9 +17,9 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 4 | `Vectors` — the eleven `Draw*` methods no demo calls | done, 4 pages |
 | 5 | `Barcodes` — the three linear codes and DataMatrix | done, 3 pages |
 | 6 | `Protect` — passwords, permissions, and reading one back | done, 2 pages |
-| 7 | `Navigation` — page labels, viewer preferences, custom values | not started |
-| 8 | `Compress` — `PdfDocumentOptions`, measured in bytes | not started |
-| 9 | `Inspect` — reading back the content stream that was written | not started |
+| 7 | `Navigation` — page labels, viewer preferences, custom values | done, 6 pages |
+| 8 | `Compress` — `PdfDocumentOptions`, measured in bytes | done, 2 pages |
+| 9 | `Inspect` — reading back the content stream that was written | done, 3 pages |
 | 10 | `Unicode` — `PdfFontEncoding`, CID fonts, CFF versus TrueType | not started |
 | 11 | `Structure` — MigraDoc's TOC, bookmarks, sections, lists | not started |
 | 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | not started |
@@ -36,6 +36,8 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 23 | L9 — the miter limit is guarded by the line cap, and truncated | done, 4 tests |
 | 24 | L10 — interleaved 2 of 5 checks nothing and fails at drawing time | done, 9 tests |
 | 25 | L11 — `HasOwnerPermissions` is a constant `true` | done, 7 tests |
+| 26 | L12 — `CSequence` throws for every interface member it declares | done, 5 tests |
+| 27 | L13 — `CompressContentStreams` defaults differently per build | documented |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
 *building* item 1 and looking at the page it drew, and items 21 to 23 the same way from item 4 —
@@ -268,6 +270,58 @@ code asked for. A second page reports the settings back after a round trip throu
 protected file.
 
 This is the only item that needs item 17.
+
+## Item 26 — L12, `CSequence` throws for every interface member it declares
+
+`CSequence` — the list a content stream comes back as — declares `IList<CObject>` and implements
+every member of it **twice**:
+
+```csharp
+public int IndexOf(CObject value) { … }            // works
+int IList<CObject>.IndexOf(CObject item)           // throws
+{
+    throw new NotImplementedException();
+}
+```
+
+Thirteen members in that shape, `IEnumerable<CObject>.GetEnumerator` among them. C# binds an
+interface to the explicit implementation wherever there is one, so everything reached *through*
+`IList<CObject>` or `IEnumerable<CObject>` threw while the identical public method beside it worked.
+
+LINQ reaches a collection through `IEnumerable<T>`. So `sequence.Select(…)`, `.Where(…)`, `.Count()`
+— the first thing anybody does with a parsed content stream — threw `NotImplementedException` from a
+class that visibly supports all of it. `OfType<T>()` happened to work, because it takes the
+non-generic `IEnumerable`, which made the failure look arbitrary.
+
+Every stub is deleted rather than implemented: each already had a public counterpart with a matching
+signature, so C# now binds the interfaces to those. `IsReadOnly` was the one member with no public
+counterpart and is added, returning false. `CArray` derives from `CSequence` and inherited all of it,
+so it is fixed by the same change.
+
+## Item 27 — L13, `CompressContentStreams` defaults differently per build
+
+```csharp
+#if DEBUG
+    bool _compressContentStreams = false;
+#else
+        bool _compressContentStreams = true;
+#endif
+```
+
+The same calling code writes a materially larger PDF from a debug build than from a release one —
+about 16% larger on the `Compress` demo's own page. Nothing said so: the property's documentation
+was one line and mentioned neither the default nor that it moves.
+
+The intent is clear enough and defensible for the library's own development, since an uncompressed
+content stream can be read straight out of the file. What is not defensible is that it was
+undocumented, because the symptom is a consumer comparing two files from two builds and concluding
+something is wrong with their code.
+
+**Documented rather than changed.** The property's remarks now state the conditional default and say
+that code which cares about output size should set it rather than rely on it, and the `Compress`
+demo sets it explicitly on every row and prints what the default was in the build that produced the
+page. Whether the `#if DEBUG` should go is a decision about the library's behaviour rather than
+about its documentation, and belongs to whoever owns that call.
 
 ## Item 7 — `Navigation`
 
