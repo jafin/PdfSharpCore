@@ -106,6 +106,130 @@ public class CLexerTests
         tokens.Last().Should().Be((CSymbol.Operator, "BT"));
     }
 
+    // The escape sequences a literal string may carry. Each is written into the content as a
+    // backslash and a character, and comes out of the scanner as the one character it stands
+    // for, so a token the same length as the text that spelled it means an escape was missed.
+    [Theory(Timeout = 5000)]
+    [InlineData(@"(a\nb)", "a\nb")]
+    [InlineData(@"(a\rb)", "a\rb")]
+    [InlineData(@"(a\tb)", "a\tb")]
+    [InlineData(@"(a\bb)", "a\bb")]
+    [InlineData(@"(a\fb)", "a\fb")]
+    [InlineData(@"(a\(b)", "a(b")]
+    [InlineData(@"(a\)b)", "a)b")]
+    [InlineData(@"(a\\b)", @"a\b")]
+    public async Task ScanLiteralString_readsAnEscapedCharacterAsTheOneItStandsFor(string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    // A backslash and up to three octal digits are one character. The scan stops at the third
+    // digit whether or not a fourth follows, so the digits after it are text.
+    [Theory(Timeout = 5000)]
+    [InlineData(@"(\101)", "A")]
+    [InlineData(@"(\1)", "\u0001")]
+    [InlineData(@"(\12)", "\n")]
+    [InlineData(@"(\0)", "\0")]
+    [InlineData(@"(\377)", "ÿ")]
+    [InlineData(@"(\1012)", "A2")]
+    [InlineData(@"(\101\102)", "AB")]
+    // Octal runs to '7'. An '8' or a '9' cannot belong to a code, so it ends one already begun
+    // and otherwise loses only its backslash, like any escape the scanner does not know. The
+    // test for a digit used to be char.IsDigit, which let both in: '\8' came out as a backspace
+    // rather than as the digit it is, and '\18' as a tab rather than as two characters.
+    [InlineData(@"(\8)", "8")]
+    [InlineData(@"(\9)", "9")]
+    [InlineData(@"(\18)", "\u0001" + "8")]
+    [InlineData(@"(\118)", "\t" + "8")]
+    public async Task ScanLiteralString_readsAnOctalCodeAsOneCharacter(string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    /// <summary>
+    /// A backslash at the end of a line continues the string onto the next one, and neither the
+    /// backslash nor the line feed is part of it.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_joinsTheLinesABackslashContinues()
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("(a\\\nb)")));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("ab");
+    }
+
+    /// <summary>
+    /// A backslash before anything else is dropped and the character is kept, which is how a
+    /// string carrying an escape the specification does not define still scans.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData(@"(a\qb)", "aqb")]
+    [InlineData(@"(a\ b)", "a b")]
+    public async Task ScanLiteralString_keepsTheCharacterAfterAnEscapeItDoesNotKnow(string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    // Parentheses nest, so an inner pair is part of the string and only the one that closes the
+    // outermost level ends it.
+    [Theory(Timeout = 5000)]
+    [InlineData("(a(b)c)", "a(b)c")]
+    [InlineData("((nested))", "(nested)")]
+    [InlineData("(a(b(c)d)e)", "a(b(c)d)e")]
+    [InlineData("()", "")]
+    public async Task ScanLiteralString_readsNestedParenthesesAsPartOfTheString(string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    /// <summary>
+    /// A byte order mark of FE FF puts the scan on its 16-bit path, where every character is two
+    /// bytes rather than one.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_readsAUnicodeStringTwoBytesAtATime()
+    {
+        var content = new byte[] { (byte)'(', 0xFE, 0xFF, 0x00, (byte)'H', 0x00, (byte)'i', (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("Hi");
+    }
+
+    /// <summary>
+    /// Characters whose high byte is zero would read the same whether the two bytes were combined
+    /// or the high one simply dropped, so a string of them cannot tell the two apart. These are
+    /// above the Latin block and fail if the high byte is not carried.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_carriesTheHighByteOfAUnicodeCharacter()
+    {
+        // U+03A9 GREEK CAPITAL LETTER OMEGA and U+20AC EURO SIGN.
+        var content = new byte[] { (byte)'(', 0xFE, 0xFF, 0x03, 0xA9, 0x20, 0xAC, (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("Ω€");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_readsAUnicodeStringWithNothingInIt()
+    {
+        var content = new byte[] { (byte)'(', 0xFE, 0xFF, (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("");
+    }
+
     /// <summary>
     /// Builds the token a run of bytes scans to, one char per byte, from a comma separated
     /// list of hexadecimal byte values.

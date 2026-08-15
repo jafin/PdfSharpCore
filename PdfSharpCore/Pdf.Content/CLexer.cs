@@ -415,14 +415,14 @@ public class CLexer
                                 goto SkipChar;
 
                             default:
-                                if (char.IsDigit(ch))
+                                if (IsOctalDigit(ch))
                                 {
                                     // Octal character code
                                     int n = ch - '0';
-                                    if (char.IsDigit(_nextChar))
+                                    if (IsOctalDigit(_nextChar))
                                     {
                                         n = n * 8 + ScanNextChar() - '0';
-                                        if (char.IsDigit(_nextChar))
+                                        if (IsOctalDigit(_nextChar))
                                             n = n * 8 + ScanNextChar() - '0';
                                     }
                                     ch = (char)n;
@@ -519,14 +519,14 @@ public class CLexer
                                 goto SkipChar;
 
                             default:
-                                if (char.IsDigit(ch))
+                                if (IsOctalDigit(ch))
                                 {
                                     // Octal character code.
                                     int n = ch - '0';
-                                    if (char.IsDigit(_nextChar))
+                                    if (IsOctalDigit(_nextChar))
                                     {
                                         n = n * 8 + ScanNextChar() - '0';
-                                        if (char.IsDigit(_nextChar))
+                                        if (IsOctalDigit(_nextChar))
                                             n = n * 8 + ScanNextChar() - '0';
                                     }
                                     ch = (char)n;
@@ -771,6 +771,16 @@ public class CLexer
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Indicates whether the specified character is an octal digit. A literal string escapes a
+    /// character code in octal, so only '0' to '7' count — '8' and '9' end the code rather than
+    /// extending it, and a backslash before either is dropped and the digit kept as text.
+    /// </summary>
+    internal static bool IsOctalDigit(char ch)
+    {
+        return ch >= '0' && ch <= '7';
     }
 
     /// <summary>
