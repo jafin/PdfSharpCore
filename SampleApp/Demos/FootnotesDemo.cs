@@ -1,9 +1,7 @@
 using System.Collections.Generic;
-using System.IO;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.Rendering;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using SampleApp.Infrastructure;
 
 namespace SampleApp.Demos;
@@ -26,12 +24,12 @@ internal sealed class FootnotesDemo : PdfDemo
         "That the room a note needs comes off the page before the text carrying its mark is laid out",
         "Document.FootnoteNumberStyle - all five, on the same three notes",
         "Document.FootnoteNumberingRule - and that its default restarts on every page",
-        "Document.FootnoteLocation - BottomOfPage against BeneathText, on a page with room to spare",
+        "Document.FootnoteLocation - what BeneathText would change, on a page with room to spare",
         "Footnote.Reference, a mark of the caller's own, which does not advance the numbering",
         "StyleNames.Footnote, the predefined style the notes are set in",
     };
 
-    public override int PageCount => 6;
+    public override int PageCount => 5;
 
     #region example
     protected override PdfDocument Build(DemoContext context)
@@ -168,10 +166,11 @@ internal sealed class FootnotesDemo : PdfDemo
         shortPage.AddText(".");
 
         beneath.AddParagraph(
-            "The setting belongs to the document and is read as each page is drawn, so one "
-            + "document cannot show both. The page after this one is the same page again, laid out "
-            + "by a second document under BeneathText and brought in whole - so the two can be put "
-            + "side by side and the difference looked at rather than described.");
+            "The note above is at the foot of the sheet, a long way below the line it belongs to, "
+            + "because this document leaves FootnoteLocation alone. Setting it to BeneathText would "
+            + "draw the same note immediately under that line instead, and would change nothing "
+            + "else about this page. The setting belongs to the document rather than to the page, "
+            + "so one document cannot show both - set it and run the demo again to see the other.");
 
         beneath.AddParagraph(
             "Both reserve the same room while the page is being formatted, so neither can collide "
@@ -210,65 +209,8 @@ internal sealed class FootnotesDemo : PdfDemo
 
         PdfDocumentRenderer renderer = new PdfDocumentRenderer(unicode: true) { Document = document };
         renderer.RenderDocument();
-
-        PdfDocument assembled = renderer.PdfDocument;
-
-        // The same short page again, from a document that differs in one property, inserted after
-        // the page describing it. Saved and reopened first: AddPage takes a page belonging to
-        // another document, and a document that has never been written has no page objects to
-        // take. Nothing reaches the disk - the round trip is through a MemoryStream.
-        using (MemoryStream buffer = new MemoryStream())
-        {
-            BeneathTextPage().Save(buffer, false);
-            buffer.Position = 0;
-
-            using PdfDocument reopened = PdfReader.Open(buffer, PdfDocumentOpenMode.Import);
-            assembled.InsertPage(3, reopened.Pages[0]);
-        }
         #endregion
 
-        return assembled;
-    }
-
-    /// <summary>
-    ///   A one-page document laid out under <see cref="FootnoteLocation.BeneathText"/>, so that the
-    ///   page before it and this one differ in exactly one setting.
-    /// </summary>
-    static PdfDocument BeneathTextPage()
-    {
-        Document document = new Document();
-        document.FootnoteLocation = FootnoteLocation.BeneathText;
-
-        Style normal = document.Styles[StyleNames.Normal];
-        normal.Font.Name = "Liberation Serif";
-        normal.Font.Size = 10.5;
-        normal.ParagraphFormat.SpaceAfter = Unit.FromPoint(6);
-
-        Style heading = document.Styles[StyleNames.Heading1];
-        heading.Font.Name = "Liberation Sans";
-        heading.Font.Size = 17;
-        heading.Font.Bold = true;
-        heading.ParagraphFormat.SpaceAfter = Unit.FromPoint(8);
-
-        document.Styles[StyleNames.Footnote].Font.Size = 8;
-
-        Section section = document.AddSection();
-        section.PageSetup.TopMargin = Unit.FromCentimeter(2.5);
-
-        section.AddParagraph("The same page, under BeneathText").Style = StyleNames.Heading1;
-
-        section.AddParagraph(
-            "One property different from the page before this one, and everything else the same. "
-            + "The note is drawn where the text stopped rather than at the foot of the sheet, "
-            + "which is what a short page makes visible and a full one hides.");
-
-        Paragraph shortPage = section.AddParagraph("This page stops here");
-        shortPage.AddFootnote(
-            "Drawn immediately under the line above, rather than waiting at the bottom.");
-        shortPage.AddText(".");
-
-        PdfDocumentRenderer renderer = new PdfDocumentRenderer(unicode: true) { Document = document };
-        renderer.RenderDocument();
         return renderer.PdfDocument;
     }
 }
