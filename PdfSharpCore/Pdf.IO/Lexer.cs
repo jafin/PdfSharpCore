@@ -549,10 +549,15 @@ public class Lexer
             int length = temp.Length;
             if ((length & 1) == 1)
             {
-                // TODO What does the PDF Reference say about this case? Assume (char)0 or treat the file as corrupted?
-                temp.Append(0);
+                // A UTF-16 string with an odd number of bytes is short of the low byte of its last
+                // character. The reference says nothing about it, so the missing byte is taken to
+                // be a zero - the same reading ScanHexadecimalString gives a hex string missing
+                // its final digit, which the reference does specify.
+                //
+                // '\0' and not 0: the latter binds to Append(int), which appends the digit zero
+                // rather than the character. See LexerUnicodeStringTests.
+                temp.Append('\0');
                 ++length;
-                DebugBreak.Break();
             }
             _token = new StringBuilder();
             for (int i = 2; i < length; i += 2)
@@ -569,10 +574,12 @@ public class Lexer
             int length = temp.Length;
             if ((length & 1) == 1)
             {
-                // TODO What does the PDF Reference say about this case? Assume (char)0 or treat the file as corrupted?
-                temp.Append(0);
+                // As above, for the little endian order Adobe Reader also accepts. The digit this
+                // used to append did more damage here than in the big endian case: it landed in
+                // the *high* half of the last character, so a byte short of "I" read as U+3049
+                // rather than as the "I" that was all but complete.
+                temp.Append('\0');
                 ++length;
-                DebugBreak.Break();
             }
             _token = new StringBuilder();
             for (int i = 2; i < length; i += 2)
