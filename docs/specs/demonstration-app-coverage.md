@@ -23,7 +23,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 10 | `Unicode` — `PdfFontEncoding`, CID fonts, CFF versus TrueType | done, 2 pages |
 | 11 | `Structure` — MigraDoc's TOC, bookmarks, sections, lists | done, 5 pages |
 | 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | done, 4 pages |
-| 13 | `Images` extended — alpha, interpolation, failure reporting | not started |
+| 13 | `Images` extended — alpha and interpolation; see the note | mostly done |
 | 14 | L1 — MigraDoc drops a `Footnote` silently | done, 3 tests |
 | 15 | L2 — MigraDoc drops a `Barcode` shape silently | done, 3 tests |
 | 16 | L3 — `BarCode.FromType` reaches two of the four code types | done, 7 tests |
@@ -691,6 +691,11 @@ does today with the three combined layouts.
   meant to be edited.
 - **No second output file from any demo**, item 6's encryption aside. In-memory documents are a
   better demonstration and leave the smoke test's contract alone.
+- **`DocumentRenderer.ImageFailed` is still not demonstrated.** Item 13 covers the alpha channel and
+  `XImage.Interpolate`, and states on the page where the event lives and what it is for, but does not
+  subscribe to it. Making it fire needs a MigraDoc `Image` built on an `IImageSource` implementation
+  that fails on purpose, which is a page of scaffolding for one panel. It belongs with a small
+  `IImageSource` test double that the test project would want anyway.
 - **The prose samples under `docs/` are still not rewritten.** Items 2 and 3 cover six of them with
   code; pointing the prose at the demos is a documentation change and belongs with the rest of that
   work.

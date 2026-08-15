@@ -23,9 +23,12 @@ internal sealed class ImagesDemo : PdfDemo
         "Fit and fill worked out by hand - the library has no helper",
         "Cropping through the source-rectangle overload of DrawImage",
         "Rotation about a point, inside Save and Restore",
+        "A PNG with an alpha channel, over a chequer and over a colour",
+        "XImage.Interpolate - whether an upscaled image is smoothed or blocky",
+        "Palette-with-alpha beside truecolour-with-alpha, which are two different PNGs",
     };
 
-    public override int PageCount => 2;
+    public override int PageCount => 3;
 
     protected override PdfDocument Build(DemoContext context)
     {
@@ -151,6 +154,82 @@ internal sealed class ImagesDemo : PdfDemo
 
         Caption("RotateAtTransform turns the page about a point, then the image is drawn "
               + "square onto it.", 48, 520);
+
+        // ---- Page three: transparency and interpolation --------------------------------
+        page = document.AddPage();
+        gfx = XGraphics.FromPdfPage(page);
+
+        Heading("A PNG with an alpha channel", 60);
+
+        // Two PNGs, and they are not the same kind of file. The badge is a palette image with an
+        // alpha channel; the disc is truecolour with one. Both arrive through the same seam and
+        // the same call, which is the point - the backend decodes whatever the format is.
+        using XImage badge = XImage.FromStream(
+            () => Assets.Open(Assets.ImagePrefix + "alpha-badge.png"));
+        using XImage disc = XImage.FromStream(
+            () => Assets.Open(Assets.ImagePrefix + "soft-disc.png"));
+
+        // A chequer, so that transparency reads as transparency rather than as a colour. Over a
+        // white page a transparent pixel and a white one look identical.
+        for (int cx = 0; cx < 10; cx++)
+        {
+            for (int cy = 0; cy < 8; cy++)
+            {
+                gfx.DrawRectangle((cx + cy) % 2 == 0 ? XBrushes.WhiteSmoke : XBrushes.Gainsboro,
+                    48 + cx * 12, 80 + cy * 12, 12, 12);
+            }
+        }
+
+        gfx.DrawImage(badge, 48, 80, 120, 120);
+        Caption("Over a chequer", 48, 216);
+
+        gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(46, 139, 87)), 200, 80, 120, 120);
+        gfx.DrawImage(badge, 200, 80, 120, 120);
+        Caption("Over a solid colour", 200, 216);
+
+        gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(218, 165, 32)), 352, 80, 120, 120);
+        gfx.DrawImage(disc, 352, 80, 120, 120);
+        Caption("A truecolour PNG, fading out", 352, 216);
+
+        Caption("The badge is a palette PNG with an alpha channel; the disc is truecolour with "
+              + "one. Neither needed anything of the caller: XImage.FromStream took both.",
+            48, 232);
+
+        Heading("Interpolate", 270);
+
+        // Whether a reader smooths an image scaled up beyond its own resolution. It is a request
+        // written into the image dictionary rather than something the library does, so what the
+        // two panels below look like depends on the reader - and some ignore it entirely.
+        using XImage blocky = XImage.FromStream(
+            () => Assets.Open(Assets.ImagePrefix + "frog-and-toad.jpg"));
+        blocky.Interpolate = false;
+
+        using XImage smooth = XImage.FromStream(
+            () => Assets.Open(Assets.ImagePrefix + "frog-and-toad.jpg"));
+        smooth.Interpolate = true;
+
+        // A small piece of the photograph, blown up far past its own pixels, which is the only
+        // arrangement in which the setting is visible at all.
+        gfx.DrawImage(blocky, new XRect(48, 290, 230, 170), new XRect(60, 40, 40, 30),
+            XGraphicsUnit.Point);
+        Caption("Interpolate = false", 48, 474);
+
+        gfx.DrawImage(smooth, new XRect(300, 290, 230, 170), new XRect(60, 40, 40, 30),
+            XGraphicsUnit.Point);
+        Caption("Interpolate = true", 300, 474);
+
+        Caption("Forty by thirty points of the photograph, drawn at two hundred and thirty wide. "
+              + "Interpolate writes /Interpolate true into the image dictionary and asks the "
+              + "reader to smooth it; the reader decides, and several ignore the request.",
+            48, 492);
+
+        Heading("When an image will not load", 530);
+
+        Caption("XImage.FromStream throws, and the exception says what went wrong - this fork "
+              + "swallows nothing. MigraDoc is the one place that does not throw: a failed image "
+              + "becomes a grey box, and DocumentRenderer.ImageFailed is the event that says why. "
+              + "Without a handler the reason is dropped. See image-failure-reporting.md.",
+            48, 550);
         #endregion
 
         return document;

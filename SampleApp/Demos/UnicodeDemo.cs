@@ -125,7 +125,7 @@ internal sealed class UnicodeDemo : PdfDemo
 
             // Walk the page's font resources and report what kind of font object was written and
             // which key the face's bytes ended up under.
-            PdfDictionary fonts = reopened.Pages[0].Elements
+            PdfDictionary? fonts = reopened.Pages[0].Elements
                 .GetDictionary("/Resources")?.Elements.GetDictionary("/Font");
 
             string subtype = "none", fontFile = "none";
@@ -139,7 +139,7 @@ internal sealed class UnicodeDemo : PdfDemo
                     subtype = font.Elements.GetName("/Subtype");
 
                     // A CID font hides the descriptor one level down, under /DescendantFonts.
-                    PdfDictionary descriptor = font.Elements.GetDictionary("/FontDescriptor");
+                    PdfDictionary? descriptor = font.Elements.GetDictionary("/FontDescriptor");
                     if (descriptor == null)
                     {
                         PdfArray descendants = font.Elements.GetArray("/DescendantFonts");
