@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.IO;
@@ -106,9 +107,9 @@ public class LexerHexStringTests
         var document = Encoding.Latin1.GetBytes("%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n" +
                                                 "trailer\n<</Size 2/Root 1 0 R>>\nstartxref\n<4865");
 
-        // The reading itself on the worker thread, and not merely the making of the delegate
+        // The reading itself on the other thread, and not merely the making of the delegate
         // that does it: what runs on the test thread cannot be interrupted by the Timeout.
-        Func<Task> open = () => Task.Run(() =>
+        Func<Task> open = () => Interruptibly.Run(() =>
             Pdf.IO.PdfReader.Open(new MemoryStream(document), PdfDocumentOpenMode.Modify));
 
         await open.Should().ThrowAsync<PdfReaderException>();
@@ -118,9 +119,9 @@ public class LexerHexStringTests
 
     static Task<Scanned> ScanFirstToken(string pdf)
     {
-        // On a worker thread, so that the Timeout on these tests can interrupt a scan that
+        // On a thread of its own, so that the Timeout on these tests can interrupt a scan that
         // does not end. xUnit honours it only on an async test.
-        return Task.Run(() =>
+        return Interruptibly.Run(() =>
         {
             var lexer = new Lexer(new MemoryStream(Encoding.Latin1.GetBytes(pdf)));
             var symbol = lexer.ScanNextToken();
@@ -130,7 +131,7 @@ public class LexerHexStringTests
 
     static Task<IReadOnlyList<Symbol>> ScanAll(string pdf)
     {
-        return Task.Run(() =>
+        return Interruptibly.Run(() =>
         {
             var lexer = new Lexer(new MemoryStream(Encoding.Latin1.GetBytes(pdf)));
             var symbols = new List<Symbol>();

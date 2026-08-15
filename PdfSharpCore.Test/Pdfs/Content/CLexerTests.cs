@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf.Content;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.Pdfs.Content;
@@ -122,13 +123,13 @@ public class CLexerTests
     }
 
     /// <summary>
-    /// Scans the whole content on a worker thread, so that the Timeout on these tests can
+    /// Scans the whole content on a thread of its own, so that the Timeout on these tests can
     /// interrupt a scan that never ends. Each token is taken while it is still current,
     /// since the next scan clears it.
     /// </summary>
     static Task<List<(CSymbol Symbol, string Token)>> ScanAll(CLexer lexer)
     {
-        return Task.Run(() =>
+        return Interruptibly.Run(() =>
         {
             var tokens = new List<(CSymbol, string)>();
             CSymbol symbol;
