@@ -1,5 +1,14 @@
 # Annotations
 
+> **Runnable version:** the `Annotations` demo.
+> `dotnet run --project SampleApp -- run -e Annotations`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to create PDF annotations.
 
 PdfSharpCore supports the creation of the following annotations:

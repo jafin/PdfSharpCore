@@ -1,5 +1,11 @@
 # Clock
 
+> **No runnable version.** The `Vectors` demo covers the drawing; the ASP.NET handler around it
+> has no equivalent in `SampleApp`.
+>
+> See [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a
+> backend registered before any of the code below will run.
+
 This sample shows how to create a PDF document on the fly in an ASP.NET application. For illustration the sample draws an analog clock that displays the current server time.
 
 

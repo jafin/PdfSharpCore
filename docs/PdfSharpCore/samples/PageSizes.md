@@ -1,5 +1,14 @@
 # Page Sizes
 
+> **Runnable version:** the `Orientation`, and `PageResize` for changing one afterwards demo.
+> `dotnet run --project SampleApp -- run -e Orientation`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows a document with different page sizes.
 
 Note: You can set the size of a page to any size using the `Width` and `Height` properties. This sample just shows the predefined sizes.

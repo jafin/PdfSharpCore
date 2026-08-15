@@ -1,5 +1,14 @@
 # Graphics
 
+> **Runnable version:** the `Vectors` demo.
+> `dotnet run --project SampleApp -- run -e Vectors`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 Shows some of the capabilities of the XGraphics class.
 You'll find code snippets for the following graphical primitives:
 
@@ -826,7 +835,7 @@ public void DrawTitle(PdfPage page, XGraphics gfx, string title)
     XStringFormat format = new XStringFormat();
     format.Alignment = XStringAlignment.Near;
     format.LineAlignment = XLineAlignment.Far;
-    gfx.DrawString("Created with " + PdfSharp.ProductVersionInfo.Producer, font, XBrushes.DarkOrchid, rect, format);
+    gfx.DrawString("Created with " + PdfSharpCore.ProductVersionInfo.Producer, font, XBrushes.DarkOrchid, rect, format);
     
     font = new XFont("Verdana", 8);
     format.Alignment = XStringAlignment.Center;

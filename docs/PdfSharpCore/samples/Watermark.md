@@ -1,5 +1,14 @@
 # Watermark
 
+> **Runnable version:** the `Imposition` demo.
+> `dotnet run --project SampleApp -- run -e Imposition`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows three variations how to add a watermark to an existing PDF file.
 
 Note: Technically the watermarks in this sample are simple graphical output. They have nothing to do with the Watermark Annotations introduced in PDF 1.

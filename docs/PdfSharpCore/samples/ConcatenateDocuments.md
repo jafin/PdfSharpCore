@@ -1,5 +1,14 @@
 # Concatenate Documents
 
+> **Runnable version:** the `Assemble` demo.
+> `dotnet run --project SampleApp -- run -e Assemble`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to concatenate the pages of several PDF documents to one single file.
 
 * When you add the same external page twice or more, the content of the pages is shared.

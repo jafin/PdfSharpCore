@@ -1,5 +1,14 @@
 # Bookmarks
 
+> **Runnable version:** the `Outline`, and `Structure` for the MigraDoc route demo.
+> `dotnet run --project SampleApp -- run -e Outline`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to create bookmarks. Bookmarks are called outlines in the PDF reference manual, that's why you deal with the class PdfOutline.
 
 Acrobat uses the term "bookmark" in its English version and "Lesezeichen" in the German version.

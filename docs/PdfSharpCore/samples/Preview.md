@@ -1,5 +1,10 @@
 # Preview
 
+> **No runnable version.** Nothing in `SampleApp` covers this one; it draws to a live surface as well as to a PDF, and this fork ships no such surface.
+>
+> See [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a
+> backend registered before any of the code below will run.
+
 This sample shows how to render graphics in both a preview and a PDF document.
 
 ## Code

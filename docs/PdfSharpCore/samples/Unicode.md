@@ -1,5 +1,14 @@
 # Unicode
 
+> **Runnable version:** the `Unicode` demo.
+> `dotnet run --project SampleApp -- run -e Unicode`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to use Unicode text in PdfSharpCore.
 
 Languages based on Latin, Greek, or Cyrillic letters should all work with PdfSharpCore.

@@ -1,5 +1,14 @@
 # Work on Pdf Objects
 
+> **Runnable version:** the `Inspect`, and `Navigation` for the open action demo.
+> `dotnet run --project SampleApp -- run -e Inspect`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to deal with PDF objects that are not (yet) covered by specialized PdfSharpCore classes (as an example it adds an OpenAction to an existing PDF file).
 
 PDF documents are based internally on objects like dictionaries, arrays, streams etc. This sample shows how to work directly on these underlying PDF objects. Use this functionality to achieve PDF features that are not yet implemented in PdfSharpCore.
