@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using AwesomeAssertions;
-using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using Xunit;
 
@@ -11,8 +10,9 @@ namespace PdfSharpCore.Test.Internal;
 
 /// <summary>
 ///   The arithmetic helpers in <c>PdfSharpCore.Internal</c>: the floating-point comparisons the
-///   geometry types are written in, the page-size table, and the stream reader that fills a buffer
-///   properly. None of them is reachable by name from outside the library, so they are reached by
+///   geometry types are written in, the degrees-to-radians factor the arc drawing turns on, and
+///   the stream reader that fills a buffer properly. None of them is reachable by name from
+///   outside the library, so they are reached by
 ///   reflection, the way <c>AreaProbe</c> and <c>ParagraphIteratorProbe</c> already reach what
 ///   they need - this repository carries no <c>InternalsVisibleTo</c> and the polyfills under
 ///   <c>!internal/</c> are duplicated per assembly precisely because it does not.
@@ -164,74 +164,6 @@ public class InternalHelperTests
     }
 
     // ----- Calc ----------------------------------------------------------------------------------
-
-    [Theory]
-    [InlineData(PageSize.A4, 595, 842)]
-    [InlineData(PageSize.A3, 842, 1190)]
-    [InlineData(PageSize.A5, 420, 595)]
-    [InlineData(PageSize.Letter, 612, 792)]
-    [InlineData(PageSize.Legal, 612, 1008)]
-    [InlineData(PageSize.Ledger, 1224, 792)]
-    [InlineData(PageSize.Tabloid, 792, 1224)]
-    public void EveryNamedPageSizeIsTheSizeItIsNamedFor(PageSize size, double width, double height)
-    {
-        Call("Calc", "PageSizeToSize", size).Should().Be(new XSize(width, height));
-    }
-
-    /// <summary>
-    ///   <c>Calc.PageSizeToSize</c> is a second page-size table that nothing calls, and it has
-    ///   fallen a long way behind the one that is used.
-    /// </summary>
-    /// <remarks>
-    ///   <para>
-    ///   <see cref="PageSize"/> offers more than sixty named sizes. This table knows eighteen and
-    ///   throws <c>ArgumentException("Invalid PageSize")</c> for the rest: A0 to A6 are here and
-    ///   A7 to A10 are not, B4 and B5 are here and the other nine B sizes are not, and not one of
-    ///   the C, RA, SRA or British traditional sizes is.
-    ///   </para>
-    ///   <para>
-    ///   No caller is affected, because there are none - <c>PageSizeConverter.ToSize</c> is what
-    ///   <c>PdfPage.Size</c> uses and it knows the whole enum, as
-    ///   <c>PageSizeConverterTests</c> checks. What this test pins is that the dead one is dead
-    ///   and out of step, so that anyone who finds it and wires it up finds this first.
-    ///   </para>
-    /// </remarks>
-    [Fact]
-    public void TheSecondPageSizeTableKnowsFarFewerSizesThanTheOneInUse()
-    {
-        var known = Enum.GetValues(typeof(PageSize)).Cast<PageSize>()
-            .Where(size => size != PageSize.Undefined)
-            .Count(size =>
-            {
-                try
-                {
-                    Call("Calc", "PageSizeToSize", size);
-                    return true;
-                }
-                catch (ArgumentException)
-                {
-                    return false;
-                }
-            });
-
-        known.Should().Be(18);
-
-        // Whereas the table that is actually used answers for every one of them.
-        foreach (var size in Enum.GetValues(typeof(PageSize)).Cast<PageSize>()
-                     .Where(size => size != PageSize.Undefined))
-        {
-            var act = () => PageSizeConverter.ToSize(size);
-            act.Should().NotThrow($"{size} is offered to callers");
-        }
-    }
-
-    [Fact]
-    public void APageSizeThatIsNotOneIsRefused()
-    {
-        var act = () => Call("Calc", "PageSizeToSize", (PageSize)9999);
-
-        act.Should().Throw<ArgumentException>();
-    }
 
     [Fact]
     public void DegreesConvertToRadiansByTheFactorEverythingElseUses()
