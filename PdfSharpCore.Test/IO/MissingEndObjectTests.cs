@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.IO;
@@ -101,7 +102,7 @@ public class MissingEndObjectTests
 
     static Task<PdfDocument> Read(byte[] document)
     {
-        return Task.Run(() => Pdf.IO.PdfReader.Open(new MemoryStream(document), PdfDocumentOpenMode.Modify));
+        return Interruptibly.Run(() => Pdf.IO.PdfReader.Open(new MemoryStream(document), PdfDocumentOpenMode.Modify));
     }
 
     /// <summary>

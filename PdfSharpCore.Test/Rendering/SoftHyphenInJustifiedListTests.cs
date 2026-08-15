@@ -174,7 +174,7 @@ public class SoftHyphenInJustifiedListTests
     static async Task<PdfDocument> Render(int rightIndentMillimeters, bool asList = true,
         int bookmarkAfterWords = -1)
     {
-        return await Task.Run(() =>
+        return await Interruptibly.Run(() =>
         {
             var document = new Document();
             var paragraph = document.AddSection().AddParagraph();

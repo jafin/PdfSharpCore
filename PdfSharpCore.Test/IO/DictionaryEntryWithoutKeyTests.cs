@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 namespace PdfSharpCore.Test.IO;
@@ -79,7 +80,7 @@ public class DictionaryEntryWithoutKeyTests
     [Fact(Timeout = 5000)]
     public async Task ADocumentWhoseInformationDictionaryHoldsBareStringsCanBeSaved()
     {
-        var creator = await Task.Run(() =>
+        var creator = await Interruptibly.Run(() =>
         {
             using var input = new MemoryStream(BuildDocumentWithInformationDictionary(PdfTeXInfoDictionary));
             var document = PdfSharpCore.Pdf.IO.PdfReader.Open(input, PdfDocumentOpenMode.Modify);
@@ -95,12 +96,12 @@ public class DictionaryEntryWithoutKeyTests
     }
 
     /// <summary>
-    ///   Reads the document on a worker thread, so that the Timeout on these tests can fail a
+    ///   Reads the document on a thread of its own, so that the Timeout on these tests can fail a
     ///   parse that does not terminate rather than wait on it.
     /// </summary>
     private static Task<PdfDocument> Read(string informationDictionary, PdfDocumentOpenMode openMode)
     {
-        return Task.Run(() =>
+        return Interruptibly.Run(() =>
         {
             using var input = new MemoryStream(BuildDocumentWithInformationDictionary(informationDictionary));
             return PdfSharpCore.Pdf.IO.PdfReader.Open(input, openMode);
