@@ -69,7 +69,7 @@ inside a block means.
 look like.** An axis-aligned page rectangle inverse-rotated into layout space is a quad, not a
 rectangle:
 
-```
+```text
    page space            layout space, inverse-rotated
    ┌────────┐                      ◇
    │  rect  │        →           ◇   ◇        no longer axis-aligned

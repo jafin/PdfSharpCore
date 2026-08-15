@@ -167,15 +167,22 @@ public class LineSpansTests
     }
 
     [Fact]
-    public void TheSpansGivenAreSortedInPlaceRatherThanCopied()
+    public void TheSpansGivenAreLeftAsTheyWere()
     {
-        // Documented behaviour rather than an accident: the list is the caller's working list and a
-        // per-line call does not allocate a second one. Pinned so it cannot change unremarked.
+        // This used to sort the caller's list in place, which was worth an allocation when the scan
+        // was hand-rolled here and needed the order. The scan is IntervalSet's now and orders its
+        // own copy, so the argument is no longer touched at all.
         var blocked = new List<(double Start, double End)> { (80, 90), (10, 20) };
 
         LineSpans.TryWidestFree(Left, Right, blocked, Tolerance, out _, out _);
 
-        blocked.Should().BeInAscendingOrder(span => span.Start);
+        blocked.Should().Equal((80, 90), (10, 20));
+    }
+
+    [Fact]
+    public void ASpanGivenEndFirstIsReadTheWayRoundItWasMeant()
+    {
+        WidestFree((30, 0)).Should().Be((true, 30d, 70d));
     }
 
     // ----- what the arguments have to be ----------------------------------------------------------
@@ -198,6 +205,39 @@ public class LineSpansTests
 
         // A line of no width is allowed and answers "no room" - see ALineOfNoWidthHasNoRoom - but
         // one of negative width is a mistake rather than an answer.
+        scan.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    public static TheoryData<double> NotRealNumbers => new TheoryData<double>
+    {
+        double.NaN,
+        double.PositiveInfinity,
+        double.NegativeInfinity,
+    };
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ALineThatDoesNotRunBetweenRealCoordinatesIsRefused(double value)
+    {
+        // Named here rather than left to the interval the line becomes, so the message points at
+        // the argument the caller passed. NaN reaches this at all because it passes the ordering
+        // test above: every comparison against NaN is false.
+        var fromLeft = () => LineSpans.TryWidestFree(value, Right, new List<(double, double)>(),
+            Tolerance, out _, out _);
+        var fromRight = () => LineSpans.TryWidestFree(Left, value, new List<(double, double)>(),
+            Tolerance, out _, out _);
+
+        fromLeft.Should().Throw<ArgumentOutOfRangeException>();
+        fromRight.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void AToleranceThatIsNotARealWidthIsRefused(double value)
+    {
+        var scan = () => LineSpans.TryWidestFree(Left, Right, new List<(double, double)>(),
+            value, out _, out _);
+
         scan.Should().Throw<ArgumentOutOfRangeException>();
     }
 

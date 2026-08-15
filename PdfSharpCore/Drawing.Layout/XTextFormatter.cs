@@ -272,6 +272,38 @@ public class XTextFormatter
     DropCapMetrics _dropCap;
 
     /// <summary>
+    /// Things standing in the block that the text is laid out around.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The caller supplies these, because the caller drew whatever is there. They narrow the lines
+    /// whose band they stand in; they never push the block's top down or make the layout rectangle
+    /// bigger.
+    /// </para>
+    /// <para>
+    /// <b>Positioned relative to the layout rectangle</b> - its top left corner is the origin -
+    /// <b>and unrotated</b>, whatever <see cref="Rotation"/> says. Layout is worked out in that
+    /// frame and rotation is applied to the drawing surface afterwards, so an obstacle given in it
+    /// turns with the text and stays where it was put relative to it.
+    /// </para>
+    /// <para>
+    /// Because the two frames part company as soon as the text is turned, supplying an obstacle
+    /// while <see cref="Rotation"/> is not zero is refused rather than guessed at: the two readings
+    /// put text in visibly different places and nothing in the call says which was meant. A caller
+    /// wanting to rotate text that flows around something applies the turn to the
+    /// <see cref="XGraphics"/> itself and leaves <see cref="Rotation"/> alone.
+    /// </para>
+    /// </remarks>
+    public IList<IFlowObstacle> Obstacles => _obstacles;
+
+    readonly List<IFlowObstacle> _obstacles = new List<IFlowObstacle>();
+
+    /// <summary>
+    /// The block and everything standing in it, worked out for the layout in hand.
+    /// </summary>
+    TextFlowRegion _region;
+
+    /// <summary>
     /// How wide one column is, given the width of the whole layout rectangle.
     /// </summary>
     double ColumnWidthWithin(double rectWidth)
@@ -325,6 +357,31 @@ public class XTextFormatter
             throw new ArgumentNullException(nameof(font));
         if (brush == null)
             throw new ArgumentNullException(nameof(brush));
+
+        // Before the rotation check, and refused rather than skipped over. Obstacles is an ordinary
+        // list, so nothing stops a caller adding the null their own lookup just returned - and an
+        // obstacle quietly dropped is a page that looks deliberate and has text running over the
+        // thing it was meant to avoid. Refusing also leaves the count below meaning what it says.
+        for (int idx = 0; idx < _obstacles.Count; idx++)
+        {
+            if (_obstacles[idx] == null)
+            {
+                throw new InvalidOperationException(
+                    $"Obstacles[{idx}] is null. Every obstacle has to be a real one; remove the " +
+                    "entry rather than leaving a gap in the list.");
+            }
+        }
+
+        // Named both ways round, because a caller who has hit this has a rectangle in one frame and
+        // a formatter expecting it in the other, and which is which is the whole of what they need
+        // to know.
+        if (Rotation != 0 && _obstacles.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Obstacles are given relative to the layout rectangle and unrotated, and Rotation " +
+                "turns the text after it has been laid out - so an obstacle cannot be placed while " +
+                "Rotation is set. Leave Rotation at zero and turn the XGraphics instead.");
+        }
 
         Text = text;
         Font = font;
@@ -644,35 +701,51 @@ public class XTextFormatter
     /// </remarks>
     LineMeasure MeasureOfLineAt(double yTop, bool firstLineOfParagraph, double columnWidth, int column)
     {
-        double start = IndentOf(firstLineOfParagraph);
+        double indent = IndentOf(firstLineOfParagraph);
+        if (_region == null)
+            return new LineMeasure(indent, columnWidth);
 
-        // Only the first column: a cap belongs to the opening of the text, and reserving the same
-        // corner of every column would carve a hole out of each of them.
-        if (_dropCap != null && column == 0)
-        {
-            // By the line's box and not by its baseline. A line whose baseline falls below the
-            // reserved depth still has ascenders inside it, and they would collide with the cap.
-            bool overlaps = yTop < _dropCap.Reserved.Bottom && yTop + _lineHeight > _dropCap.Reserved.Top;
-            if (overlaps)
-            {
-                // The start moves right and the width does not move at all. Both are measured from
-                // the left edge of the column, so the width is where the line may reach rather than
-                // how much room it has - which is what makes a reservation on the left a change to
-                // one number. A reservation on the *right*, which is what a shape wrapped on its
-                // left side would want, is the other one.
-                double besideTheCap = start + _dropCap.Reserved.Width;
+        var band = new FlowBand(yTop, yTop + _lineHeight);
+        double columnLeft = ColumnLeft(column, columnWidth);
 
-                // A cap can be wider than the column it is set in - it is scaled to its depth and
-                // nothing holds its width to the measure - and then there is no line beside it to
-                // narrow, only the lines below it.
-                if (besideTheCap >= columnWidth - MinimumRoom)
-                    return LineMeasure.Blocked(besideTheCap, columnWidth, _dropCap.Reserved.Bottom);
+        // Everything is worked out across the whole block and then clipped to the column the line
+        // sits in. That is what makes "a cap belongs to the first column" and "an obstacle
+        // straddling the gutter narrows both columns" the same rule rather than two: an obstacle
+        // reaches the columns it overlaps, and no others, because that is where it is.
+        IntervalSet room = _region.GetAvailableIntervals(band)
+            .Intersect(new XInterval(columnLeft, columnLeft + columnWidth));
 
-                return new LineMeasure(besideTheCap, columnWidth);
-            }
-        }
+        if (!room.TryWidest(MinimumRoom, out XInterval widest))
+            return BlockedAt(band, indent, columnWidth);
 
-        return new LineMeasure(start, columnWidth);
+        // Back into the column's own coordinates, which is what the layout loop counts in. The
+        // indent is added to where the run begins rather than to the column's left edge, so a first
+        // line set beside something is indented from that thing - which is what it did when the
+        // only thing it could be set beside was a drop cap.
+        double start = widest.Start - columnLeft + indent;
+        double limit = widest.End - columnLeft;
+
+        // The indent can eat what little room an obstacle left, and a line that starts at or past
+        // its own limit is not a narrow line - it is no line.
+        if (start >= limit - MinimumRoom)
+            return BlockedAt(band, start, limit);
+
+        return new LineMeasure(start, limit);
+    }
+
+    /// <summary>
+    /// A measure saying the band has nothing in it, and how far down to look next.
+    /// </summary>
+    /// <remarks>
+    /// Where nothing standing in the band admits to a foot below it - which a caller's own obstacle
+    /// need not, and an obstacle that ends level with the band does not - the fallback is the band
+    /// itself. <c>MeasureLineWithRoom</c> puts a floor of one line under whatever it is told, so a
+    /// clearance that does not move still ends up moving.
+    /// </remarks>
+    LineMeasure BlockedAt(FlowBand band, double start, double limit)
+    {
+        double clearsAt = _region.NextClearanceBelow(band) ?? band.Bottom;
+        return LineMeasure.Blocked(start, limit, clearsAt);
     }
 
     /// <summary>
@@ -862,11 +935,56 @@ public class XTextFormatter
         return true;
     }
 
+    /// <summary>
+    /// Gathers what stands in this block: whatever the caller put there, and the drop cap.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The cap is an obstacle like any other</b>, and only the formatter can make it: the cap is
+    /// scaled to the depth of the lines it is set into, so nobody outside knows how wide it comes
+    /// out. Once it is one, "the cap narrows the first column and no other" stops being a test on
+    /// the column index and becomes a consequence of where it stands - which is the same rule that
+    /// makes a caller's obstacle narrow the columns it reaches and no others.
+    /// </para>
+    /// <para>
+    /// It is clipped to the first column rather than left at its true width. A cap is scaled by its
+    /// depth and can come out wider than the column it is set in; unclipped it would reach across
+    /// the gutter and narrow the next column too, and a cap belongs to the opening of the text
+    /// rather than to every column of it.
+    /// </para>
+    /// <para>
+    /// Answers null when there is nothing standing anywhere, so that the overwhelmingly common case
+    /// costs nothing at all and lays out through the same code it always did.
+    /// </para>
+    /// </remarks>
+    TextFlowRegion RegionFor(double rectWidth, double rectHeight, double columnWidth)
+    {
+        if (_obstacles.Count == 0 && _dropCap == null)
+            return null;
+
+        var region = new TextFlowRegion(new XRect(0, 0, rectWidth, rectHeight));
+
+        // No null check: GetLayout refuses a list with a gap in it, and every route here comes
+        // through GetLayout. Skipping nulls here as well would be the second opinion that makes
+        // the first one look optional.
+        foreach (IFlowObstacle obstacle in _obstacles)
+            region.With(obstacle);
+
+        if (_dropCap != null)
+        {
+            region.With(new RectangleObstacle(new XRect(0, 0,
+                Math.Min(_dropCap.Reserved.Width, columnWidth), _dropCap.Reserved.Height)));
+        }
+
+        return region;
+    }
+
     void CreateLayout()
     {
         double rectWidth = _layoutRectangle.Width;
         double rectHeight = _layoutRectangle.Height - _cyAscent - _cyDescent;
         double columnWidth = ColumnWidthWithin(rectWidth);
+        _region = RegionFor(rectWidth, rectHeight, columnWidth);
         int firstIndex = 0;
         int column = 0;
 

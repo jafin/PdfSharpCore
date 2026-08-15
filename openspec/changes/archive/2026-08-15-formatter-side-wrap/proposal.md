@@ -49,7 +49,7 @@ irregular obstacles, multi-span lines and everything else at the one layer that 
 cheaply later. The geometry answers honestly; **taking the widest interval is a policy in the loop**,
 and the loop is free to grow.
 
-```
+```text
 plain rectangle          one exclusion              a circle
 [0 ──────────── 500]     [0 ──────────── 500]       [0 ─────────────── 500]
 [0 ──────────── 500]     [0 ─ 180] [320 ─ 500]      [0 ─ 210] [290 ─ 500]
