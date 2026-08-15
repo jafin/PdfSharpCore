@@ -1282,12 +1282,13 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     internal void AppendFormatArgs(string format, params object[] args)
     {
+        foreach (object arg in args)
+        {
+            if (arg is double number && !IsWritable(number))
+                throw NotAFiniteNumber(format, args);
+        }
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, args);
-#if DEBUG
-        string dummy = _content.ToString();
-        dummy = dummy.Substring(Math.Max(0, dummy.Length - 100));
-        dummy.GetType();
-#endif
     }
 
     internal void AppendFormatString(string format, string s)
@@ -1297,6 +1298,9 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     internal void AppendFormatFont(string format, string s, double d)
     {
+        if (!IsWritable(d))
+            throw NotAFiniteNumber(format, s, d);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, s, d);
     }
 
@@ -1307,18 +1311,27 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     internal void AppendFormatDouble(string format, double d)
     {
+        if (!IsWritable(d))
+            throw NotAFiniteNumber(format, d);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, d);
     }
 
     internal void AppendFormatPoint(string format, double x, double y)
     {
         XPoint result = WorldToView(new XPoint(x, y));
+        if (!IsWritable(result.X) || !IsWritable(result.Y))
+            throw NotAFiniteNumber(format, result.X, result.Y);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, result.X, result.Y);
     }
 
     internal void AppendFormatRect(string format, double x, double y, double width, double height)
     {
         XPoint point1 = WorldToView(new XPoint(x, y));
+        if (!IsWritable(point1.X) || !IsWritable(point1.Y) || !IsWritable(width) || !IsWritable(height))
+            throw NotAFiniteNumber(format, point1.X, point1.Y, width, height);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, point1.X, point1.Y, width, height);
     }
 
@@ -1327,26 +1340,97 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         XPoint point1 = WorldToView(new XPoint(x1, y1));
         XPoint point2 = WorldToView(new XPoint(x2, y2));
         XPoint point3 = WorldToView(new XPoint(x3, y3));
+        if (!IsWritable(point1.X) || !IsWritable(point1.Y) || !IsWritable(point2.X)
+            || !IsWritable(point2.Y) || !IsWritable(point3.X) || !IsWritable(point3.Y))
+        {
+            throw NotAFiniteNumber(format,
+                point1.X, point1.Y, point2.X, point2.Y, point3.X, point3.Y);
+        }
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, point1.X, point1.Y, point2.X, point2.Y, point3.X, point3.Y);
     }
 
     internal void AppendFormat(string format, XPoint point)
     {
         XPoint result = WorldToView(point);
+        if (!IsWritable(result.X) || !IsWritable(result.Y))
+            throw NotAFiniteNumber(format, result.X, result.Y);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, result.X, result.Y);
     }
 
     internal void AppendFormat(string format, double x, double y, string s)
     {
         XPoint result = WorldToView(new XPoint(x, y));
+        if (!IsWritable(result.X) || !IsWritable(result.Y))
+            throw NotAFiniteNumber(format, result.X, result.Y, s);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, result.X, result.Y, s);
     }
 
     internal void AppendFormatImage(string format, double x, double y, double width, double height, string name)
     {
         XPoint result = WorldToView(new XPoint(x, y));
+        if (!IsWritable(result.X) || !IsWritable(result.Y) || !IsWritable(width) || !IsWritable(height))
+            throw NotAFiniteNumber(format, result.X, result.Y, width, height, name);
+
         _content.AppendFormat(CultureInfo.InvariantCulture, format, result.X, result.Y, width, height, name);
     }
+
+    /// <summary>
+    /// Whether a number can be written into a content stream at all.
+    /// </summary>
+    /// <remarks>
+    /// PDF has no syntax for NaN or for infinity. Writing one produces an operand a viewer cannot
+    /// parse, and a viewer's response to that is to stop drawing - silently, and usually for the
+    /// rest of the content stream rather than for the one operator. A page that arrives blank is
+    /// the symptom, which is a very long way from the cause.
+    /// </remarks>
+    static bool IsWritable(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+    /// <summary>
+    /// Refuses a number on a path that assembles its operator as text rather than formatting it,
+    /// and so cannot be checked on the way through one of the Append methods.
+    /// </summary>
+    internal static void EnsureWritable(double value, string writing)
+    {
+        if (!IsWritable(value))
+            throw RefuseOperator(writing);
+    }
+
+    /// <summary>
+    /// The refusal, quoting the operator that was about to be written.
+    /// </summary>
+    /// <remarks>
+    /// Formatting the doomed operator into the message is the whole value of this: "NaN NaN m"
+    /// names the operator, and the position of the NaN among the operands says which coordinate
+    /// went wrong. This is only reached on the way to throwing, so it costs nothing to draw with.
+    /// </remarks>
+    static InvalidOperationException NotAFiniteNumber(string format, params object[] args)
+    {
+        string operatorText;
+        try
+        {
+            operatorText = string.Format(CultureInfo.InvariantCulture, format, args).Trim();
+        }
+        catch (FormatException)
+        {
+            // The message is a diagnostic, not a contract. If the format and the arguments
+            // disagree, the refusal still has to happen.
+            operatorText = format.Trim();
+        }
+
+        return RefuseOperator(operatorText);
+    }
+
+    static InvalidOperationException RefuseOperator(string operatorText) =>
+        new InvalidOperationException(
+            $"Cannot write \"{operatorText}\" into a content stream: an operand is not a finite "
+            + "number. PDF cannot express NaN or infinity, and a viewer handed one stops drawing "
+            + "rather than complaining, so the page arrives blank or half-finished with nothing to "
+            + "say why. Either a coordinate passed to the drawing call was already not a number, or "
+            + "a transform made it one - a scale derived from a range of zero width divides by zero "
+            + "and turns every point that goes through it into NaN.");
 
     void AppendStrokeFill(XPen pen, XBrush brush, XFillMode fillMode, bool closePath)
     {
