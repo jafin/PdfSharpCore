@@ -27,6 +27,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
+
 namespace PdfSharpCore.Drawing.BarCodes;
 
 /// <summary>
@@ -170,7 +172,29 @@ public class Code2of5Interleaved : ThickThinBarCode
     /// Checks the code to be convertible into an interleaved 2 of 5 bar code.
     /// </summary>
     /// <param name="text">The code to be checked.</param>
+    /// <remarks>
+    /// This was empty, and the message it should have been raising - <c>BcgSR.Invalid2Of5Code</c>,
+    /// which describes exactly this rule - was written and never called from anywhere. So a code
+    /// this symbology cannot carry was accepted here and failed later inside the renderer, as an
+    /// <see cref="System.IndexOutOfRangeException"/> for an odd number of digits and a
+    /// <see cref="System.FormatException"/> for anything that is not one. Neither names the code
+    /// or the rule it broke, and both arrive at drawing time rather than where the mistake was.
+    /// </remarks>
     protected override void CheckCode(string text)
     {
+        if (text == null)
+            throw new ArgumentNullException(nameof(text));
+
+        // Two digits are carried per five bars, so the count has to be even. Zero of them is even
+        // and is what the parameterless constructor sets, so it is left to the renderer to refuse
+        // as an unset code rather than treated as an invalid one here.
+        if (text.Length % 2 != 0)
+            throw new ArgumentException(BcgSR.Invalid2Of5Code(text));
+
+        foreach (char ch in text)
+        {
+            if (ch < '0' || ch > '9')
+                throw new ArgumentException(BcgSR.Invalid2Of5Code(text));
+        }
     }
 }

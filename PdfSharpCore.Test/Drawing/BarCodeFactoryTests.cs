@@ -74,4 +74,56 @@ public class BarCodeFactoryTests
 
         fromType.Should().Throw<InvalidEnumArgumentException>();
     }
+
+    // ----- what interleaved 2 of 5 will carry -----
+
+    // Its CheckCode was an empty method, and BcgSR.Invalid2Of5Code - which describes exactly the
+    // rule it should have been enforcing - was written and called from nowhere. So a code the
+    // symbology cannot carry was accepted where it was set and failed later inside the renderer:
+    // IndexOutOfRangeException for an odd number of digits, FormatException for anything that is
+    // not one. Neither names the code or the rule, and both arrive at drawing time.
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("12")]
+    [InlineData("20260816")]
+    public void InterleavedTwoOfFiveTakesAnEvenNumberOfDigits(string code)
+    {
+        var act = () => new Code2of5Interleaved(code, Size);
+
+        act.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("123")]
+    [InlineData("1")]
+    public void InterleavedTwoOfFiveRefusesAnOddNumberOfDigits(string code)
+    {
+        var act = () => new Code2of5Interleaved(code, Size);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*even number of digits*");
+    }
+
+    [Theory]
+    [InlineData("12A4")]
+    [InlineData("12 4")]
+    [InlineData("-123")]
+    public void InterleavedTwoOfFiveRefusesAnythingThatIsNotADigit(string code)
+    {
+        var act = () => new Code2of5Interleaved(code, Size);
+
+        act.Should().Throw<ArgumentException>().WithMessage($"*{code}*");
+    }
+
+    [Fact]
+    public void TheRefusalNamesTheCodeItRefused()
+    {
+        // The point of raising it where the code is set rather than where it is drawn: the caller
+        // is told which value was wrong while they still have it in their hand.
+        var act = () => new Code2of5Interleaved("ODD", Size);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*'ODD'*")
+            .And.Message.Should().Contain("2 of 5");
+    }
 }
