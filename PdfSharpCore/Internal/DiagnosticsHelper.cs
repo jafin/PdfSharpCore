@@ -29,8 +29,6 @@
 
 using System;
 using System.Diagnostics;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Fonts;
 
 namespace PdfSharpCore.Internal;
 
@@ -76,64 +74,9 @@ internal static class Logger
 {
     public static void Log(string format, params object[] args)
     {
-        Debug.WriteLine("Log...");
-    }
-}
-
-class Logging
-{
-
-}
-
-class Tracing
-{
-    [Conditional("DEBUG")]
-    public void Foo()
-    { }
-}
-
-/// <summary>
-/// Helper class around the Debugger class.
-/// </summary>
-public static class DebugBreak
-{
-    /// <summary>
-    /// Call Debugger.Break() if a debugger is attached.
-    /// </summary>
-    public static void Break()
-    {
-        Break(false);
-    }
-
-    /// <summary>
-    /// Call Debugger.Break() if a debugger is attached or when always is set to true.
-    /// </summary>
-    public static void Break(bool always)
-    {
-        if (always || Debugger.IsAttached)
-            Debugger.Break();
-    }
-}
-
-/// <summary>
-/// Internal stuff for development of PdfSharpCore.
-/// </summary>
-public static class FontsDevHelper
-{
-    /// <summary>
-    /// Creates font and enforces bold/italic simulation.
-    /// </summary>
-    public static XFont CreateSpecialFont(string familyName, double emSize, XFontStyle style,
-        XPdfFontOptions pdfOptions, XStyleSimulations styleSimulations)
-    {
-        return new XFont(familyName, emSize, style, pdfOptions, styleSimulations);
-    }
-
-    /// <summary>
-    /// Dumps the font caches to a string.
-    /// </summary>
-    public static string GetFontCachesState()
-    {
-        return FontFactory.GetFontCachesState();
+        // Both arguments used to be thrown away and the literal string "Log..." written instead,
+        // so NotImplementedBehaviour.Log reported that something unimplemented had been reached
+        // and never which thing.
+        Debug.WriteLine(args.Length == 0 ? format : string.Format(format, args));
     }
 }

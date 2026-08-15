@@ -1879,13 +1879,6 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Permits access to internal data.
-    /// </summary>
-    public XGraphicsInternals Internals => _internals ?? (_internals = new XGraphicsInternals(this));
-
-    XGraphicsInternals _internals;
-
-    /// <summary>
     /// (Under construction. May change in future versions.)
     /// </summary>
     public SpaceTransformer Transformer => _transformer ?? (_transformer = new SpaceTransformer(this));
@@ -2023,18 +2016,6 @@ public sealed class XGraphics : IDisposable
     PdfRectangle PageRectangleOf(XRect worldRect)
     {
         return new PdfRectangle(Transformer.WorldToDefaultPage(worldRect));
-    }
-
-    /// <summary>
-    /// Provides access to internal data structures of the XGraphics class.
-    /// </summary>
-    public class XGraphicsInternals
-    {
-        internal XGraphicsInternals(XGraphics gfx)
-        {
-            _gfx = gfx;
-        }
-        readonly XGraphics _gfx;
     }
 
     /// <summary>
