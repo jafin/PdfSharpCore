@@ -122,6 +122,70 @@ The first fix was right about the cause and too narrow about the measure. "Pages
 megapixels each, so cap the big one" was true of the document in front of it and not of the suite.
 Anything that holds a whole document in memory should be sized by the whole document.
 
+## A third time, and this one was not the suite's fault
+
+Same symptom again on Windows, and this time the answer is that there is nothing here to fix. Worth
+recording anyway, because most of an hour went into establishing that — and because the signal that
+settled the first two says the opposite here.
+
+**`--blame-crash` named a different test almost every time.** Across the runs captured:
+`XTextFormatterTest.DrawMultiLineStringWithOverflow`,
+`GenericAnnotationRenderingTests.ASquareWithoutAnAppearanceIsNotPaintedAtAll`,
+`TextMarkupRenderingTests.AnAnnotationGivenOnlyARectangleIsDrawn`,
+`TextMarkupRenderingTests.OpacityThinsTheWash`, `TextMarkupRenderingTests.EveryQuadOfAnAnnotationIsDrawn`.
+Above, *the same name twice* is what turned a flaky suite into one page. **A different name every
+time is the same evidence pointing the other way**: nothing in the suite is the cause.
+
+It narrowed to `TextMarkupRenderingTests` on its own — eight tests, one collection, **five crashes in
+eight runs** — which made everything below cheap to measure.
+
+### What it was not
+
+- **Not memory.** Peak working set across every test host in the run was 144–700MB, sampled once a
+  second. The two episodes above were 940MB and over a gigabyte. A ledger written around every call
+  to `PdfHelper.Rasterize` showed the process dying on the **tenth of thirteen** one-page documents
+  at 300 dpi — an A4 page with a highlight annotation on it.
+- **Not concurrency.** That ledger recorded a BEGIN and an END with thread ids; every rasterization
+  finished before the next began. An ImageMagick trace of a crashing run agrees: its two threads are
+  300ms apart and never overlap. `RasterizingCollection` is doing its job.
+- **Not a document.** The thirteen documents that class produces were written to disk and rasterized
+  fifteen times each — 195 rasterizations — in a bare console process. Not one failed.
+- **Not Ghostscript in a process.** In that same bare process: 60 rasterizations in a row on one
+  thread, then 60 more with a fresh thread for each, then 100 rounds of *build the document with
+  PdfSharpCore and Skia, then rasterize it*. All clean, flat memory throughout.
+- **Not the temp directory.** `%TEMP%` held 12,924 files, 209 of them ImageMagick leftovers from the
+  crashes. Pointing it at an empty directory gave five crashes in eight runs — no better.
+- **Not anything in this fork.** `be0b0b7`, the commit whose message records four consecutive clean
+  runs, crashes the same way today.
+
+### What is known
+
+The test host exits with **status 1 (`0x00000001`)**, read off the process handle rather than
+inferred. `--blame-crash` wrote its `Sequence.xml` every time and a dump not once, because there is
+nothing to dump: something calls `exit(1)`, and Ghostscript is the only thing in that process which
+does.
+
+### And then it stopped
+
+Same commit, same command, no change to the repository: **thirty-odd consecutive runs without a
+crash, including two full suites at 1985 tests, exit 0.** What changed was the machine. During the
+crashing hour it was carrying about 28 leftover `dotnet` processes, with the system commit charge at
+118GB of a 156GB limit and 8GB of 64GB physically free.
+
+That is consistent with the class of fault above — Ghostscript giving up on an allocation it cannot
+make and ending the process — with the pressure coming from **outside** the test host, which is
+exactly why the host's own numbers looked innocent.
+
+### What to do when it happens again
+
+1. **Read the exit code, then read the blame names.** Same name twice: look at that document, and
+   the two sections above are the playbook. A different name each time: stop looking at the suite.
+2. **Re-run before believing it**, and note that a crash that will not reproduce an hour later was
+   never about the code.
+3. **Look at the machine, not the test host** — system commit charge and free physical memory, not
+   `testhost.exe`'s working set. If it returns, capturing free physical memory at the moment of the
+   crash is the measurement that would settle it.
+
 ## What is still true
 
 CI runs on Linux, where Ghostscript is the system `gs` shelled out to rather than a library loaded
