@@ -42,18 +42,30 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
     dependency of its own)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
+   │              ▲
+   │              └── MigraDocCore.DocumentObjectModel.Tests  (the DOM alone; no backend)
    └── PdfSharpCore.Test  (the broad one; covers MigraDoc and SampleApp too)
            ▲
            └── SampleApp  (the demonstration CLI; net8.0 alone, so both test legs can reference it)
 ```
 
-Three test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
+Four test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
 is the broad one and the default. `MigraDocCore.DocumentObjectModel.Generators.Tests` drives the
 DOM's source generator through `CSharpGeneratorDriver`. `MigraDocCore.Rendering.Tests` covers
 MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and deliberately
 rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four content-stream
 readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in place and both
 projects get the change.
+
+`MigraDocCore.DocumentObjectModel.Tests` covers the DOM itself — `Unit`, page sizes, the chart
+object model, MDDDL reading and writing, and the flattening visitors. It references the DOM **and
+nothing else**: no renderer, and so no backend, no Ghostscript and no font files. The one
+qualification is `NamedFontsOnly.cs`, a module initializer serving a font *name*, because building
+a `Document` builds its standard styles and the Normal style asks the resolver what the default
+font is called. It resolves no face and throws if asked to, which is the line saying a test needing
+a real font belongs in `MigraDocCore.Rendering.Tests`. Note that `PdfSharpCore.Test/Dom/` also
+covers the DOM, from the other side: the value model, colours, styles and the generated property
+machinery. The two do not overlap.
 
 `SampleApp` is the demonstration app: `dotnet run --project SampleApp -- list` says what it covers,
 `… -- run` writes one PDF per demo into `SampleApp/output` and prints the source that drew each. Its
