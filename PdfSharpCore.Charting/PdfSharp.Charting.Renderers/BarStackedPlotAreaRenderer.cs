@@ -59,7 +59,7 @@ internal class BarStackedPlotAreaRenderer : BarPlotAreaRenderer
 
     int maxPoints = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
+      maxPoints = Math.Max(maxPoints, sri.series.Elements.Count);
 
     // Space used by one bar.
     double x = xMax - xMajorTick / 2;

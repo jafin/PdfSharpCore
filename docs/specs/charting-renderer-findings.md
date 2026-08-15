@@ -10,8 +10,9 @@ handed to a `ChartFrame`, drawn onto a page, saved, reopened, and read back out 
 stream. That has a consequence worth stating plainly — **everything below was reachable through
 public API**. None of it needed reflection to find, and none of it needed reflection to hit.
 
-Seven defects came out of writing the tests. All seven are now fixed, and the test that recorded
-each has been turned round to assert the behaviour that replaced it.
+Eight defects came out of it — seven from writing the tests, one more from review of the fixes.
+All eight are now fixed, and the test that recorded each has been turned round to assert the
+behaviour that replaced it.
 
 | # | finding | severity | status |
 |---|---|---|---|
@@ -22,9 +23,11 @@ each has been turned round to assert the behaviour that replaced it.
 | C5 | A frame too small for its axes throws from inside `XRect` | medium | **fixed** |
 | C6 | An axis title's alignment moves it nowhere, or only sometimes | low | **fixed** (see below) |
 | C7 | `DataLabelPosition.InsideBase` stacks every pie label on one point | low | **fixed** |
+| C8 | A chart with nothing plotted throws before it draws | medium | **fixed** |
 
-C1, C3 and C4 were one shape seen three times: two renderers written as copies of each other, which
-had drifted apart on which inputs they survive.
+C3 and C4 were one shape seen twice: two renderers written as copies of each other, which had
+drifted apart on which inputs they survive. C1 and C8 were another, seen four times over: a
+collection created lazily by its property and then read through its field.
 
 Fixing them took the assembly from 71.09% of lines to 71.73%, and branch coverage from 64.28% to
 67.10% — the rise is dead branches becoming reachable rather than new tests. Eight of the ten
@@ -195,7 +198,7 @@ already taken that a chart too small should draw nothing. It was unreachable.
 `ColumnLikeChartRenderer.CalcLayout` subtracts the axes from the frame and assigns the remainder as
 a width, and `XRect.Width` refuses a negative one:
 
-```
+```text
 System.ArgumentException: WidthCannotBeNegative
   at PdfSharpCore.Drawing.XRect.set_Width
   at PdfSharpCore.Charting.Renderers.AreaRendererInfo.set_Width
@@ -302,6 +305,47 @@ keeps its labels nearer the middle than any of the other three, which is what it
 
 Pinned by `DataLabelTests.APieLabelledAtItsBaseGivesEachWedgeItsOwnCorner` and
 `.APieLabelledAtItsBaseKeepsItsLabelsNearerTheMiddleThanAnyOtherPosition`.
+
+---
+
+## C8. A chart with nothing plotted threw before it drew — fixed
+
+Found by review of the fixes above rather than by the tests. Copilot pointed at
+`CalculateXAxisValues` and observed that `MaximumScale` is zero when a chart has no points, which
+the plot area then divides its own width by — the C1 arithmetic exactly. It was right about the
+arithmetic and wrong that it was reachable: an empty chart threw `NullReferenceException` long
+before it got there, which is the more immediate defect and the one that had been hiding the other.
+
+Three lazily-created collections, all the same shape as `Chart.XAxis` — created by a property on
+first read, and then read through the field, which is null until someone has asked:
+
+- `Chart.SeriesCollection`, read as `chart.seriesCollection` by `ChartFrame.GetChartRenderer`, so a
+  chart nothing was added to threw before any renderer ran. The C1 fix had carried the same pattern
+  into both `CalculateXAxisValues` methods.
+- `Series.Elements`, read as `sri.series.seriesElements` at thirteen sites, so a chart holding a
+  series that holds nothing threw in `InitSeries`.
+
+All sixteen reads now go through the property. Behind them the arithmetic was reachable after all,
+so both plot area renderers leave the matrix as the identity when there is nothing to plot against
+it:
+
+```csharp
+if (xMax <= xMin || yMax <= yMin)
+{
+  cri.plotAreaRendererInfo.matrix = new XMatrix();
+  return;
+}
+```
+
+One more sat behind that: `LinePlotAreaRenderer` handed a zero-length point array to `DrawLines`,
+which answers `ArgumentException: The point array must contain 2 or more points`. A series with
+fewer than two points is now skipped — a line through one point is not a line.
+
+An empty chart of any of the eight types now draws its axes and nothing inside them.
+
+Pinned by `ChartFrameTests.AChartWithNoSeriesAtAllIsDrawnEmpty` over eight chart types,
+`.AChartWhoseSeriesHasNoPointsIsDrawnEmpty` over five, `.AChartWithCategoriesButNoSeriesIsDrawnEmpty`
+and `.ALineChartWithASinglePointDrawsNoLine`.
 
 ---
 

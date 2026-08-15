@@ -71,6 +71,12 @@ internal class LinePlotAreaRenderer : ColumnLikePlotAreaRenderer
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
     {
       int count = sri.series.Elements.Count;
+
+      // A line needs two points to be a line, and DrawLines says so by throwing. A series with
+      // fewer has nothing to draw rather than something to complain about.
+      if (count < 2)
+        continue;
+
       XPoint[] points = new XPoint[count];
       for (int idx = 0; idx < count; idx++)
       {

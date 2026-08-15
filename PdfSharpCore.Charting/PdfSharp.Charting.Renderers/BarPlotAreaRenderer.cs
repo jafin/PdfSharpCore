@@ -59,6 +59,14 @@ internal abstract class BarPlotAreaRenderer : PlotAreaRenderer
 
     XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
 
+    // Nothing to plot means a category scale of zero, and dividing by it puts NaN on the page.
+    // See ColumnLikePlotAreaRenderer.Format, which says the same of the same thing.
+    if (xMax <= xMin || yMax <= yMin)
+    {
+      cri.plotAreaRendererInfo.matrix = new XMatrix();
+      return;
+    }
+
     cri.plotAreaRendererInfo.matrix = new XMatrix();  //XMatrix.Identity;
     cri.plotAreaRendererInfo.matrix.TranslatePrepend(-yMin, xMin);
     cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / (yMax - yMin), plotAreaBox.Height / (xMax - xMin), XMatrixOrder.Append);

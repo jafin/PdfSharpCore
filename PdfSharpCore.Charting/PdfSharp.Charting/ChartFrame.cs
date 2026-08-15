@@ -185,7 +185,11 @@ public class ChartFrame
   {
     ChartType chartType = chart.Type;
     bool useCombinationRenderer = false;
-    foreach (Series series in chart.seriesCollection)
+
+    // The property rather than the field: SeriesCollection creates the collection the first time
+    // it is asked for, so a chart nothing was ever added to has none at all, and reading the field
+    // threw here before any renderer had run. The same lazy shape as Chart.XAxis.
+    foreach (Series series in chart.SeriesCollection)
     {
       if (series.chartType != chartType)
       {

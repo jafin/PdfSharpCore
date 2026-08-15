@@ -59,6 +59,17 @@ internal abstract class ColumnLikePlotAreaRenderer : PlotAreaRenderer
 
     XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
 
+    // A chart with nothing plotted has a category scale of zero, because that scale is the number
+    // of points in its longest series. Dividing by it gives an infinity, and every coordinate
+    // derived from the matrix is then NaN - which is written to the page as the word NaN and makes
+    // the file unreadable. There is nothing to plot, so the matrix is left as the identity and the
+    // renderers that would use it draw their nothing against it.
+    if (xMax <= xMin || yMax <= yMin)
+    {
+      cri.plotAreaRendererInfo.matrix = new XMatrix();
+      return;
+    }
+
     cri.plotAreaRendererInfo.matrix = new XMatrix();  //XMatrix.Identity;
     cri.plotAreaRendererInfo.matrix.TranslatePrepend(-xMin, yMax);
     cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / xMax, plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);

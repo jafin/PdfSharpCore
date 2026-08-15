@@ -166,11 +166,11 @@ internal class AreaChartRenderer : ColumnLikeChartRenderer
       sri.LineFormat = Converter.ToXPen(sri.series.lineFormat, XColors.Black, ChartRenderer.DefaultSeriesLineWidth);
       sri.FillFormat = Converter.ToXBrush(sri.series.fillFormat, ColumnColors.Item(seriesIndex++));
 
-      sri.pointRendererInfos = new PointRendererInfo[sri.series.seriesElements.Count];
+      sri.pointRendererInfos = new PointRendererInfo[sri.series.Elements.Count];
       for (int pointIdx = 0; pointIdx < sri.pointRendererInfos.Length; ++pointIdx)
       {
         PointRendererInfo pri = new PointRendererInfo();
-        Point point = sri.series.seriesElements[pointIdx];
+        Point point = sri.series.Elements[pointIdx];
         pri.point = point;
         if (point != null)
         {

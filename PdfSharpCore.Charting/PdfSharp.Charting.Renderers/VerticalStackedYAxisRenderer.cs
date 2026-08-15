@@ -57,7 +57,7 @@ internal class VerticalStackedYAxisRenderer : VerticalYAxisRenderer
 
     int maxPoints = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      maxPoints = Math.Max(maxPoints, sri.series.seriesElements.Count);
+      maxPoints = Math.Max(maxPoints, sri.series.Elements.Count);
 
     for (int pointIdx = 0; pointIdx < maxPoints; ++pointIdx)
     {

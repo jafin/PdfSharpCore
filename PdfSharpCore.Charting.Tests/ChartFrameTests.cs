@@ -170,6 +170,79 @@ public class ChartFrameTests
         ShownText.On(Reopened(document)).Should().NotContain("A").And.NotContain("B");
     }
 
+    /// <summary>
+    ///   A chart with nothing plotted draws its axes and nothing inside them.
+    /// </summary>
+    /// <remarks>
+    ///   Three lazily-created collections stood between here and that, all the same shape as
+    ///   <see cref="Chart.XAxis"/>: <see cref="Chart.SeriesCollection"/>, read as a field by
+    ///   <c>ChartFrame.GetChartRenderer</c>, and <see cref="Series.Elements"/>, read as a field at
+    ///   thirteen sites. A chart nothing was added to has none of them, so it threw
+    ///   <see cref="NullReferenceException"/> before any renderer ran.
+    ///
+    ///   Behind them was the arithmetic: with nothing plotted the category scale is zero, because
+    ///   it counts the points in the longest series, and the plot area divides its own width by
+    ///   that - the same infinity that made a chart with no X axis draw at NaN. The renderers now
+    ///   leave the matrix alone when there is nothing to plot against it.
+    /// </remarks>
+    [Theory]
+    [InlineData(ChartType.Column2D)]
+    [InlineData(ChartType.ColumnStacked2D)]
+    [InlineData(ChartType.Bar2D)]
+    [InlineData(ChartType.BarStacked2D)]
+    [InlineData(ChartType.Line)]
+    [InlineData(ChartType.Area2D)]
+    [InlineData(ChartType.Pie2D)]
+    [InlineData(ChartType.PieExploded2D)]
+    public void AChartWithNoSeriesAtAllIsDrawnEmpty(ChartType type)
+    {
+        var page = Drawn.Page(Charts.Empty(type));
+
+        Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
+        PaintedRectangles.FilledOn(page).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ChartType.Column2D)]
+    [InlineData(ChartType.Bar2D)]
+    [InlineData(ChartType.Line)]
+    [InlineData(ChartType.Area2D)]
+    [InlineData(ChartType.Pie2D)]
+    public void AChartWhoseSeriesHasNoPointsIsDrawnEmpty(ChartType type)
+    {
+        var chart = Charts.Empty(type);
+        chart.SeriesCollection.AddSeries();
+
+        var page = Drawn.Page(chart);
+
+        Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
+        PaintedRectangles.FilledOn(page).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AChartWithCategoriesButNoSeriesIsDrawnEmpty()
+    {
+        var chart = Charts.Empty(ChartType.Column2D);
+        chart.XValues.AddXSeries().Add("A", "B");
+
+        var page = Drawn.Page(chart);
+
+        Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
+        PaintedRectangles.FilledOn(page).Should().BeEmpty();
+    }
+
+    /// <summary>
+    ///   A line needs two points to be a line, and one series with one point is not enough to
+    ///   draw one - which the drawing surface answers by throwing rather than by drawing nothing.
+    /// </summary>
+    [Fact]
+    public void ALineChartWithASinglePointDrawsNoLine()
+    {
+        var page = Drawn.Page(Charts.Of(ChartType.Line, 3.0));
+
+        Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
+    }
+
     private static byte[] Content(Func<ChartFrame, Action<XGraphics>> draw)
     {
         var document = new PdfDocument();

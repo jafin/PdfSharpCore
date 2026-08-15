@@ -59,7 +59,7 @@ internal class ColumnClusteredPlotAreaRenderer : ColumnPlotAreaRenderer
 
     int pointCount = 0;
     foreach (SeriesRendererInfo sr in cri.seriesRendererInfos)
-      pointCount += sr.series.seriesElements.Count;
+      pointCount += sr.series.Elements.Count;
 
     // Space shared by one clustered column.
     double groupWidth = cri.xAxisRendererInfo.MajorTick;

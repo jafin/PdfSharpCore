@@ -241,7 +241,7 @@ internal class VerticalXAxisRenderer : XAxisRenderer
   {
     // The chart is passed in rather than reached through rendererInfo.axis.parent, because this
     // runs for a chart that has no axis to be reached through.
-    SeriesCollection seriesCollection = chart.seriesCollection;
+    SeriesCollection seriesCollection = chart.SeriesCollection;
 
     // Calculates the maximum number of data points over all series.
     int count = 0;

@@ -59,7 +59,7 @@ internal class BarClusteredPlotAreaRenderer : BarPlotAreaRenderer
 
     int pointCount = 0;
     foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      pointCount += sri.series.seriesElements.Count;
+      pointCount += sri.series.Elements.Count;
 
     // Space shared by one clustered bar.
     double groupWidth = cri.xAxisRendererInfo.MajorTick;
