@@ -446,6 +446,17 @@ public static class PdfReader
                     else
                         throw new PdfReaderException(PSSR.OwnerPasswordRequired);
                 }
+
+                // Which of the two passwords got us in. PdfSecuritySettings.HasOwnerPermissions
+                // exists to answer exactly that question and was never written to: the field was
+                // initialized to true and assigned nowhere, so the property answered "yes, owner"
+                // for every document however it had been opened - including one opened with the
+                // user password, which is the one case anybody would ask about.
+                //
+                // ValidatePassword has always known the answer and returned it; only the caller
+                // never recorded it.
+                document.SecuritySettings._hasOwnerPermissions =
+                    validity == PasswordValidity.OwnerPassword;
             }
             else
             {
