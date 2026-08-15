@@ -37,9 +37,9 @@ namespace PdfSharpCore.Internal;
 internal static class Calc
 {
     /// <summary>
-    /// Degree to radiant factor.
+    /// Factor to convert from degree to radian measure.
     /// </summary>
-    public const double Deg2Rad = Math.PI / 180;
+    public const double Deg2Rad = Math.PI / 180;  // = 0.017453292519943295
 
     ///// <summary>
     ///// Half of pi.

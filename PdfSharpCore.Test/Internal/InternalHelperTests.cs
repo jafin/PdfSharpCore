@@ -174,6 +174,17 @@ public class InternalHelperTests
         (180 * deg2Rad).Should().BeApproximately(Math.PI, 1e-12);
     }
 
+    [Fact]
+    public void TheDegreeToRadianFactorIsDeclaredInOnePlaceOnly()
+    {
+        // It used to be declared identically on both Internal.Calc and Const, so which one a
+        // caller reached for was a coin toss and nothing would have caught the two drifting.
+        var elsewhere = Library.GetType("PdfSharpCore.Const")
+            .GetField("Deg2Rad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+        elsewhere.Should().BeNull("Internal.Calc is where this factor lives");
+    }
+
     // ----- StreamHelper --------------------------------------------------------------------------
 
     [Fact]

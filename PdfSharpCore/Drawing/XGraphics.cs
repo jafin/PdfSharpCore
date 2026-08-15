@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing.Pdf;
 using PdfSharpCore.Pdf.Advanced;
@@ -1698,7 +1699,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void RotateTransform(double angle)
     {
-        AddTransform(XMatrix.CreateRotationRadians(angle * Const.Deg2Rad), XMatrixOrder.Prepend);
+        AddTransform(XMatrix.CreateRotationRadians(angle * Calc.Deg2Rad), XMatrixOrder.Prepend);
     }
 
     /// <summary>
@@ -1718,7 +1719,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void RotateAtTransform(double angle, XPoint point)
     {
-        AddTransform(XMatrix.CreateRotationRadians(angle * Const.Deg2Rad, point.X, point.Y), XMatrixOrder.Prepend);
+        AddTransform(XMatrix.CreateRotationRadians(angle * Calc.Deg2Rad, point.X, point.Y), XMatrixOrder.Prepend);
     }
 
     /// <summary>
@@ -1727,7 +1728,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void RotateAtTransform(double angle, XPoint point, XMatrixOrder order)
     {
-        AddTransform(XMatrix.CreateRotationRadians(angle * Const.Deg2Rad, point.X, point.Y), order);
+        AddTransform(XMatrix.CreateRotationRadians(angle * Calc.Deg2Rad, point.X, point.Y), order);
     }
 
     /// <summary>
@@ -1739,7 +1740,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void ShearTransform(double shearX, double shearY)
     {
-        AddTransform(XMatrix.CreateSkewRadians(shearX * Const.Deg2Rad, shearY * Const.Deg2Rad), XMatrixOrder.Prepend);
+        AddTransform(XMatrix.CreateSkewRadians(shearX * Calc.Deg2Rad, shearY * Calc.Deg2Rad), XMatrixOrder.Prepend);
     }
 
     /// <summary>
@@ -1751,7 +1752,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void ShearTransform(double shearX, double shearY, XMatrixOrder order)
     {
-        AddTransform(XMatrix.CreateSkewRadians(shearX * Const.Deg2Rad, shearY * Const.Deg2Rad), order);
+        AddTransform(XMatrix.CreateSkewRadians(shearX * Calc.Deg2Rad, shearY * Calc.Deg2Rad), order);
     }
 
     /// <summary>
@@ -1763,7 +1764,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void SkewAtTransform(double shearX, double shearY, double centerX, double centerY)
     {
-        AddTransform(XMatrix.CreateSkewRadians(shearX * Const.Deg2Rad, shearY * Const.Deg2Rad, centerX, centerY), XMatrixOrder.Prepend);
+        AddTransform(XMatrix.CreateSkewRadians(shearX * Calc.Deg2Rad, shearY * Calc.Deg2Rad, centerX, centerY), XMatrixOrder.Prepend);
     }
 
     /// <summary>
@@ -1775,7 +1776,7 @@ public sealed class XGraphics : IDisposable
     /// </summary>
     public void SkewAtTransform(double shearX, double shearY, XPoint center)
     {
-        AddTransform(XMatrix.CreateSkewRadians(shearX * Const.Deg2Rad, shearY * Const.Deg2Rad, center.X, center.Y), XMatrixOrder.Prepend);
+        AddTransform(XMatrix.CreateSkewRadians(shearX * Calc.Deg2Rad, shearY * Calc.Deg2Rad, center.X, center.Y), XMatrixOrder.Prepend);
     }
 
     /// <summary>
