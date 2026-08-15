@@ -45,7 +45,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 32 | The prose samples under `docs/` point at the demos | done, 24 pages |
 | 33 | A spec for MigraDoc footnote rendering | done, `migradoc-footnotes.md` |
 | 34 | MigraDoc footnote rendering, built to that spec | done, 24 tests |
-| 35 | `Footnotes` — the demo for it | done, 6 pages |
+| 35 | `Footnotes` — the demo for it | done, 5 pages |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
 *building* item 1 and looking at the page it drew, items 21 to 23 the same way from item 4, item 30

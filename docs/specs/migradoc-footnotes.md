@@ -1,11 +1,12 @@
 # Spec — MigraDoc footnotes
 
 `MigraDocCore.DocumentObjectModel` has carried a complete footnote model since the fork began.
-`MigraDocCore.Rendering` has never contained a line that draws one. Until recently a footnote was
+`MigraDocCore.Rendering` did not contain a line that drew one. Until recently a footnote was
 dropped in silence: `ParagraphRenderer.FormatElement` fell through its `default` and the note simply
-did not appear, with nothing thrown and nothing logged. It now throws a descriptive
-`NotSupportedException` (see `demonstration-app-coverage.md`, item 19), which makes the gap audible
-but does not close it. This spec is the plan for closing it.
+did not appear, with nothing thrown and nothing logged. Then it threw a descriptive
+`NotSupportedException` (`demonstration-app-coverage.md`, item 14), which made the gap audible
+without closing it. This spec is the plan that closed it, and the record of what building it
+actually took.
 
 Built. Status is tracked in the table below; the three items with a choice in them were settled by
 whoever owns that call before the work started, and the choice taken is recorded under each.
@@ -21,7 +22,7 @@ whoever owns that call before the work started, and the choice taken is recorded
 | 7 | `FootnoteLocation.BeneathText` | done, both values |
 | 8 | Notes inside a table cell, a text frame or a header | **refused**, by decision |
 | 9 | Tests | done, 24 |
-| 10 | A `Footnotes` panel in the demonstration app | done, 6 pages |
+| 10 | A `Footnotes` panel in the demonstration app | done, 5 pages |
 
 **The fixed point turned out not to be needed.** The design below argued that reserving room for
 footnotes was a fixed point wanting an iterative solve, and it is not. See "How it was actually
@@ -318,11 +319,16 @@ that is never looked at is a demo that proves nothing, and every defect in
 check this feature most needed. It found two: the mark drawn over the note's own first word before
 the hanging indent existed, and the mark sitting on the note's baseline rather than raised off it.
 
-Six pages: what a footnote is (five notes, one of them two paragraphs and one of them starred), the
-five number styles, and the two locations shown **side by side** - the same short page laid out
-each way. The second is a one-page document of its own, saved to a `MemoryStream`, reopened and its
-page inserted, because `FootnoteLocation` belongs to the document and is read as each page is drawn,
-so one document cannot show both.
+Five pages: what a footnote is (five notes, one of them two paragraphs and one of them starred with
+a `Reference` the caller chose, so the numbers either side of it visibly do not skip), the five
+number styles, a short page showing where the block goes, and the numbering rule across a page
+break.
+
+`FootnoteLocation` belongs to the document and is read as each page is drawn, so one document cannot
+show both values. The demo says what `BeneathText` would change and leaves it at that. It briefly
+did show both, by laying the second out in a document of its own and inserting its page — which
+worked, and was a page of document-assembly machinery in a demo about footnotes. `Assemble` covers
+that subject already and covers it better.
 
 ## Deliberately not done
 
