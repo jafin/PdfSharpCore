@@ -95,11 +95,7 @@ public struct XColor
     XColor(double gray)
     {
         _cs = XColorSpace.GrayScale;
-        if (gray < 0)
-            _gs = 0;
-        else if (gray > 1)
-            _gs = 1;
-        _gs = (float)gray;
+        _gs = (float)(gray > 1 ? 1 : (gray < 0 ? 0 : gray));
 
         _a = 1;
         _r = 0;

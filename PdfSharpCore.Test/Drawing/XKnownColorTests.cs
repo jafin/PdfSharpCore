@@ -24,14 +24,6 @@ public class XKnownColorTests
     static readonly XKnownColor[] AllKnownColors =
         Enum.GetValues(typeof(XKnownColor)).Cast<XKnownColor>().ToArray();
 
-    static XKnownColorTests()
-    {
-        // The ARGB table is built the first time a colour is asked for by name, and by nothing
-        // else - the lookups that search it do not build it. Every test here that searches the
-        // table would depend on some other test having gone first without this.
-        _ = XColors.Black;
-    }
-
     static IEnumerable<PropertyInfo> PropertiesOf(Type type) =>
         type.GetProperties(BindingFlags.Public | BindingFlags.Static);
 
@@ -121,10 +113,7 @@ public class XKnownColorTests
     [Fact]
     public void AColourThatIsNotInTheTableIsNotAKnownColour()
     {
-        // Touch the table through a known colour first: it is built the first time a named colour
-        // is asked for, and nothing else builds it.
         XColors.Black.IsKnownColor.Should().BeTrue();
-
         XColor.FromArgb(1, 2, 3).IsKnownColor.Should().BeFalse();
     }
 
