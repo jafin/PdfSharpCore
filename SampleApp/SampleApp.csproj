@@ -26,6 +26,13 @@
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
+    <!--
+      Already here transitively - MigraDocCore.Rendering references it, because a MigraDoc chart is
+      mapped onto this engine to be drawn - so this line adds no dependency the app did not have.
+      It is written out because the Charts demo uses the charting API directly as well as through
+      MigraDoc, and a reference a reader cannot see in the project file is one they cannot rely on.
+    -->
+    <ProjectReference Include="..\PdfSharpCore.Charting\PdfSharpCore.Charting.csproj" />
   </ItemGroup>
 
   <ItemGroup>

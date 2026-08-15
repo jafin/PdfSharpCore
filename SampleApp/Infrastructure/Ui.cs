@@ -83,6 +83,15 @@ public static class Ui
             $"[green]wrote[/] {Markup.Escape(result.OutputPath)}  "
             + $"[grey]{result.PageCount} page{(result.PageCount == 1 ? "" : "s")} · "
             + $"{Kilobytes(result.Bytes)} · {result.Elapsed.TotalMilliseconds:F0} ms[/]");
+
+        // A file that will not open is a failed demo as far as anybody looking at the output
+        // directory is concerned, so the one demo that encrypts its own output says so here.
+        if (result.OpenPassword is not null)
+        {
+            AnsiConsole.MarkupLine(
+                $"      [yellow]encrypted[/] [grey]· opens with the password[/] "
+                + $"[bold]{Markup.Escape(result.OpenPassword)}[/]");
+        }
     }
 
     public static void WriteFailure(PdfDemo demo, Exception exception)

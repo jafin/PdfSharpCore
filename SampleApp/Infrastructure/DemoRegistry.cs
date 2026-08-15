@@ -34,6 +34,7 @@ public static class DemoRegistry
         new AnnotationsDemo(),
         new OutlineDemo(),
         new InvoiceDemo(),
+        new ChartsDemo(),
         new NewspaperDemo(),
         new MagazineDemo(),
         new SideWrapDemo(),

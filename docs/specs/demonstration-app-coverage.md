@@ -11,7 +11,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 
 | item | what | status |
 |---|---|---|
-| 1 | `Charts` — the charting assembly, both routes into it | not started |
+| 1 | `Charts` — the charting assembly, both routes into it | done, 4 pages |
 | 2 | `Assemble` — merge, split, reorder, import, prune, consolidate | not started |
 | 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | not started |
 | 4 | `Vectors` — the twelve `Draw*` methods no demo calls | not started |
@@ -27,12 +27,23 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 14 | L1 — MigraDoc drops a `Footnote` silently | done, 3 tests |
 | 15 | L2 — MigraDoc drops a `Barcode` shape silently | done, 3 tests |
 | 16 | L3 — `BarCode.FromType` reaches two of the four code types | done, 7 tests |
-| 17 | Infrastructure — an optional password, so item 6 can be real | not started |
+| 17 | Infrastructure — an optional password, so item 6 can be real | done |
+| 18 | L4 — a chart draws its plot area at `NaN` unless an axis was read | done, 9 tests |
+| 19 | L5 — a combination chart prints its legend on top of itself | done, 2 tests |
+| 20 | L6 — a pie signs and scales its percentages twice | done, 7 tests |
 
-Items 14 to 16 are defects found while surveying for the rest. They are in this spec rather than one
-of their own because finding them *is* what the demonstration app is for, and the same argument
-`demonstration-app.md` makes about its four gaps applies again: no exception, no warning, a property
-that reads back exactly as it was set, and a file that quietly does not contain it.
+Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
+*building* item 1 and looking at the page it drew — which is the demonstration app working exactly
+as `demonstration-app.md` argued it would. They are in this spec rather than in one of their own
+because finding them is what the app is for, and the same argument applies to all six: no exception,
+no warning, a property that reads back exactly as it was set, and a file that quietly does not
+contain what was asked for.
+
+Item 18 is the worst thing in this list. It is not a demonstration gap at all — **every column, bar,
+line and area chart this library has ever drawn came out empty** unless the caller happened to touch
+`chart.XAxis` before rendering, and touching it means *reading* the property, not setting anything on
+it. It affects both routes into the engine, it has been there since the fork, and nothing in the
+test suite could have caught it because nothing rendered a chart.
 
 ---
 
@@ -44,7 +55,7 @@ demonstration of any kind, found by walking the assemblies rather than the docum
 ```text
   assembly / namespace                         demonstrated by
   ─────────────────────────────────────────    ───────────────
-  PdfSharpCore.Charting, 12 chart types        nothing
+  PdfSharpCore.Charting, 8 chart types         nothing
   MigraDoc Chart + ChartMapper                 nothing
   Drawing.BarCodes, 3 linear + DataMatrix      nothing
   Pdf.Security, RC4 40/128, AES, 8 permissions nothing
@@ -90,10 +101,12 @@ test to use.
 
 ## Item 1 — `Charts`
 
-`PdfSharpCore.Charting` is a complete charting engine: twelve `ChartType` values (line, clustered and
-stacked columns and bars, area, pie, exploded pie, combination), with `Axis`, `Gridlines`, `Legend`,
-`DataLabel`, `TickLabels`, `MarkerStyle` and `FillFormat` around them, and a renderer for each in
-`PdfSharp.Charting.Renderers`. `MigraDocCore.Rendering` renders a MigraDoc `Chart` too:
+`PdfSharpCore.Charting` is a complete charting engine: eight `ChartType` values — line, clustered and
+stacked columns, clustered and stacked bars, area, pie, exploded pie — plus combination charts, which
+are not a ninth value but a series whose own `ChartType` disagrees with its chart's. Around them sit
+`Axis`, `Gridlines`, `Legend`, `DataLabel`, `TickLabels`, `MarkerStyle` and `FillFormat`, and a
+renderer for each in `PdfSharp.Charting.Renderers`. `MigraDocCore.Rendering` renders a MigraDoc
+`Chart` too:
 `Renderer.Create` dispatches it, and `MigraDoc.Rendering.ChartMapper` maps the DOM's chart onto the
 charting engine's.
 
@@ -356,6 +369,107 @@ directly, are reported as though they were not values of the enum.
 `CodeDataMatrix : MatrixCode`, which is not a `BarCode` and cannot be returned from a method typed
 that way — so that case gets a message saying what to construct instead and which draw method takes
 it, rather than a message implying the caller passed a bad enum value.
+
+## Item 18 — L4, a chart draws its plot area at `NaN` unless an axis was read
+
+Four lines, one in each axis renderer:
+
+```csharp
+xari.axis = chart.xAxis;      // HorizontalXAxisRenderer.Init, and three more like it
+if (xari.axis != null)
+{
+    CalculateXAxisValues(xari);   // ← the scale is worked out here
+    …
+}
+```
+
+`chart.xAxis` is the **field**. `chart.XAxis` is the property, and the property is what creates an
+axis the first time anything asks for one:
+
+```csharp
+public Axis XAxis
+{
+    get
+    {
+        if (this.xAxis == null)
+            this.xAxis = new Axis(this);
+        return this.xAxis;
+    }
+}
+```
+
+So a caller who never mentioned either axis left both fields null, the renderer skipped everything
+inside that `if`, and `AxisRendererInfo.MinimumScale` and `MaximumScale` stayed at the zero they were
+constructed with. Plotting a point then divides by `MaximumScale - MinimumScale`, which is zero over
+zero, and the entire plot area is written to the content stream as
+
+```text
+NaN NaN m
+NaN NaN NaN NaN NaN NaN c
+```
+
+Nothing complains at any point. The document saves, opens, and rasterizes, because a reader handed an
+operand it cannot parse abandons the path and paints nothing — so the chart arrives with its frame,
+its axes' labels and its legend all correct and **the data missing**. The workaround, had anyone
+known they needed one, was to read a property and discard the result.
+
+This is not confined to the drawn route. `ChartMapper.Map` maps the axes only
+`if (!domChart.IsNull("XAxis"))`, so a MigraDoc chart whose caller never touched `XAxis` reaches the
+same renderers in the same state. Both routes, every axis-bearing chart type, since the fork.
+
+The fix is to read the property in all four renderers, which is what every caller who ever got a
+working chart did by accident. The null branch beneath it is now unreachable and is left alone
+rather than deleted: `Format` and `Draw` test the same field, and taking the guards out is a bigger
+change than this defect justifies.
+
+**Not done, deliberately:** `XGraphicsPdfRenderer` still writes `NaN` into a content stream without
+complaint, and a PDF containing `NaN` where a number belongs is malformed whatever produced it.
+Refusing it at the writer would have caught this in the first drawing rather than the first
+*looking*, and it would catch the next one. It is a change to every coordinate the library writes,
+though, and it belongs in its own spec with its own tests rather than at the end of this one.
+
+## Item 19 — L5, a combination chart prints its legend on top of itself
+
+`LegendRenderer.Format` totalled every entry's width, added the padding, and *then* widened each
+entry's marker to the widest marker in the legend:
+
+```csharp
+foreach (LegendEntryRendererInfo leri in lri.Entries)
+    leri.MarkerArea = maxMarkerArea;      // the last thing Format did
+```
+
+`Draw` lays the entries out by stepping along `leri.Width` and paints each marker at
+`leri.MarkerArea`. Those two disagreed by exactly the widening, so every entry was measured narrow
+and drawn wide, and each one was painted over the end of the one before it.
+
+It only shows when the entries disagree about their marker width, and one thing makes them disagree:
+`LegendEntryRenderer.Format` gives a line series three times the marker of a column. That is a
+combination chart, which is why nothing had ever seen it.
+
+Equalising before measuring rather than after fixes it, and makes the legend's own arithmetic
+honest — with equal markers the step from one label to the next depends only on the text before it,
+which is what the test compares a combination chart against a chart of nothing but lines to check.
+
+## Item 20 — L6, a pie signs and scales its percentages twice
+
+```csharp
+double percent = 100 / (sumValues / Math.Abs(sector.point.value));
+dleri.Text = percent.ToString(sri.dataLabelRendererInfo.Format) + "%";
+```
+
+`percent` is already out of a hundred and the sign is appended unconditionally, so the format string
+the caller supplies must be a plain numeric one. Nothing says so, and the natural thing to write is
+the .NET percent format — which multiplies by a hundred and appends a sign of its own. A share of
+`0.1875` asked for as `"0%"` came out as **`1875%%`**.
+
+The format now decides which of the two it is. One carrying `%` is a .NET percent format, is handed
+the fraction, and its result is used as it stands; anything else is handed the number out of a
+hundred and has the sign appended, which is what the property always meant and still does. Every
+format a caller might reasonably write is now right, and the rule is one sentence long.
+
+Worth knowing while in there, and pinned by a test: leaving `Format` alone is not the same as
+leaving it empty. `DataLabelRenderer` substitutes `"0"` for an unset format, so an untouched pie
+labels its slices in whole percents rather than to full precision.
 
 ## Item 17 — infrastructure, an optional password
 
