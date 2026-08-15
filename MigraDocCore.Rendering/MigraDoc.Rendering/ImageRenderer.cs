@@ -157,8 +157,32 @@ internal class ImageRenderer : ShapeRenderer
         }
 
         // Create stub font
-        XFont font = new XFont(GlobalFontSettings.FontResolver.DefaultFontName, 8);
+        XFont font = FitWithin(failureString, destRect.Width);
         gfx.DrawString(failureString, font, XBrushes.Red, destRect, XStringFormats.Center);
+    }
+
+    /// <summary>
+    /// The largest of the usual sizes at which the placeholder's message fits the box it belongs
+    /// to, or the smallest of them if none does.
+    /// </summary>
+    /// <remarks>
+    /// The size used to be a fixed 8 point whatever the box measured, so a placeholder narrower
+    /// than its message - which is what an image of a tall aspect ratio gets - drew the message out
+    /// through both sides and across whatever was beside it. A caller looking at that sees the
+    /// library scribbling on their page, which is a poor way to be told an image would not load.
+    /// </remarks>
+    XFont FitWithin(string text, double width)
+    {
+        string family = GlobalFontSettings.FontResolver.DefaultFontName;
+
+        foreach (double size in new[] { 8.0, 7.0, 6.0, 5.0 })
+        {
+            XFont candidate = new XFont(family, size);
+            if (gfx.MeasureString(text, candidate).Width <= width)
+                return candidate;
+        }
+
+        return new XFont(family, 4);
     }
 
     private void CalculateImageDimensions()
@@ -288,7 +312,13 @@ internal class ImageRenderer : ShapeRenderer
                     resultHeight = resultHeight - cropTop - cropBottom;
                     resultWidth = resultWidth - cropLeft - cropRight;
                 }
-                if (resultHeight <= 0 || resultWidth <= 0)
+                // Not "<= 0", which lets a NaN through: every comparison against NaN is false, so
+                // a size that is not a number counted as a good one. An image reporting no pixels
+                // divides zero by zero in the aspect-ratio arithmetic above and arrives here as
+                // NaN, and what followed was an element of no known height - the page broke around
+                // it, the next one came out blank, no placeholder was drawn and no failure was
+                // reported, because this branch was never taken.
+                if (!IsUsableSize(resultHeight) || !IsUsableSize(resultWidth))
                 {
                     Debug.WriteLine(AppResources.EmptyImageSize);
                     // The field this used to be assigned to had already been copied into the
@@ -321,6 +351,20 @@ internal class ImageRenderer : ShapeRenderer
     ///   Sizes the placeholder that stands in for an image that could not be drawn: what the
     ///   document asked for where it asked for anything, and a square inch or so where it did not.
     /// </summary>
+    /// <summary>
+    /// Whether a measured extent is one an image can actually be laid out at.
+    /// </summary>
+    /// <remarks>
+    /// Written as "greater than zero" rather than "not less than or equal to zero" on purpose.
+    /// The two are not the same for NaN, which is not greater than zero and not less than or equal
+    /// to it either, and it is NaN that this exists to catch.
+    /// </remarks>
+    static bool IsUsableSize(XUnit size)
+    {
+        double points = size.Point;
+        return points > 0 && !double.IsInfinity(points);
+    }
+
     private void SetFallbackDimensions(ImageFormatInfo formatInfo)
     {
         // A size of nothing would hide the placeholder, which defeats the point of drawing one,
