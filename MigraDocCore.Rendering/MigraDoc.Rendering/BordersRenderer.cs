@@ -246,47 +246,6 @@ internal class BordersRenderer
     return pen;
   }
 
-  internal bool IsRendered(BorderType borderType)
-  {
-    if (borders == null)
-      return false;
-
-    switch (borderType)
-    {
-      case BorderType.Left:
-        if (borders.IsNull("Left"))
-          return false;
-        return GetWidth(borderType) > 0;
-
-      case BorderType.Right:
-        if (borders.IsNull("Right"))
-          return false;
-        return GetWidth(borderType) > 0;
-
-      case BorderType.Top:
-        if (borders.IsNull("Top"))
-          return false;
-        return GetWidth(borderType) > 0;
-
-      case BorderType.Bottom:
-        if (borders.IsNull("Bottom"))
-          return false;
-
-        return GetWidth(borderType) > 0;
-
-      case BorderType.DiagonalDown:
-        if (borders.IsNull("DiagonalDown"))
-          return false;
-        return GetWidth(borderType) > 0;
-
-      case BorderType.DiagonalUp:
-        if (borders.IsNull("DiagonalUp"))
-          return false;
-
-        return GetWidth(borderType) > 0;
-    }
-    return false;
-  }
   private XGraphics gfx;
   private Borders borders;
 }
