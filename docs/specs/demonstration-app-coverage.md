@@ -37,14 +37,26 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 24 | L10 — interleaved 2 of 5 checks nothing and fails at drawing time | done, 9 tests |
 | 25 | L11 — `HasOwnerPermissions` is a constant `true` | done, 7 tests |
 | 26 | L12 — `CSequence` throws for every interface member it declares | done, 5 tests |
-| 27 | L13 — `CompressContentStreams` defaults differently per build | documented |
+| 27 | L13 — `CompressContentStreams` defaults differently per build | done |
+| 28 | `ImageFailures` — an image that will not load, and the event that says why | done, 2 pages |
+| 29 | The renderer refuses to write `NaN` or infinity into a content stream | done, 12 tests |
+| 30 | L14 — a `CodeDataMatrix` given no size draws at negative infinity | done, 1 test |
+| 31 | L15 — an image of no pixels measures to `NaN` and reports nothing | done, 8 tests |
+| 32 | The prose samples under `docs/` point at the demos | done, 24 pages |
+| 33 | A spec for MigraDoc footnote rendering | done, `migradoc-footnotes.md` |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
-*building* item 1 and looking at the page it drew, and items 21 to 23 the same way from item 4 —
-which is the demonstration app working exactly as `demonstration-app.md` argued it would. They are in
-this spec rather than in ones of their own because finding them is what the app is for, and the same
-argument applies to all nine: no exception, no warning, a property that reads back exactly as it was
-set, and a file that quietly does not contain what was asked for.
+*building* item 1 and looking at the page it drew, items 21 to 23 the same way from item 4, item 30
+by turning item 29's guard on, and item 31 by building item 28 — which is the demonstration app
+working exactly as `demonstration-app.md` argued it would. They are in this spec rather than in ones
+of their own because finding them is what the app is for, and the same argument applies to all
+eleven: no exception, no warning, a property that reads back exactly as it was set, and a file that
+quietly does not contain what was asked for.
+
+Items 28 to 33 were done in a second pass, after the first was reviewed. Four of them — 27, 28, 29
+and 32 — were open questions at the end of the first pass rather than gaps, because each was a
+decision about the library's behaviour or its documentation rather than about its demonstrations.
+They were put to whoever owns that call and are recorded here as taken.
 
 Item 18 is the worst thing in this list. It is not a demonstration gap at all — **every column, bar,
 line and area chart this library has ever drawn came out empty** unless the caller happened to touch
@@ -317,11 +329,139 @@ content stream can be read straight out of the file. What is not defensible is t
 undocumented, because the symptom is a consumer comparing two files from two builds and concluding
 something is wrong with their code.
 
-**Documented rather than changed.** The property's remarks now state the conditional default and say
-that code which cares about output size should set it rather than rely on it, and the `Compress`
-demo sets it explicitly on every row and prints what the default was in the build that produced the
-page. Whether the `#if DEBUG` should go is a decision about the library's behaviour rather than
-about its documentation, and belongs to whoever owns that call.
+**Documented first, then changed.** The conditional is gone: the default is `true` in every build,
+and the remarks say what it used to be and that setting it to `false` is how to get the readable
+content stream back. That was a decision about the library's behaviour rather than about its
+documentation, so it was put to whoever owns that call and made when they took it.
+
+The `Compress` demo still sets the option explicitly on every row rather than reporting a default,
+because a table of defaults goes quietly wrong the day one changes — as this one just did.
+
+## Item 28 — `ImageFailures`
+
+`DocumentRenderer.ImageFailed` was added for issue 366 (see `image-failure-reporting.md`) and
+nothing showed it working. The demo provokes all four failure kinds a caller can actually reach,
+collects the events, and prints what the handler was told beside the placeholders the same four
+images drew.
+
+Each failing image is an `IImageSource` written by hand, and that is worth seeing for its own sake:
+the interface is six members, and implementing it is how an application supplies images from a
+database or an HTTP response rather than from a file. Here the same six members are arranged to fail
+at four different points — while `XImage` is built, while the image is measured, while its bytes are
+asked for, and not at all, by measuring to nothing.
+
+`ImageFailure` has a fifth value, `FileNotFound`, which nothing in this fork assigns: images arrive
+through `IImageSource` rather than by path, so there is no file for the renderer to fail to find. It
+has a placeholder string of its own and is unreachable. The demo says so on the page rather than
+leaving a reader to wonder why only four of five appear.
+
+This was listed under "deliberately not done" in the first pass, on the grounds that it needed a
+page of scaffolding for one panel. It needed about eighty lines, and it found item 31.
+
+## Item 29 — refusing to write `NaN`
+
+PDF has no syntax for NaN or for infinity. Writing one produces an operand a reader cannot parse,
+and a reader's answer to that is to stop drawing — silently, and usually for the rest of the content
+stream rather than for the one operator. The page arrives blank with nothing to say why, and the
+drawing call that caused it returned happily, possibly hours earlier.
+
+Items 18 and 30 are both exactly this and nothing else, and neither could be caught by a test,
+because a content stream full of `NaN` is a valid file that a test can open and read back.
+
+Every coordinate now goes through one of `XGraphicsPdfRenderer`'s `Append*` methods, and each of
+those refuses a number it cannot write. The message quotes the operator it was about to emit —
+`NaN NaN m` names the operator, and where the `NaN` falls among the operands says which coordinate
+went wrong — and names the two ways one gets there: an argument that was already not a number, or a
+transform that made it one.
+
+The custom dash pattern in `PdfGraphicsState` is assembled as text a piece at a time rather than
+formatted in one go, so it reaches the stream by a route of its own and is checked separately. It is
+the only such route.
+
+This was listed under "deliberately not done" in the first pass, on the grounds that it touches
+every coordinate the library writes. It was then put to whoever owns that call, taken, and found
+item 30 within ninety seconds of the first test run.
+
+## Item 30 — L14, a `CodeDataMatrix` given no size draws at negative infinity
+
+`XSize.Empty` is not a zero size. It is `(-Infinity, -Infinity)`, which is how the type tells "no
+size given" apart from "no area". Five of `CodeDataMatrix`'s eight constructors default `Size` to
+it, and nothing downstream checked, so `Render` divided that by the module count and drew every dark
+module as
+
+```
+NaN NaN -Infinity -Infinity re
+```
+
+The barcode came out invisible — from the constructor taking nothing but text and a module count,
+which is the one the upstream issue and the documentation both use. The test covering it asserted
+only that drawing did not throw, which it never did.
+
+An unset size now becomes two points per module, quiet zone included, putting a 26 by 26 symbol a
+little under 18mm square. `BarCode.InitRendering` answers the same question by refusing an empty
+size, and the difference is deliberate: a linear code's width depends on how many bars its text
+turns into, so there is nothing to fall back on, where a matrix code is square and measured in
+modules and both are known by the time it is drawn.
+
+## Item 31 — L15, an image of no pixels measures to `NaN` and reports nothing
+
+An image reporting no pixels divides zero by zero in `CalculateImageDimensions`' aspect-ratio
+arithmetic, so its extent arrived as `NaN`. The guard meant to catch a size of nothing read
+
+```csharp
+if (resultHeight <= 0 || resultWidth <= 0)
+```
+
+and every comparison against `NaN` is false, so a size that was not a number counted as a good one.
+What followed was an element of no known height: the page broke around it, the next one came out
+blank, no placeholder was drawn, and no `ImageFailed` event was raised. The caller got a blank page
+and no way at all to find out why.
+
+The check is now written as "greater than zero" rather than "not less than or equal to zero", which
+are the same for every number and not the same for `NaN`, and it refuses an infinite extent too.
+
+Two things about this are worth recording. It is a second hole in the same path
+`image-failure-reporting.md` item 5 patched — that one stopped `EmptySize` being assigned to a field
+nothing read, and this one stopped it being assigned at all. And item 29's guard did **not** catch
+it: the `NaN` went into layout rather than into a coordinate, so nothing was ever drawn for the
+writer to refuse. A guard at the writer is the last line, not the only one.
+
+The placeholder's message also drew at a fixed eight points whatever the box measured, so a
+placeholder narrower than its message — which is what an image of a tall aspect ratio gets — wrote
+the message out through both sides of the box and across whatever was beside it. It now takes the
+largest of the usual sizes that fits.
+
+## Item 32 — the prose samples
+
+The twenty-three pages under `docs/PdfSharpCore/samples/` came from upstream PDFsharp, and nothing
+builds them, so they say what was true when they were written.
+
+Every page now names the demo that covers it, with the command to run it, and says plainly which of
+the two has protection. The index gained the setup this fork needs and upstream does not — the core
+package carries no font or imaging dependency, so both seams must be filled in before anything
+draws, and no sample code shows it being done — along with what the samples assume and this
+repository does not provide: `PdfSharp.*` namespaces, and upstream's tree of sample PDFs behind
+every `../../../../../PDFs/` path.
+
+Three pages were wrong rather than merely stale. `HelloWorld` was the one page still written against
+`PdfSharp.*` and would not compile. `FontResolver` described a default font resolver twice and
+linked to it twice, and there is no default and the file has not existed for some time; its
+`IFontResolver` also has three members rather than the two described. `ProtectDocument` said nothing
+about AES being read-only here, which is the first thing somebody protecting a document wants to
+know.
+
+Twelve demos have no page here at all, because upstream never wrote one. The index says which.
+
+## Item 33 — the footnote spec
+
+`migradoc-footnotes.md`. Item 14 made the gap audible; the spec is the plan for closing it. The two
+things worth knowing before starting are in there: implementing it adds no DOM surface at all, and
+the layout is a fixed point rather than a straight pass, because the height available to the body
+text is the page less the notes whose marks land on it, and which notes those are depends on how the
+body text broke.
+
+A MigraDoc barcode renderer — item 15's gap — is deliberately **not** in that spec. The two are
+unrelated in everything but symptom.
 
 ## Item 7 — `Navigation`
 
@@ -661,22 +801,25 @@ protect` is told the password rather than having to read the source to find it.
 
 ## The order the demos are read in
 
-`DemoRegistry` is a curriculum, not an alphabetical list. The twelve new demos slot in by subject:
+`DemoRegistry` is a curriculum, not an alphabetical list. The thirteen new demos slot in by subject:
 
 ```text
-   1 HelloWorld     11 PageResize      21 Outline
-   2 Fonts          12 Bleed           22 Invoice
-   3 Unicode   ★    13 Assemble   ★    23 Structure   ★
-   4 Orientation    14 Imposition ★    24 Ddl         ★
-   5 Images    ★    15 Protect    ★    25 Charts      ★
-   6 Text           16 Navigation ★    26 Newspaper
-   7 Vectors   ★    17 Compress   ★    27 Magazine
-   8 Barcodes  ★    18 Inspect    ★    28 SideWrap
-   9 Layout         19 Forms
-  10 Tables         20 Annotations
+   1 HelloWorld         11 Tables            21 Annotations
+   2 Fonts              12 PageResize        22 Outline
+   3 Unicode       ★    13 Bleed             23 Invoice
+   4 Orientation        14 Assemble     ★    24 Structure   ★
+   5 Images        ★    15 Imposition   ★    25 Ddl         ★
+   6 ImageFailures ★    16 Protect      ★    26 Charts      ★
+   7 Text               17 Navigation   ★    27 Newspaper
+   8 Vectors       ★    18 Compress     ★    28 Magazine
+   9 Barcodes      ★    19 Inspect      ★    29 SideWrap
+  10 Layout             20 Forms
 ```
 
-Twenty-eight demos, twelve of them new and one - `Images` - extended. ★ marks what this spec added.
+Twenty-nine demos, thirteen of them new and one — `Images` — extended. ★ marks what this spec added.
+
+`ImageFailures` sits immediately after `Images` because it is the same subject seen from the other
+side: what happens when the picture does not arrive.
 
 Fonts then Unicode; the drawing surface then the vector methods then the codes drawn with them; the
 page-level demos then the document-level ones; the interactive layer then MigraDoc, ending as it
@@ -693,11 +836,17 @@ does today with the three combined layouts.
   meant to be edited.
 - **No second output file from any demo**, item 6's encryption aside. In-memory documents are a
   better demonstration and leave the smoke test's contract alone.
-- **`DocumentRenderer.ImageFailed` is still not demonstrated.** Item 13 covers the alpha channel and
-  `XImage.Interpolate`, and states on the page where the event lives and what it is for, but does not
-  subscribe to it. Making it fire needs a MigraDoc `Image` built on an `IImageSource` implementation
-  that fails on purpose, which is a page of scaffolding for one panel. It belongs with a small
-  `IImageSource` test double that the test project would want anyway.
-- **The prose samples under `docs/` are still not rewritten.** Items 2 and 3 cover six of them with
-  code; pointing the prose at the demos is a documentation change and belongs with the rest of that
-  work.
+- **No MigraDoc barcode renderer.** Item 15 makes the gap audible and item 33 deliberately leaves it
+  out of the footnote spec. It wants a spec of its own, and is much the smaller of the two: a shape
+  renderer mapping the DOM `Barcode` onto `PdfSharpCore.Drawing.BarCodes`, with no layout problem in
+  it at all.
+- **`ImageFailure.FileNotFound` is left in the enum, unreachable.** Nothing assigns it. Removing a
+  public enum value would break callers switching on it, for no gain; item 28 says so on the page
+  instead.
+- **The `Preview` and `Clock` samples have no demo and will not get one.** One draws to a live
+  surface this fork does not ship, the other is an ASP.NET handler. Item 32 says so on both pages.
+
+Two entries that stood here in the first pass are gone, because both were done in the second:
+`DocumentRenderer.ImageFailed` is item 28, and the prose samples are item 32. The reasons given for
+deferring them were sound and both turned out to be cheaper than estimated — and the first of them
+found item 31.
