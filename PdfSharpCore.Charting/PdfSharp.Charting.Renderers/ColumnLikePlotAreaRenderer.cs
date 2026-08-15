@@ -64,21 +64,22 @@ internal abstract class ColumnLikePlotAreaRenderer : PlotAreaRenderer
     // derived from the matrix is then NaN - which is written to the page as the word NaN and makes
     // the file unreadable. There is nothing to plot, so the matrix is left as the identity and the
     // renderers that would use it draw their nothing against it.
-    //
-    // xMax is tested on its own as well as against xMin, because the scaling below divides the
-    // width by xMax rather than by the span between them. The two are the same thing only because
-    // the category axis fixes its minimum at zero - CalculateXAxisValues assigns it, and unlike
-    // the value axis never takes one from the Axis object - so testing the span alone would be
-    // relying on that, one method away, to keep a division here from producing an infinity.
-    if (xMax <= 0 || xMax <= xMin || yMax <= yMin)
+    if (xMax <= xMin || yMax <= yMin)
     {
       cri.plotAreaRendererInfo.matrix = new XMatrix();
       return;
     }
 
+    // The width is divided by the span between the two, not by xMax. The translate above has
+    // already moved xMin to the origin, so the distance left to fit across the plot area is
+    // xMax - xMin; dividing by xMax alone agrees with it only while xMin is zero. That is true
+    // today - the category axis fixes its minimum there, CalculateXAxisValues assigning it where
+    // the value axis takes one from the Axis object - so this changes nothing now. It means the
+    // pair goes on agreeing if the category axis ever learns to honour a minimum, rather than
+    // quietly drawing the whole chart short of the edge it was scaled to reach.
     cri.plotAreaRendererInfo.matrix = new XMatrix();  //XMatrix.Identity;
     cri.plotAreaRendererInfo.matrix.TranslatePrepend(-xMin, yMax);
-    cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / xMax, plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);
+    cri.plotAreaRendererInfo.matrix.Scale(plotAreaBox.Width / (xMax - xMin), plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);
     cri.plotAreaRendererInfo.matrix.ScalePrepend(1, -1);
     cri.plotAreaRendererInfo.matrix.Translate(plotAreaBox.X, plotAreaBox.Y, XMatrixOrder.Append);
   }

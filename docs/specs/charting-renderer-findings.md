@@ -330,20 +330,27 @@ so both plot area renderers leave the matrix as the identity when there is nothi
 it:
 
 ```csharp
-if (xMax <= 0 || xMax <= xMin || yMax <= yMin)
+if (xMax <= xMin || yMax <= yMin)
 {
   cri.plotAreaRendererInfo.matrix = new XMatrix();
   return;
 }
 ```
 
-`xMax` is tested on its own as well as against `xMin` because the column-like renderer divides the
-width by `xMax` rather than by the span between them — the bar renderer divides by both spans, and
-its guard is the span test alone. The two are the same thing only because the category axis fixes
-its minimum at zero, which `CalculateXAxisValues` assigns and which, unlike the value axis, it never
-takes from the `Axis` object. Testing the span alone would leave a division here relying on that,
-one method away. Not reachable today; the guard is written so that it stays true if the category
-axis ever learns to honour a minimum the way the value axis does.
+That guard tests the span, and review afterwards found that `ColumnLikePlotAreaRenderer` did not
+divide by one: it scaled the width by `xMax` where the bar renderer scales by `xMax - xMin`, so
+the guard and the division were asking different questions. The two agree only because the category
+axis fixes its minimum at zero — `CalculateXAxisValues` assigns it, and unlike the value axis it
+never takes one from the `Axis` object — which put the correctness of a guard here at the mercy of
+a constant assigned in another file.
+
+The division was the half that was wrong, so the division is what changed:
+`plotAreaBox.Width / (xMax - xMin)`. The translate on the line above has already moved `xMin` to the
+origin, so the span is the distance actually being fitted across the plot area, and the two
+renderers now scale the same axis the same way. Nothing moves on any page today, `xMin` being zero.
+The first draft guarded `xMax <= 0` instead and left the division alone; that stopped the infinity
+but not the mis-scaling behind it, and it would have refused to draw a legitimate category range
+lying entirely below zero.
 
 One more sat behind that: `LinePlotAreaRenderer` handed a zero-length point array to `DrawLines`,
 which answers `ArgumentException: The point array must contain 2 or more points`. A series with
