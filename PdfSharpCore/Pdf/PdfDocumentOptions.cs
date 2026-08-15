@@ -55,6 +55,18 @@ public sealed class PdfDocumentOptions
     /// <summary>
     /// Gets or sets a value indicating whether to compress content streams of PDF pages.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The default depends on how the library was compiled.</b> It is <c>false</c> in a debug
+    /// build, so that the content of a page can be read straight out of the file while debugging,
+    /// and <c>true</c> otherwise. The same calling code therefore writes a materially larger PDF
+    /// from a debug build than from a release one, which is worth knowing before comparing the
+    /// size of two files produced by two builds.
+    /// </para>
+    /// <para>
+    /// Code that cares about the size of what it writes should set this rather than rely on it.
+    /// </para>
+    /// </remarks>
     public bool CompressContentStreams
     {
         get => _compressContentStreams;

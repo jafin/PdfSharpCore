@@ -345,72 +345,20 @@ public class CSequence : CObject, IList<CObject> // , ICollection<CObject>, IEnu
             _items[idx].WriteObject(writer);
     }
 
-    #region IList<CObject> Members
-
-    int IList<CObject>.IndexOf(CObject item)
-    {
-        throw new NotImplementedException();
-    }
-
-    void IList<CObject>.Insert(int index, CObject item)
-    {
-        throw new NotImplementedException();
-    }
-
-    void IList<CObject>.RemoveAt(int index)
-    {
-        throw new NotImplementedException();
-    }
-
-    CObject IList<CObject>.this[int index]
-    {
-        get => throw new NotImplementedException();
-        set => throw new NotImplementedException();
-    }
-
-    #endregion
-
-    #region ICollection<CObject> Members
-
-    void ICollection<CObject>.Add(CObject item)
-    {
-        throw new NotImplementedException();
-    }
-
-    void ICollection<CObject>.Clear()
-    {
-        throw new NotImplementedException();
-    }
-
-    bool ICollection<CObject>.Contains(CObject item)
-    {
-        throw new NotImplementedException();
-    }
-
-    void ICollection<CObject>.CopyTo(CObject[] array, int arrayIndex)
-    {
-        throw new NotImplementedException();
-    }
-
-    int ICollection<CObject>.Count => throw new NotImplementedException();
-
-    bool ICollection<CObject>.IsReadOnly => throw new NotImplementedException();
-
-    bool ICollection<CObject>.Remove(CObject item)
-    {
-        throw new NotImplementedException();
-    }
-
-    #endregion
-
-    #region IEnumerable<CObject> Members
-
-    IEnumerator<CObject> IEnumerable<CObject>.GetEnumerator()
-    {
-        throw new NotImplementedException();
-    }
-
-    #endregion
+    /// <summary>
+    /// Always false. A sequence read out of a content stream can be added to and edited.
+    /// </summary>
+    /// <remarks>
+    /// The only member of the interfaces this class declares that it did not already satisfy with
+    /// a public method of its own. Every other one was implemented twice over: once publicly and
+    /// correctly, and once as an explicit interface implementation that threw
+    /// <see cref="NotImplementedException"/>. C# binds an interface to the explicit implementation
+    /// where there is one, so <c>IList&lt;CObject&gt;</c> and <c>IEnumerable&lt;CObject&gt;</c>
+    /// threw for every member while the identical public methods beside them worked - and LINQ,
+    /// which reaches a collection through <c>IEnumerable&lt;T&gt;</c>, could not be used on a
+    /// content stream at all. The stubs are deleted; the public members satisfy the interfaces.
+    /// </remarks>
+    public bool IsReadOnly => false;
 
     List<CObject> _items = new();
 }
