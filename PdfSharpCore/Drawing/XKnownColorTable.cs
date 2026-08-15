@@ -31,12 +31,20 @@ namespace PdfSharpCore.Drawing;
 
 internal class XKnownColorTable
 {
-    internal static uint[] ColorTable;
+    /// <summary>
+    /// The ARGB of each of the 141 known colors, indexed by <see cref="XKnownColor"/>.
+    /// </summary>
+    /// <remarks>
+    /// Filled by the type initializer rather than on first use. The two searches below do not
+    /// build it and never did, so whichever of the three lookups a process reached first decided
+    /// whether the other two worked: asking an unnamed color whether it was a known one, before
+    /// anything had asked for a color by name, threw a NullReferenceException out of a property
+    /// getter. A static readonly field cannot be observed unfilled, and cannot be emptied again.
+    /// </remarks>
+    internal static readonly uint[] ColorTable = CreateColorTable();
 
     public static uint KnownColorToArgb(XKnownColor color)
     {
-        if (ColorTable == null)
-            InitColorTable();
         if (color <= XKnownColor.YellowGreen)
             return ColorTable[(int)color];
         return 0;
@@ -62,7 +70,7 @@ internal class XKnownColorTable
         return (XKnownColor)(-1);
     }
 
-    private static void InitColorTable()
+    private static uint[] CreateColorTable()
     {
         // Same values as in GDI+ and System.Windows.Media.XColors
         // Note that Magenta is the same as Fuchsia and Zyan is the same as Aqua.
@@ -209,6 +217,6 @@ internal class XKnownColorTable
         colors[139] = 0xFFFFFF00;  // Yellow
         colors[140] = 0xFF9ACD32;  // YellowGreen
 
-        ColorTable = colors;
+        return colors;
     }
 }
