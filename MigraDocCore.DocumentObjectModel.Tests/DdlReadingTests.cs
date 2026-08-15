@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.IO;
+using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Tables;
 using Xunit;
 
@@ -38,6 +39,9 @@ public class DdlReadingTests
 
     static string TextOf(Paragraph paragraph) =>
         string.Concat(paragraph.Elements.OfType<Text>().Select(text => text.Content));
+
+    static string TextOf2(FormattedText formatted) =>
+        string.Concat(formatted.Elements.OfType<Text>().Select(text => text.Content));
 
     // ----- plain text, and what ends it -------------------------------------------------------------
 
@@ -285,6 +289,212 @@ public class DdlReadingTests
         var paragraph = FirstParagraphOf("\\field(Info)[Name = \"Title\"]");
 
         paragraph.Elements.OfType<InfoField>().Single().Name.Should().Be("Title");
+    }
+
+    // ----- the rest of what a paragraph can hold -------------------------------------------------------------
+
+    [Fact]
+    public void AFootnoteHangsAParagraphOffTheTextItFollows()
+    {
+        var paragraph = FirstParagraphOf("text\\footnote{the note}");
+
+        var footnote = paragraph.Elements.OfType<Footnote>().Single();
+        TextOf(footnote.Elements[0] as Paragraph).Should().Be("the note");
+    }
+
+    [Fact]
+    public void AFootnoteCanCarryAttributesAndMoreThanOneParagraph()
+    {
+        var paragraph = FirstParagraphOf(
+            "text\\footnote[Reference = \"*\"]{\\paragraph{first}\\paragraph{second}}");
+
+        var footnote = paragraph.Elements.OfType<Footnote>().Single();
+        footnote.Reference.Should().Be("*");
+        footnote.Elements.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public void TheFontSizeShorthandIsFormattedTextWithASizeOnIt()
+    {
+        var paragraph = FirstParagraphOf("normal \\fontsize(14){larger} normal");
+
+        var formatted = paragraph.Elements.OfType<FormattedText>().Single();
+        formatted.Font.Size.Point.Should().BeApproximately(14, 1e-4);
+        TextOf2(formatted).Should().Be("larger");
+    }
+
+    [Fact]
+    public void TheFontSizeShorthandTakesAMeasureAsWellAsANumber()
+    {
+        FirstParagraphOf("\\fontsize(\"1cm\"){big}")
+            .Elements.OfType<FormattedText>().Single()
+            .Font.Size.Centimeter.Should().BeApproximately(1, 1e-4);
+    }
+
+    [Fact]
+    public void TheFontColourShorthandIsFormattedTextWithAColourOnIt()
+    {
+        var paragraph = FirstParagraphOf("normal \\fontcolor(Red){loud} normal");
+
+        paragraph.Elements.OfType<FormattedText>().Single().Font.Color.Should().Be(Colors.Red);
+    }
+
+    [Fact]
+    public void TheFontColourShorthandReadsTheWholeColourGrammar()
+    {
+        FirstParagraphOf("\\fontcolor(RGB(1, 2, 3)){x}")
+            .Elements.OfType<FormattedText>().Single()
+            .Font.Color.Should().Be(new Color(1, 2, 3));
+    }
+
+    [Fact]
+    public void ACharacterCanBeGivenByItsNumber()
+    {
+        // \chr(65) is the character A, and the count after it repeats one character rather than
+        // writing a run of text - which is what keeps a row of dots out of the text runs.
+        var paragraph = FirstParagraphOf("a\\chr(65)b");
+
+        paragraph.Elements.OfType<Character>().Should().ContainSingle();
+        TextOf(paragraph).Should().Be("ab", "the character is not part of the text either side");
+    }
+
+    [Fact]
+    public void ASymbolCanBeNamedAndCounted()
+    {
+        var paragraph = FirstParagraphOf("a\\symbol(Euro, 3)b");
+
+        var symbol = paragraph.Elements.OfType<Character>().Single();
+        symbol.SymbolName.Should().Be(SymbolName.Euro);
+        symbol.Count.Should().Be(3);
+    }
+
+    [Fact]
+    public void ARunOfBlanksIsOneElementThatKnowsHowManyItIs()
+    {
+        var paragraph = FirstParagraphOf("a\\space(5)b");
+
+        paragraph.Elements.OfType<Character>().Single().Count.Should().Be(5);
+    }
+
+    [Fact]
+    public void ARunOfBlanksCanNameItsWidthInsteadOfItsCount()
+    {
+        // \space(Em) is a width rather than a count, which is a different arm of the same method.
+        var paragraph = FirstParagraphOf("a\\space(Em)b");
+
+        paragraph.Elements.OfType<Character>().Single().SymbolName.Should().Be(SymbolName.Em);
+    }
+
+    [Fact]
+    public void TheNameOfASpaceWidthIsReadCaseSensitively()
+    {
+        // "Em" is the member of the enumeration and "em" is not, so the lower-case spelling a
+        // person would reach for first is refused rather than taken for the same thing.
+        var act = () => FirstParagraphOf("a\\space(em)b");
+
+        act.Should().Throw<Exception>();
+    }
+
+    // ----- what a section can hold besides paragraphs ---------------------------------------------------------
+
+    /// <summary>
+    ///   Reading <c>\image("...")</c> does not merely record a path: it goes through
+    ///   <c>ImageSource.ImageSourceImpl</c>, so a document object model with no imaging backend
+    ///   registered cannot read a file that mentions an image at all.
+    ///   <para>
+    ///   Worth pinning here rather than covering elsewhere, because it is the one place the DOM
+    ///   reaches past what a document <em>says</em> and into what it looks like - which is the
+    ///   line this project is built on. A test that wants an image read belongs in
+    ///   <c>MigraDocCore.Rendering.Tests</c>, where a backend is registered.
+    ///   </para>
+    /// </summary>
+    [Fact]
+    public void ReadingAnImageNeedsAnImagingBackendRatherThanJustThePath()
+    {
+        var act = () => Read("\\document{\\section{\\image(\"logo.png\")}}");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*ImageSourceImpl*");
+    }
+
+    [Fact]
+    public void ABarcodeIsReadWithTheCodeAndOptionallyTheKind()
+    {
+        var withKind = Read("\\document{\\section{\\barcode(\"12345\", Barcode39)}}");
+        var withoutKind = Read("\\document{\\section{\\barcode(\"12345\")}}");
+
+        (withKind.LastSection.Elements[0] as Barcode).Code.Should().Be("12345");
+        (withKind.LastSection.Elements[0] as Barcode).Type.Should().Be(BarcodeType.Barcode39);
+        (withoutKind.LastSection.Elements[0] as Barcode).Code.Should().Be("12345");
+    }
+
+    [Fact]
+    public void ATextFrameIsReadWithWhatIsInsideIt()
+    {
+        var document = Read(
+            "\\document{\\section{\\textframe[Width = \"5cm\"]{\\paragraph{floating}}}}");
+
+        var frame = document.LastSection.Elements[0] as TextFrame;
+        frame.Width.Centimeter.Should().BeApproximately(5, 1e-4);
+        TextOf(frame.Elements[0] as Paragraph).Should().Be("floating");
+    }
+
+    [Fact]
+    public void APageBreakIsAnElementOfItsOwn()
+    {
+        var document = Read("\\document{\\section{\\paragraph{one}\\pagebreak\\paragraph{two}}}");
+
+        document.LastSection.Elements.Count.Should().Be(3);
+        document.LastSection.Elements[1].Should().BeOfType<PageBreak>();
+    }
+
+    // ----- punctuation the grammar does not use -----------------------------------------------------------------
+
+    /// <summary>
+    ///   A known defect, pinned so that fixing it is visible rather than silent.
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///   The scanner recognises more punctuation than the grammar uses - a semicolon, a percent
+    ///   sign, a dollar, an at, a hash, a dot and a currency sign each have an arm of their own,
+    ///   and none of them means anything in a document. One of them between <c>\section</c> and
+    ///   the brace that opens it does not stop the read and is not reported: the document comes
+    ///   back with the section in it and <em>everything inside the section gone</em>.
+    ///   </para>
+    ///   <para>
+    ///   So a single stray character - a typo, a stray byte from a bad merge - silently empties a
+    ///   section. Losing the contents while keeping the container is the worst of the three
+    ///   possible outcomes: refusing the file would be safe, reading it whole would be better, and
+    ///   this looks like a document that was always empty.
+    ///   </para>
+    /// </remarks>
+    [Theory]
+    [InlineData(";")]
+    [InlineData("%")]
+    [InlineData("$")]
+    [InlineData("#")]
+    [InlineData("@")]
+    [InlineData(".")]
+    public void PunctuationThatMeansNothingEmptiesTheSectionWithoutAWord(string punctuation)
+    {
+        var errors = new DdlReaderErrors();
+        var ddl = "\\document{\\section" + punctuation + "{\\paragraph{hello}}}";
+
+        var read = (Document)DdlReader.ObjectFromString(ddl, errors);
+
+        read.Sections.Count.Should().Be(1, "the section survives");
+        read.LastSection.Elements.Count.Should().Be(0, "and its contents do not");
+        errors.ErrorCount.Should().Be(0, "with nothing said about it");
+    }
+
+    [Fact]
+    public void TheColonIsWhatSaysWhichStyleAStyleIsBasedOn()
+    {
+        // The one piece of punctuation with a meaning of its own outside the bracket and brace
+        // pairs, which is why it is worth a test rather than a line in the theory above.
+        var document = Read(
+            "\\document{\\styles{Quiet : Normal{Font{Size = 8}}}\\section{\\paragraph{t}}}");
+
+        document.Styles["Quiet"].BaseStyle.Should().Be("Normal");
     }
 
     // ----- hyperlinks ---------------------------------------------------------------------------------------
