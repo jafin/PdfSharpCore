@@ -86,42 +86,26 @@ public class FilteringTests
     }
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
+    ///   <see cref="FlateDecode"/> and <see cref="LzwDecode"/> are the only two filters that read
+    ///   the parameters they are handed, to find out whether a predictor was applied. They used to
+    ///   read them without first asking whether they were given any, and null is not an unusual
+    ///   thing to pass: it is what <see cref="Filter.DecodeToString(byte[])"/> and
+    ///   <see cref="Filtering.DecodeToString(byte[], string)"/> pass, neither of which offers a way
+    ///   to supply parameters. So the shortest correct-looking way to read a deflated stream as
+    ///   text threw a NullReferenceException every time.
     /// </summary>
-    /// <remarks>
-    ///   <para>
-    ///   <see cref="FlateDecode"/> and <see cref="LzwDecode"/> finish by asking their parameters
-    ///   whether a predictor was applied - <c>if (parms.DecodeParms != null)</c> - without first
-    ///   asking whether they were given any parameters at all. Every other filter ignores the
-    ///   argument, so only these two care.
-    ///   </para>
-    ///   <para>
-    ///   Null is not an unusual thing to pass them. It is what
-    ///   <see cref="Filter.DecodeToString(byte[])"/> passes, and what
-    ///   <see cref="Filtering.DecodeToString(byte[], string)"/> passes, both of which are public
-    ///   and neither of which offers a way to supply parameters. So the shortest correct-looking
-    ///   way to read a deflated stream as text throws a NullReferenceException every time.
-    ///   </para>
-    ///   <para>
-    ///   Passing <c>new FilterParms(null)</c> instead works, which is what the rest of this class
-    ///   does.
-    ///   </para>
-    /// </remarks>
     [Fact]
-    public void TheTwoFiltersThatReadTheirParametersThrowWhenGivenNoneAtAll()
+    public void TheTwoFiltersThatReadTheirParametersAcceptBeingGivenNoneAtAll()
     {
-        var deflated = Filtering.FlateDecode.Encode(Encoding.ASCII.GetBytes("something to squeeze"));
-        var lzw = new byte[] { 0x80, 0x0B, 0x60, 0x50, 0x22, 0x0C, 0x0C, 0x85, 0x01 };
+        const string text = "something to squeeze";
+        var deflated = Filtering.FlateDecode.Encode(Encoding.ASCII.GetBytes(text));
 
-        var flateDirectly = () => Filtering.FlateDecode.Decode(deflated, (FilterParms)null);
-        var flateToString = () => Filtering.FlateDecode.DecodeToString(deflated);
-        var flateByName = () => Filtering.DecodeToString(deflated, "FlateDecode");
-        var lzwDirectly = () => Filtering.LzwDecode.Decode(lzw, (FilterParms)null);
-
-        flateDirectly.Should().Throw<NullReferenceException>();
-        flateToString.Should().Throw<NullReferenceException>();
-        flateByName.Should().Throw<NullReferenceException>();
-        lzwDirectly.Should().Throw<NullReferenceException>();
+        Filtering.FlateDecode.Decode(deflated, (FilterParms)null)
+            .Should().Equal(Encoding.ASCII.GetBytes(text));
+        Filtering.FlateDecode.DecodeToString(deflated).Should().Be(text);
+        Filtering.DecodeToString(deflated, "FlateDecode").Should().Be(text);
+        Filtering.LzwDecode.Decode(Packed(ClearTable, 'A', 'B', EndOfData), (FilterParms)null)
+            .Should().Equal(Encoding.ASCII.GetBytes("AB"));
     }
 
     [Fact]
@@ -279,38 +263,36 @@ public class FilteringTests
     }
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
-    /// </summary>
-    /// <remarks>
-    ///   <para>
     ///   Every LZW decoder has to handle one code that is not in its table yet: the encoder is
-    ///   allowed to emit the entry it is in the middle of defining, which happens whenever the
-    ///   input repeats a run. The rule is that such a code stands for the previous entry followed
-    ///   by that entry's own first byte - the "KwKwK" case, in the usual telling.
-    ///   </para>
-    ///   <para>
-    ///   This decoder writes the previous entry and stops:
-    ///   <code>
-    ///   str = _stringTable[oldCode];
-    ///   outputStream.Write(str, 0, str.Length);   // the repeated first byte never goes out
-    ///   AddEntry(str, str[0]);
-    ///   </code>
-    ///   It adds the right entry to the table, so the stream stays in step and nothing throws -
-    ///   the output is simply one byte short, at each occurrence, silently. A run of the same byte
-    ///   is exactly what an encoder emits this code for, so a scanned page or a flat-coloured
-    ///   image loses bytes wherever it repeats.
-    ///   </para>
-    /// </remarks>
+    ///   allowed to emit the entry it is in the middle of defining, which it does whenever the
+    ///   input repeats a run. Such a code stands for the previous entry followed by that entry's
+    ///   own first byte - the "KwKwK" case, in the usual telling. This decoder used to write the
+    ///   previous entry and stop, dropping the repeated byte. It added the right entry to the
+    ///   table, so the stream stayed in step and nothing threw: the output was simply one byte
+    ///   short at each occurrence, silently, and a run of the same byte is exactly what an encoder
+    ///   emits this code for.
+    /// </summary>
     [Fact]
-    public void LzwLosesAByteWhereverTheStreamRepeatsItself()
+    public void LzwReadsTheCodeForTheEntryItIsStillDefining()
     {
         // Code 258 is the entry being defined by this very code, and stands for "AA", so the
         // whole stream is "A" + "AA".
         var decoded = Filtering.LzwDecode.Decode(
             Packed(ClearTable, 'A', FirstFreeCode, EndOfData), new FilterParms(null));
 
-        decoded.Should().Equal(Encoding.ASCII.GetBytes("AA"));
-        decoded.Should().NotEqual(Encoding.ASCII.GetBytes("AAA"), "which is what it stands for");
+        decoded.Should().Equal(Encoding.ASCII.GetBytes("AAA"));
+    }
+
+    [Fact]
+    public void LzwReadsALongerRunThroughTheSameCase()
+    {
+        // "ABABABA": after ClearTable the codes are A, B, then 258 ("AB") which is already in the
+        // table, then 260 - the entry this code is itself defining, "ABA".
+        var decoded = Filtering.LzwDecode.Decode(
+            Packed(ClearTable, 'A', 'B', FirstFreeCode, FirstFreeCode + 2, EndOfData),
+            new FilterParms(null));
+
+        decoded.Should().Equal(Encoding.ASCII.GetBytes("ABABABA"));
     }
 
     [Fact]

@@ -72,7 +72,10 @@ public abstract class PdfButtonField : PdfAcroField
                         return name;
             }
         }
-        return null;
+        // A field built by hand, or one whose appearances have been stripped, names no state at
+        // all. /Yes is what the reference uses throughout for the on state of a check box, and
+        // answering with it is better than handing a null to the caller's SetName.
+        return "/Yes";
     }
 
     internal override void GetDescendantNames(ref List<string> names, string partialName)

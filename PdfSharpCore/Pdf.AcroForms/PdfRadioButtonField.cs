@@ -57,6 +57,10 @@ public sealed class PdfRadioButtonField : PdfButtonField
         get
         {
             string value = Elements.GetString(Keys.V);
+            // /V is a name, while /Opt holds the export values as text strings. The slash that
+            // makes the name a name is not part of the value it stands for.
+            if (value.Length != 0 && value[0] == '/')
+                value = value.Substring(1);
             return IndexInOptStrings(value);
         }
         set
@@ -71,7 +75,7 @@ public sealed class PdfRadioButtonField : PdfButtonField
                 int count = opt.Elements.Count;
                 if (value < 0 || value >= count)
                     throw new ArgumentOutOfRangeException(nameof(value));
-                Elements.SetName(Keys.V, opt.Elements[value].ToString());
+                Elements.SetName(Keys.V, TextOfOption(opt.Elements[value]));
             }
         }
     }
@@ -87,7 +91,7 @@ public sealed class PdfRadioButtonField : PdfButtonField
                 PdfItem item = opt.Elements[idx];
                 if (item is PdfString)
                 {
-                    if (item.ToString() == value)
+                    if (TextOfOption(item) == value)
                         return idx;
                 }
             }

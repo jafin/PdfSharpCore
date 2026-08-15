@@ -73,10 +73,15 @@ public class AsciiHexDecode : Filter
             --count;
         if (count % 2 == 1)
         {
+            // "If the filter encounters the EOD marker after reading an odd number of hexadecimal
+            // digits, it shall behave as if a 0 (zero) followed the last digit." Growing the array
+            // pads it with the byte 0x00 rather than the character '0', and 0x00 goes through the
+            // digit arithmetic below as -48, so the missing digit has to be written in.
+            byte[] padded = new byte[count + 1];
+            Array.Copy(data, 0, padded, 0, count);
+            padded[count] = (byte)'0';
+            data = padded;
             count++;
-            byte[] temp = data;
-            data = new byte[count];
-            temp.CopyTo(data, 0);
         }
         count >>= 1;
         byte[] bytes = new byte[count];

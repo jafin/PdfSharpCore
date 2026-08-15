@@ -180,32 +180,38 @@ public class Ascii85Decode : Filter
 
         idxOut = 0;
         idx = 0;
-        while (idx + 4 < length)
+        while (idx < length)
         {
-            var ch = (char)data[idx];
-            if (ch == 'z')
+            if ((char)data[idx] == 'z')
             {
+                // A z stands for four zero bytes and is one character wide rather than five.
+                // Taking it before asking whether a whole group is left is what keeps idx and
+                // idxOut pointing at the trailing partial group once the loop ends.
                 idx++;
                 idxOut += 4;
+                continue;
             }
-            else
-            {
-                // TODO: check 
-                var value =
-                    (long)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
-                    (uint)(data[idx++] - '!') * (85 * 85 * 85) +
-                    (uint)(data[idx++] - '!') * (85 * 85) +
-                    (uint)(data[idx++] - '!') * 85 +
-                    (uint)(data[idx++] - '!');
 
-                if (value > UInt32.MaxValue)
-                    throw new InvalidOperationException("Value of group greater than 2 power 32 - 1.");
+            // Fewer than five characters left, so what remains is the trailing partial group,
+            // which the code below the loop reads.
+            if (length - idx < 5)
+                break;
 
-                output[idxOut++] = (byte)(value >> 24);
-                output[idxOut++] = (byte)(value >> 16);
-                output[idxOut++] = (byte)(value >> 8);
-                output[idxOut++] = (byte)value;
-            }
+            // TODO: check
+            var value =
+                (long)(data[idx++] - '!') * (85 * 85 * 85 * 85) +
+                (uint)(data[idx++] - '!') * (85 * 85 * 85) +
+                (uint)(data[idx++] - '!') * (85 * 85) +
+                (uint)(data[idx++] - '!') * 85 +
+                (uint)(data[idx++] - '!');
+
+            if (value > UInt32.MaxValue)
+                throw new InvalidOperationException("Value of group greater than 2 power 32 - 1.");
+
+            output[idxOut++] = (byte)(value >> 24);
+            output[idxOut++] = (byte)(value >> 16);
+            output[idxOut++] = (byte)(value >> 8);
+            output[idxOut++] = (byte)value;
         }
 
         // I have found no appropriate algorithm, so I write my own. In some rare cases the value must not

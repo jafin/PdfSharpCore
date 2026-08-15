@@ -141,24 +141,26 @@ public class AcroFormFieldKindTests
     }
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
+    ///   A box with no appearance dictionary names no state at all, so <c>GetNonOffValue</c> used
+    ///   to return null and the setter handed that straight to <c>SetName</c>, which refuses it:
+    ///   the caller asked to tick a box and got an ArgumentNullException naming a parameter called
+    ///   <c>value</c> that they never passed. A form built by hand, or one whose appearances were
+    ///   stripped, is exactly this case, so the lookup falls back to the conventional on state.
     /// </summary>
-    /// <remarks>
-    ///   A box with no appearance dictionary has no name for its ticked state, so
-    ///   <c>GetNonOffValue</c> returns null and the setter hands that straight to
-    ///   <c>SetName</c>, which refuses it. The caller asked to tick a box and gets an
-    ///   ArgumentNullException naming a parameter called <c>value</c> that they never passed. A
-    ///   form built by hand, or one whose appearances were stripped, is exactly this case.
-    /// </remarks>
     [Fact]
-    public void TickingABoxThatHasNoAppearanceThrowsAboutTheWrongThing()
+    public void TickingABoxThatHasNoAppearanceFallsBackToTheConventionalOnState()
     {
         var field = (PdfCheckBoxField)FormWith("/Btn", "agree").AcroForm.Fields["agree"];
 
-        var act = () => field.Checked = true;
+        field.Checked = true;
 
-        act.Should().Throw<ArgumentNullException>().WithParameterName("value");
+        field.Checked.Should().BeTrue();
+        field.Value.Should().BeOfType<PdfName>().Which.ToString().Should().Be("/Yes");
+
+        field.Checked = false;
+
         field.Checked.Should().BeFalse();
+        field.Value.Should().BeOfType<PdfName>().Which.ToString().Should().Be("/Off");
     }
 
     // ----- radio groups --------------------------------------------------------------------------
@@ -176,8 +178,10 @@ public class AcroFormFieldKindTests
 
         field.SelectedIndex = 1;
 
-        // What it writes is the defect below.
-        field.Value.Should().BeOfType<PdfName>();
+        // A radio group records its choice as a name - the export value of the button that is on -
+        // rather than as the text string the option array holds it as.
+        field.Value.Should().BeOfType<PdfName>().Which.ToString().Should().Be("/medium");
+        field.SelectedIndex.Should().Be(1, "it finds again what it wrote");
     }
 
     [Fact]
@@ -277,37 +281,19 @@ public class AcroFormFieldKindTests
         field.SelectedIndex.Should().Be(-1);
     }
 
-    // ----- known defects: option text carries its delimiters -------------------------------------
+    // ----- option text against the value that names it -------------------------------------------
 
     /// <summary>
-    ///   A known defect, pinned so that fixing it is visible rather than silent.
+    ///   The choice and radio fields used to compare and copy their options with
+    ///   <c>ToString()</c> rather than with the string's value. <c>PdfString.ToString()</c> writes
+    ///   the string as it appears in the file - in parentheses - so "Sussex" was handled
+    ///   throughout as "(Sussex)": choosing an option wrote the parentheses into <c>/V</c>, and a
+    ///   radio group had it worse still, its value being written as a <em>name</em> so that
+    ///   <c>/V</c> became the malformed <c>/(medium)</c>. Setting and then reading in the same
+    ///   session agreed with itself, which is why it went unnoticed.
     /// </summary>
-    /// <remarks>
-    ///   <para>
-    ///   The choice and radio fields compare and copy their options with <c>ToString()</c> rather
-    ///   than with the string's value. <c>PdfString.ToString()</c> writes the string as it appears
-    ///   in the file - in parentheses - so "Sussex" is handled throughout as "(Sussex)".
-    ///   </para>
-    ///   <para>
-    ///   Two consequences, in <c>PdfChoiceField.ValueInOptArray</c>,
-    ///   <c>PdfChoiceField.IndexInOptArray</c> and
-    ///   <c>PdfRadioButtonField.SelectedIndex</c>'s setter:
-    ///   </para>
-    ///   <list type="bullet">
-    ///     <item>Choosing an option writes the parentheses into <c>/V</c>, so the file says the
-    ///     user picked a value no viewer will match against the option list. A radio group gets it
-    ///     worse: its value is written as a <em>name</em>, so <c>/V</c> becomes the malformed
-    ///     <c>/(medium)</c>.</item>
-    ///     <item>Reading a form somebody else wrote gives -1 for every choice field, because their
-    ///     <c>/V</c> holds "Sussex" and this compares it against "(Sussex)".</item>
-    ///   </list>
-    ///   <para>
-    ///   Setting and then reading in the same session agrees with itself, which is why the tests
-    ///   above pass and this went unnoticed.
-    ///   </para>
-    /// </remarks>
     [Fact]
-    public void ChoosingAnOptionWritesItsDelimitersIntoTheValue()
+    public void ChoosingAnOptionWritesTheOptionTextAndNothingElse()
     {
         var listBox = (PdfListBoxField)FormWith("/Ch", "county",
             f => AcroFormBuilder.WithOptions(f, "Kent", "Sussex")).AcroForm.Fields["county"];
@@ -320,12 +306,12 @@ public class AcroFormFieldKindTests
         listBox.SelectedIndex = 1;
         radio.SelectedIndex = 1;
 
-        listBox.Value.Should().BeOfType<PdfString>().Which.Value.Should().Be("(Sussex)");
-        radio.Value.Should().BeOfType<PdfName>().Which.ToString().Should().Be("/(medium)");
+        listBox.Value.Should().BeOfType<PdfString>().Which.Value.Should().Be("Sussex");
+        radio.Value.Should().BeOfType<PdfName>().Which.ToString().Should().Be("/medium");
     }
 
     [Fact]
-    public void AChoiceFieldCannotFindWhatAnotherProducerChose()
+    public void AChoiceFieldFindsWhatAnotherProducerChose()
     {
         // The same form as above, except that /V was already set - as every real form that has
         // been filled in has - to the option text without delimiters.
@@ -337,15 +323,14 @@ public class AcroFormFieldKindTests
 
         var field = (PdfListBoxField)document.AcroForm.Fields["county"];
 
-        field.SelectedIndex.Should().Be(-1, "which is what 'nothing is selected' looks like");
+        field.SelectedIndex.Should().Be(1);
     }
 
     [Fact]
-    public void AnOptionGivenAsAnExportAndDisplayPairCannotBeFoundEither()
+    public void AnOptionGivenAsAnExportAndDisplayPairIsFoundByItsExportValue()
     {
         // /Opt may hold [exportValue displayText] pairs rather than plain strings, and the export
-        // value is what /V is meant to match. It is compared with its delimiters on, so it never
-        // does.
+        // value is what /V is meant to match.
         var document = new AcroFormBuilder().With("/Ch", "county", field =>
         {
             var opt = new PdfArray(field.Owner);
@@ -359,7 +344,7 @@ public class AcroFormFieldKindTests
 
         listBox.Value = new PdfString("KEN");
 
-        listBox.SelectedIndex.Should().Be(-1);
+        listBox.SelectedIndex.Should().Be(0);
     }
 
     // ----- the field types that hold nothing of their own ----------------------------------------
