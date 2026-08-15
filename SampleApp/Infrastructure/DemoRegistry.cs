@@ -23,6 +23,7 @@ public static class DemoRegistry
     {
         new HelloWorldDemo(),
         new FontsDemo(),
+        new UnicodeDemo(),
         new OrientationDemo(),
         new ImagesDemo(),
         new TextDemo(),

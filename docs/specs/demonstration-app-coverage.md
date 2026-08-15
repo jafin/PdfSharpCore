@@ -20,7 +20,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 7 | `Navigation` — page labels, viewer preferences, custom values | done, 6 pages |
 | 8 | `Compress` — `PdfDocumentOptions`, measured in bytes | done, 2 pages |
 | 9 | `Inspect` — reading back the content stream that was written | done, 3 pages |
-| 10 | `Unicode` — `PdfFontEncoding`, CID fonts, CFF versus TrueType | not started |
+| 10 | `Unicode` — `PdfFontEncoding`, CID fonts, CFF versus TrueType | done, 2 pages |
 | 11 | `Structure` — MigraDoc's TOC, bookmarks, sections, lists | done, 5 pages |
 | 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | done, 4 pages |
 | 13 | `Images` extended — alpha, interpolation, failure reporting | not started |
