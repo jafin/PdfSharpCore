@@ -28,7 +28,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 15 | L2 — MigraDoc drops a `Barcode` shape silently | done, 3 tests |
 | 16 | L3 — `BarCode.FromType` reaches two of the four code types | done, 7 tests |
 | 17 | Infrastructure — an optional password, so item 6 can be real | done |
-| 18 | L4 — a chart draws its plot area at `NaN` unless an axis was read | done, 9 tests |
+| 18 | L4 — a chart draws its plot area at `NaN` unless an axis was read | fixed on `main` as C1; tests kept |
 | 19 | L5 — a combination chart prints its legend on top of itself | done, 2 tests |
 | 20 | L6 — a pie signs and scales its percentages twice | done, 7 tests |
 | 21 | L7 — three `XGraphicsPath` members collect geometry and drop it | done, 10 tests |
@@ -63,6 +63,12 @@ line and area chart this library has ever drawn came out empty** unless the call
 `chart.XAxis` before rendering, and touching it means *reading* the property, not setting anything on
 it. It affects both routes into the engine, it has been there since the fork, and nothing in the
 test suite could have caught it because nothing rendered a chart.
+
+It is also the one item here whose fix is not this branch's. `main` found it independently while this
+work was in flight, by writing `PdfSharpCore.Charting.Tests`, and fixed it as C1 of
+`charting-renderer-findings.md` — a better fix than this branch's, for the reason given under item 18
+below. Two routes to the same defect within a week of each other, neither of which existed a month
+ago, is the argument for both pieces of work rather than against either.
 
 ---
 
@@ -664,16 +670,26 @@ This is not confined to the drawn route. `ChartMapper.Map` maps the axes only
 `if (!domChart.IsNull("XAxis"))`, so a MigraDoc chart whose caller never touched `XAxis` reaches the
 same renderers in the same state. Both routes, every axis-bearing chart type, since the fork.
 
-The fix is to read the property in all four renderers, which is what every caller who ever got a
-working chart did by accident. The null branch beneath it is now unreachable and is left alone
-rather than deleted: `Format` and `Draw` test the same field, and taking the guards out is a bigger
-change than this defect justifies.
+**The fix in the tree is not this branch's.** While this work was in flight, `main` found the same
+defect independently by writing `PdfSharpCore.Charting.Tests`, and fixed it as C1 of
+`charting-renderer-findings.md`. That fix is the better one and is what survived the rebase.
 
-**Not done, deliberately:** `XGraphicsPdfRenderer` still writes `NaN` into a content stream without
-complaint, and a PDF containing `NaN` where a number belongs is malformed whatever produced it.
-Refusing it at the writer would have caught this in the first drawing rather than the first
-*looking*, and it would catch the next one. It is a change to every coordinate the library writes,
-though, and it belongs in its own spec with its own tests rather than at the end of this one.
+This branch read the property in all four renderers. `main` keeps reading the field and moves the
+scale calculation *outside* the null check, which is what the two Y axis renderers had always done —
+one line apart, and the reason a chart with no `YAxis` had always drawn correctly and merely gone
+unlabelled. The difference matters: reading the property creates an axis as a side effect of
+rendering, so a chart nobody configured would silently acquire tick labels it never asked for.
+Calculating the scale outside the check leaves the labelling to depend on the axis, where it belongs,
+and the data to plot regardless.
+
+The tests written here are kept. They come at it from the other direction — a chart drawn as a caller
+draws one, asked only whether its data reached the page — and one of them was rewritten during the
+rebase, because it asserted that touching the axis changed nothing at all. Under `main`'s fix it
+changes the labelling and must, so it now asserts that it changes *only* that.
+
+**The `NaN` writer guard has since been done**, as item 29. It was listed here as deliberately not
+done, on the grounds that it touches every coordinate the library writes. It found a fourteenth
+defect within ninety seconds of being switched on.
 
 ## Item 19 — L5, a combination chart prints its legend on top of itself
 
