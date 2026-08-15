@@ -144,6 +144,40 @@ public class XColorTests
         color.K.Should().BeApproximately(1 - gray, 1e-6);
     }
 
+    [Theory]
+    [InlineData(2, 1, 255)]
+    [InlineData(-1, 0, 0)]
+    public void AGreyOutsideItsRangeIsClampedIntoIt(double given, double expected, int expectedChannel)
+    {
+        // The way this went wrong is worth remembering: the constructor clamped into the field and
+        // then assigned the raw value over the top, so nothing clamped at all. A grey of 2 gave a
+        // black of -1 and an R of 254, because 2 x 255 does not fit in a byte and the cast is
+        // unchecked - a colour lighter than white came out very slightly grey.
+        var color = XColor.FromGrayScale(given);
+
+        color.GS.Should().Be(expected);
+        color.R.Should().Be((byte)expectedChannel);
+        color.G.Should().Be((byte)expectedChannel);
+        color.B.Should().Be((byte)expectedChannel);
+        color.K.Should().Be(1 - expected);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(-1)]
+    [InlineData(0.25)]
+    public void BuildingAGreyAndAssigningOneComeToTheSameColour(double gray)
+    {
+        // The setter always clamped; the constructor is what did not. They are two ways of saying
+        // the same thing and have to agree.
+        var built = XColor.FromGrayScale(gray);
+
+        var assigned = XColor.FromArgb(255, 0, 0);
+        assigned.GS = gray;
+
+        built.Should().Be(assigned);
+    }
+
     [Fact]
     public void SettingARgbComponentRecalculatesTheCmykOne()
     {
