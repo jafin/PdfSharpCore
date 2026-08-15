@@ -42,10 +42,18 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
     dependency of its own)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
-   └── PdfSharpCore.Test  (the only test project; covers MigraDoc and SampleApp too)
+   └── PdfSharpCore.Test  (the broad one; covers MigraDoc and SampleApp too)
            ▲
            └── SampleApp  (the demonstration CLI; net8.0 alone, so both test legs can reference it)
 ```
+
+Three test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
+is the broad one and the default. `MigraDocCore.DocumentObjectModel.Generators.Tests` drives the
+DOM's source generator through `CSharpGeneratorDriver`. `MigraDocCore.Rendering.Tests` covers
+MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and deliberately
+rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four content-stream
+readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in place and both
+projects get the change.
 
 `SampleApp` is the demonstration app: `dotnet run --project SampleApp -- list` says what it covers,
 `… -- run` writes one PDF per demo into `SampleApp/output` and prints the source that drew each. Its
