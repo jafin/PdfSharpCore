@@ -114,14 +114,14 @@ public class FilteringTests
     }
 
     /// <summary>
-    /// A null name has no slash to strip, and the check for one is the first thing that touches
-    /// it.
+    /// A null name is refused as a bad argument. It used to reach the test for a leading slash
+    /// and fail there instead, which named neither the parameter nor the caller's mistake.
     /// </summary>
     [Fact]
     public void ANullFilterNameThrows()
     {
         Action lookup = () => Filtering.GetFilter(null);
 
-        lookup.Should().Throw<NullReferenceException>();
+        lookup.Should().Throw<ArgumentNullException>().WithParameterName("filterName");
     }
 }

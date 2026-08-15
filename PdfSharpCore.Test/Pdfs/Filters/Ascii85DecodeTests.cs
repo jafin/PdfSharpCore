@@ -181,6 +181,30 @@ public class Ascii85DecodeTests
     }
 
     /// <summary>
+    /// Data that stops between the two characters of the end marker is malformed in the same way
+    /// as data that spells them wrongly, and has to be refused the same way. The second character
+    /// was read without checking there was one, so a stream truncated here came back as an index
+    /// out of range rather than as a complaint about the data.
+    /// </summary>
+    [Fact]
+    public void ATildeThatEndsTheDataIsRejected()
+    {
+        string truncated = Encoded().Replace("~>", "~");
+
+        Action decode = () => Decode(Encoding.ASCII.GetBytes(truncated));
+
+        decode.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void NothingButATildeIsRejected()
+    {
+        Action decode = () => Decode(Encoding.ASCII.GetBytes("~"));
+
+        decode.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>
     /// A single character left over encodes nothing — one character carries under seven bits, and
     /// a group of two is the shortest that can stand for a byte.
     /// </summary>

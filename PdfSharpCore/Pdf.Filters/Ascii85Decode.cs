@@ -155,7 +155,10 @@ public class Ascii85Decode : Filter
             }
             else if (ch == '~')
             {
-                if ((char)data[idx + 1] != '>')
+                // The end marker is two characters, and data that stops between them is as
+                // malformed as data that spells them wrongly. Reading the second one without
+                // checking there is one turns a truncated stream into an index out of range.
+                if (idx + 1 >= length || (char)data[idx + 1] != '>')
                     throw new ArgumentException("Illegal character.", nameof(data));
                 break;
             }
