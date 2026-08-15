@@ -1584,10 +1584,35 @@ internal class ParagraphRenderer : Renderer
             case "Image":
                 return FormatImage((Image)docObj);
 
+            // A footnote is held by the DOM and drawn by nothing. Reaching the default below would
+            // skip it the way this switch skips a container the iterator descends into anyway - a
+            // FormattedText or a Hyperlink - and the caller would get a paragraph with the note
+            // missing, no exception and no warning. See NoFootnoteRenderer.
+            case "Footnote":
+                throw NoFootnoteRenderer();
+
             default:
                 return FormatResult.Continue;
         }
     }
+
+    /// <summary>
+    /// Reports a footnote that MigraDoc can hold but cannot lay out.
+    /// </summary>
+    /// <remarks>
+    /// <c>ParagraphElements.AddFootnote</c> has always existed, <c>StyleNames.Footnote</c> is a
+    /// predefined style, and this assembly has never contained a line that renders one. The element
+    /// fell through the switch above and was dropped silently, so a document read back exactly as it
+    /// was written and printed without the note. Laying footnotes out - reserving the area at the
+    /// foot of the page, numbering the marks, splitting a long note across a page break - is a
+    /// feature rather than a fix, so the gap is made audible here instead of being closed.
+    /// </remarks>
+    static NotSupportedException NoFootnoteRenderer() =>
+        new NotSupportedException(
+            "MigraDoc has no renderer for a Footnote, so one added to a paragraph would be dropped "
+            + "from the page without a word. Until footnote layout exists, put the note in the "
+            + "page footer through Section.Footers, or draw it with XGraphics on the PdfSharp "
+            + "surface.");
 
     FormatResult FormatImage(Image image)
     {

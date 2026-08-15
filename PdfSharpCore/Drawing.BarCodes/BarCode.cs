@@ -54,6 +54,15 @@ public abstract class BarCode : CodeBase
     /// <summary>
     /// Creates a bar code from the specified code type.
     /// </summary>
+    /// <remarks>
+    /// Every <see cref="CodeType"/> but <see cref="CodeType.DataMatrix"/> is a bar code and comes
+    /// back from here. A data matrix is a <see cref="MatrixCode"/> rather than a
+    /// <see cref="BarCode"/> - a different base class, drawn by
+    /// <see cref="XGraphics.DrawMatrixCode(MatrixCode, XPoint)"/> rather than by
+    /// <see cref="XGraphics.DrawBarCode(BarCode, XPoint)"/> - so it cannot be returned from a method
+    /// typed this way and says so rather than reporting the value as though it were not a member of
+    /// the enum.
+    /// </remarks>
     public static BarCode FromType(CodeType type, string text, XSize size, CodeDirection direction)
     {
         switch (type)
@@ -63,6 +72,15 @@ public abstract class BarCode : CodeBase
 
             case CodeType.Code3of9Standard:
                 return new Code3of9Standard(text, size, direction);
+
+            case CodeType.Omr:
+                return new CodeOmr(text, size, direction);
+
+            case CodeType.DataMatrix:
+                throw new ArgumentException(
+                    "A data matrix is a MatrixCode rather than a BarCode and cannot be created here. "
+                    + "Construct 'new CodeDataMatrix(text, rows, columns, size)' and draw it with "
+                    + "XGraphics.DrawMatrixCode.", nameof(type));
 
             default:
                 throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(CodeType));

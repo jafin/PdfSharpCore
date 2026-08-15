@@ -28,6 +28,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Tables;
@@ -165,6 +166,8 @@ internal abstract class Renderer
       renderer = new ChartRenderer(gfx, (Chart)documentObject, fieldInfos);
     else if (documentObject is Image)
       renderer = new ImageRenderer(gfx, (Image)documentObject, fieldInfos);
+    else if (documentObject is Barcode)
+      throw NoBarcodeRenderer();
 
     if (renderer != null)
       renderer.documentRenderer = documentRenderer;
@@ -194,16 +197,33 @@ internal abstract class Renderer
       renderer = new TextFrameRenderer(gfx, renderInfo, fieldInfos);
     else if (renderInfo.DocumentObject is Chart)
       renderer = new ChartRenderer(gfx, renderInfo, fieldInfos);
-    else if (renderInfo.DocumentObject is Chart)
-      renderer = new ChartRenderer(gfx, renderInfo, fieldInfos);
     else if (renderInfo.DocumentObject is Image)
       renderer = new ImageRenderer(gfx, renderInfo, fieldInfos);
+    else if (renderInfo.DocumentObject is Barcode)
+      throw NoBarcodeRenderer();
 
     if (renderer != null)
       renderer.documentRenderer = documentRenderer;
 
     return renderer;
   }
+
+  /// <summary>
+  /// Reports a bar code that MigraDoc can hold but cannot draw.
+  /// </summary>
+  /// <remarks>
+  /// The DOM has carried <see cref="Barcode"/> since it was forked and this assembly has never had a
+  /// renderer for it, so a bar code added to a document produced a null renderer here and was
+  /// dropped without a word - no exception, no warning, and a property that read back exactly as it
+  /// was set. Null is a legitimate answer for two element kinds, a legend and a bookmark, which is
+  /// why the callers cannot simply refuse it and why the refusal belongs here instead.
+  /// </remarks>
+  static NotSupportedException NoBarcodeRenderer() =>
+    new NotSupportedException(
+      "MigraDoc has no renderer for the Barcode shape, so one added to a document would be dropped "
+      + "from the page without a word. Draw bar codes on the PdfSharp surface instead: build a "
+      + "PdfSharpCore.Drawing.BarCodes.BarCode and pass it to XGraphics.DrawBarCode, or a "
+      + "CodeDataMatrix and XGraphics.DrawMatrixCode.");
 
   #region fields
 
