@@ -72,12 +72,19 @@ public class DdlSerializationTests
     [Fact]
     public void AFontThatSaysNothingWritesNothing()
     {
+        // The paragraph on its own rather than the whole document: a document carries the built-in
+        // styles, and some of those do describe a font, so "no font anywhere" was never the
+        // property - it is that a paragraph nobody has formatted writes no format block.
         var document = DocumentWithAParagraph(out var paragraph);
         paragraph.AddText("text");
 
-        var ddl = DdlWriter.WriteToString(document);
+        var plain = DdlWriter.WriteToString(paragraph);
+        paragraph.Format.Font.Bold = true;
+        var formatted = DdlWriter.WriteToString(paragraph);
 
-        ddl.Should().NotContain("Font\n", "an empty font block would be noise in every file");
+        plain.Should().NotContain("Font", "an empty font block would be noise in every file");
+        plain.Should().NotContain("Format", "nor an empty format block around it");
+        formatted.Should().Contain("Font", "and one that says something is written");
     }
 
     // ----- ParagraphFormat.Serialize -------------------------------------------------------------------
@@ -155,7 +162,10 @@ public class DdlSerializationTests
         paragraph.Format.Borders.Color = Colors.Navy;
         paragraph.Format.Borders.Style = BorderStyle.DashLargeGap;
 
-        var ddl = DdlWriter.WriteToString(document);
+        // The paragraph alone, not the whole document: an assertion that some word appears nowhere
+        // in a document is hostage to everything else the document happens to contain, including
+        // the built-in styles.
+        var ddl = DdlWriter.WriteToString(paragraph);
         var again = (RoundTrip(document).LastSection.Elements[0] as Paragraph).Format.Borders;
 
         again.Width.Point.Should().BeApproximately(2, 1e-4);
