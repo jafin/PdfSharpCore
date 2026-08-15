@@ -204,6 +204,23 @@ public class DataLabelTests
     }
 
     [Fact]
+    public void APieTooSmallForItsLabelsStillSpreadsThemRoundIt()
+    {
+        // The gap comes off the radius, so a small pie asked for large labels could otherwise have
+        // its inside-end labels pulled past the middle and out through the far side of the wedge.
+        // They stop at the half-radius instead, and four wedges still get four different places.
+        var chart = Charts.Of(ChartType.Pie2D, 1.0, 1.0, 1.0, 1.0);
+        chart.HasDataLabel = true;
+        chart.DataLabel.Position = DataLabelPosition.InsideEnd;
+        chart.DataLabel.Font.Size = 20;
+
+        var labels = ShownText.RunsOn(Drawn.Page(chart, 90, 90)).ToList();
+
+        labels.Should().HaveCount(4);
+        labels.Select(label => (label.X, label.Y)).Distinct().Should().HaveCount(4);
+    }
+
+    [Fact]
     public void APieAskedForNoLabelTypeIsLeftUnlabelled()
     {
         var chart = Charts.Of(ChartType.Pie2D, 1.0, 2.0, 1.0);

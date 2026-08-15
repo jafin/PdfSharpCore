@@ -152,12 +152,21 @@ internal class PieDataLabelRenderer : DataLabelRenderer
           double halfradius = radius / 2;
 
           DataLabelEntryRendererInfo dleri = sri.dataLabelRendererInfo.Entries[sectorIndex++];
+
+          // The two "end" positions put a corner of the label exactly on the arc, which draws the
+          // text hard against the edge of the wedge - and, on the outside, hard against whatever is
+          // beyond it. Both are moved off the arc along their own radius by a third of the label's
+          // own height, so the gap is in proportion to the text rather than to the chart, and a
+          // large pie and a small one look alike.
+          double inset = dleri.Height / 3;
+
           switch (sri.dataLabelRendererInfo.Position)
           {
             case DataLabelPosition.OutsideEnd:
-              // Outer border of the circle.
-              dleri.X = origin.X + (radius * Math.Cos(radMidAngle));
-              dleri.Y = origin.Y + (radius * Math.Sin(radMidAngle));
+              // Just beyond the outer border of the circle.
+              double beyond = radius + inset;
+              dleri.X = origin.X + (beyond * Math.Cos(radMidAngle));
+              dleri.Y = origin.Y + (beyond * Math.Sin(radMidAngle));
               if (dleri.X < origin.X)
                 dleri.X -= dleri.Width;
               if (dleri.Y < origin.Y)
@@ -165,9 +174,11 @@ internal class PieDataLabelRenderer : DataLabelRenderer
               break;
 
             case DataLabelPosition.InsideEnd:
-              // Inner border of the circle.
-              dleri.X = origin.X + (radius * Math.Cos(radMidAngle));
-              dleri.Y = origin.Y + (radius * Math.Sin(radMidAngle));
+              // Just within the outer border of the circle. Never past the middle, however tall
+              // the label: a pie small enough for that is one whose labels have nowhere to go.
+              double within = Math.Max(radius - inset, halfradius);
+              dleri.X = origin.X + (within * Math.Cos(radMidAngle));
+              dleri.Y = origin.Y + (within * Math.Sin(radMidAngle));
               if (dleri.X > origin.X)
                 dleri.X -= dleri.Width;
               if (dleri.Y > origin.Y)
