@@ -56,11 +56,15 @@ jobs:
           dotnet publish MigraDocCore.AotSmokeTest/MigraDocCore.AotSmokeTest.csproj -c Release -r linux-x64
           ./MigraDocCore.AotSmokeTest/bin/Release/net10.0/linux-x64/publish/MigraDocCore.AotSmokeTest
       # v4 replaced the old uploader binary with the Codecov CLI, and with it the rules about
-      # tokens: uploading without one now depends on the account having opted its public
-      # repositories out of needing a token. This one uploads without a token and has no
-      # CODECOV_TOKEN secret, so this step is where coverage would quietly stop. Quietly because
-      # fail_ci_if_error defaults to false and is left there on purpose - an upload is a report
-      # about the build rather than a verdict on it - so a rejected one shows in this step's log
-      # and nowhere else.
+      # tokens. The old uploader took this repository's coverage without one; the CLI answers
+      # "Token required because branch is protected" and drops it. So the token below is not
+      # belt and braces - without the secret behind it there is no coverage on codecov.io at all,
+      # and the secret is the only part of this that cannot be set from here.
+      #
+      # It fails quietly by design: fail_ci_if_error is left at its default of false because a
+      # coverage upload is a report about the build rather than a verdict on it. The cost is that
+      # a rejected upload shows in this step's log and nowhere else - the step still goes green.
       - name: Codecov
         uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
