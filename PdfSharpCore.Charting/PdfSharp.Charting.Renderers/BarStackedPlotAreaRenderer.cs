@@ -78,9 +78,9 @@ internal class BarStackedPlotAreaRenderer : BarPlotAreaRenderer
           break;
 
         ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-        if (column.point != null && !double.IsNaN(column.point.value))
+        if (!double.IsNaN(column.Value))
         {
-          double y = column.point.value;
+          double y = column.Value;
           if (y < 0)
           {
             y0 = yMin + y;

@@ -54,11 +54,15 @@ internal class VerticalXAxisRenderer : XAxisRenderer
 
     AxisRendererInfo xari = new AxisRendererInfo();
     xari.axis = chart.xAxis;
+
+    // Outside the test below, for the reason given in HorizontalXAxisRenderer.Init: the scale is
+    // what the plot area is laid out against, and a chart with no Axis object still has data.
+    CalculateXAxisValues(chart, xari);
+
     if (xari.axis != null)
     {
       ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
-      CalculateXAxisValues(xari);
       InitXValues(xari);
       InitAxisTitle(xari, cri.DefaultFont);
       InitTickLabels(xari, cri.DefaultFont);
@@ -78,10 +82,18 @@ internal class VerticalXAxisRenderer : XAxisRenderer
     {
       AxisTitleRendererInfo atri = xari.axisTitleRendererInfo;
 
-      // Calculate space used for axis title.
+      // Calculate space used for axis title, through the renderer that draws it, for the reason
+      // given in HorizontalXAxisRenderer.Format: measuring the string here took no account of the
+      // title's orientation.
       XSize titleSize = new XSize(0, 0);
       if (atri != null && atri.AxisTitleText != null && atri.AxisTitleText.Length > 0)
-        titleSize = this.rendererParms.Graphics.MeasureString(atri.AxisTitleText, atri.AxisTitleFont);
+      {
+        RendererParameters parms = new RendererParameters();
+        parms.Graphics = this.rendererParms.Graphics;
+        parms.RendererInfo = xari;
+        new AxisTitleRenderer(parms).Format();
+        titleSize = atri.AxisTitleSize;
+      }
 
       // Calculate space used for tick labels.
       XSize size = new XSize(0, 0);
@@ -89,9 +101,14 @@ internal class VerticalXAxisRenderer : XAxisRenderer
       {
         foreach (XValue xv in xs)
         {
-          XSize valueSize = this.rendererParms.Graphics.MeasureString(xv.Value, xari.TickLabelsFont);
-          size.Height += valueSize.Height;
-          size.Width = Math.Max(valueSize.Width, size.Width);
+          // A category added with XSeries.AddBlank is a null, as it is in Draw below and as the
+          // horizontal renderer's own Format already allows for.
+          if (xv != null)
+          {
+            XSize valueSize = this.rendererParms.Graphics.MeasureString(xv.Value, xari.TickLabelsFont);
+            size.Height += valueSize.Height;
+            size.Width = Math.Max(valueSize.Width, size.Width);
+          }
         }
       }
 
@@ -127,10 +144,17 @@ internal class VerticalXAxisRenderer : XAxisRenderer
     {
       for (int idx = countTickLabels - 1; idx >= 0; --idx)
       {
-        XValue xv = xs[idx];
-        string tickLabel = xv.Value;
-        XSize size = gfx.MeasureString(tickLabel, xari.TickLabelsFont);
-        gfx.DrawString(tickLabel, xari.TickLabelsFont, xari.TickLabelsBrush, startPos.X - size.Width, startPos.Y + size.Height / 2);
+        // Both conditions carried across from HorizontalXAxisRenderer.Draw, which this method is
+        // otherwise a copy of. The count comes from the longest series rather than from the
+        // category list, so there need not be a category at every index; and a category added
+        // with XSeries.AddBlank is a null. Neither is unusual enough to throw over.
+        XValue xv = idx < xs.Count ? xs[idx] : null;
+        if (xv != null)
+        {
+          string tickLabel = xv.Value;
+          XSize size = gfx.MeasureString(tickLabel, xari.TickLabelsFont);
+          gfx.DrawString(tickLabel, xari.TickLabelsFont, xari.TickLabelsBrush, startPos.X - size.Width, startPos.Y + size.Height / 2);
+        }
         startPos.Y += tickLabelStep;
       }
     }
@@ -191,12 +215,21 @@ internal class VerticalXAxisRenderer : XAxisRenderer
       lineFormatRenderer.DrawLine(points[0], points[1]);
     }
 
-    // Draw axis title.
+    // Draw axis title, through the renderer written for it rather than by hand, for the reason
+    // given in HorizontalXAxisRenderer.Draw: drawing it here honoured neither the alignment nor
+    // the orientation, both of which are settable and both of which the value axis honours.
     AxisTitleRendererInfo atri = xari.axisTitleRendererInfo;
     if (atri != null && atri.AxisTitleText != null && atri.AxisTitleText.Length > 0)
     {
-      XRect rect = new XRect(xari.X, xari.Y + xari.Height / 2, atri.AxisTitleSize.Width, 0);
-      gfx.DrawString(atri.AxisTitleText, atri.AxisTitleFont, atri.AxisTitleBrush, rect);
+      // The strip to the left of the tick labels, the full height of the axis, so that an
+      // alignment has somewhere to move the caption to.
+      atri.Rect = new XRect(xari.Rect.Left, xari.Rect.Top,
+        atri.AxisTitleSize.Width, xari.Rect.Height);
+
+      RendererParameters parms = new RendererParameters();
+      parms.Graphics = gfx;
+      parms.RendererInfo = xari;
+      new AxisTitleRenderer(parms).Draw();
     }
   }
 
@@ -204,10 +237,13 @@ internal class VerticalXAxisRenderer : XAxisRenderer
   /// Calculates the X axis describing values like minimum/maximum scale, major/minor tick and
   /// major/minor tick mark width.
   /// </summary>
-  private void CalculateXAxisValues(AxisRendererInfo rendererInfo)
+  private void CalculateXAxisValues(Chart chart, AxisRendererInfo rendererInfo)
   {
+    // The chart is passed in rather than reached through rendererInfo.axis.parent, because this
+    // runs for a chart that has no axis to be reached through.
+    SeriesCollection seriesCollection = chart.seriesCollection;
+
     // Calculates the maximum number of data points over all series.
-    SeriesCollection seriesCollection = ((Chart)rendererInfo.axis.parent).seriesCollection;
     int count = 0;
     foreach (Series series in seriesCollection)
       count = Math.Max(count, series.Count);

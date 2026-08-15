@@ -171,18 +171,18 @@ public class DataLabelTests
     }
 
     /// <summary>
-    ///   The fourth position a pie label can be given puts every label at the middle of the pie,
-    ///   one on top of another.
+    ///   The fourth position a pie label can be given puts each label at the base of its own
+    ///   wedge, which for a pie is the centre of the circle - each laid out away from that point
+    ///   along the wedge it belongs to, so that the four do not land on top of one another.
     /// </summary>
     /// <remarks>
-    ///   Recorded rather than endorsed. The case sets the label's corner to the centre of the pie
-    ///   and then tests whether that corner is left of, or above, the centre of the pie - which it
-    ///   cannot be, being the same point - so the two adjustments meant to pull the label back by
-    ///   its own width and height never run. Four labels asked for InsideBase are drawn at one
-    ///   point and read as one illegible overlap.
+    ///   They used to. The case set the label's corner to the centre of the pie and then tested
+    ///   whether that corner was left of, or above, the centre of the pie - which it could not be,
+    ///   being the same point - so neither adjustment ever ran. The tests are now on the direction
+    ///   the wedge runs in, which is what they were reaching for.
     /// </remarks>
     [Fact]
-    public void APieLabelledAtItsBaseStacksEveryLabelOnOneSpot()
+    public void APieLabelledAtItsBaseGivesEachWedgeItsOwnCorner()
     {
         var chart = Charts.Of(ChartType.Pie2D, 1.0, 1.0, 1.0, 1.0);
         chart.HasDataLabel = true;
@@ -190,8 +190,17 @@ public class DataLabelTests
 
         var labels = ShownText.RunsOn(Drawn.Page(chart)).ToList();
 
+        // Four equal wedges, one to a quadrant, so each label takes a different corner of the
+        // centre and no two are drawn at the same point.
         labels.Should().HaveCount(4);
-        labels.Select(label => (label.X, label.Y)).Distinct().Should().ContainSingle();
+        labels.Select(label => (label.X, label.Y)).Distinct().Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void APieLabelledAtItsBaseKeepsItsLabelsNearerTheMiddleThanAnyOtherPosition()
+    {
+        SpreadOfLabels(DataLabelPosition.InsideBase)
+            .Should().BeLessThan(SpreadOfLabels(DataLabelPosition.Center));
     }
 
     [Fact]

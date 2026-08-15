@@ -188,27 +188,37 @@ public class ColumnPlotAreaTests
     }
 
     /// <summary>
-    ///   A frame too small for its own axes throws.
+    ///   A frame too small for its own axes draws no columns rather than throwing.
     /// </summary>
     /// <remarks>
-    ///   Recorded rather than endorsed. Both plot area renderers open by returning if the plot
-    ///   area is empty, which reads as a decision that a chart with no room to draw in should draw
-    ///   nothing - but the layout that would leave it empty subtracts the axes from the frame and
-    ///   assigns the remainder as a width, and <see cref="PdfSharpCore.Drawing.XRect"/> refuses a
-    ///   negative one. So the guard is unreachable from this direction and what a caller gets is
-    ///   an <see cref="ArgumentException"/> from three frames down, naming a rectangle
-    ///   rather than the chart.
-    ///
-    ///   Thirty-five points is not an absurd size for a chart on a dense page, and nothing warns
-    ///   that it is too small - the size at which this starts depends on how wide the tick labels
-    ///   measure in the resolved font.
+    ///   Both plot area renderers open by returning if the plot area is empty, which reads as a
+    ///   decision already taken that a chart with no room to draw in should draw nothing. The
+    ///   guard used to be unreachable: the layout subtracts the axes from the frame and assigns
+    ///   the remainder as a width, and <see cref="PdfSharpCore.Drawing.XRect"/> answers a negative
+    ///   one by throwing, so what a caller got was an <see cref="ArgumentException"/> from three
+    ///   frames down naming a rectangle rather than the chart. An extent below zero is now taken
+    ///   as no extent, which is what makes the plot area empty rather than impossible.
     /// </remarks>
-    [Fact]
-    public void AFrameTooSmallForItsAxesThrows()
+    [Theory]
+    [InlineData(ChartType.Column2D)]
+    [InlineData(ChartType.ColumnStacked2D)]
+    [InlineData(ChartType.Bar2D)]
+    [InlineData(ChartType.BarStacked2D)]
+    [InlineData(ChartType.Line)]
+    [InlineData(ChartType.Area2D)]
+    public void AFrameTooSmallForItsAxesDrawsNothingInThePlotArea(ChartType type)
     {
-        var drawing = () => Drawn.Page(Charts.Of(ChartType.Column2D, 1.0, 5.0, 3.0), 20, 15);
+        var page = Drawn.Page(Charts.Of(type, 1.0, 5.0, 3.0), 20, 15);
 
-        drawing.Should().Throw<ArgumentException>().WithMessage("*Width*");
+        PaintedRectangles.FilledOn(page).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AFrameTooSmallForItsAxesStillWritesNoNaN()
+    {
+        var page = Drawn.Page(Charts.Of(ChartType.Column2D, 1.0, 5.0, 3.0), 20, 15);
+
+        System.Text.Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
     }
 
     private static string Palette(int rgb) =>

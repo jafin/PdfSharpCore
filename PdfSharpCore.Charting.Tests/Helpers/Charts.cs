@@ -44,17 +44,15 @@ internal static class Charts
     /// </summary>
     /// <remarks>
     ///   Both axes are read, which is not idle: <see cref="Chart.XAxis"/> creates the axis the
-    ///   first time it is asked for, and a chart that was never asked has none. The X axis
-    ///   renderer answers a chart with no X axis by returning renderer info it has calculated
-    ///   nothing into, leaving the maximum scale at zero - and the plot area's matrix is built by
-    ///   dividing the plot area's width by that scale. Every column then lands at an infinite
-    ///   coordinate and is written to the page as NaN. See
-    ///   <c>ChartFrameTests.AChartWithNoXAxisDrawsItsColumnsNowhere</c>, which pins that down.
+    ///   first time it is asked for, and a chart that was never asked has none. A chart drawn by
+    ///   anything else - MigraDoc's chart mapper, or a caller following the package's own samples
+    ///   - has them, so creating them here is what makes these tests the ordinary case rather
+    ///   than a corner of it.
     ///
-    ///   So the axes are created here rather than left to the tests that happen to configure one.
-    ///   A chart drawn by anything else - MigraDoc's chart mapper, or any caller following the
-    ///   package's own samples - has them, and a test arranged without them would be measuring
-    ///   that defect instead of the renderer it names.
+    ///   What an absent axis costs is its labelling and nothing else. It used to cost the whole
+    ///   chart, which was drawn at NaN;
+    ///   <c>ChartFrameTests.AChartWithNoXAxisIsStillDrawnAgainstItsData</c> is where that is
+    ///   covered now.
     /// </remarks>
     internal static Chart Empty(ChartType type)
     {

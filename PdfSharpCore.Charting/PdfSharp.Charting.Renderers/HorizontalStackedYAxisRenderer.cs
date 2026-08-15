@@ -68,12 +68,12 @@ internal class HorizontalStackedYAxisRenderer : HorizontalYAxisRenderer
           break;
 
         ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-        if (column.point != null && !double.IsNaN(column.point.value))
+        if (!double.IsNaN(column.Value))
         {
-          if (column.point.value < 0)
-            valueSumNeg += column.point.value;
+          if (column.Value < 0)
+            valueSumNeg += column.Value;
           else
-            valueSumPos += column.point.value;
+            valueSumPos += column.Value;
         }
       }
       yMin = Math.Min(valueSumNeg, yMin);

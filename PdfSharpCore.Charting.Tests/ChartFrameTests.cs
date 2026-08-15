@@ -107,23 +107,52 @@ public class ChartFrameTests
     }
 
     /// <summary>
-    ///   A chart whose X axis was never asked for draws its columns at NaN.
+    ///   A chart whose X axis was never asked for is drawn all the same.
     /// </summary>
     /// <remarks>
     ///   <see cref="Chart.XAxis"/> creates the axis the first time it is read, so a chart nothing
-    ///   configured has none at all. The X axis renderer answers that by returning renderer info
-    ///   it has calculated nothing into, which leaves the maximum scale at its default of zero -
-    ///   and the plot area builds its matrix by dividing its own width by that scale. The result
-    ///   is infinite, every coordinate derived from it is NaN, and NaN is what is written to the
-    ///   page: <c>NaN NaN NaN 200 re</c>. The height survives because it comes from the value
-    ///   axis, which needs no such object.
+    ///   configured has none at all. It used to be drawn at NaN: the category axis renderer
+    ///   calculated its scale only when the chart had an axis, leaving the maximum at zero, and
+    ///   the plot area builds its matrix by dividing its own width by that scale. The page was
+    ///   written with <c>NaN NaN NaN 200 re</c> and would not parse.
     ///
-    ///   Recorded rather than endorsed. It is a defect, and one with no warning attached - the
-    ///   draw succeeds, the file is written, and a reader is left with a page it cannot parse.
-    ///   It is also why <see cref="Charts.Empty"/> reads both axes.
+    ///   The scale is now worked out either way, as the value axis renderer has always worked out
+    ///   its own, so what an absent axis costs is the labelling and nothing else.
     /// </remarks>
     [Fact]
-    public void AChartWithNoXAxisDrawsItsColumnsNowhere()
+    public void AChartWithNoXAxisIsStillDrawnAgainstItsData()
+    {
+        var chart = new Chart(ChartType.Column2D);
+        chart.XValues.AddXSeries().Add("A", "B", "C");
+        chart.SeriesCollection.AddSeries().Add(1.0, 5.0, 3.0);
+
+        var document = new PdfDocument();
+        var page = document.AddPage();
+        page.Width = 440;
+        page.Height = 340;
+        using (var gfx = XGraphics.FromPdfPage(page))
+        {
+            var frame = new ChartFrame(new XRect(20, 20, 400, 300));
+            frame.Add(chart);
+            frame.DrawChart(gfx);
+        }
+
+        var drawn = Reopened(document);
+
+        Encoding.ASCII.GetString(PageContent.Of(drawn)).Should().NotContain("NaN");
+
+        var columns = PaintedRectangles.FilledOn(drawn);
+        columns.Should().HaveCount(3);
+        columns[1].Height.Should().BeApproximately(columns[0].Height * 5, 0.01);
+        columns[2].Height.Should().BeApproximately(columns[0].Height * 3, 0.01);
+    }
+
+    /// <summary>
+    ///   What the absent axis does cost: no categories along the bottom. Everything inside the
+    ///   plot area is unaffected, which is the whole of the difference.
+    /// </summary>
+    [Fact]
+    public void AChartWithNoXAxisGoesUnlabelled()
     {
         var chart = new Chart(ChartType.Column2D);
         chart.XValues.AddXSeries().Add("A", "B");
@@ -138,24 +167,7 @@ public class ChartFrameTests
             frame.DrawChart(gfx);
         }
 
-        var content = Encoding.ASCII.GetString(PageContent.Of(Reopened(document)));
-
-        content.Should().Contain("NaN");
-    }
-
-    /// <summary>
-    ///   The same chart with its axis present draws in numbers, which is the other half of the
-    ///   above: nothing about the data changed, only whether the axis object existed.
-    /// </summary>
-    [Fact]
-    public void TheSameChartWithAnXAxisDrawsInNumbers()
-    {
-        var page = Drawn.Page(Charts.Of(ChartType.Column2D, 1.0, 2.0));
-
-        var content = Encoding.ASCII.GetString(PageContent.Of(page));
-
-        content.Should().NotContain("NaN");
-        PaintedRectangles.FilledOn(page).Should().HaveCount(2);
+        ShownText.On(Reopened(document)).Should().NotContain("A").And.NotContain("B");
     }
 
     private static byte[] Content(Func<ChartFrame, Action<XGraphics>> draw)

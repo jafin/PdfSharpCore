@@ -53,7 +53,7 @@ internal class BarGridlinesRenderer : GridlinesRenderer
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
     XRect plotAreaRect = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaRect.IsEmpty)
+    if (HasNoRoom(plotAreaRect))
       return;
 
     AxisRendererInfo xari = cri.xAxisRendererInfo;

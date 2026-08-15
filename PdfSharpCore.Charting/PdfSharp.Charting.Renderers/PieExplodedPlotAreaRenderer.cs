@@ -90,9 +90,9 @@ internal class PieExplodedPlotAreaRenderer : PiePlotAreaRenderer
 
     foreach (SectorRendererInfo sector in sri.pointRendererInfos)
     {
-      if (!double.IsNaN(sector.point.value) && sector.point.value != 0)
+      if (!double.IsNaN(sector.Value) && sector.Value != 0)
       {
-        sweepAngle = 360 / (sumValues / Math.Abs(sector.point.value));
+        sweepAngle = 360 / (sumValues / Math.Abs(sector.Value));
 
         midAngle = startAngle + sweepAngle / 2;
         sectorStartAngle = Math.Max(0, startAngle + deltaAngle);

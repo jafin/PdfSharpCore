@@ -76,6 +76,12 @@ internal class AxisTitleRenderer : Renderer
       atri.Y = 0;
       atri.Height = size.Height;
       atri.Width = size.Width;
+
+      // Kept as well as being written to the rectangle, because the rectangle does not stay the
+      // title's own size: an axis about to draw its title replaces it with the strip the title
+      // is to be placed within, and Draw then needs both - the strip to align inside, and the
+      // size of the thing being aligned.
+      atri.AxisTitleSize = size;
     }
   }
 
@@ -91,9 +97,17 @@ internal class AxisTitleRenderer : Renderer
       XGraphics gfx = this.rendererParms.Graphics;
       if (atri.AxisTitleOrientation != 0)
       {
-        XRect layout = atri.Rect;
-        layout.X = -(layout.Width / 2);
-        layout.Y = -(layout.Height / 2);
+        // The box the caption occupies, centred on the origin: the surface is moved and turned
+        // under it, and the caption is centred within it, so this decides the caption's size and
+        // the transform decides where it lands.
+        //
+        // The caption's own size rather than the rectangle's, which is the strip the axis set
+        // aside to place it in. Halving the strip instead is what used to make Right and Bottom
+        // land where Center does - the strip is what the offsets below are measured against, so
+        // using it on both sides of the subtraction cancelled it out.
+        XSize caption = atri.AxisTitleSize;
+        XRect layout = new XRect(-(caption.Width / 2), -(caption.Height / 2),
+          caption.Width, caption.Height);
 
         double x = 0;
         switch (atri.AxisTitleAlignment)
@@ -103,12 +117,12 @@ internal class AxisTitleRenderer : Renderer
             break;
 
           case HorizontalAlignment.Right:
-            x = atri.X + atri.Width - layout.Width / 2;
+            x = atri.X + atri.Width - caption.Width / 2;
             break;
 
           case HorizontalAlignment.Left:
           default:
-            x = atri.X;
+            x = atri.X + caption.Width / 2;
             break;
         }
 
@@ -120,12 +134,12 @@ internal class AxisTitleRenderer : Renderer
             break;
 
           case VerticalAlignment.Bottom:
-            y = atri.Y + atri.Height - layout.Height / 2;
+            y = atri.Y + atri.Height - caption.Height / 2;
             break;
 
           case VerticalAlignment.Top:
           default:
-            y = atri.Y;
+            y = atri.Y + caption.Height / 2;
             break;
         }
 

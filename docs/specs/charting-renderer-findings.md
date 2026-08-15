@@ -1,39 +1,38 @@
-# Spec — What testing the charting renderers found
+# Spec — What testing the charting renderers found, and what was done about it
 
 `PdfSharpCore.Charting` had no tests. The whole assembly measured 0% of lines, and the ten
 highest-CRAP methods in the fork were all in it — `YAxisRenderer.FineTuneYAxis` at 2,162, then the
 axis, plot area and data label renderers behind it.
 
-`PdfSharpCore.Charting.Tests` covers them. 105 tests on each of `net8.0` and `net10.0`; the
-assembly goes from 0% of lines to 71.09%, and the ten hotspot methods from nothing to between 92.7%
-and 100%.
+`PdfSharpCore.Charting.Tests` covers them. Every renderer in the package is `internal` and this
+repository carries no `InternalsVisibleTo`, so the tests reach them the way a caller does: a `Chart`
+handed to a `ChartFrame`, drawn onto a page, saved, reopened, and read back out of the content
+stream. That has a consequence worth stating plainly — **everything below was reachable through
+public API**. None of it needed reflection to find, and none of it needed reflection to hit.
 
-Every renderer in the package is `internal` and this repository carries no `InternalsVisibleTo`, so
-the tests reach them the way a caller does: a `Chart` handed to a `ChartFrame`, drawn onto a page,
-saved, reopened, and read back out of the content stream. That has a consequence worth stating
-plainly — **everything below is reachable through public API**. None of it needed reflection to
-find, and none of it needs reflection to hit.
+Seven defects came out of writing the tests. All seven are now fixed, and the test that recorded
+each has been turned round to assert the behaviour that replaced it.
 
-Seven defects came out of writing them. All are recorded by a passing test named for the behaviour,
-in the manner of `dom-value-model-findings.md`: the test asserts what the code does today, its
-remark says why that is wrong, and fixing the code is a matter of flipping the assertion.
-
-| # | finding | severity | pinned by |
+| # | finding | severity | status |
 |---|---|---|---|
-| C1 | A chart with no X axis writes `NaN` coordinates to the page | **high** | `ChartFrameTests.AChartWithNoXAxisDrawsItsColumnsNowhere` |
-| C2 | `Series.AddBlank` throws when the chart is drawn | **high** | `ValueAxisScaleTests.ABlankInASeriesThrows` |
-| C3 | A blank category throws on a bar chart and is skipped on a column chart | medium | `CategoryAxisTests.ABarChartThrowsOnACategoryWithNoValue` |
-| C4 | Fewer categories than values throws on a bar chart and is tolerated on a column chart | medium | `CategoryAxisTests.ABarChartThrowsWhenThereAreFewerCategoriesThanValues` |
-| C5 | A frame too small for its axes throws from inside `XRect` | medium | `ColumnPlotAreaTests.AFrameTooSmallForItsAxesThrows` |
-| C6 | An axis title's alignment moves it nowhere, or only sometimes | low | `AxisTitleTests.AligningAnUprightCaptionAcrossMovesItNowhere` and two others |
-| C7 | `DataLabelPosition.InsideBase` stacks every pie label on one point | low | `DataLabelTests.APieLabelledAtItsBaseStacksEveryLabelOnOneSpot` |
+| C1 | A chart with no X axis writes `NaN` coordinates to the page | **high** | **fixed** |
+| C2 | `Series.AddBlank` throws when the chart is drawn | **high** | **fixed** |
+| C3 | A blank category throws on a bar chart and is skipped on a column chart | medium | **fixed** |
+| C4 | Fewer categories than values throws on a bar chart and is tolerated on a column chart | medium | **fixed** |
+| C5 | A frame too small for its axes throws from inside `XRect` | medium | **fixed** |
+| C6 | An axis title's alignment moves it nowhere, or only sometimes | low | **fixed** (see below) |
+| C7 | `DataLabelPosition.InsideBase` stacks every pie label on one point | low | **fixed** |
 
-C1, C3 and C4 are one shape seen three times: two renderers written as copies of each other, which
-have since drifted apart on which inputs they survive.
+C1, C3 and C4 were one shape seen three times: two renderers written as copies of each other, which
+had drifted apart on which inputs they survive.
+
+Fixing them took the assembly from 71.09% of lines to 71.73%, and branch coverage from 64.28% to
+67.10% — the rise is dead branches becoming reachable rather than new tests. Eight of the ten
+hotspot methods are now at 100% of statements and none is below 97%.
 
 ---
 
-## C1. A chart with no X axis writes `NaN` to the page
+## C1. A chart with no X axis wrote `NaN` to the page — fixed
 
 `Chart.XAxis` creates the axis the first time it is read, so a chart nothing configured has none:
 
@@ -41,67 +40,49 @@ have since drifted apart on which inputs they survive.
 var chart = new Chart(ChartType.Column2D);
 chart.XValues.AddXSeries().Add("A", "B");
 chart.SeriesCollection.AddSeries().Add(1.0, 2.0);
-// draw it into a ChartFrame and the content stream reads:
+// drawn into a ChartFrame, the content stream read:
 //   NaN NaN NaN 200 re
 //   f
 ```
 
-`HorizontalXAxisRenderer.Init` puts its scale calculation inside a null check:
+`HorizontalXAxisRenderer.Init` put its scale calculation inside a null check, so with no axis
+`MaximumScale` kept its default of zero. `ColumnLikePlotAreaRenderer.Format` then built the plot
+area's matrix by dividing by it — `width / 0` is infinity, `0 * infinity` is `NaN`, and `NaN` is
+what `XGraphicsPdfRenderer` wrote. The draw succeeded and the file was written; a reader got a page
+whose content stream will not parse. PdfSharpCore's own content lexer answered it with
+`KeyNotFoundException: The given key 'NaN' was not present in the dictionary`.
+
+The value axis renderer had never had this problem, and its shape was the fix.
+`VerticalYAxisRenderer.Init` calls `InitScale` **before** it asks whether the axis object exists,
+leaving only the labelling inside the question. Both X axis renderers now do the same:
 
 ```csharp
 xari.axis = chart.xAxis;
+CalculateXAxisValues(chart, xari);     // outside the check, as InitScale always was
 if (xari.axis != null)
 {
-  CalculateXAxisValues(xari);   // sets MinimumScale, MaximumScale, MajorTick, MinorTick
   InitTickLabels(xari, cri.DefaultFont);
-  InitAxisTitle(xari, cri.DefaultFont);
-  InitAxisLineFormat(xari);
-  InitGridlines(xari);
-}
-```
-
-With no axis, `MaximumScale` keeps its default of zero. `ColumnLikePlotAreaRenderer.Format` then
-builds the plot area's matrix by dividing by it:
-
-```csharp
-matrix.Scale(plotAreaBox.Width / xMax, plotAreaBox.Height / (yMax - yMin), XMatrixOrder.Append);
-```
-
-`width / 0` is infinity, `0 * infinity` is `NaN`, and `NaN` is what `XGraphicsPdfRenderer` writes.
-The draw succeeds and the file is written; a reader gets a page whose content stream will not parse.
-PdfSharpCore's own content lexer answers it with
-`KeyNotFoundException: The given key 'NaN' was not present in the dictionary`.
-
-The height survives because it comes from the value axis, which does not have this problem — and
-that is the fix. `VerticalYAxisRenderer.Init` calls `InitScale` **before** it asks whether the axis
-object exists:
-
-```csharp
-yari.axis = chart.yAxis;
-InitScale(yari);              // outside the check
-if (yari.axis != null)
-{
-  InitTickLabels(yari, cri.DefaultFont);
   ...
 }
 ```
 
-So a chart with no *value* axis is drawn correctly and merely goes unlabelled — pinned by
-`ValueAxisScaleTests.AChartWithNoValueAxisObjectIsScaledAllTheSameAndMerelyGoesUnlabelled`. One line
-apart, and the two renderers disagree about which side of it the scale calculation belongs on.
+`CalculateXAxisValues` reached the series collection through `rendererInfo.axis.parent`, which is
+the one thing not available when there is no axis, so it now takes the chart — which `Init` already
+had in hand.
 
-**Fix:** move `CalculateXAxisValues(xari)` out of the null check in both
-`HorizontalXAxisRenderer.Init` and `VerticalXAxisRenderer.Init`, matching the Y axis renderers. It
-reads the series collection through `rendererInfo.axis.parent`, so it needs the chart passed
-another way — `this.rendererParms.DrawingItem`, which `Init` already has in hand.
+A chart with no category axis is therefore drawn correctly and merely goes unlabelled, which is
+exactly what a chart with no value axis had always done.
+
+Pinned by `ChartFrameTests.AChartWithNoXAxisIsStillDrawnAgainstItsData` and
+`.AChartWithNoXAxisGoesUnlabelled`.
 
 **Why nothing had noticed:** MigraDoc's chart mapper builds both axes unconditionally, so a chart
-reached through a `Document` never takes this path. It is only reachable by using
-`PdfSharpCore.Charting` directly, which is exactly what the package is for.
+reached through a `Document` never took this path. It was only reachable by using
+`PdfSharpCore.Charting` directly, which is what the package is for.
 
 ---
 
-## C2. `Series.AddBlank` throws when the chart is drawn
+## C2. `Series.AddBlank` threw when the chart was drawn — fixed
 
 ```csharp
 var series = chart.SeriesCollection.AddSeries();
@@ -111,27 +92,44 @@ series.AddBlank();
 ```
 
 `AddBlank` is public, is documented as "Adds a blank to the series", and puts a `null` into the
-element collection. The pass that finds the smallest and largest value walks those elements testing
-each for `NaN` without first testing it for `null`:
+element collection. The pass that found the smallest and largest value walked those elements
+testing each for `NaN` without first testing it for `null`, so the one thing the method exists to
+permit was the one thing the renderer could not survive.
+
+Guarding that one walk was not enough — a blank has to survive the whole draw, and about fifteen
+places read a point's value. Rather than fifteen null tests, `PointRendererInfo` grew the concept:
 
 ```csharp
-foreach (Point point in series.Elements)
-{
-  if (!double.IsNaN(point.value))     // point is null for a blank
-  {
-    yMin = Math.Min(yMin, point.Value);
-    yMax = Math.Max(yMax, point.Value);
-  }
-}
+/// <summary>The value this point plots, or NaN if there is nothing to plot.</summary>
+internal double Value => this.point == null ? double.NaN : this.point.value;
 ```
 
-So the one thing the method exists to permit is the one thing the renderer cannot survive.
+NaN because a blank was already the same thing to a renderer as a point whose value is NaN — there
+is nothing to draw and nothing to add to a total — and because every comparison against NaN is
+false, so a blank falls out of a range test on its own and the `IsNaN` tests already written against
+missing values now catch both kinds of missing. Reading through `Value` instead of through `point`
+is what keeps a blank from being dereferenced, and it simplified four sites that were already
+testing `column.point != null && !double.IsNaN(column.point.value)`.
 
-**Fix:** `if (point != null && !double.IsNaN(point.value))`. The same walk appears in
-`HorizontalYAxisRenderer.CalcYAxis` and in the stacked renderers' overrides of it; all want the
-same guard.
+Four places needed more than the substitution:
 
-**Side effect:** this also leaves the first case of `FineTuneYAxis` unreachable —
+- The two base `CalcYAxis` implementations walk `series.Elements` rather than renderer infos, and
+  took the plain `point != null` guard the stacked overrides already had.
+- The column and bar data label renderers would have written the word `NaN` onto the plot area.
+  They now leave a blank with no text at all, which their own `Draw` already passes over.
+- `ColumnStackedPlotAreaRenderer.IsDataInside` returned `true` unconditionally — a stacked column is
+  inside the scale by construction — and so drew a blank with a null brush. It now answers
+  `!double.IsNaN(yValue)`: always inside, provided there is a value at all.
+- `LinePlotAreaRenderer` and `AreaPlotAreaRenderer` read `sri.series.Elements[idx].Value` directly.
+  Both already mapped a NaN value to zero, and a blank now joins it there.
+
+That is `BlankType.NotPlotted`, which is what `Chart.DisplayBlanksAs` defaults to — see *What is
+still open* below.
+
+Pinned by `ValueAxisScaleTests.ABlankInASeriesIsLeftOutOfTheScale`, `.ABlankInASeriesIsNotDrawn`,
+`.ASeriesOfNothingButBlanksIsGivenARangeToDrawAgainst` and `.EveryChartTypeSurvivesABlank`.
+
+**Side effect:** this reached the first case of `FineTuneYAxis` —
 
 ```csharp
 if (yMin == double.MaxValue && yMax == double.MinValue)
@@ -142,156 +140,191 @@ if (yMin == double.MaxValue && yMax == double.MinValue)
 }
 ```
 
-— because a series of nothing but blanks is the only way to get there, and a series of nothing but
-blanks throws first. It is the one part of the method the tests leave uncovered, and fixing C2 is
-what would make covering it possible.
+— which a series of nothing but blanks is the only way to produce, and which nothing could reach
+while a series of nothing but blanks threw. `FineTuneYAxis` is now at 100% of its statements.
 
 ---
 
-## C3, C4. The vertical category axis renderer is missing two guards
+## C3, C4. The vertical category axis renderer was missing two guards — fixed
 
 `HorizontalXAxisRenderer.Draw` and `VerticalXAxisRenderer.Draw` are the same method with the axes
-swapped. Where the horizontal one reads:
+swapped. The horizontal one read:
 
 ```csharp
 for (int idx = 0; idx < countTickLabels && idx < xs.Count; ++idx)
 {
   XValue xv = xs[idx];
   if (xv != null)
-  {
-    ...
-  }
-}
 ```
 
-the vertical one reads:
+and the vertical one read:
 
 ```csharp
 for (int idx = countTickLabels - 1; idx >= 0; --idx)
 {
   XValue xv = xs[idx];
   string tickLabel = xv.Value;
-  ...
-}
 ```
 
-Two guards short, and each is a throw rather than a wrong picture:
+Two guards short, and each was a throw rather than a wrong picture: a category added with
+`XSeries.AddBlank` is `null` (`NullReferenceException`), and `countTickLabels` comes from the
+longest *series* rather than from the category list, so a chart with three values and two categories
+asked for a third that was not there (`ArgumentOutOfRangeException`).
 
-- **C3** — a category added with `XSeries.AddBlank` is `null`. The column chart skips it; the bar
-  chart throws `NullReferenceException`.
-- **C4** — `countTickLabels` comes from the longest *series*, not from the category list, so a chart
-  with three values and two categories asks for a third that is not there. The column chart stops at
-  the end of the list; the bar chart throws `ArgumentOutOfRangeException`.
-
-**Fix:** carry both conditions across. Reversed iteration makes the bound
-`idx >= 0 && idx < xs.Count` rather than a second clause on the same side.
-
----
-
-## C5. A frame too small for its axes throws from inside `XRect`
-
-Both plot area renderers open by returning if there is no room to draw in:
+Both conditions are now carried across, in `Draw` and in `Format`, which measures the same labels
+and had the same gap. Reversed iteration makes the bound part of the same expression:
 
 ```csharp
-XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
-if (plotAreaBox.IsEmpty)
-  return;
+XValue xv = idx < xs.Count ? xs[idx] : null;
+if (xv != null)
 ```
 
-which reads as a decision that a chart too small to draw should draw nothing. It is unreachable from
-this direction. `ColumnLikeChartRenderer.CalcLayout` subtracts the axes from the frame and assigns
-the remainder as a width, and `XRect.Width` refuses a negative one:
+A blank category keeps its place on the axis rather than closing up over the gap, which is what the
+horizontal renderer has always done.
+
+Pinned by `CategoryAxisTests.ABarChartSkipsACategoryWithNoValue`,
+`.ABlankCategoryStillTakesItsPlaceOnTheAxis` and
+`.ABarChartDrawsTheCategoriesItHasWhenThereAreFewerThanValues`.
+
+---
+
+## C5. A frame too small for its axes threw from inside `XRect` — fixed
+
+Both plot area renderers open by returning if there is no room to draw in, which reads as a decision
+already taken that a chart too small should draw nothing. It was unreachable.
+`ColumnLikeChartRenderer.CalcLayout` subtracts the axes from the frame and assigns the remainder as
+a width, and `XRect.Width` refuses a negative one:
+
+```
+System.ArgumentException: WidthCannotBeNegative
+  at PdfSharpCore.Drawing.XRect.set_Width
+  at PdfSharpCore.Charting.Renderers.AreaRendererInfo.set_Width
+  at PdfSharpCore.Charting.Renderers.ColumnLikeChartRenderer.CalcLayout
+```
+
+What a caller got was an exception three frames down naming a rectangle rather than the chart, at a
+size that depends on how wide the tick labels measure in the resolved font — so not a threshold
+anyone could be warned about.
+
+Two changes, in one place each rather than at the four layout sites:
+
+- `AreaRendererInfo.Width` and `.Height` take an extent below zero as no extent. Every layout in the
+  package works by subtraction, so this is where a negative one can arise at all. `AxisRendererInfo`
+  overrides both to size an inner rectangle as well, and clamps that too.
+- The guard itself was `XRect.IsEmpty`, which means *the empty rectangle* — a width below zero —
+  rather than *no room*. Nothing produces the empty rectangle now, so the eight sites that asked
+  moved to `Renderer.HasNoRoom`, which asks what was meant:
+  `area.Width <= 0 || area.Height <= 0`.
+
+Pinned by `ColumnPlotAreaTests.AFrameTooSmallForItsAxesDrawsNothingInThePlotArea`, over six chart
+types, and `.AFrameTooSmallForItsAxesStillWritesNoNaN`.
+
+---
+
+## C6. An axis title's alignment moved it nowhere, or only sometimes — fixed
+
+`AxisTitle.Alignment` and `AxisTitle.VerticalAlignment` are public and settable, and what they did
+depended on which axis the title was on and whether it was turned. Three separate causes, two of
+them fixed outright and one of them a constraint rather than a bug.
+
+**The category axis read neither setting.** `AxisTitleRenderer` was never constructed for it:
+`HorizontalXAxisRenderer.Draw` and `VerticalXAxisRenderer.Draw` each ended by drawing the caption
+themselves, so a caption on a category axis was written flat and in the middle whatever it was asked
+for. Both now hand the caption to `AxisTitleRenderer`, as the value axis renderers always have,
+after setting its rectangle to the strip the axis has to place it in — the full width of the axis
+for a horizontal one, the full height for a vertical one. Alignment and orientation both work there
+now, and the two axes no longer take different code paths to draw the same kind of object.
+
+Both axes also now *measure* their title through `AxisTitleRenderer.Format`, which is the only place
+that accounts for an orientation. Measuring the string by hand, as the category axis renderers did,
+reserved the room a rotated caption would have taken lying flat.
+
+The hand-written version carried a small arithmetic error too: the caption was centred on
+`xari.Rect.Right / 2`, half of the axis's right edge, rather than on the middle of the axis. The two
+are the same only when the axis starts at zero, which it never does — the value axis is to its left.
+
+**A rotated caption's `Bottom` landed where `Center` did.** The two cases are written separately —
+`y + height / 2` against `y + height - layout.Height / 2` — but `layout` was the strip rather than
+the caption, so the height being halved was the same height on both sides of the subtraction and the
+second expression reduced to the first. `AxisTitleRenderer.Format` now records the measured caption
+in `AxisTitleRendererInfo.AxisTitleSize`, which existed for exactly that and which only the X axis
+renderers were filling in, and `Draw` measures its offsets against the caption instead of against
+the strip. The three vertical alignments are now three positions.
+
+**Across the axis, a rotated value-axis caption still does not move, and cannot.** The strip the
+axis sets aside for its title is exactly as wide as the title, because that is how much room the
+axis took from the plot area for it. All three alignments put the caption in the middle of that
+strip, which is the only place it fits. `Left` used to come out elsewhere by putting the caption's
+centre on the strip's near edge, so half of it hung outside the reserved space; landing with the
+other two is the correction rather than a loss. Giving that setting somewhere to move to would mean
+reserving more width than the caption needs and taking it from the plot area, which is a layout
+decision rather than a defect.
+
+The same holds of an upright value-axis caption: it aligns vertically, within the height of the
+axis, and not horizontally, within a strip its own width.
+
+Pinned by `AxisTitleTests.TheCategoryAxisReadsItsCaptionsAlignmentAndOrientationToo`,
+`.AligningACategoryAxisCaptionMovesItAlongTheAxis`,
+`.ARotatedCategoryAxisCaptionReservesTheRoomItTakesTurned`,
+`.EachVerticalAlignmentPutsARotatedCaptionSomewhereOfItsOwn`,
+`.AligningARotatedCaptionAcrossTheAxisMovesItNowhere` and
+`.AligningAnUprightCaptionAcrossMovesItNowhere`.
+
+---
+
+## C7. `DataLabelPosition.InsideBase` stacked every pie label on one point — fixed
 
 ```csharp
-Drawn.Page(Charts.Of(ChartType.Column2D, 1.0, 5.0, 3.0), width: 20, height: 15);
-// System.ArgumentException: WidthCannotBeNegative
-//   at PdfSharpCore.Drawing.XRect.set_Width
-//   at PdfSharpCore.Charting.Renderers.AreaRendererInfo.set_Width
-//   at PdfSharpCore.Charting.Renderers.ColumnLikeChartRenderer.CalcLayout
+dleri.X = origin.X;
+dleri.Y = origin.Y;
+if (dleri.X < origin.X)          // cannot be: it was just set to origin.X
+  dleri.X -= dleri.Width;
+if (dleri.Y < origin.Y)          // likewise
+  dleri.Y -= dleri.Height;
 ```
 
-What a caller gets is an exception three frames down naming a rectangle rather than the chart. The
-size at which it starts depends on how wide the tick labels measure in the resolved font, so it is
-not a fixed threshold a caller could be told about, and thirty-five points is not an absurd size for
-a chart on a dense page.
+The two adjustments were copied from the `OutsideEnd` case above, where the comparison means
+something because the position came from an angle. Here the point was being compared with itself, so
+neither ran, and a four-wedge pie asked for `InsideBase` drew four labels at one point.
 
-**Fix:** clamp to zero in `CalcLayout` and let the existing `IsEmpty` guards do what they were
-written to do.
-
----
-
-## C6. An axis title's alignment moves it nowhere, or only sometimes
-
-`AxisTitle.Alignment` and `AxisTitle.VerticalAlignment` are public and settable. What they do
-depends on which axis the title is on and whether it is turned:
-
-| | horizontal alignment | vertical alignment |
-|---|---|---|
-| value axis, upright | no effect | works |
-| value axis, rotated | Center and Right coincide | Center and Bottom coincide |
-| category axis | unread | unread |
-
-Three separate causes:
-
-- **Upright, horizontally.** The caption is drawn into `atri.Rect`, and `Format` set that rectangle
-  to exactly the size the caption measured. There is no slack across it to align within.
-- **Rotated.** The two cases are written separately but reduce to the same expression, because
-  `layout` is the title's own rectangle and so `layout.Width` is the width being halved either way:
-
-  ```csharp
-  case HorizontalAlignment.Center: x = atri.X + atri.Width / 2;                     break;
-  case HorizontalAlignment.Right:  x = atri.X + atri.Width - layout.Width / 2;      break;
-  ```
-
-- **Category axis.** `AxisTitleRenderer` is never constructed for it. `HorizontalXAxisRenderer.Draw`
-  and `VerticalXAxisRenderer.Draw` each end by drawing the caption themselves, at the middle of the
-  axis, reading neither the alignment nor the orientation. A caption on a category axis is written
-  flat whatever it was asked for.
-
-**Fix:** the first two want the layout rectangle to be the space available rather than the space
-occupied. The third wants the category axis renderers to hand off to `AxisTitleRenderer` as the
-value axis renderers do — which would fix the orientation as well, and would remove two copies of
-the same drawing code.
-
----
-
-## C7. `DataLabelPosition.InsideBase` stacks every pie label on one point
+The tests are now on the direction the wedge runs in, which is what they were reaching for:
 
 ```csharp
-case DataLabelPosition.InsideBase:
-  // Aligned at the base/center of the circle
-  dleri.X = origin.X;
-  dleri.Y = origin.Y;
-  if (dleri.X < origin.X)          // cannot be: it was just set to origin.X
-    dleri.X -= dleri.Width;
-  if (dleri.Y < origin.Y)          // likewise
-    dleri.Y -= dleri.Height;
-  break;
+if (Math.Cos(radMidAngle) < 0)
+  dleri.X -= dleri.Width;
+if (Math.Sin(radMidAngle) < 0)
+  dleri.Y -= dleri.Height;
 ```
 
-The two adjustments are copied from the `OutsideEnd` case above, where the comparison means
-something because the position came from an angle. Here it is being compared against itself, so
-neither runs, and every label is drawn at the centre of the pie on top of every other. A four-wedge
-pie asked for `InsideBase` produces four labels at one point.
+Each label is laid out away from the centre along its own wedge, so the corner of it nearest the
+centre is the one that sits there and each quadrant gets a corner of its own. The position also now
+keeps its labels nearer the middle than any of the other three, which is what its name says.
 
-**Fix:** decide what the position is meant to mean — the wording suggests the inner end of each
-wedge, which would be the `InsideEnd` arithmetic at a small radius rather than at zero — and either
-implement it or remove the case so that the enum does not offer what it cannot do.
+Pinned by `DataLabelTests.APieLabelledAtItsBaseGivesEachWedgeItsOwnCorner` and
+`.APieLabelledAtItsBaseKeepsItsLabelsNearerTheMiddleThanAnyOtherPosition`.
 
 ---
 
-## What is deliberately not covered
+## What is still open
 
-- **Rasterization.** Nothing here renders a chart to an image. The test project references no
+None of these is a defect. They are gaps the fixes above put in plain view, and each would be a
+change to what a chart looks like rather than to whether it can be drawn.
+
+- **`Chart.DisplayBlanksAs` is read by nothing.** The property is public, the `BlankType` enum
+  offers `NotPlotted`, `Interpolated` and `Zero`, and no renderer consults it. C2 made the default
+  work; the other two kinds are unimplemented. `LinePlotAreaRenderer` carries a TODO saying so.
+- **A line or area chart plots a blank as zero**, which is `BlankType.Zero` rather than the default.
+  Both renderers already did that for a NaN value, and an area is a closed shape that needs a point
+  for every category to close over, so leaving them alone was the smaller claim. Implementing
+  `DisplayBlanksAs` is where this belongs.
+- **An axis title cannot be aligned across its own axis**, because the strip reserved for it is its
+  own size. See C6.
+- **Rasterization.** Nothing in the test project renders a chart to an image; it references no
   backend and needs neither Ghostscript nor ImageMagick, which is what lets it run anywhere. A chart
-  is asserted through the operators it wrote, not through the pixels they would produce.
-- **Line, area and pie geometry.** `EveryChartTypeDrawsSomething` covers that each type draws, and
-  the pie's data labels are covered in detail because `PieDataLabelRenderer.CalcPositions` was on the
-  list. Where the wedges and the line segments themselves land is not asserted; those renderers were
-  not among the ten and would want a path reader rather than a rectangle reader.
+  is asserted through the operators it wrote.
+- **Line, area and pie geometry.** Where the wedges and line segments themselves land is not
+  asserted; those renderers were not among the ten and would want a path reader rather than a
+  rectangle reader.
 - **Legends.** `LegendRenderer` and its three subclasses draw an entry per series with a swatch
   beside it. One test reaches the swatch incidentally; the docking, wrapping and entry layout are
   untested.
-- **`Chart.Clone`, `XValue` conversions and the rest of the object model.** Those belong with
-  `MigraDocCore.DocumentObjectModel.Tests`, which already covers the *MigraDoc* chart object model
-  from the DOM side.

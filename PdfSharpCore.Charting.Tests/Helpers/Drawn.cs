@@ -30,8 +30,8 @@ internal static class Drawn
     /// <remarks>
     ///   Large enough that a plot area survives the axes taking their room out of it, and square
     ///   enough that a bar chart and a column chart both have somewhere to put their labels. A
-    ///   frame too small for its axes does not lay out at all - it throws, from inside XRect, as
-    ///   <c>ColumnPlotAreaTests.AFrameTooSmallForItsAxesThrows</c> records.
+    ///   frame too small for its axes draws its axes and nothing inside them, which
+    ///   <c>ColumnPlotAreaTests.AFrameTooSmallForItsAxesDrawsNothingInThePlotArea</c> covers.
     /// </remarks>
     internal const double DefaultWidth = 400;
 

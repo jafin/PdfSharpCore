@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Charting.Tests.Helpers;
 using Xunit;
@@ -62,35 +63,97 @@ public class ValueAxisScaleTests
     }
 
     /// <summary>
-    ///   A blank in a series throws.
+    ///   A blank in a series takes no part in the scale.
     /// </summary>
     /// <remarks>
-    ///   Recorded rather than endorsed, and a plain defect. <see cref="Series.AddBlank"/> is
-    ///   public, documented as adding a blank to the series, and puts a null in the element
-    ///   collection - and the pass that finds the smallest and largest value walks those elements
-    ///   testing each for NaN without first testing it for null. So the one thing the method is
-    ///   there to permit is the one thing it cannot survive.
+    ///   <see cref="Series.AddBlank"/> puts a null in the element collection, and the pass that
+    ///   finds the smallest and largest value used to walk those elements testing each for NaN
+    ///   without first testing it for null - so the one thing the method exists to permit was the
+    ///   one thing the renderer could not survive.
     ///
-    ///   It also leaves <c>FineTuneYAxis</c>'s first case - no data at all, where the smallest and
-    ///   largest are still the sentinels they were seeded with - with no route to reach it. A
-    ///   series of nothing but blanks would be that case, and a series of nothing but blanks
-    ///   throws here instead.
-    ///
-    ///   The category axis takes the same idea in its stride: a blank there is skipped. See
-    ///   <c>CategoryAxisTests.AColumnChartSkipsACategoryWithNoValue</c>.
+    ///   A blank is now read as NaN, which is what a renderer already meant by a missing value,
+    ///   so it falls out of the scale, out of the plot area and out of the data labels on its own.
+    ///   That is <see cref="BlankType.NotPlotted"/>, which is what
+    ///   <see cref="Chart.DisplayBlanksAs"/> defaults to - though nothing reads that property, so
+    ///   the other two kinds are still unimplemented.
     /// </remarks>
     [Fact]
-    public void ABlankInASeriesThrows()
+    public void ABlankInASeriesIsLeftOutOfTheScale()
+    {
+        var blank = Charts.Empty(ChartType.Column2D);
+        blank.XValues.AddXSeries().Add("A", "B");
+        var series = blank.SeriesCollection.AddSeries();
+        series.Add(5.0);
+        series.AddBlank();
+
+        // Scaled as a series holding five and nothing else: one value, so the range is empty and
+        // the top is lifted by one to make one, and then the ratio rule takes the bottom to zero.
+        ShownText.NumericOn(Drawn.Page(blank)).Should().Equal(
+            "0.0", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0");
+
+        // A zero in the same place is a different chart, which is the point: a blank is a value
+        // that is not there rather than a value of nought. Here the range runs from nought to
+        // five to begin with, so the top is rounded up to six rather than to seven.
+        ShownText.NumericOn(Drawn.Page(Charts.Of(ChartType.Column2D, 5.0, 0.0))).Should().Equal(
+            "0.0", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0");
+    }
+
+    [Fact]
+    public void ASeriesOfNothingButBlanksIsGivenARangeToDrawAgainst()
     {
         var chart = Charts.Empty(ChartType.Column2D);
         chart.XValues.AddXSeries().Add("A", "B");
         var series = chart.SeriesCollection.AddSeries();
-        series.Add(1.0);
+        series.AddBlank();
         series.AddBlank();
 
-        var drawing = () => Drawn.Page(chart);
+        // The case in FineTuneYAxis for no data at all: the smallest and largest are still the
+        // sentinels they were seeded with, so a range of nought to nine tenths is invented. It is
+        // the same range a series that is all zeroes is given, and until a blank stopped throwing
+        // there was no way to reach it.
+        ShownText.NumericOn(Drawn.Page(chart)).Should().Equal(
+            "0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0");
+    }
 
-        drawing.Should().Throw<NullReferenceException>();
+    [Fact]
+    public void ABlankInASeriesIsNotDrawn()
+    {
+        var chart = Charts.Empty(ChartType.Column2D);
+        chart.XValues.AddXSeries().Add("A", "B", "C");
+        var series = chart.SeriesCollection.AddSeries();
+        series.Add(1.0);
+        series.AddBlank();
+        series.Add(3.0);
+        chart.HasDataLabel = true;
+
+        var page = Drawn.Page(chart);
+
+        // Two columns for three categories, and a label on each column rather than a third
+        // reading NaN.
+        PaintedRectangles.FilledOn(page).Should().HaveCount(2);
+        ShownText.On(page).Should().NotContain("NaN");
+        ShownText.On(page).Take(2).Should().Equal("1", "3");
+    }
+
+    [Theory]
+    [InlineData(ChartType.Bar2D)]
+    [InlineData(ChartType.BarStacked2D)]
+    [InlineData(ChartType.ColumnStacked2D)]
+    [InlineData(ChartType.Line)]
+    [InlineData(ChartType.Area2D)]
+    [InlineData(ChartType.Pie2D)]
+    [InlineData(ChartType.PieExploded2D)]
+    public void EveryChartTypeSurvivesABlank(ChartType type)
+    {
+        var chart = Charts.Empty(type);
+        chart.XValues.AddXSeries().Add("A", "B", "C");
+        var series = chart.SeriesCollection.AddSeries();
+        series.Add(1.0);
+        series.AddBlank();
+        series.Add(3.0);
+        chart.HasDataLabel = type is ChartType.Pie2D or ChartType.PieExploded2D;
+
+        ShownText.On(Drawn.Page(chart)).Should().NotContain("NaN");
     }
 
     [Fact]
@@ -155,13 +218,13 @@ public class ValueAxisScaleTests
     /// </summary>
     /// <remarks>
     ///   Worth arranging by hand because of what it says about the other axis. The value axis
-    ///   renderer works out its scale before it asks whether the axis object exists, and only the
-    ///   labels, title and gridlines are inside that question - so a chart with no value axis is
-    ///   drawn correctly and merely goes unlabelled. The category axis renderer puts the
-    ///   equivalent call inside the question instead, which is why a chart with no category axis
-    ///   is not drawn at all but written to the page as NaN. See
-    ///   <c>ChartFrameTests.AChartWithNoXAxisDrawsItsColumnsNowhere</c>. One line apart, and the
-    ///   two renderers disagree about which side of it that line belongs on.
+    ///   renderer has always worked out its scale before it asks whether the axis object exists,
+    ///   with only the labels, title and gridlines inside that question - so a chart with no value
+    ///   axis is drawn correctly and merely goes unlabelled. The category axis renderer used to
+    ///   put the equivalent call inside the question instead, which is why a chart with no
+    ///   category axis was not drawn at all but written to the page as NaN. One line apart, and
+    ///   the two renderers disagreed about which side of it that line belonged on; they agree now.
+    ///   See <c>ChartFrameTests.AChartWithNoXAxisIsStillDrawnAgainstItsData</c>.
     /// </remarks>
     [Fact]
     public void AChartWithNoValueAxisObjectIsScaledAllTheSameAndMerelyGoesUnlabelled()

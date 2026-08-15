@@ -75,7 +75,7 @@ internal abstract class BarPlotAreaRenderer : PlotAreaRenderer
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
     XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaBox.IsEmpty)
+    if (HasNoRoom(plotAreaBox))
       return;
 
     XGraphics gfx = this.rendererParms.Graphics;
@@ -119,7 +119,7 @@ internal abstract class BarPlotAreaRenderer : PlotAreaRenderer
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
         // Do not draw bar if value is outside yMin/yMax range. Clipping does not make sense.
-        if (IsDataInside(yMin, yMax, column.point.value))
+        if (IsDataInside(yMin, yMax, column.Value))
           gfx.DrawRectangle(column.FillFormat, column.Rect);
       }
     }
@@ -131,7 +131,7 @@ internal abstract class BarPlotAreaRenderer : PlotAreaRenderer
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
         // Do not draw bar if value is outside yMin/yMax range. Clipping does not make sense.
-        if (IsDataInside(yMin, yMax, column.point.value))
+        if (IsDataInside(yMin, yMax, column.Value))
         {
           lineFormatRenderer = new LineFormatRenderer(gfx, column.LineFormat);
           lineFormatRenderer.DrawRectangle(column.Rect);

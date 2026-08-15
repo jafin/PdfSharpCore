@@ -61,7 +61,7 @@ internal abstract class ColumnPlotAreaRenderer : ColumnLikePlotAreaRenderer
     ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
     XRect plotAreaBox = cri.plotAreaRendererInfo.Rect;
-    if (plotAreaBox.IsEmpty)
+    if (HasNoRoom(plotAreaBox))
       return;
 
     XGraphics gfx = this.rendererParms.Graphics;
@@ -104,7 +104,7 @@ internal abstract class ColumnPlotAreaRenderer : ColumnLikePlotAreaRenderer
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
         // Do not draw column if value is outside yMin/yMax range. Clipping does not make sense.
-        if (IsDataInside(yMin, yMax, column.point.value))
+        if (IsDataInside(yMin, yMax, column.Value))
           gfx.DrawRectangle(column.FillFormat, column.Rect);
       }
     }
@@ -116,7 +116,7 @@ internal abstract class ColumnPlotAreaRenderer : ColumnLikePlotAreaRenderer
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
         // Do not draw column if value is outside yMin/yMax range. Clipping does not make sense.
-        if (IsDataInside(yMin, yMax, column.point.value) && column.LineFormat.Width > 0)
+        if (IsDataInside(yMin, yMax, column.Value) && column.LineFormat.Width > 0)
         {
           lineFormatRenderer = new LineFormatRenderer(gfx, column.LineFormat);
           lineFormatRenderer.DrawRectangle(column.Rect);

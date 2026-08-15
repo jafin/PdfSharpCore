@@ -65,22 +65,38 @@ internal abstract class AreaRendererInfo : RendererInfo
   }
 
   /// <summary>
-  /// Gets or sets the width of this rectangle.
+  /// Gets or sets the width of this rectangle. A width below zero is taken as no width.
   /// </summary>
   internal virtual double Width
   {
     get => this.rect.Width;
-    set => this.rect.Width = value;
+    set => this.rect.Width = NotBelowZero(value);
   }
 
   /// <summary>
-  /// Gets or sets the height of this rectangle.
+  /// Gets or sets the height of this rectangle. A height below zero is taken as no height.
   /// </summary>
   internal virtual double Height
   {
     get => this.rect.Height;
-    set => this.rect.Height = value;
+    set => this.rect.Height = NotBelowZero(value);
   }
+
+  /// <summary>
+  /// An extent, with anything below zero taken as nothing.
+  /// </summary>
+  /// <remarks>
+  /// Every layout here works by subtraction - the plot area is the frame less the axes, and an
+  /// axis is the frame less its labels and its title. A frame smaller than what its own axes
+  /// measured leaves a negative remainder, and XRect answers a negative extent by throwing, so
+  /// a chart drawn a little too small threw ArgumentException from three frames below the caller
+  /// and named a rectangle rather than the chart.
+  ///
+  /// Nothing was ever going to be drawn in that case. Both plot area renderers open by returning
+  /// when the plot area is empty, which reads as a decision already taken that a chart with no
+  /// room draws nothing; this is what lets them reach it.
+  /// </remarks>
+  protected static double NotBelowZero(double extent) => extent < 0 ? 0 : extent;
 
   /// <summary>
   /// Gets the area's size.
@@ -166,6 +182,21 @@ internal class PointRendererInfo : RendererInfo
 {
   internal Point point;
 
+  /// <summary>
+  /// The value this point plots, or NaN if there is nothing to plot.
+  /// </summary>
+  /// <remarks>
+  /// A series may hold a blank - that is what Series.AddBlank adds - and a blank is a null in the
+  /// element collection rather than a Point carrying a special value. Reading the value through
+  /// here rather than through <see cref="point"/> is what keeps a blank from being dereferenced.
+  ///
+  /// NaN, because a blank is already the same thing to a renderer as a point whose value is NaN:
+  /// there is nothing to draw and nothing to add to a total. Every comparison against NaN is
+  /// false, so a blank falls out of a range test on its own, and the IsNaN tests already written
+  /// against missing values now catch both kinds of missing.
+  /// </remarks>
+  internal double Value => this.point == null ? double.NaN : this.point.value;
+
   internal XPen LineFormat;
   internal XBrush FillFormat;
 }
@@ -236,8 +267,8 @@ internal class SeriesRendererInfo : RendererInfo
       double sum = 0;
       foreach (PointRendererInfo pri in this.pointRendererInfos)
       {
-        if (!double.IsNaN(pri.point.value))
-          sum += Math.Abs(pri.point.value);
+        if (!double.IsNaN(pri.Value))
+          sum += Math.Abs(pri.Value);
       }
       return sum;
     }
@@ -324,7 +355,7 @@ internal class AxisRendererInfo : AreaRendererInfo
     set
     {
       base.Height = value;
-      this.InnerRect.Height = value - (this.InnerRect.Y - this.Y);
+      this.InnerRect.Height = NotBelowZero(value - (this.InnerRect.Y - this.Y));
     }
   }
 
@@ -336,7 +367,7 @@ internal class AxisRendererInfo : AreaRendererInfo
     set
     {
       base.Width = value;
-      this.InnerRect.Width = value - this.LabelSize.Width / 2;
+      this.InnerRect.Width = NotBelowZero(value - this.LabelSize.Width / 2);
     }
   }
   internal XRect InnerRect;

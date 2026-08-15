@@ -319,7 +319,9 @@ internal class VerticalYAxisRenderer : YAxisRenderer
     {
       foreach (Point point in series.Elements)
       {
-        if (!double.IsNaN(point.value))
+        // Series.AddBlank puts a null here, which is the whole of what a blank is. The stacked
+        // renderers' overrides of this method already test for it.
+        if (point != null && !double.IsNaN(point.value))
         {
           yMin = Math.Min(yMin, point.Value);
           yMax = Math.Max(yMax, point.Value);

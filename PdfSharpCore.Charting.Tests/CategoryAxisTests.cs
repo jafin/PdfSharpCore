@@ -225,12 +225,12 @@ public class CategoryAxisTests
     }
 
     /// <summary>
-    ///   The same chart drawn as bars throws, because the vertical renderer reads the X value
-    ///   without testing it first. The two renderers are otherwise the same method, and this is
-    ///   the guard one of them is missing rather than a difference either was designed to have.
+    ///   And so does the same chart drawn as bars. The vertical renderer used to read the X value
+    ///   without testing it first - the two are otherwise the same method, and it was a guard one
+    ///   of them was missing rather than a difference either was designed to have.
     /// </summary>
     [Fact]
-    public void ABarChartThrowsOnACategoryWithNoValue()
+    public void ABarChartSkipsACategoryWithNoValue()
     {
         var chart = Charts.Empty(ChartType.Bar2D);
         var categories = chart.XValues.AddXSeries();
@@ -239,9 +239,32 @@ public class CategoryAxisTests
         categories.Add("C");
         chart.SeriesCollection.AddSeries().Add(1.0, 2.0, 3.0);
 
-        var drawing = () => Drawn.Page(chart);
+        var shown = ShownText.On(Drawn.Page(chart));
 
-        drawing.Should().Throw<NullReferenceException>();
+        shown.Should().Contain("A").And.Contain("C");
+    }
+
+    /// <summary>
+    ///   The blank keeps its place: the categories around it are still drawn beside their own
+    ///   bars, rather than closing up over the gap.
+    /// </summary>
+    [Fact]
+    public void ABlankCategoryStillTakesItsPlaceOnTheAxis()
+    {
+        var chart = Charts.Empty(ChartType.Bar2D);
+        var categories = chart.XValues.AddXSeries();
+        categories.Add("A");
+        categories.AddBlank();
+        categories.Add("C");
+        chart.SeriesCollection.AddSeries().Add(1.0, 2.0, 3.0);
+
+        var page = Drawn.Page(chart);
+        var labels = ShownText.RunsOn(page).Where(run => run.Text.Length == 1).ToList();
+        var bars = PaintedRectangles.FilledOn(page);
+
+        labels.Select(label => label.Text).Should().Equal("C", "A");
+        labels[0].Y.Should().BeInRange(bars[2].Y, bars[2].Top);
+        labels[1].Y.Should().BeInRange(bars[0].Y, bars[0].Top);
     }
 
     /// <summary>
@@ -261,15 +284,17 @@ public class CategoryAxisTests
     }
 
     [Fact]
-    public void ABarChartThrowsWhenThereAreFewerCategoriesThanValues()
+    public void ABarChartDrawsTheCategoriesItHasWhenThereAreFewerThanValues()
     {
         var chart = Charts.Empty(ChartType.Bar2D);
         chart.XValues.AddXSeries().Add("A", "B");
         chart.SeriesCollection.AddSeries().Add(1.0, 2.0, 3.0);
 
-        var drawing = () => Drawn.Page(chart);
+        var page = Drawn.Page(chart);
 
-        drawing.Should().Throw<ArgumentOutOfRangeException>();
+        ShownText.On(page).Should().Contain("A").And.Contain("B");
+        PaintedRectangles.FilledOn(page).Should().HaveCount(3,
+            "the third value is still plotted, it simply has no name");
     }
 
     /// <summary>

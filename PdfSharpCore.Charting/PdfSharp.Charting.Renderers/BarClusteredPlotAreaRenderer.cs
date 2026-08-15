@@ -80,11 +80,11 @@ internal class BarClusteredPlotAreaRenderer : BarPlotAreaRenderer
 
       foreach (ColumnRendererInfo column in sri.pointRendererInfos)
       {
-        if (column.point != null)
+        if (!double.IsNaN(column.Value))
         {
           double x0 = x - dx;
           double x1 = x - dx - columnWidth;
-          double y1 = column.point.Value;
+          double y1 = column.Value;
 
           // Draw from zero base line, if it exists.
           if (y0 < 0 && yMax >= 0)

@@ -104,36 +104,46 @@ public class AxisTitleTests
         ShownText.On(Drawn.Page(chart)).Should().Contain("Rotated");
     }
 
-    [Fact]
-    public void AligningARotatedCaptionToOneEndMovesIt()
+    /// <summary>
+    ///   Across the axis, a rotated caption does not move, and there is nowhere for it to move to:
+    ///   the strip the axis set aside for its title is exactly as wide as the title, because that
+    ///   is how much room the axis took from the plot area for it. All three alignments put the
+    ///   caption in the middle of that strip, which is the only place it fits.
+    /// </summary>
+    /// <remarks>
+    ///   Left used to come out elsewhere - it put the caption's centre on the strip's near edge,
+    ///   so half of it hung outside the space the layout had reserved. Landing where the other two
+    ///   land is the correction rather than a loss.
+    /// </remarks>
+    [Theory]
+    [InlineData(HorizontalAlignment.Left)]
+    [InlineData(HorizontalAlignment.Right)]
+    public void AligningARotatedCaptionAcrossTheAxisMovesItNowhere(HorizontalAlignment alignment)
     {
-        RotatedCaption(HorizontalAlignment.Left, VerticalAlignment.Center)
-            .Should().NotBe(RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center));
-
-        RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Top)
-            .Should().NotBe(RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center));
+        RotatedCaption(alignment, VerticalAlignment.Center)
+            .Should().Be(RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center));
     }
 
     /// <summary>
-    ///   Centring a rotated caption and pushing it to the far end put it in the same place. The
-    ///   two cases are written separately - <c>x + width / 2</c> against
-    ///   <c>x + width - layout.Width / 2</c> - but the layout rectangle a rotated title is drawn
-    ///   into is the title's own rectangle, so <c>layout.Width</c> is that same width and the
-    ///   second expression reduces to the first. The same holds of Center against Bottom. Only
-    ///   Left and Top come out anywhere else, and only because they subtract nothing.
+    ///   Each of the three vertical alignments puts a rotated caption somewhere of its own, which
+    ///   for a caption turned up the side of the chart is where along the axis it sits.
     /// </summary>
     /// <remarks>
-    ///   Recorded rather than endorsed. Two of the three alignments a caller can ask for do the
-    ///   same thing, and nothing but this says so.
+    ///   Centring it and pushing it to the bottom used to come to the same place. The two cases
+    ///   are written separately - <c>y + height / 2</c> against
+    ///   <c>y + height - layout.Height / 2</c> - but the layout rectangle was the strip the axis
+    ///   set aside rather than the caption itself, so the height being halved was the same height
+    ///   on both sides of the subtraction and the second expression reduced to the first. It is
+    ///   now the caption's own height, which is what those offsets were always measuring against.
     /// </remarks>
     [Fact]
-    public void CentringARotatedCaptionAndAligningItFarComeToTheSamePlace()
+    public void EachVerticalAlignmentPutsARotatedCaptionSomewhereOfItsOwn()
     {
-        RotatedCaption(HorizontalAlignment.Right, VerticalAlignment.Center)
-            .Should().Be(RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center));
+        var top = RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Top);
+        var centre = RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center);
+        var bottom = RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Bottom);
 
-        RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Bottom)
-            .Should().Be(RotatedCaption(HorizontalAlignment.Center, VerticalAlignment.Center));
+        new[] { top, centre, bottom }.Distinct().Should().HaveCount(3);
     }
 
     /// <summary>
@@ -157,9 +167,10 @@ public class AxisTitleTests
     ///   the same point.
     /// </summary>
     /// <remarks>
-    ///   Recorded rather than endorsed. A caller can move a value-axis caption up and down but not
-    ///   side to side, and nothing distinguishes the setting that works from the one that does
-    ///   not.
+    ///   A constraint rather than a defect, and the same one that holds of a rotated caption: the
+    ///   strip is its own width because that is how much room the axis took from the plot area for
+    ///   it. A caller can move a value-axis caption along its axis but not across it, and giving
+    ///   the setting somewhere to move to would mean reserving width the caption does not need.
     /// </remarks>
     [Theory]
     [InlineData(HorizontalAlignment.Left)]
@@ -171,24 +182,62 @@ public class AxisTitleTests
     }
 
     /// <summary>
-    ///   The category axis does not use this renderer at all. It draws its own caption inline, at
-    ///   the middle of the axis, and never looks at the alignment - so the alignment on a category
-    ///   axis title is not merely ineffective, as it is on a value axis title, but unread.
+    ///   The category axis reads both settings too. It used to draw its own caption inline and
+    ///   look at neither, so a caption there was written flat and in the middle whatever it was
+    ///   asked for - the two axes took different code paths to draw the same kind of object. It
+    ///   now hands the caption to this renderer as the value axis always has.
     /// </summary>
-    /// <remarks>
-    ///   Recorded rather than endorsed. The two axes take different code paths to draw the same
-    ///   kind of object, and only one of them can honour an orientation: a caption on the category
-    ///   axis is written flat whatever it was asked for.
-    /// </remarks>
     [Fact]
-    public void TheCategoryAxisDrawsItsOwnCaptionAndReadsNeitherAlignmentNorOrientation()
+    public void TheCategoryAxisReadsItsCaptionsAlignmentAndOrientationToo()
     {
         var plain = CategoryCaption(title => { });
         var aligned = CategoryCaption(title => title.Alignment = HorizontalAlignment.Right);
         var rotated = CategoryCaption(title => title.Orientation = 90);
 
-        aligned.Should().Be(plain);
-        rotated.Should().Be(plain);
+        aligned.Should().NotBe(plain);
+        rotated.Should().NotBe(plain);
+    }
+
+    /// <summary>
+    ///   And it aligns within the width of the axis, so the three alignments run left to right
+    ///   in the order they name.
+    /// </summary>
+    [Fact]
+    public void AligningACategoryAxisCaptionMovesItAlongTheAxis()
+    {
+        var left = CategoryCaption(title => title.Alignment = HorizontalAlignment.Left);
+        var centre = CategoryCaption(title => title.Alignment = HorizontalAlignment.Center);
+        var right = CategoryCaption(title => title.Alignment = HorizontalAlignment.Right);
+
+        left.X.Should().BeLessThan(centre.X);
+        centre.X.Should().BeLessThan(right.X);
+    }
+
+    /// <summary>
+    ///   A caption turned on its side reserves the room it takes turned, not the room it would
+    ///   have taken lying flat. A long caption is tall when it is rotated and short when it is
+    ///   not, so the plot area loses height to one and almost none to the other.
+    /// </summary>
+    /// <remarks>
+    ///   Both axes measure their title through <c>AxisTitleRenderer.Format</c>, which is the only
+    ///   place that accounts for the orientation. The category axis used to measure the string
+    ///   itself and so reserved the wrong extent for a rotated caption.
+    /// </remarks>
+    [Fact]
+    public void ARotatedCategoryAxisCaptionReservesTheRoomItTakesTurned()
+    {
+        var flat = Charts.Of(ChartType.Column2D, 1.0, 3.0);
+        flat.XAxis.Title.Caption = "A rather long caption";
+
+        var turned = Charts.Of(ChartType.Column2D, 1.0, 3.0);
+        turned.XAxis.Title.Caption = "A rather long caption";
+        turned.XAxis.Title.Orientation = 90;
+
+        var lyingDown = PaintedRectangles.FilledOn(Drawn.Page(flat))[0];
+        var standingUp = PaintedRectangles.FilledOn(Drawn.Page(turned))[0];
+
+        standingUp.Y.Should().BeGreaterThan(lyingDown.Y);
+        standingUp.Height.Should().BeLessThan(lyingDown.Height);
     }
 
     [Fact]

@@ -53,11 +53,18 @@ internal class HorizontalXAxisRenderer : XAxisRenderer
 
     AxisRendererInfo xari = new AxisRendererInfo();
     xari.axis = chart.xAxis;
+
+    // Outside the test below, as the Y axis renderers calculate their scale outside theirs. The
+    // scale is what the plot area divides its own width by, so a chart that was never asked for an
+    // Axis object - Chart.XAxis creates one on first read - would otherwise be laid out against a
+    // maximum of zero and drawn at infinite coordinates. What depends on the axis existing is the
+    // labelling, not the scale.
+    CalculateXAxisValues(chart, xari);
+
     if (xari.axis != null)
     {
       ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
 
-      CalculateXAxisValues(xari);
       InitTickLabels(xari, cri.DefaultFont);
       InitXValues(xari);
       InitAxisTitle(xari, cri.DefaultFont);
@@ -77,12 +84,17 @@ internal class HorizontalXAxisRenderer : XAxisRenderer
     {
       AxisTitleRendererInfo atri = xari.axisTitleRendererInfo;
 
-      // Calculate space used for axis title.
+      // Calculate space used for axis title, through the renderer that draws it rather than by
+      // measuring the string here. Measuring it here took no account of the title's orientation,
+      // so a caption turned on its side reserved the room it would have taken lying flat.
       XSize titleSize = new XSize(0, 0);
       if (atri != null && atri.AxisTitleText != null && atri.AxisTitleText.Length > 0)
       {
-        titleSize = this.rendererParms.Graphics.MeasureString(atri.AxisTitleText, atri.AxisTitleFont);
-        atri.AxisTitleSize = titleSize;
+        RendererParameters parms = new RendererParameters();
+        parms.Graphics = this.rendererParms.Graphics;
+        parms.RendererInfo = xari;
+        new AxisTitleRenderer(parms).Format();
+        titleSize = atri.AxisTitleSize;
       }
 
       // Calculate space used for tick labels.
@@ -207,13 +219,23 @@ internal class HorizontalXAxisRenderer : XAxisRenderer
       lineFormatRenderer.DrawLine(points[0], points[1]);
     }
 
-    // Draw axis title.
+    // Draw axis title, through the renderer written for it rather than by hand. Drawing it here
+    // meant an axis title on this axis honoured neither its alignment nor its orientation, both
+    // of which are settable and both of which the value axis has always honoured. It also meant
+    // the caption was centred on half the axis's right edge instead of on the middle of the axis,
+    // which is the same thing only when the axis starts at zero.
     AxisTitleRendererInfo atri = xari.axisTitleRendererInfo;
     if (atri != null && atri.AxisTitleText != null && atri.AxisTitleText.Length > 0)
     {
-      XRect rect = new XRect(xari.Rect.Right / 2 - atri.AxisTitleSize.Width / 2, xari.Rect.Bottom,
-        atri.AxisTitleSize.Width, 0);
-      gfx.DrawString(atri.AxisTitleText, atri.AxisTitleFont, atri.AxisTitleBrush, rect);
+      // The strip below the tick labels, the full width of the axis, so that an alignment has
+      // somewhere to move the caption to.
+      atri.Rect = new XRect(xari.Rect.Left, xari.Rect.Bottom - atri.AxisTitleSize.Height,
+        xari.Rect.Width, atri.AxisTitleSize.Height);
+
+      RendererParameters parms = new RendererParameters();
+      parms.Graphics = gfx;
+      parms.RendererInfo = xari;
+      new AxisTitleRenderer(parms).Draw();
     }
   }
 
@@ -221,10 +243,13 @@ internal class HorizontalXAxisRenderer : XAxisRenderer
   /// Calculates the X axis describing values like minimum/maximum scale, major/minor tick and
   /// major/minor tick mark width.
   /// </summary>
-  private void CalculateXAxisValues(AxisRendererInfo rendererInfo)
+  private void CalculateXAxisValues(Chart chart, AxisRendererInfo rendererInfo)
   {
+    // The chart is passed in rather than reached through rendererInfo.axis.parent, because this
+    // runs for a chart that has no axis to be reached through.
+    SeriesCollection seriesCollection = chart.seriesCollection;
+
     // Calculates the maximum number of data points over all series.
-    SeriesCollection seriesCollection = ((Chart)rendererInfo.axis.parent).seriesCollection;
     int count = 0;
     foreach (Series series in seriesCollection)
       count = Math.Max(count, series.Count);

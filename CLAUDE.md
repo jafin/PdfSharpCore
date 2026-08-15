@@ -70,13 +70,15 @@ own `/ToUnicode` map, so a test can assert `"0.0"` rather than a glyph number. L
 it references no backend: a chart draws lines, rectangles, wedges and strings, so of the three
 static seams it reads only `GlobalFontSettings.FontResolver`.
 
-**A chart under test must have both axes.** `Chart.XAxis` creates the axis on first read, and the
-category axis renderer only calculates its scale when the chart has one — leaving the maximum at
-zero, which the plot area then divides its own width by. The result is `NaN NaN NaN 200 re` written
-to the page. `Charts.Empty` reads both axes for that reason and explains why;
-`ChartFrameTests.AChartWithNoXAxisDrawsItsColumnsNowhere` pins the defect itself down. That and six
-more the tests turned up are in `docs/specs/charting-renderer-findings.md`, each recorded by a
-passing test whose remark says why the behaviour it asserts is wrong.
+Writing those tests turned up seven defects, all reachable through public API and all since fixed:
+`docs/specs/charting-renderer-findings.md` sets out each with the code, the fix and the test that
+pins it. Two are worth carrying in your head, because both were one renderer having a guard its
+twin lacked, and the pairs are still near-copies of each other. **The category axis renderers are
+copies of one another** — `HorizontalXAxisRenderer` and `VerticalXAxisRenderer`, and likewise the
+horizontal and vertical Y renderers — so a change to one nearly always belongs in the other.
+**A blank is a null**, both in a series (`Series.AddBlank`) and in a category series
+(`XSeries.AddBlank`); read a point's value through `PointRendererInfo.Value`, which answers `NaN`
+for one, rather than through `point.value`, which throws.
 
 `MigraDocCore.DocumentObjectModel.Tests` covers the DOM itself — `Unit`, page sizes, the chart
 object model, MDDDL reading and writing, and the flattening visitors. It references the DOM **and
