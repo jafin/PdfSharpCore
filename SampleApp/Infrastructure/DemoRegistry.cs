@@ -33,6 +33,7 @@ public static class DemoRegistry
         new PageResizeDemo(),
         new BleedDemo(),
         new AssembleDemo(),
+        new ImpositionDemo(),
         new ProtectDemo(),
         new FormsDemo(),
         new AnnotationsDemo(),

@@ -13,7 +13,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 |---|---|---|
 | 1 | `Charts` — the charting assembly, both routes into it | done, 4 pages |
 | 2 | `Assemble` — merge, split, reorder, import, prune, consolidate | done, 7 pages |
-| 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | not started |
+| 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | done, 5 pages |
 | 4 | `Vectors` — the eleven `Draw*` methods no demo calls | done, 4 pages |
 | 5 | `Barcodes` — the three linear codes and DataMatrix | done, 3 pages |
 | 6 | `Protect` — passwords, permissions, and reading one back | done, 2 pages |
