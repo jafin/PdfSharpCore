@@ -26,6 +26,7 @@ public static class DemoRegistry
         new UnicodeDemo(),
         new OrientationDemo(),
         new ImagesDemo(),
+        new ImageFailuresDemo(),
         new TextDemo(),
         new VectorsDemo(),
         new BarcodesDemo(),
