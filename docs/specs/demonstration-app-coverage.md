@@ -14,7 +14,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 1 | `Charts` — the charting assembly, both routes into it | done, 4 pages |
 | 2 | `Assemble` — merge, split, reorder, import, prune, consolidate | not started |
 | 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | not started |
-| 4 | `Vectors` — the twelve `Draw*` methods no demo calls | not started |
+| 4 | `Vectors` — the eleven `Draw*` methods no demo calls | done, 4 pages |
 | 5 | `Barcodes` — the three linear codes and DataMatrix | not started |
 | 6 | `Protect` — passwords, permissions, and reading one back | not started |
 | 7 | `Navigation` — page labels, viewer preferences, custom values | not started |
@@ -31,13 +31,16 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 18 | L4 — a chart draws its plot area at `NaN` unless an axis was read | done, 9 tests |
 | 19 | L5 — a combination chart prints its legend on top of itself | done, 2 tests |
 | 20 | L6 — a pie signs and scales its percentages twice | done, 7 tests |
+| 21 | L7 — three `XGraphicsPath` members collect geometry and drop it | done, 10 tests |
+| 22 | L8 — a pen made from a brush strokes with no alpha | done, 4 tests |
+| 23 | L9 — the miter limit is guarded by the line cap, and truncated | done, 4 tests |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
-*building* item 1 and looking at the page it drew — which is the demonstration app working exactly
-as `demonstration-app.md` argued it would. They are in this spec rather than in one of their own
-because finding them is what the app is for, and the same argument applies to all six: no exception,
-no warning, a property that reads back exactly as it was set, and a file that quietly does not
-contain what was asked for.
+*building* item 1 and looking at the page it drew, and items 21 to 23 the same way from item 4 —
+which is the demonstration app working exactly as `demonstration-app.md` argued it would. They are in
+this spec rather than in ones of their own because finding them is what the app is for, and the same
+argument applies to all nine: no exception, no warning, a property that reads back exactly as it was
+set, and a file that quietly does not contain what was asked for.
 
 Item 18 is the worst thing in this list. It is not a demonstration gap at all — **every column, bar,
 line and area chart this library has ever drawn came out empty** unless the caller happened to touch
@@ -173,7 +176,8 @@ says why), two source pages imposed 2-up, and a four-page booklet sheet.
 
 ## Item 4 — `Vectors`
 
-`XGraphics` has eighteen `Draw*` methods. The sixteen demos call five of them. Untouched:
+`XGraphics` has sixteen `Draw*` methods for shapes and paths. The demos before this one called five
+of them. Untouched:
 `DrawEllipse`, `DrawArc`, `DrawPie`, `DrawPolygon`, `DrawCurve`, `DrawClosedCurve`, `DrawBezier`,
 `DrawBeziers`, `DrawRoundedRectangle`, `DrawLines`, `DrawRectangles`. Also untouched:
 `XRadialGradientBrush`, `XPen`'s caps, joins, miter limit and custom dash patterns, `XFillMode`,
@@ -470,6 +474,75 @@ format a caller might reasonably write is now right, and the rule is one sentenc
 Worth knowing while in there, and pinned by a test: leaving `Format` alone is not the same as
 leaving it empty. `DataLabelRenderer` substitutes `"0"` for an unset format, so an untouched pie
 labels its slices in whole percents rather than to full precision.
+
+## Item 21 — L7, three `XGraphicsPath` members collect geometry and drop it
+
+```csharp
+public void AddPie(double x, double y, double width, double height, double startAngle, double sweepAngle)
+{
+    DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddPie");
+}
+```
+
+`AddClosedCurve` and `AddPath` were the same, and `DiagnosticsHelper`'s default behaviour is
+`DoNothing`. So a caller collected geometry into a path, read every property back exactly as it had
+been set, and drew a page with the shape missing.
+
+This is the identical defect `demonstration-app.md` records under `XGraphicsPath.AddString` — *"It
+did not throw — it reported through `DiagnosticsHelper` and drew nothing, so a title built that way
+silently disappeared"* — which that spec closed by implementing it. These three are closed the same
+way, and for the same reason: the alternative is a demo that has to avoid three members of a public
+class without saying why.
+
+All three had reference implementations sitting in the same repository. `XGraphicsPdfRenderer` draws
+a pie and a closed curve directly to the page, so `CoreGraphicsPath.AddPie` and `AddClosedCurve` are
+written to match those segment for segment — a shape collected into a path and the same shape drawn
+straight out have to agree, and a test pins that they do. `AddPath` appends the other path's points
+and types, turning its opening move into a line when the caller asks for the figures to be joined.
+
+Three tests in `XGraphicsPathTests` had to be rewritten rather than added:
+`APieIsNotImplementedAndQuietlyAddsNothing` and its two neighbours pinned the *broken* behaviour,
+with a note saying *"pinned so that the day it grows an implementation the change is visible here"*.
+That day is this one. The gap was known and written down; what was missing was somebody drawing a
+pie and noticing the page was blank.
+
+## Item 22 — L8, a pen made from a brush strokes with no alpha
+
+`XPen(XBrush, double)` sets `_brush` and never sets `_color`, so `pen.Color` is `XColor.Empty` —
+whose alpha is **zero**. `RealizePen` writes the pattern correctly and then reaches its last block:
+
+```csharp
+PdfExtGState extGState = _renderer.Owner.ExtGStateTable.GetExtGStateStroke(color.A, overPrint);
+```
+
+which sets the stroking alpha to nothing. The gradient was built, the pattern was named, the stroke
+was painted, and none of it could be seen.
+
+A solid brush had a second problem on the way in. `RealizeBrush` is called with a rendering mode of
+0, which means *fill*, so `XPen(new XSolidBrush(red))` set the **fill** colour and left the stroke at
+whatever the page had used last. A solid brush is a colour, so it is now turned into one and takes
+the ordinary stroke path; only a gradient goes to the pattern, and its transparency travels through
+the soft mask `RealizeBrush` installs rather than through a colour the pen never had.
+
+## Item 23 — L9, the miter limit is guarded by the line cap, and truncated
+
+```csharp
+if (_realizedLineCap == (int)XLineJoin.Miter)
+```
+
+The **cap** tested against a value of the **join** enum. It agreed with itself only because
+`XLineCap.Flat` and `XLineJoin.Miter` are both zero, so a pen that mitred its joins and rounded its
+ends never wrote its miter limit at all, and one with flat ends wrote it whatever its join was.
+
+Beside it, `(int)pen._miterLimit` truncated the limit on the way out and `!= 0` discarded anything
+below one. A limit is a ratio of the mitre's length to the pen's width; 1.5 is an ordinary value for
+it and became 1, which bevels every join that is not perfectly straight. It is written as a real now.
+
+Worth recording because it cost a first draft of `Vectors` an hour: the panel demonstrating this
+originally drew a chevron whose corner was about 146°, whose mitre therefore reached 1.05 times the
+pen width, and which no limit anyone would set could ever cut. The panel looked like a rendering
+defect and was a badly chosen angle. The corner is a narrow spike now, and the two limits beside it
+differ visibly.
 
 ## Item 17 — infrastructure, an optional password
 

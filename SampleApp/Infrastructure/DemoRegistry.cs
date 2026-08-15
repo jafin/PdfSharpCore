@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -26,6 +26,7 @@ public static class DemoRegistry
         new OrientationDemo(),
         new ImagesDemo(),
         new TextDemo(),
+        new VectorsDemo(),
         new LayoutDemo(),
         new TablesDemo(),
         new PageResizeDemo(),
