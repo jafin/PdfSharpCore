@@ -236,8 +236,12 @@ last deliberately: it is the least covered code and the most likely to need a go
 | 6 | `DocumentRenderer.previousListNumbers` | Trivial, but it is the last one and closes the count |
 
 Not in the list: `Borders.BorderEnumerator` (§1.3, an API decision), and the commented-out
-`Hashtable` in `MigraDoc.Rendering.UnitTest/TestLayout.cs:73`, which is dead text in a file that
-compiles nothing.
+`Hashtable` that used to sit in `MigraDocCore.Rendering/MigraDoc.Rendering.UnitTest/TestLayout.cs`.
+That folder was a test project of upstream MigraDoc's whose `.csproj` did not survive the port,
+which left five files being swallowed by the renderer's own source glob and four accidental public
+types shipping in the package. It has been deleted; what was worth keeping in it was promoted to
+`MigraDocCore.Rendering.Tests`, including `ParagraphIteratorTests`, which is what piece 5 above
+should be checked against.
 
 ---
 

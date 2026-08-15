@@ -7,6 +7,7 @@
   <Project Path="MigraDocCore.DocumentObjectModel.Generators/MigraDocCore.DocumentObjectModel.Generators.csproj" />
   <Project Path="MigraDocCore.DocumentObjectModel.Generators.Tests/MigraDocCore.DocumentObjectModel.Generators.Tests.csproj" />
   <Project Path="MigraDocCore.Rendering/MigraDocCore.Rendering.csproj" />
+  <Project Path="MigraDocCore.Rendering.Tests/MigraDocCore.Rendering.Tests.csproj" />
   <Project Path="PdfSharpCore.Charting/PdfSharpCore.Charting.csproj" />
   <Project Path="PdfSharpCore.ImageSharp/PdfSharpCore.ImageSharp.csproj" />
   <Project Path="PdfSharpCore.Skia/PdfSharpCore.Skia.csproj" />
