@@ -15,7 +15,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 2 | `Assemble` — merge, split, reorder, import, prune, consolidate | not started |
 | 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | not started |
 | 4 | `Vectors` — the eleven `Draw*` methods no demo calls | done, 4 pages |
-| 5 | `Barcodes` — the three linear codes and DataMatrix | not started |
+| 5 | `Barcodes` — the three linear codes and DataMatrix | done, 3 pages |
 | 6 | `Protect` — passwords, permissions, and reading one back | not started |
 | 7 | `Navigation` — page labels, viewer preferences, custom values | not started |
 | 8 | `Compress` — `PdfDocumentOptions`, measured in bytes | not started |
@@ -34,6 +34,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 21 | L7 — three `XGraphicsPath` members collect geometry and drop it | done, 10 tests |
 | 22 | L8 — a pen made from a brush strokes with no alpha | done, 4 tests |
 | 23 | L9 — the miter limit is guarded by the line cap, and truncated | done, 4 tests |
+| 24 | L10 — interleaved 2 of 5 checks nothing and fails at drawing time | done, 9 tests |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
 *building* item 1 and looking at the page it drew, and items 21 to 23 the same way from item 4 —
@@ -202,6 +203,29 @@ DataMatrix — encoder, Reed-Solomon, symbol sizing, the lot — reachable throu
 One page: each code type at a usable size, with its text, direction and anchor varied, plus the
 `CodeDirection` and `TextLocation` options that a caller would otherwise have to read the enum to
 find. See item 16 for the API defect this turned up.
+
+## Item 24 — L10, interleaved 2 of 5 checks nothing and fails at drawing time
+
+```csharp
+protected override void CheckCode(string text)
+{
+}
+```
+
+`CodeBase.Text`'s setter calls `CheckCode`, and every other code type uses it to refuse input its
+symbology cannot carry. This one accepted anything. Interleaved 2 of 5 encodes two digits per five
+bars, so a code has to be digits and there has to be an even number of them; give it neither and
+`RenderNextPair` fails at *drawing* time with an `IndexOutOfRangeException` for the odd length or a
+`FormatException` for the non-digit — neither of which names the code, the rule, or the line that
+set it.
+
+The message it should have been raising already existed. `BcgSR.Invalid2Of5Code` reads *"'{0}' is not
+a valid code for an interleave 2 of 5 bar code. It can only represent an even number of digits."*, is
+written out in full beside `Invalid3Of9Code`, and was called from nowhere at all. The check is now
+written and calls it, matching `Code3of9Standard` exactly.
+
+An empty code stays legal: it is what the parameterless constructor sets, and the renderer already
+refuses it as an unset code rather than an invalid one.
 
 ## Item 6 — `Protect`
 
