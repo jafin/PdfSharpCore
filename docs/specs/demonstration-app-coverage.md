@@ -24,7 +24,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 11 | `Structure` — MigraDoc's TOC, bookmarks, sections, lists | done, 5 pages |
 | 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | done, 4 pages |
 | 13 | `Images` extended — alpha and interpolation; see the note | mostly done |
-| 14 | L1 — MigraDoc drops a `Footnote` silently | done, 3 tests |
+| 14 | L1 — MigraDoc drops a `Footnote` silently | superseded: footnotes render, item 34 |
 | 15 | L2 — MigraDoc drops a `Barcode` shape silently | done, 3 tests |
 | 16 | L3 — `BarCode.FromType` reaches two of the four code types | done, 7 tests |
 | 17 | Infrastructure — an optional password, so item 6 can be real | done |
@@ -44,6 +44,8 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 31 | L15 — an image of no pixels measures to `NaN` and reports nothing | done, 8 tests |
 | 32 | The prose samples under `docs/` point at the demos | done, 24 pages |
 | 33 | A spec for MigraDoc footnote rendering | done, `migradoc-footnotes.md` |
+| 34 | MigraDoc footnote rendering, built to that spec | done, 24 tests |
+| 35 | `Footnotes` — the demo for it | done, 6 pages |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
 *building* item 1 and looking at the page it drew, items 21 to 23 the same way from item 4, item 30
@@ -57,6 +59,12 @@ Items 28 to 33 were done in a second pass, after the first was reviewed. Four of
 and 32 — were open questions at the end of the first pass rather than gaps, because each was a
 decision about the library's behaviour or its documentation rather than about its demonstrations.
 They were put to whoever owns that call and are recorded here as taken.
+
+Items 34 and 35 are the third pass, and they close item 14 rather than adding to it. Footnote
+layout was written to the spec item 33 produced, with its three open choices settled first: a note
+is never split across a page break, a note outside a section's own paragraphs is refused, and both
+`FootnoteLocation` values are implemented. `migradoc-footnotes.md` records each decision beside the
+item it settles.
 
 Item 18 is the worst thing in this list. It is not a demonstration gap at all — **every column, bar,
 line and area chart this library has ever drawn came out empty** unless the caller happened to touch
@@ -587,13 +595,17 @@ A caller writes `paragraph.AddFootnote("…")`, reads the property back, and get
 footnote and no error.
 
 Implementing footnote layout — reserving the area, numbering, splitting the note across a page break
-— is a feature, not a fix, and is out of scope here. What is in scope is that it stops being silent.
-`FormatElement` gets an explicit `case "Footnote":` that throws a `NotSupportedException` naming the
-gap. Tests go in `MigraDocCore.Rendering.Tests`, which is where MigraDoc layout is covered and which
-rasterizes nothing.
+— was a feature rather than a fix and was out of scope here. What was in scope was that it stopped
+being silent: `FormatElement` got an explicit `case "Footnote":` that threw a
+`NotSupportedException` naming the gap.
 
-This is a **breaking** change in the same sense as `page-resize.md` item 3: code that today produces
-a silently wrong document will throw. That is the point.
+**That throw is gone, because footnotes render now.** See item 34. What remains of this item is the
+argument it made: making the gap audible is what turned a silent wrong answer into a decision
+somebody could take, and the decision taken was to close it. The three tests that pinned the refusal
+became the twenty-four that pin the feature.
+
+The refusal it introduced still exists for the one case footnotes are *not* implemented for - a note
+in a table cell, a text frame or a header - which is item 8 of `migradoc-footnotes.md`.
 
 ## Item 15 — L2, MigraDoc drops a `Barcode` shape silently
 
@@ -855,7 +867,10 @@ does today with the three combined layouts.
 - **No MigraDoc barcode renderer.** Item 15 makes the gap audible and item 33 deliberately leaves it
   out of the footnote spec. It wants a spec of its own, and is much the smaller of the two: a shape
   renderer mapping the DOM `Barcode` onto `PdfSharpCore.Drawing.BarCodes`, with no layout problem in
-  it at all.
+  it at all. It is now the only element the DOM can hold and this renderer refuses.
+- **Footnotes are not split across a page break, and are refused outside a section's own
+  paragraphs.** Items 6 and 8 of `migradoc-footnotes.md`, both deferred by decision rather than by
+  oversight, both recorded there with what it costs.
 - **`ImageFailure.FileNotFound` is left in the enum, unreachable.** Nothing assigns it. Removing a
   public enum value would break callers switching on it, for no gain; item 28 says so on the page
   instead.

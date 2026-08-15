@@ -7,20 +7,25 @@ did not appear, with nothing thrown and nothing logged. It now throws a descript
 `NotSupportedException` (see `demonstration-app-coverage.md`, item 19), which makes the gap audible
 but does not close it. This spec is the plan for closing it.
 
-Nothing here is built yet. Status is tracked in the table below.
+Built. Status is tracked in the table below; the three items with a choice in them were settled by
+whoever owns that call before the work started, and the choice taken is recorded under each.
 
 | item | what | status |
 |---|---|---|
-| 1 | `FormattedFootnote` — format a note's block content into a column | not started |
-| 2 | Reference marks — measure and draw the superscript in the body text | not started |
-| 3 | Area reservation — shrink the page's content area by the notes it collects | not started |
-| 4 | Numbering — the four `Document` properties that decide the mark | not started |
-| 5 | The separator rule above the note block | not started |
-| 6 | Notes that do not fit — carrying a note onto the next page | not started |
-| 7 | `FootnoteLocation.BeneathText` | not started |
-| 8 | Notes inside a table cell, a text frame or a header | not started |
-| 9 | Tests | not started |
-| 10 | A `Footnotes` panel in the demonstration app | not started |
+| 1 | `FormattedFootnote` — format a note's block content into a column | done |
+| 2 | Reference marks — measure and draw the superscript in the body text | done |
+| 3 | Area reservation — shrink the page's content area by the notes it collects | done, single pass |
+| 4 | Numbering — the four `Document` properties that decide the mark | done |
+| 5 | The separator rule above the note block | done |
+| 6 | Notes that do not fit — carrying a note onto the next page | **not split**, by decision |
+| 7 | `FootnoteLocation.BeneathText` | done, both values |
+| 8 | Notes inside a table cell, a text frame or a header | **refused**, by decision |
+| 9 | Tests | done, 24 |
+| 10 | A `Footnotes` panel in the demonstration app | done, 6 pages |
+
+**The fixed point turned out not to be needed.** The design below argued that reserving room for
+footnotes was a fixed point wanting an iterative solve, and it is not. See "How it was actually
+done" for what replaced it — a single pass, and a much smaller change than this spec expected.
 
 ---
 
@@ -70,6 +75,38 @@ stop and accept a slightly under-filled page rather than to loop.
 
 This is the single largest piece of work in the spec, and item 3 is where it lives.
 
+## How it was actually done — and why the fixed point was not needed
+
+The argument above is correct about the circularity and wrong about what it costs to break.
+
+The notes go at the **foot** of the page. Content already placed *above* the mark cannot be affected
+by reserving room below it — it fits either way. So the reservation does not have to be made before
+the page is started; it only has to be made before the element carrying the mark is laid out. At
+that moment the notes on the element are known, because they are its own children.
+
+`TopDownFormatter` therefore does one new thing, immediately before formatting each element:
+
+```csharp
+area = area.Shorten(ReserveFootnotes(docObj, area));
+```
+
+`Area.Shorten` is the other half of the existing `Area.Lower`: `Lower` moves the top and leaves the
+bottom, `Shorten` raises the bottom and leaves the top. The element then sees the room that is
+really left, and breaks the page where it should.
+
+Nothing has to be undone when an element does not fit. The shortened area is discarded along with
+the page, the element is formatted again on the next one, and its notes are registered against that
+page instead — `FootnoteRegistry.Place` is keyed by the `Footnote` object, so registering it again
+moves it rather than adding it twice. **That is what makes one pass enough.**
+
+The reservation is computed from *every* note on the page rather than from the ones just found, so
+the separator band is counted once however many notes there are, and re-formatting charges nothing
+twice. It is clamped at zero, because notes only ever join the page currently being filled.
+
+Cost: one `Area` method, one interface, one registry, one `IAreaProvider`, and about ten lines in
+`TopDownFormatter`. No iteration, no bound, no oscillation, and no risk of the loop that item 3
+warned about.
+
 ## Item 1 — `FormattedFootnote`
 
 Model it on `FormattedTextArea`, which is the existing example of "format a `DocumentElements` into
@@ -89,8 +126,18 @@ Two differences from `FormattedTextArea`:
 
 - The width is the column width of the page, not an inherent width — a note is as wide as the text
   it belongs to.
-- The first paragraph must be indented by the width of the reference mark, and the mark drawn into
-  that indent. `FormattedTextArea` has no equivalent.
+- The note is laid out into a column narrower than the page's by the width of the mark, and shifted
+  right by that much when it is drawn. `FormattedTextArea` has no equivalent.
+
+  That gives a **hanging** indent rather than a first-line one: the mark stands in the margin and
+  every line of the note lines up under the first. It is how a footnote has looked since long before
+  anyone typeset one with a computer, and - more to the point - it is the only arrangement in which
+  the mark and the text beside it cannot collide. Measuring the gutter from the mark rather than
+  fixing it is what keeps a long mark (`viii`, or a dagger the caller set as the `Reference`) off
+  the first word.
+
+  It also avoids mutating the caller's document: setting `FirstLineIndent` on the note's own first
+  paragraph would change what they read back out of their own object model.
 
 The `Style` on the `Footnote` and `StyleNames.Footnote` supply the formatting; the resolution order
 is the one `Paragraph` already uses (explicit `Format` over `Style` over `Normal`).
@@ -144,8 +191,22 @@ alphabetic conversion can be shared rather than written twice.
   reformatting changes its own number, so numbering must be assigned *after* the fixed point in
   item 3 settles, not during formatting.
 
-That ordering constraint is the one genuinely subtle thing in this item and is worth a test of its
-own.
+That ordering constraint dissolved along with the fixed point. `FootnoteRegistry` stores the page a
+note was placed on and works the mark out **on demand**, so during formatting the answer is
+provisional - it names the page currently being filled - and if the element carrying the mark moves,
+it is formatted again on the next page and the answer moves with it. Nothing has to be numbered
+"after layout settles", because nothing is stored.
+
+Two things worth knowing came out of building it:
+
+- **The default rule is `RestartPage`,** because it is the enum's first value. A caller who sets
+  nothing gets notes numbered from one on every page, which is rarely what anybody means. Pinned by
+  a test named for it, and said out loud on the demo's page.
+- **A note the caller marked themselves is left out of the counting.** Letting a `Reference` advance
+  the sequence would make the numbers around it skip for a reason no reader could see.
+
+`FootnoteStartingNumber` defaults to zero, which is the property's unset value rather than a request
+to begin at zero; anything below one starts at one.
 
 ## Item 5 — the separator
 
@@ -153,9 +214,12 @@ A short horizontal rule above the note block, conventionally about a third of th
 and LaTeX both draw one and readers expect it. Draw it in the note-block render pass, not as part of
 any note.
 
-There is no DOM property for it, and none should be added in this work — a fixed rule of one third
-the column width at hairline weight matches what MigraDoc's own documentation shows. If it later
-needs to be configurable, that is a separate change to the DOM with its own DDL serialization.
+There is no DOM property for it and none was added — a fixed rule of one third the column width at
+hairline weight matches what MigraDoc's own documentation shows. If it later needs to be
+configurable, that is a separate change to the DOM with its own DDL serialization.
+
+Built as an 11pt band with the rule 6pt into it, drawn once per page by `FootnoteRenderer` rather
+than once per note. Counting it once is what `FormattedDocument.FootnoteBlockHeight` is for.
 
 ## Item 6 — notes that do not fit
 
@@ -167,10 +231,16 @@ across areas — that is `NeedsEndingOnNextArea` and the `previousFormatInfo` ar
 The interaction with item 3 is where the care goes: a note that splits contributes only its first
 part's height to this page's reservation.
 
-**This item may reasonably be deferred.** A first implementation that refuses to split, and instead
-moves the whole note to the next page when it does not fit, is correct for the overwhelming majority
-of footnotes (which are one or two lines) and much simpler. If it is deferred, it should be deferred
-loudly — a note too tall for a whole page is otherwise an infinite loop.
+**Deferred, by decision.** A note is never split: it is laid out whole, and the room for it comes
+off the page carrying its mark. That is correct for the overwhelming majority of footnotes, which
+are one or two lines, and it is much simpler.
+
+What this costs is the pathological case the paragraph above warned about. A note taller than the
+whole text area cannot fit on any page, and the reservation for it would shorten every page to
+nothing. In practice the formatter still terminates — the reservation is taken off the area the
+element is laid out in, and an element that cannot fit an area is placed anyway rather than looped
+over — so the symptom is an overfull page rather than a hang. A note that long is a section, not a
+footnote.
 
 ## Item 7 — `FootnoteLocation.BeneathText`
 
@@ -178,7 +248,22 @@ The enum has two values and item 3 implements one of them. `BeneathText` puts th
 after the text block rather than at the foot of the page, which is a different and simpler layout: no
 fixed point is needed, because the note goes wherever the text ended.
 
-Worth doing second, once `BottomOfPage` works, so that the shared parts are already factored.
+**Both are implemented.** They share the whole of the reservation - `BeneathText` has to reserve
+exactly as much room, or a full page would overflow - and differ only in where the block is drawn.
+`DocumentRenderer.RenderFootnotes` picks the top:
+
+```csharp
+XUnit top = content.Y + content.Height - height;          // BottomOfPage
+if (document.FootnoteLocation == FootnoteLocation.BeneathText)
+{
+    XUnit afterText = formattedDocument.BottomOfContentOn(page);
+    if (afterText > 0 && afterText < top)
+        top = afterText;
+}
+```
+
+The guard is what makes them agree on a full page: `BeneathText` never pushes the block *lower*
+than `BottomOfPage` would, so it cannot run past the bottom margin.
 
 ## Item 8 — notes in nested contexts
 
@@ -186,13 +271,21 @@ A footnote can be added to any paragraph, including one inside a table cell, a t
 header. Each of those formats through its own `IAreaProvider` (`FormattedCell`,
 `FormattedTextFrame`, `FormattedHeaderFooter`), none of which owns a page.
 
-The note must still surface at the foot of the *page*, so the collection mechanism from item 3 has
-to reach up out of the nested provider. The alternative — refusing a footnote in those contexts with
-a clear message — is defensible for a first implementation and is what should ship if item 8 is cut,
-because silently dropping the note is exactly the behaviour this whole spec exists to remove.
+**Refused, by decision.** `IFootnoteAreaProvider` is implemented by `FormattedDocument` and by
+nothing else, and `TopDownFormatter` throws a `NotSupportedException` naming the way out when an
+element carries a note and its provider is not one:
 
-A footnote in a header or footer should be refused outright in any case. It has no sensible meaning:
-the header is formatted once per position and reused across pages.
+> A footnote can only be attached to a paragraph that is laid out on a page. This one is inside a
+> table cell, a text frame, a header or footer, or another footnote, none of which owns the page its
+> note would have to appear at the foot of. Move the footnote to a paragraph in the section itself,
+> or put its text where it stands.
+
+That covers cells, text frames, headers, footers and notes nested inside notes, in one place and by
+construction rather than by five separate checks. It is the behaviour this whole spec exists to
+produce: the note is not dropped in silence.
+
+A footnote in a header or footer would be refused in any case, decision or no. It has no sensible
+meaning - the header is formatted once per position and reused across every page it applies to.
 
 ## Item 9 — tests
 
@@ -200,7 +293,7 @@ the header is formatted once per position and reused across pages.
 rasterizes nothing, which is right for this. The content-stream readers it links out of
 `PdfSharpCore.Test/Helpers` are how the assertions get at what was drawn.
 
-What is worth pinning:
+Twenty-four of them, all passing. What they pin:
 
 - A one-line note appears at the foot of the page, below the body text and above the footer.
 - The body text is shorter on a page carrying notes than on one that is not — the reservation
@@ -212,15 +305,24 @@ What is worth pinning:
 - Two notes on one page come out in reading order.
 - A note whose mark is pushed to the next page by the reservation ends up on that page too, and the
   formatter terminates.
-- Whatever item 8 settles on: either the note surfaces from a table cell, or the refusal is thrown.
+- Item 8's refusal, from a table cell and from a header.
+- That the block stays inside the bottom margin, which is the assertion that would catch a
+  reservation that under-counts.
+- That a page with no note on it draws no separator - the guard on every test that looks for one.
 
 ## Item 10 — the demonstration app
 
 A `Footnotes` demo, in the curriculum after `Structure`. `demonstration-app.md` argues that a demo
 that is never looked at is a demo that proves nothing, and every defect in
 `demonstration-app-coverage.md` was found by drawing a page and looking at it — which is exactly the
-check this feature most needs. The panel should show a numbered note, a custom-reference note, the
-five number styles, and a page where the reservation visibly shortens the body text.
+check this feature most needed. It found two: the mark drawn over the note's own first word before
+the hanging indent existed, and the mark sitting on the note's baseline rather than raised off it.
+
+Six pages: what a footnote is (five notes, one of them two paragraphs and one of them starred), the
+five number styles, and the two locations shown **side by side** - the same short page laid out
+each way. The second is a one-page document of its own, saved to a `MemoryStream`, reopened and its
+page inserted, because `FootnoteLocation` belongs to the document and is read as each page is drawn,
+so one document cannot show both.
 
 ## Deliberately not done
 
@@ -229,6 +331,28 @@ five number styles, and a page where the reservation visibly shortens the body t
 - **A configurable separator.** See item 5.
 - **Footnotes referenced more than once.** A DOM `Footnote` is one object in one place; sharing one
   mark between two call sites is not expressible and should not become expressible here.
+- **Splitting a long note across a page break.** Item 6, deferred by decision.
+- **Notes in a table cell, a text frame, a header or another note.** Item 8, refused by decision.
+- **Spacing between notes.** Whatever `StyleNames.Footnote` says, and nothing added on top. A gap a
+  caller did not ask for and cannot see in their own styles is a surprise; `SpaceAfter` on that
+  style is where it belongs.
+
+## What building it changed outside the footnote files
+
+Small, and worth knowing about:
+
+- **`Area.Shorten`** — new abstract member, implemented by `Rectangle` and `ObstructedArea`. The
+  counterpart of `Area.Lower`. Nothing else calls it yet.
+- **`TopDownFormatter`** — one line in the formatting loop and one small method beside it. That
+  method is where item 8's refusal lives, so the loop itself gained no branch for footnotes.
+- **`ParagraphRenderer`** — a `case "Footnote"` in each of `FormatElement` and `RenderElement`,
+  replacing the throw that item 14 of `demonstration-app-coverage.md` put there, and three small
+  members to measure and place the mark.
+- **`DocumentRenderer`** — a `FootnoteRegistry`, reset in `PrepareDocument`, and a
+  `RenderFootnotes` call at the end of `RenderPage`'s content branch.
+
+No public API was added anywhere. Every type this work introduced is `internal`, and every property
+a caller needs was already shipped on `Document` and `Footnote`.
 
 ## Relationship to the barcode gap
 
