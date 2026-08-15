@@ -16,7 +16,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 3 | `Imposition` — `XForm`, `XPdfForm`, watermark, 2-up, booklet | not started |
 | 4 | `Vectors` — the eleven `Draw*` methods no demo calls | done, 4 pages |
 | 5 | `Barcodes` — the three linear codes and DataMatrix | done, 3 pages |
-| 6 | `Protect` — passwords, permissions, and reading one back | not started |
+| 6 | `Protect` — passwords, permissions, and reading one back | done, 2 pages |
 | 7 | `Navigation` — page labels, viewer preferences, custom values | not started |
 | 8 | `Compress` — `PdfDocumentOptions`, measured in bytes | not started |
 | 9 | `Inspect` — reading back the content stream that was written | not started |
@@ -35,6 +35,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 22 | L8 — a pen made from a brush strokes with no alpha | done, 4 tests |
 | 23 | L9 — the miter limit is guarded by the line cap, and truncated | done, 4 tests |
 | 24 | L10 — interleaved 2 of 5 checks nothing and fails at drawing time | done, 9 tests |
+| 25 | L11 — `HasOwnerPermissions` is a constant `true` | done, 7 tests |
 
 Items 14 to 16 are defects found while surveying for the rest. Items 18 to 20 were found by
 *building* item 1 and looking at the page it drew, and items 21 to 23 the same way from item 4 —
@@ -62,7 +63,7 @@ demonstration of any kind, found by walking the assemblies rather than the docum
   PdfSharpCore.Charting, 8 chart types         nothing
   MigraDoc Chart + ChartMapper                 nothing
   Drawing.BarCodes, 3 linear + DataMatrix      nothing
-  Pdf.Security, RC4 40/128, AES, 8 permissions nothing
+  Pdf.Security, RC4 40/128, 8 permissions      nothing
   ImportPage/DuplicatePage/MovePage/PlacePage  nothing
   PruneUnusedResources, ConsolidateImages      nothing
   XForm, XPdfForm                              nothing
@@ -227,10 +228,34 @@ written and calls it, matching `Code3of9Standard` exactly.
 An empty code stays legal: it is what the parameterless constructor sets, and the renderer already
 refuses it as an unset code rather than an invalid one.
 
+## Item 25 — L11, `HasOwnerPermissions` is a constant `true`
+
+```csharp
+public bool HasOwnerPermissions => _hasOwnerPermissions;
+internal bool _hasOwnerPermissions = true;
+```
+
+Those two lines are the whole of it. `_hasOwnerPermissions` is initialised to `true` and assigned
+**nowhere in the library**, so the property answered "yes, this caller has owner rights" for every
+document however it had been opened — including one opened with the user password, which is the only
+case anybody would ever ask about.
+
+The answer was already being computed. `PdfStandardSecurityHandler.ValidatePassword` returns
+`PasswordValidity.OwnerPassword` or `PasswordValidity.UserPassword`, and `PdfReader` used that
+result to refuse a `Modify` open and then dropped it on the floor. Recording it is one line.
+
+A caller reading this to decide whether they may lift a restriction was told yes every time. Nothing
+in the library acts on the property itself, so nothing misbehaved — which is exactly why it survived:
+the only way to notice is to print it, and the `Protect` demo's second page prints it under both
+passwords side by side.
+
+Two cases stay `true` and are pinned by tests: a document being created, whose creator is its owner,
+and a document that was never encrypted, where there is nothing to be shut out of.
+
 ## Item 6 — `Protect`
 
-`PdfSecuritySettings` offers user and owner passwords, `PdfDocumentSecurityLevel` selecting RC4 40,
-RC4 128 or AES, and eight independent permission flags — print, modify, extract, annotate, fill
+`PdfSecuritySettings` offers user and owner passwords, `PdfDocumentSecurityLevel` selecting RC4 40
+or RC4 128, and eight independent permission flags — print, modify, extract, annotate, fill
 forms, accessibility extract, assemble, full-quality print. `PdfReader.Open` takes a password and
 `XPdfForm.FromStream` takes one too. There is no demonstration of any of it, and `Security/` in the
 test project is the only place a caller can see the API used.
