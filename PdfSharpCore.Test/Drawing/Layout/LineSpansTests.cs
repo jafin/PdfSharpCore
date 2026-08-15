@@ -208,6 +208,39 @@ public class LineSpansTests
         scan.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    public static TheoryData<double> NotRealNumbers => new TheoryData<double>
+    {
+        double.NaN,
+        double.PositiveInfinity,
+        double.NegativeInfinity,
+    };
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ALineThatDoesNotRunBetweenRealCoordinatesIsRefused(double value)
+    {
+        // Named here rather than left to the interval the line becomes, so the message points at
+        // the argument the caller passed. NaN reaches this at all because it passes the ordering
+        // test above: every comparison against NaN is false.
+        var fromLeft = () => LineSpans.TryWidestFree(value, Right, new List<(double, double)>(),
+            Tolerance, out _, out _);
+        var fromRight = () => LineSpans.TryWidestFree(Left, value, new List<(double, double)>(),
+            Tolerance, out _, out _);
+
+        fromLeft.Should().Throw<ArgumentOutOfRangeException>();
+        fromRight.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void AToleranceThatIsNotARealWidthIsRefused(double value)
+    {
+        var scan = () => LineSpans.TryWidestFree(Left, Right, new List<(double, double)>(),
+            value, out _, out _);
+
+        scan.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
     [Fact]
     public void ANegativeToleranceIsRefused()
     {

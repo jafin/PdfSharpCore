@@ -105,6 +105,16 @@ public class FormatterObstacleTests
         return glyphs;
     }
 
+    /// <summary>
+    ///   How many glyphs the given run carries. The formatter draws a line at a time, so run 0 of a
+    ///   page with a drop cap is the cap and run 1 is the first line of body text.
+    /// </summary>
+    static int GlyphsOnLine(PdfPage page, int index)
+    {
+        // Two bytes per glyph: the fonts are embedded as Identity-H.
+        return TextOperators.ShownStrings(page)[index].Length / 2;
+    }
+
     /// <summary>An obstacle standing in the top of the block, in the block's own coordinates.</summary>
     static RectangleObstacle Standing(double x, double width, double padding = 0)
     {
@@ -258,17 +268,21 @@ public class FormatterObstacleTests
     [Fact]
     public void ACapAndAnObstacleNarrowTheSameLineTogether()
     {
-        var page = Render(arrange: f =>
+        // Both reservations have to land on one line, so the test has to fail if either is
+        // missing. The cap is checked by where the line starts and the obstacle by how much fits
+        // on it — asserting only the first would pass on a formatter that ignored the second.
+        var capOnly = Render(arrange: f => f.DropCap = new XDropCap(new XFont("Arial", 12), 3));
+        var both = Render(arrange: f =>
         {
             f.DropCap = new XDropCap(new XFont("Arial", 12), 3);
             f.Obstacles.Add(Standing(240, 60));
         });
 
-        // The cap is the first thing drawn; the body lines follow.
-        var lines = LinesOf(page, skip: 1);
+        // The cap is the first run drawn on either page; the body lines follow it.
+        LinesOf(both, skip: 1)[0].X.Should().BeGreaterThan(Block.X + 10, "the cap moved it right");
 
-        lines[0].X.Should().BeGreaterThan(Block.X + 10, "the cap moved it right");
-        GlyphsOn(page).Should().NotBeEmpty();
+        GlyphsOnLine(both, 1).Should().BeLessThan(GlyphsOnLine(capOnly, 1),
+            "and the obstacle took the right-hand end of the same line");
     }
 
     [Fact]
@@ -322,6 +336,17 @@ public class FormatterObstacleTests
 
         draw.Should().Throw<InvalidOperationException>()
             .WithMessage("*Rotation*");
+    }
+
+    [Fact]
+    public void AGapInTheObstacleListIsRefused()
+    {
+        // Skipping it instead would drop an obstacle without saying so, and the page would look
+        // deliberate with text running over the thing it was given to avoid. Refused whether or
+        // not the text is rotated, so the rotation check below can trust the count it reads.
+        var draw = () => Render(arrange: f => f.Obstacles.Add(null));
+
+        draw.Should().Throw<InvalidOperationException>().WithMessage("*Obstacles[0]*");
     }
 
     [Fact]

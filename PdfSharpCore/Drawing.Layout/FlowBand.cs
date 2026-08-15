@@ -30,6 +30,21 @@ public readonly struct FlowBand : IEquatable<FlowBand>
     /// </exception>
     public FlowBand(double top, double bottom)
     {
+        // Before the ordering test: NaN passes it, since every comparison against NaN is false.
+        // A band with a NaN edge then overlaps nothing at all - <see cref="Overlaps"/> answers
+        // false for every obstacle - so the line is measured as though the page were empty.
+        if (!double.IsFinite(top))
+        {
+            throw new ArgumentOutOfRangeException(nameof(top), top,
+                "A band has to start at a real depth.");
+        }
+
+        if (!double.IsFinite(bottom))
+        {
+            throw new ArgumentOutOfRangeException(nameof(bottom), bottom,
+                "A band has to end at a real depth.");
+        }
+
         if (bottom < top)
         {
             throw new ArgumentOutOfRangeException(nameof(bottom), bottom,

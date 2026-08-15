@@ -86,6 +86,22 @@ public static class LineSpans
         // for it - but it cannot end to the left of where it began. Left unchecked the scan walks
         // a negative line and reports no room, which is the right answer arrived at by accident
         // and hides the caller's mistake.
+        // Ahead of the ordering and sign tests below, all of which NaN passes: every comparison
+        // against it is false. Named here rather than left to the interval the line is turned
+        // into, so the message points at the argument the caller actually passed.
+        if (!double.IsFinite(left) || !double.IsFinite(right))
+        {
+            throw new ArgumentOutOfRangeException(!double.IsFinite(left) ? nameof(left) : nameof(right),
+                !double.IsFinite(left) ? left : right,
+                "A line has to run between real coordinates.");
+        }
+
+        if (!double.IsFinite(tolerance))
+        {
+            throw new ArgumentOutOfRangeException(nameof(tolerance), tolerance,
+                "The tolerance has to be a real width.");
+        }
+
         if (right < left)
         {
             throw new ArgumentOutOfRangeException(nameof(right), right,

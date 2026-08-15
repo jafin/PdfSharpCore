@@ -172,6 +172,15 @@ public sealed class IntervalSet : IReadOnlyList<XInterval>
     /// </remarks>
     public bool TryWidest(double tolerance, out XInterval widest)
     {
+        // NaN first, because it passes the negative test below and then does real damage: it seeds
+        // the running widest, and nothing compares less than or equal to NaN, so the first run
+        // examined is taken however narrow it is. The tolerance stops applying altogether.
+        if (!double.IsFinite(tolerance))
+        {
+            throw new ArgumentOutOfRangeException(nameof(tolerance), tolerance,
+                "The tolerance has to be a real width.");
+        }
+
         if (tolerance < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(tolerance), tolerance,

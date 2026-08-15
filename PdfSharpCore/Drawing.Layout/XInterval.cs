@@ -28,6 +28,22 @@ public readonly struct XInterval : IEquatable<XInterval>
     /// </exception>
     public XInterval(double start, double end)
     {
+        // Before the ordering test, because NaN walks straight through it: every comparison
+        // against NaN is false, so `end < start` says nothing at all about a NaN end. It would
+        // then spread - a NaN width beats no comparison, so such a run is never picked as widest
+        // and never rejected either, and the line quietly goes somewhere else.
+        if (!double.IsFinite(start))
+        {
+            throw new ArgumentOutOfRangeException(nameof(start), start,
+                "An interval has to start at a real coordinate.");
+        }
+
+        if (!double.IsFinite(end))
+        {
+            throw new ArgumentOutOfRangeException(nameof(end), end,
+                "An interval has to end at a real coordinate.");
+        }
+
         if (end < start)
         {
             throw new ArgumentOutOfRangeException(nameof(end), end,

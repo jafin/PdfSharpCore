@@ -293,4 +293,66 @@ public class FlowGeometryTests
 
         pick.Should().Throw<ArgumentOutOfRangeException>();
     }
+
+    // ----- coordinates that are not numbers -------------------------------------------------------
+
+    /// <summary>
+    ///   Every comparison against <c>NaN</c> is false, so it walks through an ordering test
+    ///   untouched and does its damage later — which is why these are refused where they enter
+    ///   rather than where they are noticed.
+    /// </summary>
+    public static TheoryData<double> NotRealNumbers => new TheoryData<double>
+    {
+        double.NaN,
+        double.PositiveInfinity,
+        double.NegativeInfinity,
+    };
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ARunThatDoesNotStartAtARealCoordinateIsRefused(double value)
+    {
+        var build = () => new XInterval(value, 100);
+
+        build.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ARunThatDoesNotEndAtARealCoordinateIsRefused(double value)
+    {
+        var build = () => new XInterval(0, value);
+
+        build.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ABandThatDoesNotStartAtARealDepthIsRefused(double value)
+    {
+        var build = () => new FlowBand(value, 100);
+
+        build.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void ABandThatDoesNotEndAtARealDepthIsRefused(double value)
+    {
+        var build = () => new FlowBand(0, value);
+
+        build.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [MemberData(nameof(NotRealNumbers))]
+    public void AToleranceThatIsNotARealWidthIsRefused(double value)
+    {
+        // NaN in particular is not merely useless here: it seeds the running widest, and nothing
+        // compares less than or equal to it, so the first run examined would be taken however
+        // narrow it was and the tolerance would stop applying at all.
+        var pick = () => IntervalSet.Of(0, 100).TryWidest(value, out _);
+
+        pick.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

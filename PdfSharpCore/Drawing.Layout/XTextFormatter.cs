@@ -358,6 +358,20 @@ public class XTextFormatter
         if (brush == null)
             throw new ArgumentNullException(nameof(brush));
 
+        // Before the rotation check, and refused rather than skipped over. Obstacles is an ordinary
+        // list, so nothing stops a caller adding the null their own lookup just returned - and an
+        // obstacle quietly dropped is a page that looks deliberate and has text running over the
+        // thing it was meant to avoid. Refusing also leaves the count below meaning what it says.
+        for (int idx = 0; idx < _obstacles.Count; idx++)
+        {
+            if (_obstacles[idx] == null)
+            {
+                throw new InvalidOperationException(
+                    $"Obstacles[{idx}] is null. Every obstacle has to be a real one; remove the " +
+                    "entry rather than leaving a gap in the list.");
+            }
+        }
+
         // Named both ways round, because a caller who has hit this has a rectangle in one frame and
         // a formatter expecting it in the other, and which is which is the whole of what they need
         // to know.
@@ -950,11 +964,11 @@ public class XTextFormatter
 
         var region = new TextFlowRegion(new XRect(0, 0, rectWidth, rectHeight));
 
+        // No null check: GetLayout refuses a list with a gap in it, and every route here comes
+        // through GetLayout. Skipping nulls here as well would be the second opinion that makes
+        // the first one look optional.
         foreach (IFlowObstacle obstacle in _obstacles)
-        {
-            if (obstacle != null)
-                region.With(obstacle);
-        }
+            region.With(obstacle);
 
         if (_dropCap != null)
         {
