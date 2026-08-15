@@ -24,8 +24,11 @@ document it will not draw reads as `Test host process crashed`, exit 1, no faili
 `Passed!` line printed anyway with a total short of what was discovered. Reading the tail of
 `dotnet test` reports such a run as green. A run whose total is below what `dotnet test
 --list-tests` finds did not pass; it stopped. `--blame-crash` then names the test that never
-finished. Twice now that name has been the whole diagnosis — see
-`docs/specs/test-host-crash-investigation.md`.
+finished, and **whether that name repeats is the diagnosis**: the same one twice is a document to go
+and look at, and it settled this twice. A different name every run is the machine rather than the
+suite — the third episode crashed five runs in eight at a tenth of the memory of the first two, was
+reproduced on a commit predating everything suspected, and then stopped for good with nothing
+changed. Re-run before believing it. See `docs/specs/test-host-crash-investigation.md`.
 
 A lexer or parser change can hang the test host rather than fail it. Tests that scan malformed
 input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests — hence the
