@@ -455,25 +455,31 @@ public class XGraphicsPathTests
         }).Should().Be(2);
     }
 
-    // ----- the members that do nothing -----------------------------------------------------------
+    // ----- the members that used to do nothing ---------------------------------------------------
+
+    // These three read "IsNotImplementedAndQuietlyAddsNothing" until the Vectors demo drew a pie
+    // into a path and got a blank panel. Each reported through the not-implemented seam - whose
+    // default behaviour is to do nothing at all - and returned, so a caller collected geometry,
+    // read every property back exactly as it was set, and drew a page with the shape missing.
+    // The tests below now say what the three do instead.
 
     [Fact]
-    public void APieIsNotImplementedAndQuietlyAddsNothing()
+    public void APieAddedToAPathIsDrawn()
     {
-        // Upstream reports through the not-implemented seam, which by default does nothing at
-        // all, so a caller asking for a pie gets an empty path and no word about why. Pinned so
-        // that the day it grows an implementation the change is visible here.
-        PointCount(path => path.AddPie(100, 100, 200, 200, 0, 90)).Should().Be(0);
-        PointCount(path => path.AddPie(new XRect(100, 100, 200, 200), 0, 90)).Should().Be(0);
+        PointCount(path => path.AddPie(100, 100, 200, 200, 0, 90)).Should().BeGreaterThan(0);
+        PointCount(path => path.AddPie(new XRect(100, 100, 200, 200), 0, 90)).Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public void AClosedCurveIsNotImplementedAndQuietlyAddsNothing()
+    public void AClosedCurveAddedToAPathIsDrawn()
     {
         var points = new[] { new XPoint(100, 100), new XPoint(300, 100), new XPoint(200, 250) };
 
-        PointCount(path => path.AddClosedCurve(points)).Should().Be(0);
-        PointCount(path => path.AddClosedCurve(points, 0.75)).Should().Be(0);
+        PointCount(path => path.AddClosedCurve(points)).Should().BeGreaterThan(0);
+        PointCount(path => path.AddClosedCurve(points, 0.75)).Should().BeGreaterThan(0);
+
+        // The guards in front of it are unchanged: no points is nothing to draw rather than an
+        // error, one point is not a curve, and no array at all is a caller's mistake.
         PointCount(path => path.AddClosedCurve(Array.Empty<XPoint>())).Should().Be(0);
 
         var act = () => new XGraphicsPath().AddClosedCurve(null);
@@ -484,12 +490,12 @@ public class XGraphicsPathTests
     }
 
     [Fact]
-    public void AddingOnePathToAnotherIsNotImplementedAndQuietlyAddsNothing()
+    public void AddingOnePathToAnotherAddsIt()
     {
         var other = new XGraphicsPath();
         other.AddRectangle(100, 100, 50, 50);
 
-        PointCount(path => path.AddPath(other, true)).Should().Be(0);
+        PointCount(path => path.AddPath(other, true)).Should().BeGreaterThan(0);
     }
 
     [Fact]
@@ -572,4 +578,149 @@ public class XGraphicsPathTests
 
         act.Should().Throw<ArgumentNullException>();
     }
+
+    // ----- the three that used to draw nothing ---------------------------------------------------
+
+    // AddPie, AddClosedCurve and AddPath each reported through DiagnosticsHelper and returned,
+    // and DiagnosticsHelper's default behaviour is to do nothing at all. So a caller collected
+    // geometry into a path, read every property back exactly as it was set, and drew a page with
+    // the shape missing - no exception and no warning. Same shape of defect as AddString, which
+    // demonstration-app.md records being found and closed the same way: by drawing it and looking.
+
+    [Fact]
+    public void APieIsOneFigureThatStartsAtItsOwnCentre()
+    {
+        // The shape of a pie rather than merely the presence of one: a single contour that starts
+        // at the centre of the ellipse it is cut from, goes out to the arc, round, and back.
+        var page = PageWith(path => path.AddPie(100, 100, 200, 150, 0, 90));
+        var points = PathGeometry.PointsOf(page);
+
+        PathGeometry.FigureCountOf(page).Should().Be(1);
+        points[0].X.Should().BeApproximately(200, 0.01);
+
+        // Read back in PDF coordinates, which are measured up from the foot of the page rather
+        // than down from its head, so the centre's y of 175 arrives as the page height less that.
+        points[0].Y.Should().BeApproximately(page.Height.Point - 175, 0.01);
+    }
+
+    [Fact]
+    public void APieInAPathIsTheSameShapeAsAPieDrawnStraightToThePage()
+    {
+        // The two must not be allowed to drift apart, because a caller reaches for whichever suits
+        // and has every right to expect the same picture.
+        var document = new PdfDocument();
+        var drawn = document.AddPage();
+        using (var gfx = XGraphics.FromPdfPage(drawn))
+            gfx.DrawPie(XPens.Black, 100, 100, 200, 150, 30, 120);
+
+        var collected = PageWith(path => path.AddPie(100, 100, 200, 150, 30, 120));
+
+        PathGeometry.PointsOf(collected).Should().HaveCount(PathGeometry.PointsOf(drawn).Count);
+
+        // Approximately, not exactly: the two paths are written by different code and the
+        // coordinates are rounded to four significant figures on the way out, so they agree to
+        // well within a thousandth of a point rather than bit for bit.
+        var fromPath = PathGeometry.BoundsOf(collected);
+        var fromPage = PathGeometry.BoundsOf(drawn);
+        fromPath.X.Should().BeApproximately(fromPage.X, 0.01);
+        fromPath.Y.Should().BeApproximately(fromPage.Y, 0.01);
+        fromPath.Width.Should().BeApproximately(fromPage.Width, 0.01);
+        fromPath.Height.Should().BeApproximately(fromPage.Height, 0.01);
+    }
+
+    [Fact]
+    public void AClosedCurveIsOneFigureAndCurvesAllTheWayRound()
+    {
+        // Where AddCurve leaves the two ends unjoined, a closed curve carries the smoothing across
+        // the seam as well - so it has one more curve segment than the open one through the same
+        // points, not merely a straight line back to the start.
+        var closed = PathGeometry.PointsOf(PageWith(path => path.AddClosedCurve(Diamond, 0.5)));
+        var open = PathGeometry.PointsOf(PageWith(path => path.AddCurve(Diamond, 0.5)));
+
+        PathGeometry.FigureCountOf(PageWith(path => path.AddClosedCurve(Diamond, 0.5)))
+            .Should().Be(1);
+        closed.Count.Should().BeGreaterThan(open.Count);
+    }
+
+    [Fact]
+    public void APathAddedToAPathIsDrawn()
+    {
+        var added = new XGraphicsPath();
+        added.AddRectangle(200, 200, 40, 40);
+
+        PointCount(path =>
+        {
+            path.AddRectangle(100, 100, 40, 40);
+            path.AddPath(added, connect: false);
+        }).Should().Be(PointCount(path =>
+        {
+            path.AddRectangle(100, 100, 40, 40);
+            path.AddRectangle(200, 200, 40, 40);
+        }), "an appended path used to be dropped without a word");
+    }
+
+    [Fact]
+    public void AnAppendedPathIsItsOwnFigureUnlessAskedToConnect()
+    {
+        var arch = new XGraphicsPath();
+        arch.AddArc(100, 100, 200, 100, 180, 180);
+
+        FigureCount(path =>
+        {
+            path.AddLine(100, 200, 300, 200);
+            path.AddPath(arch, connect: false);
+        }).Should().Be(2);
+
+        // Connecting turns the appended path's opening move into a line from where this one had
+        // got to, which is what makes the whole thing fillable as a single contour.
+        FigureCount(path =>
+        {
+            path.AddLine(100, 200, 300, 200);
+            path.AddPath(arch, connect: true);
+        }).Should().Be(1);
+    }
+
+    [Fact]
+    public void ConnectingToAClosedFigureStartsANewOneAnyway()
+    {
+        // A closed figure cannot be reopened, so connect is not merely ignored by accident here -
+        // honouring it would produce a contour that runs on from a point the path has already
+        // returned from.
+        var added = new XGraphicsPath();
+        added.AddRectangle(200, 200, 40, 40);
+
+        FigureCount(path =>
+        {
+            path.AddRectangle(100, 100, 40, 40);
+            path.AddPath(added, connect: true);
+        }).Should().Be(2);
+    }
+
+    [Fact]
+    public void AppendingAPathLeavesTheAppendedOneAlone()
+    {
+        var added = new XGraphicsPath();
+        added.AddRectangle(200, 200, 40, 40);
+        var before = PointCount(path => path.AddPath(added, connect: false));
+
+        var host = new XGraphicsPath();
+        host.AddRectangle(100, 100, 40, 40);
+        host.AddPath(added, connect: true);
+
+        PointCount(path => path.AddPath(added, connect: false)).Should().Be(before);
+    }
+
+    [Fact]
+    public void AppendingANullPathIsRefused()
+    {
+        var act = () => new XGraphicsPath().AddPath(null, connect: false);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    static readonly XPoint[] Diamond =
+    {
+        new XPoint(200, 100), new XPoint(260, 175),
+        new XPoint(200, 250), new XPoint(140, 175),
+    };
 }

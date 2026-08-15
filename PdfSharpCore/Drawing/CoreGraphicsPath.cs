@@ -238,6 +238,101 @@ internal class CoreGraphicsPath
             BezierTo(points[idx].X, points[idx].Y, points[idx + 1].X, points[idx + 1].Y, points[idx + 2].X, points[idx + 2].Y, false);
     }
 
+    /// <summary>
+    /// Adds the outline of a pie: the centre, out to where the arc begins, round it, and back.
+    /// </summary>
+    /// <remarks>
+    /// Built the same way <c>XGraphicsPdfRenderer.DrawPie</c> builds one - centre, then the arc
+    /// entered with <see cref="PathStart.LineTo1st"/>, then closed - so that a pie collected in a
+    /// path and a pie drawn straight to the page are the same shape rather than two shapes that
+    /// happen to look alike.
+    /// </remarks>
+    public void AddPie(double x, double y, double width, double height, double startAngle, double sweepAngle)
+    {
+        XMatrix matrix = XMatrix.Identity;
+        List<XPoint> points = GeometryHelper.BezierCurveFromArc(x, y, width, height, startAngle,
+            sweepAngle, PathStart.MoveTo1st, ref matrix);
+        int count = points.Count;
+        Debug.Assert((count + 2) % 3 == 0);
+
+        MoveOrLineTo(x + width / 2, y + height / 2);
+        LineTo(points[0].X, points[0].Y, false);
+        for (int idx = 1; idx < count; idx += 3)
+            BezierTo(points[idx].X, points[idx].Y, points[idx + 1].X, points[idx + 1].Y, points[idx + 2].X, points[idx + 2].Y, false);
+
+        CloseSubpath();
+    }
+
+    /// <summary>
+    /// Adds a closed cardinal spline through the points, wrapping from the last back to the first.
+    /// </summary>
+    /// <remarks>
+    /// The difference from <see cref="AddCurve"/> is entirely at the ends: an open curve leaves the
+    /// first and last points with no neighbour on one side and clamps them, a closed one takes the
+    /// neighbour from the other end of the array, which is what makes the join at the seam as smooth
+    /// as every other join. Mirrors <c>XGraphicsPdfRenderer.DrawClosedCurve</c> segment for segment.
+    /// </remarks>
+    public void AddClosedCurve(XPoint[] points, double tension)
+    {
+        int count = points.Length;
+        if (count < 2)
+            throw new ArgumentException("AddClosedCurve requires two or more points.", nameof(points));
+
+        tension /= 3;
+
+        MoveOrLineTo(points[0].X, points[0].Y);
+        if (count == 2)
+        {
+            ToCurveSegment(points[0], points[0], points[1], points[1], tension);
+        }
+        else
+        {
+            ToCurveSegment(points[count - 1], points[0], points[1], points[2], tension);
+            for (int idx = 1; idx < count - 2; idx++)
+                ToCurveSegment(points[idx - 1], points[idx], points[idx + 1], points[idx + 2], tension);
+            ToCurveSegment(points[count - 3], points[count - 2], points[count - 1], points[0], tension);
+            ToCurveSegment(points[count - 2], points[count - 1], points[0], points[1], tension);
+        }
+
+        CloseSubpath();
+    }
+
+    /// <summary>
+    /// Appends another path to this one.
+    /// </summary>
+    /// <param name="path">The path to append. Left untouched.</param>
+    /// <param name="connect">
+    /// Whether the appended path's first figure continues this path's current figure rather than
+    /// starting one of its own. Ignored when there is nothing to continue, or when the current
+    /// figure has been closed - a closed figure cannot be reopened.
+    /// </param>
+    public void AddPath(CoreGraphicsPath path, bool connect)
+    {
+        if (path == null)
+            throw new ArgumentNullException(nameof(path));
+
+        int count = path._points.Count;
+        if (count == 0)
+            return;
+
+        bool canConnect = connect && _types.Count > 0
+            && (_types[_types.Count - 1] & PathPointTypeCloseSubpath) != PathPointTypeCloseSubpath;
+
+        for (int idx = 0; idx < count; idx++)
+        {
+            byte type = path._types[idx];
+
+            // The only byte that has to change is the first, and only when the figures are being
+            // joined: a start point turns into a line to the same place. Every other point keeps
+            // its type and its close flag exactly as the source path recorded them.
+            if (idx == 0 && canConnect && (type & PathPointTypePathTypeMask) == PathPointTypeStart)
+                type = (byte)(PathPointTypeLine | (type & PathPointTypeCloseSubpath));
+
+            _points.Add(path._points[idx]);
+            _types.Add(type);
+        }
+    }
+
     public void AddCurve(XPoint[] points, double tension)
     {
         int count = points.Length;

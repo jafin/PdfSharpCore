@@ -97,6 +97,29 @@ internal sealed class PdfGraphicsState : ICloneable
         const string format = Config.SignificantFigures3;
         XColor color = pen.Color;
         bool overPrint = pen.Overprint;
+        XBrush penBrush = pen.Brush;
+
+        // A pen built from a brush has no Color of its own - the constructor never sets one - so
+        // pen.Color is XColor.Empty, whose alpha is zero. Left as it stands that reaches the stroke
+        // alpha at the foot of this method and paints the stroke completely transparent, which is
+        // why a pen made from a brush drew nothing at all.
+        //
+        // A solid brush is simply a colour, and is treated as one from here on: it wants "RG" like
+        // any other pen, where handing it to RealizeBrush below would set the *fill* colour instead.
+        // A gradient really does need the pattern, and carries its own transparency through the soft
+        // mask RealizeBrush installs, so the stroke stays opaque rather than taking an alpha from a
+        // colour the pen never had.
+        if (penBrush is XSolidBrush solidPenBrush)
+        {
+            color = solidPenBrush.Color;
+            overPrint = overPrint || solidPenBrush.Overprint;
+            penBrush = null;
+        }
+        else if (penBrush != null)
+        {
+            color = XColors.Black;
+        }
+
         color = ColorSpaceHelper.EnsureColorMode(colorMode, color);
 
         if (_realizedLineWith != pen._width)
@@ -117,12 +140,19 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedLineJoin = (int)pen._lineJoin;
         }
 
-        if (_realizedLineCap == (int)XLineJoin.Miter)
+        // The join, not the cap. This tested _realizedLineCap against a value of XLineJoin, which
+        // agreed with itself only because XLineCap.Flat and XLineJoin.Miter are both zero: a pen
+        // that mitred its joins and rounded its ends never wrote its miter limit at all, and one
+        // with flat ends wrote it whatever its join was.
+        if (_realizedLineJoin == (int)XLineJoin.Miter)
         {
-            if (_realizedMiterLimit != (int)pen._miterLimit && (int)pen._miterLimit != 0)
+            // Written as a real rather than truncated to an integer. A limit is a ratio of the
+            // mitre's length to the pen's width, 1.5 is a perfectly ordinary value for it, and
+            // rounding that to 1 asks for a bevel on every join that is not perfectly straight.
+            if (_realizedMiterLimit != pen._miterLimit && pen._miterLimit > 0)
             {
-                _renderer.AppendFormatInt("{0} M\n", (int)pen._miterLimit);
-                _realizedMiterLimit = (int)pen._miterLimit;
+                _renderer.AppendFormatArgs("{0:" + format + "} M\n", pen._miterLimit);
+                _realizedMiterLimit = pen._miterLimit;
             }
         }
 
@@ -190,9 +220,11 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedDashStyle = dashStyle;
         }
 
-        if (pen.Brush != null)
+        // penBrush rather than pen.Brush: a solid one was turned into a colour above and takes the
+        // ordinary stroke-colour path below.
+        if (penBrush != null)
         {
-            RealizeBrush(pen.Brush, colorMode, 0, 0, true);
+            RealizeBrush(penBrush, colorMode, 0, 0, true);
         }
         else if (colorMode != PdfColorMode.Cmyk)
         {
