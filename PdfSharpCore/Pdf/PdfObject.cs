@@ -90,7 +90,7 @@ public abstract class PdfObject : PdfItem
     /// <summary>
     /// Sets the object and generation number.
     /// Setting the object identifier makes this object an indirect object, i.e. the object gets
-    /// a PdfReference entry in the PdfReferenceTable.
+    /// a PdfReference entry in the PdfCrossReferenceTable.
     /// </summary>
     internal void SetObjectID(int objectNumber, int generationNumber)
     {

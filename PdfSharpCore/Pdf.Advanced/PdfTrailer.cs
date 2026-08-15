@@ -37,7 +37,7 @@ namespace PdfSharpCore.Pdf.Advanced;
 
 /// <summary>
 /// Represents a PDF trailer dictionary. Even though trailers are dictionaries they never have a cross
-/// reference entry in PdfReferenceTable.
+/// reference entry in PdfCrossReferenceTable.
 /// </summary>
 internal class PdfTrailer : PdfDictionary  // Reference: 3.4.4  File Trailer / Page 96
 {
