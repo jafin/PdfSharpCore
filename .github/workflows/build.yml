@@ -12,6 +12,18 @@ on:
   # So that a branch with no pull request open can still be built, on request.
   workflow_dispatch:
 
+# This repository hands workflows a read/write token by default, and nothing here writes anything:
+# it checks out, builds, tests, and hands coverage to Codecov using a token of Codecov's own. So the
+# job runs with a token that can only read the code. A pull request from a fork is already held to
+# read - the point of saying it here is the push to main, which is not.
+#
+# Naming any permission drops every other one to none, so a step that later needs to write will fail
+# rather than quietly succeed with rights nobody asked for. Grant it here when that happens. The one
+# already in view is use_oidc on the Codecov step, an alternative to the token secret, which would
+# want id-token: write.
+permissions:
+  contents: read
+
 jobs:
   build:
 
