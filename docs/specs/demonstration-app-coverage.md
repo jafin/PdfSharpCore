@@ -829,25 +829,27 @@ protect` is told the password rather than having to read the source to find it.
 
 ## The order the demos are read in
 
-`DemoRegistry` is a curriculum, not an alphabetical list. The thirteen new demos slot in by subject:
+`DemoRegistry` is a curriculum, not an alphabetical list. The fourteen new demos slot in by subject:
 
 ```text
    1 HelloWorld         11 Tables            21 Annotations
    2 Fonts              12 PageResize        22 Outline
    3 Unicode       ★    13 Bleed             23 Invoice
    4 Orientation        14 Assemble     ★    24 Structure   ★
-   5 Images        ★    15 Imposition   ★    25 Ddl         ★
-   6 ImageFailures ★    16 Protect      ★    26 Charts      ★
-   7 Text               17 Navigation   ★    27 Newspaper
-   8 Vectors       ★    18 Compress     ★    28 Magazine
-   9 Barcodes      ★    19 Inspect      ★    29 SideWrap
-  10 Layout             20 Forms
+   5 Images        ★    15 Imposition   ★    25 Footnotes   ★
+   6 ImageFailures ★    16 Protect      ★    26 Ddl         ★
+   7 Text               17 Navigation   ★    27 Charts      ★
+   8 Vectors       ★    18 Compress     ★    28 Newspaper
+   9 Barcodes      ★    19 Inspect      ★    29 Magazine
+  10 Layout             20 Forms             30 SideWrap
 ```
 
-Twenty-nine demos, thirteen of them new and one — `Images` — extended. ★ marks what this spec added.
+Thirty demos, fourteen of them new and one — `Images` — extended. ★ marks what this spec added.
 
-`ImageFailures` sits immediately after `Images` because it is the same subject seen from the other
-side: what happens when the picture does not arrive.
+Two of the placements are the point rather than the alphabet. `ImageFailures` sits immediately after
+`Images` because it is the same subject seen from the other side: what happens when the picture does
+not arrive. `Footnotes` sits immediately after `Structure` for the same reason — both are MigraDoc
+deciding where something goes rather than a caller saying where to put it.
 
 Fonts then Unicode; the drawing surface then the vector methods then the codes drawn with them; the
 page-level demos then the document-level ones; the interactive layer then MigraDoc, ending as it

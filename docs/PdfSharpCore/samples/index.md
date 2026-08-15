@@ -82,9 +82,9 @@ Two more things the sample code assumes and this repository does not provide:
 
 ## What the demos cover that no sample does
 
-Twelve of the twenty-nine demos have no page here at all, because upstream never wrote one:
-`Images`, `ImageFailures`, `Barcodes`, `Charts`, `Tables`, `Bleed`, `Forms`, `Invoice`, `Ddl`, and
-the three combined layouts `Newspaper`, `Magazine` and `SideWrap`.
+Thirteen of the thirty demos have no page here at all, because upstream never wrote one:
+`Images`, `ImageFailures`, `Barcodes`, `Charts`, `Tables`, `Bleed`, `Forms`, `Invoice`, `Ddl`,
+`Footnotes`, and the three combined layouts `Newspaper`, `Magazine` and `SideWrap`.
 
 `dotnet run --project SampleApp -- list` is the current list. This table is a snapshot and the list
 is not.
