@@ -110,6 +110,13 @@ _TeamCity*
 
 # DotCover is a Code Coverage Tool
 *.dotCover
+*.dcvr
+
+# Coverlet writes its report beside the test project it measured. CI hands these to Codecov and
+# nothing keeps them, but a local "dotnet test /p:CollectCoverage=true" leaves one behind in every
+# test project, which is otherwise three untracked files to step over.
+coverage.*.xml
+coverage.json
 
 # NCrunch
 _NCrunch_*
