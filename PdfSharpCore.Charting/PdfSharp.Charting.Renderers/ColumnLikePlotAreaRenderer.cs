@@ -64,7 +64,13 @@ internal abstract class ColumnLikePlotAreaRenderer : PlotAreaRenderer
     // derived from the matrix is then NaN - which is written to the page as the word NaN and makes
     // the file unreadable. There is nothing to plot, so the matrix is left as the identity and the
     // renderers that would use it draw their nothing against it.
-    if (xMax <= xMin || yMax <= yMin)
+    //
+    // xMax is tested on its own as well as against xMin, because the scaling below divides the
+    // width by xMax rather than by the span between them. The two are the same thing only because
+    // the category axis fixes its minimum at zero - CalculateXAxisValues assigns it, and unlike
+    // the value axis never takes one from the Axis object - so testing the span alone would be
+    // relying on that, one method away, to keep a division here from producing an infinity.
+    if (xMax <= 0 || xMax <= xMin || yMax <= yMin)
     {
       cri.plotAreaRendererInfo.matrix = new XMatrix();
       return;

@@ -330,12 +330,20 @@ so both plot area renderers leave the matrix as the identity when there is nothi
 it:
 
 ```csharp
-if (xMax <= xMin || yMax <= yMin)
+if (xMax <= 0 || xMax <= xMin || yMax <= yMin)
 {
   cri.plotAreaRendererInfo.matrix = new XMatrix();
   return;
 }
 ```
+
+`xMax` is tested on its own as well as against `xMin` because the column-like renderer divides the
+width by `xMax` rather than by the span between them — the bar renderer divides by both spans, and
+its guard is the span test alone. The two are the same thing only because the category axis fixes
+its minimum at zero, which `CalculateXAxisValues` assigns and which, unlike the value axis, it never
+takes from the `Axis` object. Testing the span alone would leave a division here relying on that,
+one method away. Not reachable today; the guard is written so that it stays true if the category
+axis ever learns to honour a minimum the way the value axis does.
 
 One more sat behind that: `LinePlotAreaRenderer` handed a zero-length point array to `DrawLines`,
 which answers `ArgumentException: The point array must contain 2 or more points`. A series with
