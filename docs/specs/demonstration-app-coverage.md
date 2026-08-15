@@ -22,7 +22,7 @@ most of `XGraphics`' vector methods with nothing a reader can look at.
 | 9 | `Inspect` — reading back the content stream that was written | done, 3 pages |
 | 10 | `Unicode` — `PdfFontEncoding`, CID fonts, CFF versus TrueType | not started |
 | 11 | `Structure` — MigraDoc's TOC, bookmarks, sections, lists | done, 5 pages |
-| 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | not started |
+| 12 | `Ddl` — MigraDoc's own serialisation format, round-tripped | done, 4 pages |
 | 13 | `Images` extended — alpha, interpolation, failure reporting | not started |
 | 14 | L1 — MigraDoc drops a `Footnote` silently | done, 3 tests |
 | 15 | L2 — MigraDoc drops a `Barcode` shape silently | done, 3 tests |

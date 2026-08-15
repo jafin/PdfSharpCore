@@ -43,6 +43,7 @@ public static class DemoRegistry
         new OutlineDemo(),
         new InvoiceDemo(),
         new StructureDemo(),
+        new DdlDemo(),
         new ChartsDemo(),
         new NewspaperDemo(),
         new MagazineDemo(),
