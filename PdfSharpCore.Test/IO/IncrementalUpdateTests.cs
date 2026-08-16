@@ -254,6 +254,79 @@ public class IncrementalUpdateTests
         page.IsDirty.Should().BeTrue();
     }
 
+    [Fact]
+    public void AChangeMadeThroughATypedSetterIsAppendedToo()
+    {
+        // Six setters wrote to the backing dictionary directly and never said the object had
+        // changed, so an incremental save left them out and the reader went on resolving the old
+        // definition — the change lost, in a file that opens and looks right. Page boxes go through
+        // SetRectangle, which is how ordinary code reaches this.
+        var original = OriginalDocument();
+
+        var updated = AppendChange(original, document =>
+            document.Pages[0].Elements.SetRectangle("/CropBox", new PdfRectangle(new XRect(10, 10, 190, 290))));
+
+        Reopen(updated).Pages[0].Elements.GetRectangle("/CropBox").X1.Should().Be(10);
+    }
+
+    [Fact]
+    public void ADateSetThroughSetDateTimeIsAppendedToo()
+    {
+        var original = OriginalDocument();
+
+        var updated = AppendChange(original, document =>
+            document.Info.Elements.SetDateTime("/ModDate", new DateTime(2026, 5, 6, 7, 8, 9)));
+
+        Reopen(updated).Info.Elements.ContainsKey("/ModDate").Should().BeTrue();
+    }
+
+    [Fact]
+    public void ChangingAnArrayHeldInsideAPageRewritesThePage()
+    {
+        // The array is direct — it lives inside the page dictionary rather than being an object in
+        // its own right — so saying only the array changed tells an incremental save nothing at all.
+        // What changed, as far as the file is concerned, is the page.
+        var original = OriginalDocument();
+
+        var updated = AppendChange(original, document =>
+        {
+            var annotations = new PdfArray(document);
+            document.Pages[0].Elements["/Annots"] = annotations;
+            // PdfInteger names a test class of this assembly as well, hence the full name.
+            annotations.Elements.Add(new PdfSharpCore.Pdf.PdfInteger(0));
+        });
+
+        Reopen(updated).Pages[0].Elements.GetArray("/Annots").Elements.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public void AnIncrementalSaveRefusesAStreamThatIsNotEmpty()
+    {
+        // Handing this the file it was read from is the tempting mistake: the original is rewritten
+        // over itself, the revision appended, and the tail of the old file survives past the new end
+        // — including its startxref, which a reader scanning backwards finds first. The appended
+        // revision would then be ignored in silence.
+        using var source = new MemoryStream(OriginalDocument());
+        var document = Reader.Open(source, PdfDocumentOpenMode.Append);
+
+        var saving = () => document.SaveIncremental(source);
+
+        saving.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void TheOpenModesKeepTheNumbersTheyAlwaysHad()
+    {
+        // This enum pins no values, and the compiler inlines an enum constant at the call site — so
+        // an assembly compiled against an earlier version goes on passing the old number. Adding
+        // Append anywhere but the end would silently redirect Import to it.
+        ((int)PdfDocumentOpenMode.Modify).Should().Be(0);
+        ((int)PdfDocumentOpenMode.Import).Should().Be(1);
+        ((int)PdfDocumentOpenMode.ReadOnly).Should().Be(2);
+        ((int)PdfDocumentOpenMode.InformationOnly).Should().Be(3);
+        ((int)PdfDocumentOpenMode.Append).Should().Be(4);
+    }
+
     /// <summary>A document to append to, with more than one page so a change is visibly partial.</summary>
     private static byte[] OriginalDocument()
     {

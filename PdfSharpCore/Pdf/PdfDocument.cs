@@ -349,6 +349,19 @@ public sealed class PdfDocument : PdfObject, IDisposable
                 + "Modify renumbers every object, which makes the appended definitions shadow the "
                 + "wrong ones, and a document created from scratch has nothing to append to.");
 
+        // The whole file is written, original bytes and all, so the destination has to be empty.
+        // Handing this the file it was read from is the tempting mistake and the damaging one: the
+        // original is rewritten over itself, the revision is appended, and because nothing truncates,
+        // whatever of the old file ran past the new end survives — including its startxref, which a
+        // reader scanning backwards finds first. The appended revision is then ignored in silence,
+        // signature and all.
+        if (stream.CanSeek && stream.Length != 0)
+            throw new ArgumentException(
+                "An incremental save writes the whole file and so needs an empty stream to write it "
+                + "to. In particular it cannot be given the stream the document was read from: that "
+                + "leaves the tail of the old file beyond the new revision, and a reader looking "
+                + "backwards for the last startxref finds the stale one.", nameof(stream));
+
         PrepareForSave();
 
         stream.Write(_originalBytes, 0, _originalBytes.Length);
@@ -377,7 +390,10 @@ public sealed class PdfDocument : PdfObject, IDisposable
 
             // Where the previous revision's cross-reference section begins. Without it a reader
             // sees only the handful of objects in this revision and nothing else in the document.
-            _trailer.Elements.SetInteger(PdfTrailer.Keys.Prev, (int)_originalStartXref);
+            // The cast is safe because CaptureOriginalBytes refuses a document larger than an array
+            // can hold, so this offset lies inside one; checked so that a future change to that
+            // refusal fails here rather than writing a negative /Prev.
+            _trailer.Elements.SetInteger(PdfTrailer.Keys.Prev, checked((int)_originalStartXref));
             _trailer.WriteObject(writer);
             writer.WriteEof(this, startxref);
         }
@@ -431,6 +447,16 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// </summary>
     internal void CaptureOriginalBytes(Stream stream)
     {
+        // Appending means holding the original, and an array cannot hold more than this. Said here,
+        // where the reason is visible, rather than left to surface as an OutOfMemoryException from
+        // an array length nobody wrote. It also makes the offsets below provably fit an int, which
+        // is what the /Prev entry and the cross-reference table are written as.
+        if (stream.Length > int.MaxValue)
+            throw new InvalidOperationException(
+                "A document of more than 2 GB cannot be opened with PdfDocumentOpenMode.Append, "
+                + "because appending to it means holding the whole of it in a single array. Open it "
+                + "with Modify and save it afresh, accepting that this invalidates any signature.");
+
         var position = stream.Position;
         stream.Position = 0;
         _originalBytes = new byte[stream.Length];

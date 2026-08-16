@@ -139,15 +139,22 @@ object-ID assignment.
 
 ## Item 3 — keeping the original bytes
 
-`SaveIncremental` needs the file it is updating, byte for byte. So `PdfReader.Open` in
-`PdfDocumentOpenMode.Modify` has to retain the source buffer, or the document has to remember where to
-find it.
+`SaveIncremental` needs the file it is updating, byte for byte, and it needs the object numbers that
+file was written with. **`PdfDocumentOpenMode.Append` is the mode that keeps both**, and it had to be
+a new mode rather than a flag on `Modify`: `Modify` compacts and renumbers, and a renumbered document
+cannot be appended to at all, because an appended definition shadows an object *by number*. That is
+recorded here rather than left implicit, because this note originally said to make `Modify` retain
+the buffer, which would have produced a file that opens and is quietly wrong.
 
-**This is a memory-behaviour change** — opening a 200 MB PDF would hold 200 MB — so it should be opt-in
-rather than a surprise: either a new open mode, or a flag on `Modify`. Given `CLAUDE.md` notes that the
-open mode "decides far more than access" and that picking the wrong one is a common cause of "this API
-does nothing", adding a fifth thing the mode decides is worth doing explicitly and documenting in the
-same place.
+**It is a memory-behaviour change** — opening a 200 MB PDF holds 200 MB — which is why it is a mode a
+caller asks for rather than something `Modify` started doing. `CLAUDE.md` notes that the open mode
+"decides far more than access" and that picking the wrong one is a common cause of "this API does
+nothing"; a fifth thing for it to decide belongs in that list, and is in it.
+
+`Append` is declared **last** in the enum. The members carry no explicit values, so putting it after
+`Modify` would have renumbered `Import`, `ReadOnly` and `InformationOnly` — and because the C#
+compiler inlines an enum constant at the call site, an assembly compiled against an earlier version
+would go on passing the old number and silently open in the wrong mode.
 
 `SaveIncremental` must refuse — clearly, not silently — a document opened `Import` or `ReadOnly`, or one
 built from scratch.

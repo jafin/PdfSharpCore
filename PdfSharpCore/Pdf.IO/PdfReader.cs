@@ -590,7 +590,13 @@ public static class PdfReader
                     // page tree, and capturing is what decides which objects count as untouched —
                     // do it the other way round and every page is reported changed by the act of
                     // reading it, so an incremental save rewrites the lot.
-                    Debug.Assert(document.Pages != null);
+                    //
+                    // Assigned to a local first, and that is the whole point: Debug.Assert is
+                    // [Conditional("DEBUG")], so the compiler removes the call *and its argument* in
+                    // a release build. Written as an assertion on document.Pages, the flattening
+                    // this depends on simply would not happen where it matters most.
+                    PdfPages pages = document.Pages;
+                    Debug.Assert(pages != null);
 
                     document.CaptureOriginalBytes(stream);
                 }

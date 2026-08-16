@@ -697,6 +697,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public void SetRectangle(string key, PdfRectangle rect)
         {
             _elements[key] = rect;
+            MarkOwnerAsChanged();
         }
 
         /// Converts the specified value to XMatrix.
@@ -745,6 +746,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public void SetMatrix(string key, XMatrix matrix)
         {
             _elements[key] = PdfLiteral.FromMatrix(matrix);
+            MarkOwnerAsChanged();
         }
 
         /// <summary>
@@ -800,6 +802,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public void SetDateTime(string key, DateTime value)
         {
             _elements[key] = new PdfDate(value);
+            MarkOwnerAsChanged();
         }
 
         internal int GetEnumFromName(string key, object defaultValue, bool create)
@@ -830,6 +833,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             if (!(value is Enum))
                 throw new ArgumentException("value");
             _elements[key] = new PdfName("/" + value);
+            MarkOwnerAsChanged();
         }
 
         /// <summary>
@@ -1090,6 +1094,8 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
 
             // HACK?
             _elements[key] = value;
+            PdfObject.Contain(value, _ownerDictionary);
+            MarkOwnerAsChanged();
         }
 
         ///// <summary>
@@ -1218,6 +1224,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 if (obj != null && obj.IsIndirect)
                     value = obj.Reference;
                 _elements[key] = value;
+                PdfObject.Contain(value, _ownerDictionary);
                 MarkOwnerAsChanged();
             }
         }
@@ -1247,6 +1254,8 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 if (obj != null && obj.IsIndirect)
                     value = obj.Reference;
                 _elements[key.Value] = value;
+                PdfObject.Contain(value, _ownerDictionary);
+                MarkOwnerAsChanged();
             }
         }
 
@@ -1264,13 +1273,18 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
 
         /// <summary>
         /// Records that the object owning these elements has changed, so that an incremental save
-        /// knows to write it out again. Every path that mutates the collection goes through here.
+        /// knows to write it out again.
         /// </summary>
-        void MarkOwnerAsChanged()
-        {
-            if (_ownerDictionary != null)
-                _ownerDictionary.IsDirty = true;
-        }
+        /// <remarks>
+        /// Every path that mutates the collection has to call this, and six of them once did not:
+        /// <c>SetRectangle</c>, <c>SetMatrix</c>, <c>SetDateTime</c>, <c>SetEnumAsName</c>,
+        /// <c>SetValue</c> and the <see cref="PdfName"/> indexer all wrote to the backing dictionary
+        /// directly. An object changed only through one of those was reported clean, so the appended
+        /// revision did not contain it and the reader went on resolving the old definition — the
+        /// change lost with no error. Page boxes go through <c>SetRectangle</c> and <c>/ModDate</c>
+        /// through <c>SetDateTime</c>, so it was reachable from ordinary edits.
+        /// </remarks>
+        void MarkOwnerAsChanged() => _ownerDictionary?.MarkAsChanged();
 
         /// <summary>
         /// Removes the value with the specified key.
@@ -1331,6 +1345,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 value = obj.Reference;
 
             _elements.Add(key, value);
+            PdfObject.Contain(value, _ownerDictionary);
             MarkOwnerAsChanged();
         }
 

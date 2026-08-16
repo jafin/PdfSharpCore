@@ -528,8 +528,51 @@ public abstract class PdfObject : PdfItem
     public bool IsDirty { get; internal set; }
 
     /// <summary>
-    /// Marks this object as changed, for a caller that has reached past the usual API — through
-    /// <see cref="Advanced.PdfInternals"/>, say — and knows the change would otherwise go unnoticed.
+    /// Marks this object as changed, and everything it is written inside along with it.
     /// </summary>
-    public void MarkAsChanged() => IsDirty = true;
+    /// <remarks>
+    /// A caller reaching past the usual API — through <see cref="Advanced.PdfInternals"/>, say —
+    /// can use this to say so. The usual API says it for itself.
+    /// </remarks>
+    public void MarkAsChanged()
+    {
+        // Up to the nearest indirect object, because that is the one an incremental save writes. A
+        // direct array inside a page dictionary is not in the cross-reference table and saying it
+        // changed would tell nobody anything; what changed, as far as the file is concerned, is the
+        // page. The depth bound is for a graph that has been made to contain itself.
+        var owner = this;
+        for (var depth = 0; owner != null && depth < 64; depth++)
+        {
+            owner.IsDirty = true;
+            if (owner.Reference != null)
+                return;
+
+            owner = owner.Container;
+        }
+    }
+
+    /// <summary>
+    /// The object this one is written inside, when it is a direct value of another rather than an
+    /// indirect object in its own right.
+    /// </summary>
+    /// <remarks>
+    /// Recorded when the value is stored, and read only by <see cref="MarkAsChanged"/>. A copy taken
+    /// of a dictionary keeps whatever container its children were given by the original, so the
+    /// pointer can be stale — which is why nothing depends on it being right. The cost of a wrong
+    /// answer here is an object needlessly rewritten into an appended revision, and the cost of not
+    /// having it at all is a change silently lost.
+    /// </remarks>
+    internal PdfObject Container { get; set; }
+
+    /// <summary>
+    /// Records that a value now sits inside this object, if it is the kind of value that can carry
+    /// changes of its own.
+    /// </summary>
+    internal static void Contain(PdfItem value, PdfObject container)
+    {
+        // An indirect object stands on its own and is written on its own, so it has no container in
+        // the sense that matters here.
+        if (value is PdfObject contained && contained.Reference == null && !ReferenceEquals(contained, container))
+            contained.Container = container;
+    }
 }

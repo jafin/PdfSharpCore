@@ -404,6 +404,7 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
                 _elements[index] = value;
+                PdfObject.Contain(value, _ownerArray);
                 MarkOwnerAsChanged();
             }
         }
@@ -434,6 +435,7 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
         public void Insert(int index, PdfItem value)
         {
             _elements.Insert(index, value);
+            PdfObject.Contain(value, _ownerArray);
             MarkOwnerAsChanged();
         }
 
@@ -459,11 +461,13 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
         /// Records that the object owning these elements has changed, so that an incremental save
         /// knows to write it out again. Every path that mutates the collection goes through here.
         /// </summary>
-        void MarkOwnerAsChanged()
-        {
-            if (_ownerArray != null)
-                _ownerArray.IsDirty = true;
-        }
+        /// <remarks>
+        /// Through <see cref="PdfObject.MarkAsChanged"/>, which walks up to the nearest indirect
+        /// object. An array held directly inside a page dictionary is not in the cross-reference
+        /// table, so marking only the array would tell an incremental save nothing: adding an
+        /// annotation to a page's <c>/Annots</c> has to make the <em>page</em> get written again.
+        /// </remarks>
+        void MarkOwnerAsChanged() => _ownerArray?.MarkAsChanged();
 
         /// <summary>
         /// Gets the index of the specified item.
@@ -487,6 +491,7 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
                 _elements.Add(obj.Reference);
             else
                 _elements.Add(value);
+            PdfObject.Contain(value, _ownerArray);
             MarkOwnerAsChanged();
         }
 
