@@ -501,4 +501,17 @@ public abstract class PdfObject : PdfItem
         internal set => _iref = value;
     }
     PdfReference _iref;
+
+    /// <summary>
+    /// Gets a value indicating that this object was read out of an object stream rather than
+    /// standing on its own in the file.
+    /// </summary>
+    /// <remarks>
+    /// It is asked exactly one question, and only when the document is encrypted: whether to
+    /// decrypt this object's strings. An object stream is encrypted as a whole, and the strings
+    /// inside it are covered by that and are not separately encrypted — so decrypting them again on
+    /// the way in turns every one of them to nonsense. Nothing else depends on where an object came
+    /// from, and nothing else should.
+    /// </remarks>
+    internal bool IsFromObjectStream { get; set; }
 }

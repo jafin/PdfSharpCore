@@ -1,18 +1,41 @@
 # Proposal — writing cross-reference streams and object streams
 
-What a compressed write path would cover, and what it would deliberately leave out.
-Gap **G1** of `autoresearch/improve-260816-1032/improvement-plan.md`. Nothing here is built.
+What the compressed write path covers, and what it deliberately leaves out.
+Gap **G1** of the competitive gap analysis.
 
 | item | what | status |
 |---|---|---|
-| 1 | `PdfDocumentOptions.CrossReferenceFormat` — `Classic` \| `Stream` | proposed |
-| 2 | Object-stream writer half for `PdfObjectStream` | proposed |
-| 3 | Cross-reference stream emission, with type-2 entries | proposed |
-| 4 | Encryption interaction — an object inside an `ObjStm` is not separately encrypted | proposed |
-| 5 | Reading a cross-reference stream and writing one back | proposed, **breaking behaviour** |
+| 1 | `PdfDocumentOptions.CrossReferenceFormat` — `Classic` \| `Stream` | done |
+| 2 | Object-stream writer half — `PdfObjectStreamWriter` | done |
+| 3 | Cross-reference stream emission, with type-2 entries | done |
+| 4 | Encryption interaction — an object inside an `ObjStm` is not separately encrypted | done, **and it found a reader defect** |
+| 5 | Reading a cross-reference stream and writing one back | done |
 
-Estimated effort: **2–3 engineer-weeks.** The cheapest item in the gap analysis, and three later
-proposals lean on it.
+Covered by `PdfSharpCore.Test/IO/CrossReferenceStreamTests.cs`.
+
+## Two things the proposal got wrong
+
+**The encryption item was not only a writer concern.** Writing the object stream encrypted exactly
+once was the easy half and worked first time. What the test caught was on the *reading* side:
+`PdfReader` finishes by calling `PdfStandardSecurityHandler.EncryptDocument`, which walked **every**
+reference and decrypted it — including objects it had just parsed out of an object stream, whose
+strings were never separately encrypted. Decrypting them a second time turned every string in the
+document to nonsense, which is exactly the failure shape the proposal predicted and exactly not the
+place it predicted it.
+
+This is a defect in reading **any** encrypted file that uses object streams, whoever wrote it. It was
+unreachable before only because this library could not produce one to read. The fix is
+`PdfObject.IsFromObjectStream`, set in `Parser.ReadCompressedObject` and honoured in
+`EncryptDocument`.
+
+That the strings come out *correct* once the second decryption is removed is also what proves the
+writer encrypts the object stream exactly once — a writer that had it wrong would not produce
+correct plaintext by accident.
+
+**The AES-256 round-trip test in the proposal could not be written.** `PdfDocumentSecurityLevel`
+offers `Encrypted40Bit` and `Encrypted128Bit` and nothing else; AES-256 (AESV3) is supported for
+*reading* only, in `Pdf.Security/EncryptorFactory.cs`. The test covers both levels the writer
+actually has. Writing AES-256 is a separate piece of work and is not part of this.
 
 ---
 
@@ -125,10 +148,21 @@ stream side.
 
 ## Tests
 
-`PdfSharpCore.Test`. Round-trip every fixture through both formats and assert the object graphs match;
-assert type-2 entries resolve to the right object; assert the size reduction on a form-heavy fixture
-is real rather than assumed; assert an AES-256 document survives (item 4). Ghostscript rasterization
-comparison for the byte-level sanity check that only an outside reader can give.
+`PdfSharpCore.Test/IO/CrossReferenceStreamTests.cs`, fourteen of them. The ones that carry weight
+rather than merely pass:
+
+- **A page keeps its size across the round trip.** Page dictionaries are exactly what gets moved into
+  an object stream, so this is the assertion that says a type-2 entry resolves to the object it names.
+- **An object-heavy document is smaller than its classic form.** Measured, not assumed — it is the
+  entire point of the feature and the one claim worth failing the build over.
+- **A string in an encrypted document survives**, at both security levels. This is the one that found
+  the reader defect above.
+- **The encryption dictionary is not moved into an object stream**, because a reader has to reach it
+  before it can decrypt the stream that would otherwise be hiding it.
+- **The classic table is still the default.** Changing the bytes of every document written by someone
+  who asked for nothing is not a change to make silently.
+- **More objects than fit one stream are split across several**, with `MaxObjectsPerObjectStream` set
+  low enough to force it, and the document still reopens.
 
 ## Related
 

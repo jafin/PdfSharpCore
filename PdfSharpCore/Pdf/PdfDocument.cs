@@ -359,21 +359,37 @@ public sealed class PdfDocument : PdfObject, IDisposable
             if (encrypt)
                 _securitySettings.SecurityHandler.PrepareEncryption();
 
-            writer.WriteFileHeader(this);
-            PdfReference[] irefs = _irefTable.AllReferences;
-            int count = irefs.Length;
-            for (int idx = 0; idx < count; idx++)
+            if (Options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
             {
-                PdfReference iref = irefs[idx];
-                iref.Position = writer.Position;
-                iref.Value.WriteObject(writer);
+                // A cross-reference stream is a PDF 1.5 construct, so a file that has one may not
+                // announce itself as anything earlier. Set the field rather than the property: the
+                // property refuses a document that cannot be modified, and by here the decision to
+                // write has already been taken.
+                if (_version < 15)
+                    _version = 15;
+
+                writer.WriteFileHeader(this);
+                var startxref = PdfCrossReferenceStreamWriter.WriteBody(this, writer);
+                writer.WriteEof(this, startxref);
             }
-            var startxref = writer.Position;
-            _irefTable.WriteObject(writer);
-            writer.WriteRaw("trailer\n");
-            _trailer.Elements.SetInteger("/Size", count + 1);
-            _trailer.WriteObject(writer);
-            writer.WriteEof(this, startxref);
+            else
+            {
+                writer.WriteFileHeader(this);
+                PdfReference[] irefs = _irefTable.AllReferences;
+                int count = irefs.Length;
+                for (int idx = 0; idx < count; idx++)
+                {
+                    PdfReference iref = irefs[idx];
+                    iref.Position = writer.Position;
+                    iref.Value.WriteObject(writer);
+                }
+                var startxref = writer.Position;
+                _irefTable.WriteObject(writer);
+                writer.WriteRaw("trailer\n");
+                _trailer.Elements.SetInteger("/Size", count + 1);
+                _trailer.WriteObject(writer);
+                writer.WriteEof(this, startxref);
+            }
 
             //if (encrypt)
             //{

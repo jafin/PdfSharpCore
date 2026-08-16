@@ -95,4 +95,37 @@ public sealed class PdfDocumentOptions
         set => _useFlateDecoderForJpegImages = value;
     }
     PdfUseFlateDecoderForJpegImages _useFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Never;
+
+    /// <summary>
+    /// Gets or sets how the objects of the document are indexed when it is saved. The default is
+    /// <see cref="PdfCrossReferenceFormat.Classic"/>, which every reader understands.
+    /// <see cref="PdfCrossReferenceFormat.Stream"/> gathers the objects that may be gathered into
+    /// object streams and compresses them together, which is markedly smaller on a document that is
+    /// mostly objects rather than mostly content, and requires a reader that understands PDF 1.5.
+    /// </summary>
+    public PdfCrossReferenceFormat CrossReferenceFormat
+    {
+        get => _crossReferenceFormat;
+        set => _crossReferenceFormat = value;
+    }
+    PdfCrossReferenceFormat _crossReferenceFormat = PdfCrossReferenceFormat.Classic;
+
+    /// <summary>
+    /// Gets or sets how many objects at most are gathered into one object stream. Only meaningful
+    /// when <see cref="CrossReferenceFormat"/> is <see cref="PdfCrossReferenceFormat.Stream"/>.
+    /// Acrobat uses 200 and so does this; a reader has to decompress a whole object stream to reach
+    /// any one object in it, so a larger number trades reading cost for a smaller file.
+    /// </summary>
+    public int MaxObjectsPerObjectStream
+    {
+        get => _maxObjectsPerObjectStream;
+        set
+        {
+            if (value < 1)
+                throw new System.ArgumentOutOfRangeException(nameof(value),
+                    "An object stream has to hold at least one object.");
+            _maxObjectsPerObjectStream = value;
+        }
+    }
+    int _maxObjectsPerObjectStream = 200;
 }

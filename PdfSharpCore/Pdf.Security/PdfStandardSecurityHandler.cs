@@ -106,8 +106,19 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
     {
         foreach (PdfReference iref in _document._irefTable.AllReferences)
         {
-            if (!ReferenceEquals(iref.Value, this))
-                EncryptObject(iref.Value);
+            if (ReferenceEquals(iref.Value, this))
+                continue;
+
+            // An object that came out of an object stream has already had everything done to it
+            // that needs doing. The stream holding it was decrypted as a unit, and PDF 32000-1
+            // 7.5.7 says strings inside an object stream are not separately encrypted — so running
+            // the decryption over them a second time is what turns a title into mojibake. This
+            // affects any encrypted file that uses object streams, whoever wrote it; it only became
+            // reachable here once this library could write one itself.
+            if (iref.Value.IsFromObjectStream)
+                continue;
+
+            EncryptObject(iref.Value);
         }
     }
 
