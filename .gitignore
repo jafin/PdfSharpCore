@@ -118,6 +118,11 @@ _TeamCity*
 coverage.*.xml
 coverage.json
 
+# The rendered report, from "reportgenerator -targetdir:coverage". Hundreds of generated HTML
+# files, one per class. Regenerated from TestResults in seconds; never worth carrying.
+# The sibling coverage.runsettings is checked in and does not match the pattern above.
+/coverage/
+
 # NCrunch
 _NCrunch_*
 .*crunch*.local.xml
