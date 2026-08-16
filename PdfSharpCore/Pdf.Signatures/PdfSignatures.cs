@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using PdfSharpCore.Pdf.AcroForms;
 using PdfSharpCore.Pdf.Internal;
@@ -30,7 +30,7 @@ public static class PdfSignatures
         if (fields == null)
             return found;
 
-        Collect(fields, found, 0);
+        Collect(fields, found, new HashSet<PdfDictionary>(), 0);
         return found;
     }
 
@@ -40,23 +40,30 @@ public static class PdfSignatures
     /// Walks the field tree. Fields nest — a field may stand for a group and hold its members in
     /// <c>/Kids</c> — so a signature is not always a direct child of <c>/Fields</c>.
     /// </summary>
-    static void Collect(PdfArray fields, List<PdfSignatureInfo> found, int depth)
+    /// <remarks>
+    /// Bounded by what has been seen rather than by how deep the descent has gone. A depth limit
+    /// stops the recursion but not the fan-out: a malformed field whose <c>/Kids</c> holds two
+    /// references back to an ancestor doubles the work at every level, so a limit of 32 is four
+    /// billion visits before it bites. This is read from files nobody here wrote, so the bound has
+    /// to be exact.
+    /// </remarks>
+    static void Collect(PdfArray fields, List<PdfSignatureInfo> found, HashSet<PdfDictionary> seen,
+        int depth)
     {
-        // A malformed document can point a field's kids back at an ancestor. Bounding the descent
-        // is cheaper than tracking what has been seen and is just as effective: no real form is
-        // anywhere near this deep.
-        if (depth > 32)
+        // The visited set bounds the work; this bounds the stack, which a long chain of distinct
+        // fields would otherwise run out of before the set had anything to say about it.
+        if (depth > 64)
             return;
 
         for (var index = 0; index < fields.Elements.Count; index++)
         {
             var field = fields.Elements.GetDictionary(index);
-            if (field == null)
+            if (field == null || !seen.Add(field))
                 continue;
 
             var kids = field.Elements.GetArray("/Kids");
             if (kids != null)
-                Collect(kids, found, depth + 1);
+                Collect(kids, found, seen, depth + 1);
 
             if (field.Elements.GetName("/FT") != "/Sig")
                 continue;

@@ -101,9 +101,12 @@ second revision comes after the first signature's byte range, so the earlier sig
 partial. That is what an appended revision *is*, and a reader shows it as "signed, then changed" —
 not as a failure.
 
-**Signing time is a claim, not evidence.** `/M` and the optional `signing-time` attribute are both
-the producer's own clock. Making the time provable is a timestamp token from a time-stamping
-authority, which is PAdES B-T and is item 7.
+**Signing time is a claim, not evidence, and PAdES makes it in one place only.** `/M` and the CMS
+`signing-time` attribute are both the producer's own clock. PAdES uses `/M`, and the ETSI profiles
+have said since TS 102 778 that the CMS attribute should not also be there — two claimed times that
+can disagree help nobody — so `Pkcs7Signer` writes it for `Pkcs7` and not for `Pades`, and
+`IncludeSigningTime` is there for anyone who needs the other answer. Making the time provable is a
+timestamp token from a time-stamping authority, which is PAdES B-T and is item 7.
 
 **A certifying signature must be the first one.** `/DocMDP` says what later revisions may still do.
 Certifying an already-signed document produces a file that opens and that readers report as invalid;

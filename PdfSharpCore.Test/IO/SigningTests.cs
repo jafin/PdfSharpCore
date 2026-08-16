@@ -362,6 +362,35 @@ public class SigningTests
     }
 
     [Fact]
+    public void AByteRangeThatOverflowsIsReportedRatherThanThrown()
+    {
+        // The numbers come out of a file nobody here wrote. An offset and a length that each pass
+        // their own bound can still sum past int.MaxValue and wrap negative, which slipped through
+        // the check, sized an allocation wrongly and threw out of the whole of Verify — one
+        // malformed signature taking every other signature in the document with it.
+        var signed = Sign(Unsigned());
+        var corrupted = WithByteRange(signed, "[0 1000 1000 2147483647]");
+
+        var verifying = () => PdfSignatureVerifier.Verify(corrupted);
+
+        var verifications = verifying.Should().NotThrow().Which;
+        verifications.Should().ContainSingle();
+        verifications[0].IsValid.Should().BeFalse();
+        verifications[0].Problem.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void APadesSignatureLeavesTheClaimedTimeToTheSignatureDictionary()
+    {
+        // PAdES carries the claimed signing time in /M, and the ETSI profiles have said since
+        // TS 102 778 that the CMS signing-time attribute should not be there as well. Two claimed
+        // times that can disagree help nobody.
+        new Pkcs7Signer(SigningCertificates.Default).IncludeSigningTime.Should().BeFalse();
+        new Pkcs7Signer(SigningCertificates.Default, PdfSignatureFormat.Pkcs7)
+            .IncludeSigningTime.Should().BeTrue();
+    }
+
+    [Fact]
     public void ADocumentWithNoSignatureReportsNone()
     {
         var document = Reader.Open(new MemoryStream(Unsigned()), PdfDocumentOpenMode.ReadOnly);
@@ -433,6 +462,31 @@ public class SigningTests
             .Select(index => annotations.Elements.GetDictionary(index))
             .Where(annotation => annotation != null && annotation.Elements.GetName("/FT") == "/Sig")
             .ToArray();
+    }
+
+    /// <summary>
+    ///   Writes a different byte range over the one in a signed file, keeping the file the same
+    ///   length by padding — which is what makes it a malformed document rather than a shifted one.
+    /// </summary>
+    static byte[] WithByteRange(byte[] signed, string replacement)
+    {
+        // Found through /ByteRange rather than by looking for an array that starts with zero — a
+        // document has plenty of those, and the first one is not this one.
+        var key = IndexOf(signed, "/ByteRange");
+        key.Should().BeGreaterThan(-1);
+
+        var at = Array.IndexOf(signed, (byte)'[', key);
+        var end = Array.IndexOf(signed, (byte)']', at);
+        var room = end - at + 1;
+
+        replacement.Length.Should().BeLessThanOrEqualTo(room,
+            "the replacement has to fit the space the original occupied");
+
+        var corrupted = (byte[])signed.Clone();
+        for (var index = 0; index < room; index++)
+            corrupted[at + index] = (byte)(index < replacement.Length ? replacement[index] : ' ');
+
+        return corrupted;
     }
 
     static int IndexOf(byte[] haystack, string needle)

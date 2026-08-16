@@ -64,6 +64,7 @@ public sealed class Pkcs7Signer : IPdfSigner
 
         Format = format;
         _chain = chain;
+        IncludeSigningTime = format == PdfSignatureFormat.Pkcs7;
     }
 
     /// <summary>
@@ -87,15 +88,17 @@ public sealed class Pkcs7Signer : IPdfSigner
     public int EstimatedSignatureSize { get; set; } = 16384;
 
     /// <summary>
-    /// Whether to record the signing time as a signed attribute as well as in the signature
+    /// Whether to record the signing time as a signed CMS attribute as well as in the signature
     /// dictionary's <c>/M</c>.
     /// </summary>
     /// <remarks>
-    /// On by default. Either way the time is the signer's own claim and proves nothing — only a
-    /// timestamp from a time-stamping authority does that, and that is PAdES B-T. The reason to turn
-    /// this off is a validator that insists a baseline signature carry no claimed time at all.
+    /// <b>Off for PAdES and on for PKCS#7</b>, which is what the two formats ask for. PAdES carries
+    /// the claimed signing time in <c>/M</c> and the ETSI profiles have said since TS 102 778 that
+    /// the CMS <c>signing-time</c> attribute should not be there as well — two claimed times that
+    /// can disagree help nobody. Either way the time is the signer's own and proves nothing; only a
+    /// timestamp from a time-stamping authority does, and that is PAdES B-T.
     /// </remarks>
-    public bool IncludeSigningTime { get; set; } = true;
+    public bool IncludeSigningTime { get; set; }
 
     /// <inheritdoc/>
     public byte[] Sign(Stream content)

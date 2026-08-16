@@ -102,22 +102,30 @@ public static class PdfSignatureVerifier
     /// </summary>
     static byte[] BytesCovered(int[] byteRange, byte[] document)
     {
-        var first = Span(byteRange[0], byteRange[1], document.Length);
-        var second = Span(byteRange[2], byteRange[3], document.Length);
+        var first = Span(byteRange[0], byteRange[1], document.LongLength);
+        var second = Span(byteRange[2], byteRange[3], document.LongLength);
 
-        var covered = new byte[first + second];
+        var covered = new byte[(long)first + second];
         Array.Copy(document, byteRange[0], covered, 0, first);
         Array.Copy(document, byteRange[2], covered, first, second);
         return covered;
     }
 
-    static int Span(int offset, int length, int total)
+    /// <remarks>
+    /// The arithmetic is in <see cref="long"/> deliberately. These numbers come out of an untrusted
+    /// file, and an offset and length that each pass their own check can still sum past
+    /// <see cref="int.MaxValue"/> and wrap negative — which slipped through the bound, produced an
+    /// allocation of the wrong size and threw <c>OverflowException</c> out of the whole of
+    /// <c>Verify</c>, taking every other signature in the document with it. A malformed byte range
+    /// has to be one signature's problem and no one else's.
+    /// </remarks>
+    static int Span(long offset, long length, long total)
     {
         if (offset < 0 || length < 0 || offset > total || offset + length > total)
             throw new ArgumentException(
                 $"the span at {offset} of length {length} runs past the end of a {total} byte file");
 
-        return length;
+        return (int)length;
     }
 
     /// <summary>
