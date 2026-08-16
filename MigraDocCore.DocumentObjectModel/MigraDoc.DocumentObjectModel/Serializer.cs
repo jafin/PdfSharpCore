@@ -168,14 +168,25 @@ internal class Serializer
     if (idxCRLF > 0 && idxCRLF + writeIndent <= lineBreakBeyond)
       return str.Substring(0, idxCRLF + 1);
 
-    int splitIndexBlank = str.Substring(0, lineBreakBeyond - writeIndent).LastIndexOf(" ");
-    int splitIndexCRLF = str.Substring(0, lineBreakBeyond - writeIndent).LastIndexOf("\x0D\x0A");
+    // Where the line runs out of room, kept inside the string at both ends: an indent already
+    // past the limit leaves no room at all, and a string reaching the limit exactly leaves
+    // nothing beyond it to search.
+    int wrapAt = Math.Min(Math.Max(lineBreakBeyond - writeIndent, 0), str.Length);
+
+    int splitIndexBlank = str.Substring(0, wrapAt).LastIndexOf(" ");
+    int splitIndexCRLF = str.Substring(0, wrapAt).LastIndexOf("\x0D\x0A");
     int splitIndex = Math.Max(splitIndexBlank, splitIndexCRLF);
     if (splitIndex == -1)
-      splitIndex = Math.Min(str.IndexOf(" ", lineBreakBeyond - writeIndent + 1),
-        str.IndexOf("\x0D\x0A", lineBreakBeyond - writeIndent + 1));
+    {
+      // Nothing to break on within the line, so take the first break past it: whichever of the
+      // two comes first, or the one that is there when only one of them is. Asking for the
+      // smaller of the two indexes alone answered -1 whenever either kind was absent, which for
+      // a line holding blanks but no line break meant it was never wrapped at all.
+      int blank = str.IndexOf(" ", wrapAt);
+      int crlf = str.IndexOf("\x0D\x0A", wrapAt);
+      splitIndex = blank == -1 ? crlf : crlf == -1 ? blank : Math.Min(blank, crlf);
+    }
     return splitIndex > 0 ? str.Substring(0, splitIndex) : str;
-
   }
 
   /// <summary>
