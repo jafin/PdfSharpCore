@@ -85,6 +85,20 @@ public partial class Image : Shape
     public IImageSource Source { get; set; }
 
     /// <summary>
+    /// An image that has a source is not empty, whatever else is unset on it.
+    /// </summary>
+    /// <remarks>
+    /// Source is a plain property rather than part of the [DV] value model, so the generated
+    /// IsNull cannot see it. Without this, an image whose only property was the image itself
+    /// counted as empty: the serializer skips empty objects, so writing a document built with
+    /// AddImage and nothing else dropped the image, and the section around it with it.
+    /// </remarks>
+    public override bool IsNull()
+    {
+        return Source == null && base.IsNull();
+    }
+
+    /// <summary>
     /// Gets or sets the ScaleWidth of the image.
     /// If the Width is set to, the resulting image width is ScaleWidth * Width.
     /// </summary>
@@ -158,7 +172,12 @@ public partial class Image : Shape
     /// </summary>
     internal override void Serialize(Serializer serializer)
     {
-        serializer.WriteLine("\\image(\"" + (this.name ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
+        // Falling back to the source's name: the name field is written only through the
+        // reflection layer, and neither of the two ways an image is actually made fills it in -
+        // AddImage takes an IImageSource, and the parser puts \image("path") on Source as well.
+        // Writing the field alone turned every image into \image("") and lost the path.
+        string path = (this.name ?? "") != "" ? this.name : (Source?.Name ?? "");
+        serializer.WriteLine("\\image(\"" + path.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
 
         int pos = serializer.BeginAttributes();
 
