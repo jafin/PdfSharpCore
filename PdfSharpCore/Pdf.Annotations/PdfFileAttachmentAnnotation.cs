@@ -13,9 +13,13 @@ public class PdfFileAttachmentAnnotation : PdfAnnotation
     /// </summary>
     public enum IconType
     {
+        /// <summary>A graph.</summary>
         Graph,
+        /// <summary>A push pin. The viewer default.</summary>
         PushPin,
+        /// <summary>A paperclip.</summary>
         Paperclip,
+        /// <summary>A tag.</summary>
         Tag
     }
 
@@ -57,6 +61,9 @@ public class PdfFileAttachmentAnnotation : PdfAnnotation
         }
     }
 
+    /// <summary>
+    /// Gets or sets the file specification naming the attached file and holding its embedded bytes.
+    /// </summary>
     public PdfFileSpecification File
     {
         get

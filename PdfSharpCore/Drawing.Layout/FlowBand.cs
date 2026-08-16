@@ -77,16 +77,19 @@ public readonly struct FlowBand : IEquatable<FlowBand>
         return top < Bottom && Top < bottom;
     }
 
+    /// <summary>Determines whether the given band has the same top and bottom as this one.</summary>
     public bool Equals(FlowBand other)
     {
         return Top.Equals(other.Top) && Bottom.Equals(other.Bottom);
     }
 
+    /// <summary>Determines whether the given object is a <see cref="FlowBand"/> equal to this one.</summary>
     public override bool Equals(object obj)
     {
         return obj is FlowBand other && Equals(other);
     }
 
+    /// <summary>Returns a hash code for this band.</summary>
     public override int GetHashCode()
     {
         unchecked
@@ -95,10 +98,13 @@ public readonly struct FlowBand : IEquatable<FlowBand>
         }
     }
 
+    /// <summary>Determines whether two bands are equal.</summary>
     public static bool operator ==(FlowBand left, FlowBand right) => left.Equals(right);
 
+    /// <summary>Determines whether two bands differ.</summary>
     public static bool operator !=(FlowBand left, FlowBand right) => !left.Equals(right);
 
+    /// <summary>Returns the band as <c>top..bottom</c>, in the invariant culture.</summary>
     public override string ToString()
     {
         return string.Format(CultureInfo.InvariantCulture, "{0}..{1}", Top, Bottom);

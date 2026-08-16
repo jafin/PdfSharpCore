@@ -42,6 +42,7 @@ public class FilterParms
     /// </summary>
     public PdfDictionary DecodeParms { get; private set; }
 
+    /// <summary>Initializes a new instance holding the given decoding parameters.</summary>
     public FilterParms(PdfDictionary decodeParms)
     {
         DecodeParms = decodeParms;

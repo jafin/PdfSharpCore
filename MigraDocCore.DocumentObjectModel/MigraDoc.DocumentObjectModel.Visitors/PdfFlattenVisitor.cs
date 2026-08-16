@@ -194,6 +194,7 @@ public class PdfFlattenVisitor : VisitorBase
     FlattenFont(hyperlink.font, GetParentFont(hyperlink));
   }
 
+  /// <summary>Returns the font the given object inherits from whatever holds it.</summary>
   protected Font GetParentFont(DocumentObject obj)
   {
     DocumentObject parentElements = DocumentRelations.GetParent(obj);

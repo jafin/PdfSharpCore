@@ -11,15 +11,25 @@ using SixLabors.ImageSharp.Formats.Png;
 
 namespace PdfSharpCore.Utils;
 
+/// <summary>
+/// Decodes images with ImageSharp. Register it as <see cref="ImageSource.ImageSourceImpl"/> before
+/// loading any image, typically as <c>ImageSharpImageSource&lt;Rgba32&gt;</c>.
+/// </summary>
+/// <typeparam name="TPixel">The pixel format images are decoded into.</typeparam>
 public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanaged, IPixel<TPixel>
 {
 
+    /// <summary>
+    /// Wraps an image the caller has already decoded with ImageSharp, so that one held in memory need
+    /// not be encoded and decoded again to be drawn.
+    /// </summary>
     public static IImageSource FromImageSharpImage(Image<TPixel> image, IImageFormat imgFormat, int? quality = 75)
     {
         var _path = "*" + Guid.NewGuid().ToString("B");
         return new ImageSharpImageSourceImpl<TPixel>(_path, image, (int)quality, imgFormat is PngFormat);
     }
 
+    /// <summary>Decodes an image from bytes fetched on demand.</summary>
     protected override IImageSource FromBinaryImpl(string name, Func<byte[]> imageSource, int? quality = 75)
     {
         var data = imageSource.Invoke();
@@ -36,6 +46,7 @@ public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanage
         return new ImageSharpImageSourceImpl<TPixel>(name, image, (int)quality, isPng);
     }
 
+    /// <summary>Decodes an image from a file.</summary>
     protected override IImageSource FromFileImpl(string path, int? quality = 75)
     {
         Image<TPixel> image;
@@ -51,6 +62,7 @@ public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanage
         return new ImageSharpImageSourceImpl<TPixel>(path, image, (int) quality, isPng);
     }
 
+    /// <summary>Decodes an image from a stream opened on demand.</summary>
     protected override IImageSource FromStreamImpl(string name, Func<Stream> imageStream, int? quality = 75)
     {
         using (var stream = imageStream.Invoke())

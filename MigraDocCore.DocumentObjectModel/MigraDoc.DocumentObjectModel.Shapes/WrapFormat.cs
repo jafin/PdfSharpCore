@@ -81,6 +81,7 @@ public partial class WrapFormat : DocumentObject
     get => this.distanceTop;
     set => this.distanceTop = value;
   }
+  /// <summary>Backing field for <see cref="DistanceTop"/>.</summary>
   [DV]
   protected Unit distanceTop = Unit.NullValue;
 
@@ -92,6 +93,7 @@ public partial class WrapFormat : DocumentObject
     get => this.distanceBottom;
     set => this.distanceBottom = value;
   }
+  /// <summary>Backing field for <see cref="DistanceBottom"/>.</summary>
   [DV]
   protected Unit distanceBottom = Unit.NullValue;
 
@@ -103,6 +105,7 @@ public partial class WrapFormat : DocumentObject
     get => this.distanceLeft;
     set => this.distanceLeft = value;
   }
+  /// <summary>Backing field for <see cref="DistanceLeft"/>.</summary>
   [DV]
   protected Unit distanceLeft = Unit.NullValue;
 
@@ -114,6 +117,7 @@ public partial class WrapFormat : DocumentObject
     get => this.distanceRight;
     set => this.distanceRight = value;
   }
+  /// <summary>Backing field for <see cref="DistanceRight"/>.</summary>
   [DV]
   protected Unit distanceRight = Unit.NullValue;
   #endregion

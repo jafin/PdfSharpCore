@@ -595,6 +595,11 @@ public abstract class PdfAcroField : PdfDictionary
         public const string Rect = "/Rect";
 
 
+        /// <summary>
+        /// (Optional; PDF 1.3) An indirect reference to the page this widget is drawn on. Note that
+        /// the KeyInfo below describes it as a required rectangle, which is wrong and was copied
+        /// from <see cref="Rect"/>; correcting it is a change to the key metadata, not to this doc.
+        /// </summary>
         [KeyInfo(KeyType.Rectangle | KeyType.Required)]
         public const string P = "/P";
 

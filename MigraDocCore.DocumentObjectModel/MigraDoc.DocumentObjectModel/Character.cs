@@ -42,27 +42,44 @@ namespace MigraDocCore.DocumentObjectModel;
 public partial class Character : DocumentObject
 {
   // \space
+  /// <summary>A normal space.</summary>
   public static readonly Character Blank = new Character(SymbolName.Blank);
+  /// <summary>A space one en wide, half an em.</summary>
   public static readonly Character En = new Character(SymbolName.En);
+  /// <summary>A space one em wide.</summary>
   public static readonly Character Em = new Character(SymbolName.Em);
+  /// <summary>A space a quarter of an em wide.</summary>
   public static readonly Character EmQuarter = new Character(SymbolName.EmQuarter);
+  /// <summary>A space a quarter of an em wide. Same as <see cref="EmQuarter"/>.</summary>
   public static readonly Character Em4 = new Character(SymbolName.Em4);
 
   // used to serialize as \tab, \linebreak
+  /// <summary>A tab stop.</summary>
   public static readonly Character Tab = new Character(SymbolName.Tab);
+  /// <summary>A break within a paragraph.</summary>
   public static readonly Character LineBreak = new Character(SymbolName.LineBreak);
   //public static readonly Character MarginBreak         = new Character(SymbolName.MarginBreak);
 
   // \symbol
+  /// <summary>The euro sign, U+20AC.</summary>
   public static readonly Character Euro = new Character(SymbolName.Euro);
+  /// <summary>The copyright sign, U+00A9.</summary>
   public static readonly Character Copyright = new Character(SymbolName.Copyright);
+  /// <summary>The trade mark sign, U+2122.</summary>
   public static readonly Character Trademark = new Character(SymbolName.Trademark);
+  /// <summary>The registered sign, U+00AE.</summary>
   public static readonly Character RegisteredTrademark = new Character(SymbolName.RegisteredTrademark);
+  /// <summary>A bullet, U+2022.</summary>
   public static readonly Character Bullet = new Character(SymbolName.Bullet);
+  /// <summary>The not sign, U+00AC.</summary>
   public static readonly Character Not = new Character(SymbolName.Not);
+  /// <summary>An em dash, U+2014.</summary>
   public static readonly Character EmDash = new Character(SymbolName.EmDash);
+  /// <summary>An en dash, U+2013.</summary>
   public static readonly Character EnDash = new Character(SymbolName.EnDash);
+  /// <summary>A space a line may not be broken at, U+00A0.</summary>
   public static readonly Character NonBreakableBlank = new Character(SymbolName.NonBreakableBlank);
+  /// <summary>A space a line may not be broken at. Same as <see cref="NonBreakableBlank"/>.</summary>
   public static readonly Character HardBlank = new Character(SymbolName.HardBlank);
 
   /// <summary>

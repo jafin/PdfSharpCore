@@ -42,6 +42,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors;
 public abstract class DocumentObjectVisitor
 {
 
+  /// <summary>Visits a document object, and through it everything below it.</summary>
   public abstract void Visit(DocumentObject documentObject);
 
   //Chart

@@ -413,7 +413,7 @@ public class XTextFormatter
     /// <param name="font">The font.</param>
     /// <param name="brush">The text brush.</param>
     /// <param name="layoutRectangle">The layout rectangle.</param>
-    /// <param name="alignments">The alignments.</c></param>
+    /// <param name="alignments">The alignments.</param>
     /// <param name="lineHeight">The height of each line.</param>
     public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, TextFormatAlignment alignments,
         XUnit? lineHeight = null)
@@ -1205,8 +1205,11 @@ public class XTextFormatter
     }
 }
 
+/// <summary>How text is aligned within its layout rectangle, in both directions at once.</summary>
 public class TextFormatAlignment
 {
+    /// <summary>Gets or sets the alignment across the width of the rectangle. Left by default.</summary>
     public XParagraphAlignment Horizontal { get; set; } = XParagraphAlignment.Left;
+    /// <summary>Gets or sets the alignment down the height of the rectangle. Top by default.</summary>
     public XVerticalAlignment Vertical { get; set; } = XVerticalAlignment.Top;
 }

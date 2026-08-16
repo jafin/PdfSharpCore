@@ -183,6 +183,7 @@ public partial class DocumentElements : DocumentObjectCollection, IVisitable
         return chart;
     }
 
+    /// <summary>Adds an image already decoded by the registered image source.</summary>
     public MigraDocImage AddImage(IImageSource image)
     {
         MigraDocImage img = new MigraDocImage()

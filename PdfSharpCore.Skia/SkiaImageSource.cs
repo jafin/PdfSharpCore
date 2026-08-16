@@ -29,6 +29,7 @@ public class SkiaImageSource
     }
 
 
+    /// <summary>Decodes an image from a file.</summary>
     protected override IImageSource FromFileImpl(string path, int? quality = 75)
     {
         using SKData data = SKData.Create(path);
@@ -36,6 +37,7 @@ public class SkiaImageSource
     }
 
 
+    /// <summary>Decodes an image from bytes fetched on demand.</summary>
     protected override IImageSource FromBinaryImpl(string name, Func<byte[]> imageSource, int? quality = 75)
     {
         using SKData data = SKData.CreateCopy(imageSource.Invoke());
@@ -43,6 +45,7 @@ public class SkiaImageSource
     }
 
 
+    /// <summary>Decodes an image from a stream opened on demand.</summary>
     protected override IImageSource FromStreamImpl(string name, Func<Stream> imageStream, int? quality = 75)
     {
         using Stream stream = imageStream.Invoke();

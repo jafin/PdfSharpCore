@@ -48,6 +48,7 @@ public class LayoutInfo
     get => startingHeight;
     set => startingHeight = value;
   }
+  /// <summary>Backing field for <see cref="StartingHeight"/>.</summary>
   protected XUnit startingHeight;
 
   /// <summary>

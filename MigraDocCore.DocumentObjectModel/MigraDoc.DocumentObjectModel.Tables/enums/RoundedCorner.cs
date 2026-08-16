@@ -37,9 +37,14 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// </summary>
 public enum RoundedCorner
 {
+    /// <summary>No corner is rounded.</summary>
     None,
+    /// <summary>The top left corner is rounded.</summary>
     TopLeft,
+    /// <summary>The top right corner is rounded.</summary>
     TopRight,
+    /// <summary>The bottom left corner is rounded.</summary>
     BottomLeft,
+    /// <summary>The bottom right corner is rounded.</summary>
     BottomRight
 }

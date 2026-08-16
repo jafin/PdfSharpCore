@@ -7,6 +7,7 @@ public class PdfEmbeddedFile : PdfDictionary
 {
     private readonly PdfDictionary paramsDictionary;
 
+    /// <summary>Initializes a new embedded file with no content yet.</summary>
     public PdfEmbeddedFile(PdfDocument document)
         : base(document)
     {
@@ -16,12 +17,17 @@ public class PdfEmbeddedFile : PdfDictionary
         Elements.SetObject(Keys.Params, paramsDictionary);
     }
 
-    public PdfEmbeddedFile(PdfDocument document, byte[] bytes, string checksum = null) 
+    /// <summary>Initializes a new embedded file holding the given bytes.</summary>
+    public PdfEmbeddedFile(PdfDocument document, byte[] bytes, string checksum = null)
         : this(document)
     {
         CreateStreamAndSetProperties(bytes, checksum);
     }
 
+    /// <summary>
+    /// Stores the bytes as this file's stream and records its size, and its MD5 checksum when one is
+    /// given. Passing no checksum removes any recorded already.
+    /// </summary>
     public void CreateStreamAndSetProperties(byte[] bytes, string checksum = null)
     {
         CreateStream(bytes);
@@ -36,11 +42,12 @@ public class PdfEmbeddedFile : PdfDictionary
             paramsDictionary.Elements.SetString(Keys.CheckSum, checksum, PdfStringEncoding.RawEncoding);
     }
 
+    /// <summary>Gets or sets the media type of the embedded file, written as the <c>/Subtype</c> name.</summary>
     public string MimeType
     {
         get => Elements.GetName(Keys.Subtype);
         set => Elements.SetName(Keys.Subtype, value);
-    }        
+    }
 
     // TODO : Add properties for the subdictionnary Params and the subsubdictionnary Mac
 
@@ -50,26 +57,26 @@ public class PdfEmbeddedFile : PdfDictionary
     public class Keys : PdfDictionary.PdfStream.Keys
     {
         /// <summary>
-        /// (Optional) The type of PDF object that this dictionary describes; if present, 
+        /// (Optional) The type of PDF object that this dictionary describes; if present,
         /// must be EmbeddedFile for an embedded file stream.
         /// </summary>
         [KeyInfo(KeyType.Name | KeyType.Optional, FixedValue = "EmbeddedFile")]
         public const string Type = "/Type";
 
         /// <summary>
-        /// (Optional) The subtype of the embedded file. The value of this entry must be a 
-        /// first-class name, as defined in Appendix E. Names without a registered prefix 
-        /// must conform to the MIME media type names defined in Internet RFC 2046, 
-        /// Multipurpose Internet Mail Extensions (MIME), Part Two: Media Types(see the 
-        /// Bibliography), with the provision that characters not allowed in names must 
-        /// use the 2-character hexadecimal code format described in Section 3.2.4, 
+        /// (Optional) The subtype of the embedded file. The value of this entry must be a
+        /// first-class name, as defined in Appendix E. Names without a registered prefix
+        /// must conform to the MIME media type names defined in Internet RFC 2046,
+        /// Multipurpose Internet Mail Extensions (MIME), Part Two: Media Types(see the
+        /// Bibliography), with the provision that characters not allowed in names must
+        /// use the 2-character hexadecimal code format described in Section 3.2.4,
         /// “Name Objects.”
         /// </summary>
         [KeyInfo(KeyType.Name | KeyType.Optional)]
         public const string Subtype = "/Subtype";
 
         /// <summary>
-        /// (Optional) An embedded file parameter dictionary containing additional, 
+        /// (Optional) An embedded file parameter dictionary containing additional,
         /// file-specific information (see Table 3.43).
         /// </summary>
         [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
@@ -100,9 +107,9 @@ public class PdfEmbeddedFile : PdfDictionary
         public const string Mac = "/Mac";
 
         /// <summary>
-        /// (Optional) A 16-byte string that is the checksum of the bytes of the uncompressed 
-        /// embedded file. The checksum is calculated by applying the standard MD5 message-digest 
-        /// algorithm (described in Internet RFC 1321, The MD5 Message-Digest Algorithm; see the 
+        /// (Optional) A 16-byte string that is the checksum of the bytes of the uncompressed
+        /// embedded file. The checksum is calculated by applying the standard MD5 message-digest
+        /// algorithm (described in Internet RFC 1321, The MD5 Message-Digest Algorithm; see the
         /// Bibliography) to the bytes of the embedded file stream.
         /// </summary>
         [KeyInfo(KeyType.Dictionary | KeyType.Optional)]

@@ -233,6 +233,7 @@ public partial class TextFrame : Shape, IVisitable
             this.elements = value;
         }
     }
+    /// <summary>Backing field for <see cref="Elements"/>.</summary>
     [DV]
     protected DocumentElements elements;
     #endregion

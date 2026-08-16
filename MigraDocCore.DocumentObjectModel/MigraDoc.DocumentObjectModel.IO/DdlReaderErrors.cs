@@ -69,6 +69,7 @@ public class DdlReaderErrors : IEnumerable
 
   private ArrayList errors = new ArrayList();
 
+  /// <summary>Returns an enumerator over the errors, in the order they were reported.</summary>
   public IEnumerator GetEnumerator()
   {
     return this.errors.GetEnumerator();

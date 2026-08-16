@@ -37,7 +37,10 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// </summary>
 public enum RowAlignment
 {
+  /// <summary>The table is aligned to the left margin.</summary>
   Left,
+  /// <summary>The table is centred between the margins.</summary>
   Center,
+  /// <summary>The table is aligned to the right margin.</summary>
   Right
 }

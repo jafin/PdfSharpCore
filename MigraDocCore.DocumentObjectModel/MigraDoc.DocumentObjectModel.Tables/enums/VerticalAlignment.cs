@@ -37,7 +37,10 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// </summary>
 public enum VerticalAlignment
 {
+  /// <summary>Contents sit against the top of the cell.</summary>
   Top,
+  /// <summary>Contents are centred vertically in the cell.</summary>
   Center,
+  /// <summary>Contents sit against the bottom of the cell.</summary>
   Bottom
 }

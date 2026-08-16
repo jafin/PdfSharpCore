@@ -30,7 +30,6 @@ namespace MigraDoc;
 /// <summary>
 /// Base namespace of MigraDoc. Classes are implemented in nested namespaces like e. g. MigraDoc.DocumentObjectModel.
 /// </summary>
-/// <seealso cref="MigraDoc.DocumentObjectModel"></seealso>
 [System.Runtime.CompilerServices.CompilerGenerated]
 internal class NamespaceDoc { }
 
@@ -94,9 +93,13 @@ public static class ProductVersionInfo
   public const string Culture = "";
 
   // Build = days since 2001-07-04  -  change values ONLY here
+  /// <summary>The major version number. Also used for the NuGet package version.</summary>
   public const string VersionMajor = "1"; // Also used for NuGet Version.
+  /// <summary>The minor version number. Also used for the NuGet package version.</summary>
   public const string VersionMinor = "32"; // Also used for NuGet Version.
+  /// <summary>The build number, counted in days since 2001-07-04. Also used for the NuGet package version.</summary>
   public const string VersionBuild = "3885"; // Also used for NuGet Version.
+  /// <summary>The patch number. Also used for the NuGet package version.</summary>
   public const string VersionPatch = "0"; // Also used for NuGet Version.
 
   /// <summary>

@@ -82,16 +82,19 @@ public readonly struct XInterval : IEquatable<XInterval>
         return Start < other.End && other.Start < End;
     }
 
+    /// <summary>Determines whether the given interval has the same start and end as this one.</summary>
     public bool Equals(XInterval other)
     {
         return Start.Equals(other.Start) && End.Equals(other.End);
     }
 
+    /// <summary>Determines whether the given object is an <see cref="XInterval"/> equal to this one.</summary>
     public override bool Equals(object obj)
     {
         return obj is XInterval other && Equals(other);
     }
 
+    /// <summary>Returns a hash code for this interval.</summary>
     public override int GetHashCode()
     {
         unchecked
@@ -100,10 +103,13 @@ public readonly struct XInterval : IEquatable<XInterval>
         }
     }
 
+    /// <summary>Determines whether two intervals are equal.</summary>
     public static bool operator ==(XInterval left, XInterval right) => left.Equals(right);
 
+    /// <summary>Determines whether two intervals differ.</summary>
     public static bool operator !=(XInterval left, XInterval right) => !left.Equals(right);
 
+    /// <summary>Returns the interval as <c>[start, end]</c>, in the invariant culture.</summary>
     public override string ToString()
     {
         return string.Format(CultureInfo.InvariantCulture, "[{0}, {1}]", Start, End);

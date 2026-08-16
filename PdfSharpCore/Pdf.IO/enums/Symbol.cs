@@ -32,15 +32,65 @@ namespace PdfSharpCore.Pdf.IO;
 /// <summary>
 /// Terminal symbols recognized by lexer.
 /// </summary>
+/// <remarks>
+/// The twin of <see cref="PdfSharpCore.Pdf.Content.CSymbol"/>, which is what the content stream
+/// lexer recognizes. The document body has structure a content stream has not — indirect objects,
+/// streams, the cross-reference table — so this one has symbols for those and that one does not.
+/// </remarks>
 public enum Symbol
 {
-#pragma warning disable 1591
+    /// <summary>No symbol has been scanned yet.</summary>
     None,
-    Comment, Null, Integer, UInteger, Real, Boolean, String, HexString, UnicodeString, UnicodeHexString,
-    Name, Keyword,
-    BeginStream, EndStream,
-    BeginArray, EndArray,
-    BeginDictionary, EndDictionary,
-    Obj, EndObj, R, XRef, Trailer, StartXRef, Eof, Long
-#pragma warning restore 1591
+    /// <summary>A comment, from a percent sign to the end of the line.</summary>
+    Comment,
+    /// <summary>The <c>null</c> keyword.</summary>
+    Null,
+    /// <summary>An integer literal.</summary>
+    Integer,
+    /// <summary>An integer literal too large to be signed, scanned as unsigned.</summary>
+    UInteger,
+    /// <summary>A real literal.</summary>
+    Real,
+    /// <summary>The <c>true</c> or <c>false</c> keyword.</summary>
+    Boolean,
+    /// <summary>A literal string, written in parentheses.</summary>
+    String,
+    /// <summary>A string written in angle brackets as pairs of hexadecimal digits.</summary>
+    HexString,
+    /// <summary>A literal string whose bytes carry a byte order mark, so it is text rather than bytes.</summary>
+    UnicodeString,
+    /// <summary>A hexadecimal string whose bytes carry a byte order mark.</summary>
+    UnicodeHexString,
+    /// <summary>A name, written with a leading solidus.</summary>
+    Name,
+    /// <summary>A keyword the lexer has no symbol of its own for.</summary>
+    Keyword,
+    /// <summary>The <c>stream</c> keyword, which begins the raw bytes of a stream.</summary>
+    BeginStream,
+    /// <summary>The <c>endstream</c> keyword.</summary>
+    EndStream,
+    /// <summary>An opening square bracket.</summary>
+    BeginArray,
+    /// <summary>A closing square bracket.</summary>
+    EndArray,
+    /// <summary>A double angle bracket opening a dictionary.</summary>
+    BeginDictionary,
+    /// <summary>A double angle bracket closing a dictionary.</summary>
+    EndDictionary,
+    /// <summary>The <c>obj</c> keyword, which begins an indirect object.</summary>
+    Obj,
+    /// <summary>The <c>endobj</c> keyword.</summary>
+    EndObj,
+    /// <summary>The <c>R</c> keyword, which makes the two integers before it an indirect reference.</summary>
+    R,
+    /// <summary>The <c>xref</c> keyword, which begins the cross-reference table.</summary>
+    XRef,
+    /// <summary>The <c>trailer</c> keyword.</summary>
+    Trailer,
+    /// <summary>The <c>startxref</c> keyword, followed by the offset of the cross-reference table.</summary>
+    StartXRef,
+    /// <summary>The end of the file.</summary>
+    Eof,
+    /// <summary>An integer literal too large for <see cref="Integer"/>, scanned as a 64-bit value.</summary>
+    Long
 }

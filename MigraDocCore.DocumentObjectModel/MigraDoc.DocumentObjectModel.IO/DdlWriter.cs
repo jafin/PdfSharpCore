@@ -246,6 +246,7 @@ public class DdlWriter : IDisposable
         }
     }
 
+    /// <summary>Releases the underlying writer.</summary>
     public void Dispose()
     {
         // Dispose of unmanaged resources.
@@ -254,6 +255,8 @@ public class DdlWriter : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>Releases the underlying writer.</summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/> rather than a finalizer.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (this.serializer != null)

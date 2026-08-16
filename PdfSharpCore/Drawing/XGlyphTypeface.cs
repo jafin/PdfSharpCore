@@ -53,6 +53,11 @@ internal sealed class XGlyphTypeface
 
     const string KeyPrefix = "tk:";  // "typeface key"
 
+    /// <summary>
+    /// Initializes a typeface for a face already read from a font file.
+    /// </summary>
+    /// <param name="key">The cache key this typeface is held under.</param>
+    /// <param name="fontSource">The bytes of the font file, and the face read out of them.</param>
     /// <param name="styleSimulations">
     /// What the renderer has to supply that the font file does not - a font resolver asked for
     /// a bold or italic face the family ships no file for, and named the nearest one instead.

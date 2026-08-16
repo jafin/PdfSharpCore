@@ -3,8 +3,10 @@ using PdfSharpCore.Drawing;
 
 namespace PdfSharpCore.Internal;
 
+/// <summary>One font family, and the face that serves each style it ships.</summary>
 public class FontFamilyModel
 {
+    /// <summary>Gets or sets the family name.</summary>
     public string Name { get; set; }
 
     /// <summary>
@@ -14,6 +16,7 @@ public class FontFamilyModel
     /// </summary>
     public Dictionary<XFontStyle, string> FontFiles = new();
 
+    /// <summary>Determines whether this family ships a file for the given style.</summary>
     public bool IsStyleAvailable(XFontStyle fontStyle)
     {
         return FontFiles.ContainsKey(fontStyle);

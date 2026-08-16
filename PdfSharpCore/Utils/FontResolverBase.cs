@@ -15,14 +15,17 @@ namespace PdfSharpCore.Utils;
 /// </summary>
 public readonly struct FontMetadata
 {
+    /// <summary>Initializes a new instance of the <see cref="FontMetadata"/> structure.</summary>
     public FontMetadata(string familyName, XFontStyle style)
     {
         FamilyName = familyName;
         Style = style;
     }
 
+    /// <summary>Gets the family name read from the font file.</summary>
     public string FamilyName { get; }
 
+    /// <summary>Gets the style read from the font file.</summary>
     public XFontStyle Style { get; }
 }
 
@@ -36,6 +39,7 @@ public readonly struct FontMetadata
 public abstract class FontResolverBase
     : IFontResolver
 {
+    /// <summary>Gets the family name used when a document asks for no font in particular.</summary>
     public virtual string DefaultFontName => "Arial";
 
     // Per instance rather than static: two backends in one process must not inherit each
@@ -137,7 +141,7 @@ public abstract class FontResolverBase
 
     /// <summary>
     /// Scans the platform font directories on first use. Deferred rather than done in the
-    /// constructor so that <see cref="ReadFontMetadata"/> is never called on a half-built
+    /// constructor so that <see cref="ReadFontMetadata(string)"/> is never called on a half-built
     /// derived instance.
     /// </summary>
     private void EnsureInitialized()
@@ -232,7 +236,7 @@ public abstract class FontResolverBase
             {
                 isCollection = TrueTypeCollection.TryGetFaceCount(fontPathFile, out faceCount);
             }
-            catch (System.Exception e)
+            catch (System.Exception e) when (!Unrecoverable.Is(e))
             {
                 LogError(e.ToString());
                 continue;
@@ -249,7 +253,7 @@ public abstract class FontResolverBase
                 {
                     collectionMetadata = ReadCollectionMetadata(fontPathFile, faceCount);
                 }
-                catch (System.Exception e)
+                catch (System.Exception e) when (!Unrecoverable.Is(e))
                 {
                     // One unreadable face must not cost the rest of the collection, so fall
                     // back to reading them one at a time, where a failure stays with the face
@@ -280,7 +284,7 @@ public abstract class FontResolverBase
                         ? collectionMetadata[face]
                         : ReadFontMetadata(fontPathFile, faceIndex);
                 }
-                catch (System.Exception e)
+                catch (System.Exception e) when (!Unrecoverable.Is(e))
                 {
                     LogError(e.ToString());
                     continue;
@@ -301,7 +305,7 @@ public abstract class FontResolverBase
                 FontFamilyModel family = DeserializeFontFamily(familyName, familyGroup);
                 installedFonts.Add(familyName.ToLower(), family);
             }
-            catch (System.Exception e)
+            catch (System.Exception e) when (!Unrecoverable.Is(e))
             {
                 LogError(e.ToString());
             }
@@ -358,8 +362,18 @@ public abstract class FontResolverBase
             : TrueTypeCollection.ExtractFace(bytes, location.FaceIndex);
     }
 
+    /// <summary>
+    /// Gets or sets whether an unresolvable family answers null instead of falling back to another
+    /// face. Null lets the caller decide what to do; the fallback keeps the document renderable.
+    /// </summary>
     public bool NullIfFontNotFound { get; set; } = false;
 
+    /// <summary>
+    /// Resolves a family name and style to an installed face, falling back to a face of the same
+    /// family in another style, and then to the default family, unless
+    /// <see cref="NullIfFontNotFound"/> says to answer null instead.
+    /// </summary>
+    /// <exception cref="System.IO.FileNotFoundException">No fonts are installed on this device.</exception>
     public virtual FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
     {
         EnsureInitialized();

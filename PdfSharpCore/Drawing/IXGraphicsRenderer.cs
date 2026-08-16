@@ -34,6 +34,7 @@ namespace PdfSharpCore.Drawing;
 /// </summary>
 public interface IXGraphicsRenderer
 {
+    /// <summary>Finishes the surface, writing out anything still pending. Nothing may be drawn afterwards.</summary>
     void Close();
 
     #region Drawing
@@ -124,6 +125,11 @@ public interface IXGraphicsRenderer
     /// Draws an image.
     /// </summary>
     void DrawImage(XImage image, double x, double y, double width, double height);
+    /// <summary>Draws part of an image into a rectangle, scaling it to fit.</summary>
+    /// <param name="image">The image to draw.</param>
+    /// <param name="destRect">Where on the surface to draw it.</param>
+    /// <param name="srcRect">The part of the image to take, in <paramref name="srcUnit"/>.</param>
+    /// <param name="srcUnit">The unit <paramref name="srcRect"/> is measured in.</param>
     void DrawImage(XImage image, XRect destRect, XRect srcRect, XGraphicsUnit srcUnit);
 
     #endregion
@@ -165,8 +171,10 @@ public interface IXGraphicsRenderer
 
     #region Clipping
 
+    /// <summary>Restricts drawing to a path, combined with the clip already in force.</summary>
     void SetClip(XGraphicsPath path, XCombineMode combineMode);
 
+    /// <summary>Removes the clip, so that drawing reaches the whole surface again.</summary>
     void ResetClip();
 
     #endregion

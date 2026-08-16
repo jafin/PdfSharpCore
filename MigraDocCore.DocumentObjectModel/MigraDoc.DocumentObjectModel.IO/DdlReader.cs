@@ -194,6 +194,7 @@ public class DdlReader : IDisposable
         return ObjectFromString(ddl, null);
     }
 
+    /// <summary>Releases the underlying reader.</summary>
     public void Dispose()
     {
         // Dispose of unmanaged resources.
@@ -202,6 +203,8 @@ public class DdlReader : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>Releases the underlying reader.</summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/> rather than a finalizer.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (this.reader != null)

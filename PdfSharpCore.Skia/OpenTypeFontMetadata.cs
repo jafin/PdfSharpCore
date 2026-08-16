@@ -38,6 +38,7 @@ internal static class OpenTypeFontMetadata
     }
 
 
+    /// <param name="path">The font file to read.</param>
     /// <param name="faceIndex">
     /// The face to read out of a collection, or -1 for the first font in the file whether it is
     /// a collection or not.

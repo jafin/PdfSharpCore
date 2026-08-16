@@ -34,7 +34,6 @@ using System.Text;
 using System.IO;
 using PdfSharpCore.Internal;
 
-#pragma warning disable 1591
 
 namespace PdfSharpCore.Pdf.Content;
 
@@ -212,6 +211,10 @@ public class CLexer
         }
     }
 
+    /// <summary>
+    /// Scans a dictionary. Not implemented: it clears the token and reports an operator, which is why
+    /// <see cref="CSymbol.Dictionary"/> notes that <c>&lt;&lt; … &gt;&gt;</c> is taken as a string.
+    /// </summary>
     protected CSymbol ScanDictionary()
     {
         ClearToken();
@@ -335,6 +338,7 @@ public class CLexer
     }
 
     // TODO
+    /// <summary>Scans a string written in parentheses, resolving the escapes inside it.</summary>
     public CSymbol ScanLiteralString()
     {
         Debug.Assert(_currChar == Chars.ParenLeft);
@@ -575,6 +579,7 @@ public class CLexer
     }
 
     // TODO
+    /// <summary>Scans a string written in angle brackets as pairs of hexadecimal digits.</summary>
     public CSymbol ScanHexadecimalString()
     {
         Debug.Assert(_currChar == Chars.Less);
@@ -844,6 +849,7 @@ public class CLexer
     public int ContLength => _content.Length;
 
     // ad
+    /// <summary>Gets or sets how far through the content the lexer has read, in bytes.</summary>
     public int Position
     {
         get => _charIndex;

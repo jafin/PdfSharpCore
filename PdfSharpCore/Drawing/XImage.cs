@@ -147,6 +147,7 @@ public class XImage : IDisposable
         return new XImage(stream);
     }
 
+    /// <summary>Creates an image from a source already decoded by the registered <see cref="ImageSource"/>.</summary>
     public static XImage FromImageSource(IImageSource imageSouce)
     {
         return new XImage(imageSouce);
@@ -183,6 +184,7 @@ public class XImage : IDisposable
         }
     }
 
+    /// <summary>Encodes the image as JPEG and returns a stream positioned at its start.</summary>
     public MemoryStream AsJpeg()
     {
         var ms = new MemoryStream();
@@ -191,6 +193,7 @@ public class XImage : IDisposable
         return ms;
     }
 
+    /// <summary>Encodes the image as a bitmap and returns a stream positioned at its start.</summary>
     public MemoryStream AsBitmap()
     {
         var ms = new MemoryStream();

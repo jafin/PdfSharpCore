@@ -71,6 +71,7 @@ public partial class PictureFormat : DocumentObject
     get => this.cropLeft;
     set => this.cropLeft = value;
   }
+  /// <summary>Backing field for <see cref="CropLeft"/>.</summary>
   [DV]
   protected Unit cropLeft = Unit.NullValue;
 
@@ -82,6 +83,7 @@ public partial class PictureFormat : DocumentObject
     get => this.cropRight;
     set => this.cropRight = value;
   }
+  /// <summary>Backing field for <see cref="CropRight"/>.</summary>
   [DV]
   protected Unit cropRight = Unit.NullValue;
 
@@ -93,6 +95,7 @@ public partial class PictureFormat : DocumentObject
     get => this.cropTop;
     set => this.cropTop = value;
   }
+  /// <summary>Backing field for <see cref="CropTop"/>.</summary>
   [DV]
   protected Unit cropTop = Unit.NullValue;
 
@@ -104,6 +107,7 @@ public partial class PictureFormat : DocumentObject
     get => this.cropBottom;
     set => this.cropBottom = value;
   }
+  /// <summary>Backing field for <see cref="CropBottom"/>.</summary>
   [DV]
   protected Unit cropBottom = Unit.NullValue;
   #endregion

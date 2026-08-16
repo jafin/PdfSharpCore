@@ -34,21 +34,35 @@ namespace PdfSharpCore.Pdf.Content;
 /// </summary>
 public enum CSymbol
 {
-#pragma warning disable 1591
+    /// <summary>No symbol has been scanned yet.</summary>
     None,
+    /// <summary>A comment, from a percent sign to the end of the line.</summary>
     Comment,
+    /// <summary>An integer literal.</summary>
     Integer,
+    /// <summary>A real literal.</summary>
     Real,
     /*Boolean?,*/
+    /// <summary>A literal string, written in parentheses.</summary>
     String,
+    /// <summary>A string written in angle brackets as pairs of hexadecimal digits.</summary>
     HexString,
+    /// <summary>A literal string whose bytes carry a byte order mark, so it is text rather than bytes.</summary>
     UnicodeString,
+    /// <summary>A hexadecimal string whose bytes carry a byte order mark.</summary>
     UnicodeHexString,
+    /// <summary>A name, written with a leading solidus.</summary>
     Name,
+    /// <summary>A content stream operator.</summary>
     Operator,
+    /// <summary>An opening square bracket.</summary>
     BeginArray,
+    /// <summary>A closing square bracket.</summary>
     EndArray,
+    /// <summary>A dictionary. Scanned as a string literal rather than parsed, which is why it is one symbol.</summary>
     Dictionary,  // HACK: << ... >> is scanned as string literal.
+    /// <summary>The end of the content stream.</summary>
     Eof,
+    /// <summary>The scanner could not make a symbol of what it read.</summary>
     Error = -1,
 }
