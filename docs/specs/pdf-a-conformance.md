@@ -1,17 +1,37 @@
 # Proposal — PDF/A conformance, XMP metadata and hybrid e-invoicing
 
-What archival and e-invoice output would cover, and what it would deliberately leave out.
-Gap **G4** of `autoresearch/improve-260816-1032/improvement-plan.md`. Nothing here is built.
+What archival and e-invoice output covers, and what it deliberately leaves out.
+Gap **G4** of the competitive gap analysis.
 
 | item | what | status |
 |---|---|---|
-| 1 | An XMP metadata writer, synchronised with the info dictionary | proposed |
-| 2 | Output intent with an embedded sRGB ICC profile | proposed |
-| 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | proposed |
-| 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | proposed |
-| 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | proposed |
+| 1 | An XMP metadata writer, synchronised with the info dictionary | done |
+| 2 | Output intent with an embedded ICC profile | done, **caller supplies the profile** |
+| 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, **partially** |
+| 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | not started |
+| 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | not started |
 
-Estimated effort: **4–6 engineer-weeks**, plus **1** for item 5.
+Covered by `PdfSharpCore.Test/IO/XmpMetadataTests.cs`.
+
+## What is honestly not finished
+
+**No ICC profile ships.** Item 2 embeds the bytes it is given and there are none in the box, so a
+document claiming conformance has to be handed a profile. The proposal assumed an sRGB
+IEC61966-2.1 profile could simply be embedded as a resource; that needs a vetted, redistributable
+asset and a licence check, which is a decision about what the repository ships rather than a piece
+of code. Until then the failure is loud — saving without one throws and the message says so.
+
+**Enforcement is partial, and the code says which parts.** These are checked: no encryption, a title
+present, an output intent profile present, embedded files only under PDF/A-3, and the version floor
+for the claimed part. These are **not** checked: no transparency and no JPXDecode under PDF/A-1 (both
+need a walk of every page's resources — `PdfTransparencyDetector` answers the question for one
+XObject, not for a page), and `/Interpolate true` on images. A successful save is therefore not a
+validator's verdict, and `Enforce` says so in its own remarks rather than leaving silence to imply
+otherwise.
+
+**veraPDF is not in CI.** Without it the conformance claim is self-certified, which is worth little.
+That remains the right next step and it is still a Java/Docker step added to a build that is
+currently pure .NET plus Ghostscript.
 
 ---
 

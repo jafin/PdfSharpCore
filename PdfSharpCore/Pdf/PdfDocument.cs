@@ -458,6 +458,11 @@ public sealed class PdfDocument : PdfObject, IDisposable
         // Let catalog do the rest.
         Catalog.PrepareForSave();
 
+        // After the information dictionary is settled and before anything is compacted away: the
+        // XMP packet is built from that dictionary and has to agree with it, and the objects it
+        // adds are reachable from the catalog, so Compact leaves them alone.
+        Metadata.PdfConformanceWriter.PrepareForSave(this);
+
         // Remove all unreachable objects (e.g. from deleted pages)
         int removed = _irefTable.Compact();
         if (removed != 0)
@@ -517,6 +522,19 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         get { return false; }
     }
+
+    /// <summary>
+    /// Gets or sets a hook called with the XMP metadata packet just before it is written, for
+    /// anything the built-in schemas do not cover.
+    /// </summary>
+    /// <remarks>
+    /// The packet is built from the information dictionary at save time rather than kept beside it,
+    /// so that the two cannot drift apart and have a validator notice. That leaves nowhere for a
+    /// caller to reach it, which is what this is for: a PDF/UA identifier, a ZUGFeRD extension
+    /// schema, or a namespace nobody has thought of, added through
+    /// <see cref="Metadata.XmpMetadata.AdditionalDescriptions"/>.
+    /// </remarks>
+    public Action<Metadata.XmpMetadata> CustomizeMetadata { get; set; }
 
     /// <summary>
     /// Gets or sets the PDF version number. Return value 14 e.g. means PDF 1.4 / Acrobat 5 etc.

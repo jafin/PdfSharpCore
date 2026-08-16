@@ -111,6 +111,62 @@ public sealed class PdfDocumentOptions
     PdfCrossReferenceFormat _crossReferenceFormat = PdfCrossReferenceFormat.Classic;
 
     /// <summary>
+    /// Gets or sets the archival profile the document claims. The default is
+    /// <see cref="PdfAConformance.None"/>, which claims nothing and enforces nothing.
+    /// <para>
+    /// Setting it does more than label the file: the writer refuses to save a document that breaks
+    /// a rule of the profile claimed, naming the rule. A conformance claim found to be false by a
+    /// validator, or by a customer, is worse than no claim at all.
+    /// </para>
+    /// </summary>
+    public PdfAConformance Conformance
+    {
+        get => _conformance;
+        set => _conformance = value;
+    }
+    PdfAConformance _conformance = PdfAConformance.None;
+
+    /// <summary>
+    /// Gets or sets a value indicating that an XMP metadata packet is written even when no
+    /// conformance is claimed. A claimed conformance implies one regardless.
+    /// </summary>
+    public bool WriteXmpMetadata
+    {
+        get => _writeXmpMetadata;
+        set => _writeXmpMetadata = value;
+    }
+    bool _writeXmpMetadata;
+
+    /// <summary>
+    /// Gets or sets the ICC profile embedded as the document's output intent, which every PDF/A
+    /// profile requires whenever a device-dependent colour space is used — and
+    /// <see cref="PdfColorMode.Rgb"/>, the default, is one.
+    /// <para>
+    /// No profile ships with this library, so a document claiming conformance has to be given one.
+    /// The profile is embedded rather than referenced: naming a well-known profile is exactly what
+    /// PDF/A exists to stop, since the name means nothing once the machine that understood it is
+    /// gone.
+    /// </para>
+    /// </summary>
+    public byte[] OutputIntentIccProfile
+    {
+        get => _outputIntentIccProfile;
+        set => _outputIntentIccProfile = value;
+    }
+    byte[] _outputIntentIccProfile;
+
+    /// <summary>
+    /// Gets or sets the name of the output condition the profile describes, such as
+    /// "sRGB IEC61966-2.1". Written as <c>/OutputConditionIdentifier</c>.
+    /// </summary>
+    public string OutputIntentIdentifier
+    {
+        get => _outputIntentIdentifier;
+        set => _outputIntentIdentifier = value;
+    }
+    string _outputIntentIdentifier = "Custom";
+
+    /// <summary>
     /// Gets or sets how many objects at most are gathered into one object stream. Only meaningful
     /// when <see cref="CrossReferenceFormat"/> is <see cref="PdfCrossReferenceFormat.Stream"/>.
     /// Acrobat uses 200 and so does this; a reader has to decompress a whole object stream to reach
