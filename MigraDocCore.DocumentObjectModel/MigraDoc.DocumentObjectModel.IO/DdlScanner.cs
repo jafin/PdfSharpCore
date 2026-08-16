@@ -313,15 +313,19 @@ internal class DdlScanner
         sym = Symbol.BackSlash;
         break;
 
+      // The bound is "there is a character after this one", so it is > rather than >=: with >=,
+      // a '+' or '-' as the last character of the document read one past the end. ScanPunctuator
+      // has the same two arms and gets this right because it looks at nextChar, which is null at
+      // the end of the buffer rather than out of it.
       case '+':
-        if (this.ddlLength >= index + 1 && m_strDocument[index + 1] == '=')
+        if (this.ddlLength > index + 1 && m_strDocument[index + 1] == '=')
           sym = Symbol.PlusAssign;
         else
           sym = Symbol.Plus;
         break;
 
       case '-':
-        if (this.ddlLength >= index + 1 && m_strDocument[index + 1] == '=')
+        if (this.ddlLength > index + 1 && m_strDocument[index + 1] == '=')
           sym = Symbol.MinusAssign;
         else
           sym = Symbol.Minus;
@@ -995,117 +999,6 @@ internal class DdlScanner
   //internal bool IsHardHyphen();
   //internal bool IsNewLine();
   //internal bool IsWhiteSpace(Symbol _docSym);
-
-  /// <summary>
-  /// Determines whether the given symbol is a valid keyword for a document element.
-  /// </summary>
-  internal static bool IsDocumentElement(Symbol symbol)
-  {
-    switch (symbol)
-    {
-      case Symbol.Paragraph:
-      case Symbol.Table:
-      case Symbol.Image:
-      case Symbol.TextFrame:
-      case Symbol.Chart:
-      case Symbol.PageBreak:
-      case Symbol.Barcode:
-        return true;
-    }
-    return false;
-  }
-
-  /// <summary>
-  /// Determines whether the given symbol is a valid keyword for a section element.
-  /// </summary>
-  internal static bool IsSectionElement(Symbol symbol)
-  {
-    switch (symbol)
-    {
-      case Symbol.Paragraph:
-      case Symbol.Table:
-      case Symbol.Image:
-      case Symbol.TextFrame:
-      case Symbol.Chart:
-      case Symbol.PageBreak:
-      case Symbol.Barcode:
-      case Symbol.Header:
-      case Symbol.PrimaryHeader:
-      case Symbol.FirstPageHeader:
-      case Symbol.EvenPageHeader:
-      case Symbol.Footer:
-      case Symbol.PrimaryFooter:
-      case Symbol.FirstPageFooter:
-      case Symbol.EvenPageFooter:
-        return true;
-    }
-    return false;
-  }
-
-  /// <summary>
-  /// Determines whether the given symbol is a valid keyword for a paragraph element.
-  /// </summary>
-  internal static bool IsParagraphElement(Symbol symbol)
-  {
-    switch (symbol)
-    {
-      case Symbol.Blank:
-      case Symbol.Bold:
-      case Symbol.Italic:
-      case Symbol.Underline:
-      case Symbol.Font:
-      case Symbol.FontColor:
-      case Symbol.FontSize:
-      case Symbol.Field:
-      case Symbol.Hyperlink:
-      case Symbol.Footnote:
-      case Symbol.Image:
-      case Symbol.Tab:
-      case Symbol.SoftHyphen:
-      case Symbol.Space:
-      case Symbol.Symbol:
-      case Symbol.Chr:
-      case Symbol.LineBreak:
-      case Symbol.Text:
-        return true;
-    }
-    return false;
-  }
-
-  /// <summary>
-  /// Determines whether the given symbol is a valid keyword for a header or footer element.
-  /// </summary>
-  internal static bool IsHeaderFooterElement(Symbol symbol)
-  {
-    // All paragraph elements.
-    if (IsParagraphElement(symbol))
-      return true;
-
-    // All document elements except pagebreak.
-    if (IsDocumentElement(symbol))
-    {
-      if (symbol == Symbol.PageBreak)
-        return false;
-      return true;
-    }
-
-    return false;
-  }
-
-  /// <summary>
-  /// Determines whether the given symbol is a valid keyword for a footnote element.
-  /// </summary>
-  internal static bool IsFootnoteElement(Symbol symbol)
-  {
-    // All paragraph elements except footnote.
-    if (IsParagraphElement(symbol))
-    {
-      if (symbol == Symbol.Footnote)
-        return false;
-      return true;
-    }
-    return false;
-  }
 
   /// <summary>
   /// Gets the current filename of the document.
