@@ -111,7 +111,81 @@ public abstract class PdfChoiceField : PdfAcroField
     }
 
     /// <summary>
-    /// Predefined keys of this dictionary. 
+    /// The indices in <c>/Opt</c> of the options currently chosen, in ascending order. Empty when
+    /// nothing is chosen, or when what is chosen is no longer among the options on offer.
+    /// </summary>
+    /// <remarks>
+    /// Read from <c>/V</c> rather than from <c>/I</c>. The two are allowed to disagree, and the
+    /// specification says <c>/V</c> is the one that wins; <c>/I</c> is there for a reader that
+    /// would otherwise have to search <c>/Opt</c>, and to tell apart two options that display
+    /// differently but export the same text. <c>/V</c> is a text string when one option is chosen
+    /// and an array of them when several are, which is why this reads both.
+    /// </remarks>
+    protected int[] SelectedIndicesFromValue()
+    {
+        PdfItem value = Elements[Keys.V];
+        if (value is Advanced.PdfReference reference)
+            value = reference.Value;
+
+        if (value == null || value is PdfNull)
+            return new int[0];
+
+        var indices = new System.Collections.Generic.List<int>();
+        if (value is PdfArray chosen)
+        {
+            foreach (PdfItem item in chosen.Elements)
+            {
+                int index = IndexInOptArray(TextOfOption(item));
+                if (index != -1 && !indices.Contains(index))
+                    indices.Add(index);
+            }
+        }
+        else
+        {
+            int index = IndexInOptArray(TextOfOption(value));
+            if (index != -1)
+                indices.Add(index);
+        }
+
+        indices.Sort();
+        return indices.ToArray();
+    }
+
+    /// <summary>
+    /// Writes <c>/I</c> as the array of chosen indices the specification calls for, sorted
+    /// ascending, and removes the entry when <paramref name="indices"/> is empty rather than
+    /// leaving one behind that says something the field no longer does.
+    /// </summary>
+    protected void WriteSelectedIndices(int[] indices)
+    {
+        if (indices == null || indices.Length == 0)
+        {
+            Elements.Remove(Keys.I);
+            return;
+        }
+
+        PdfArray entry = new PdfArray(Owner);
+        foreach (int index in indices)
+            entry.Elements.Add(new PdfInteger(index));
+        Elements[Keys.I] = entry;
+    }
+
+    /// <summary>
+    /// Sorts and removes repeats, so that a caller need not, and so that <c>/I</c> and <c>/V</c>
+    /// are written in the one order the specification gives for <c>/I</c>.
+    /// </summary>
+    internal static int[] Ordered(int[] indices)
+    {
+        var ordered = new System.Collections.Generic.List<int>();
+        foreach (int index in indices ?? new int[0])
+            if (!ordered.Contains(index))
+                ordered.Add(index);
+        ordered.Sort();
+        return ordered.ToArray();
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
     /// The description comes from PDF 1.4 Reference.
     /// </summary>
     public new class Keys : PdfAcroField.Keys

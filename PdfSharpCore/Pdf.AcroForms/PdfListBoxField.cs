@@ -27,6 +27,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
+
 namespace PdfSharpCore.Pdf.AcroForms;
 
 /// <summary>
@@ -46,19 +48,80 @@ public sealed class PdfListBoxField : PdfChoiceField
     { }
 
     /// <summary>
-    /// Gets or sets the index of the selected item
+    /// Gets whether the list allows more than one of its options to be chosen at once, which is
+    /// the <c>MultiSelect</c> flag. A combo box never does; a list box may.
+    /// </summary>
+    public bool AllowsMultipleSelection => (Flags & PdfAcroFieldFlags.MultiSelect) != 0;
+
+    /// <summary>
+    /// Gets or sets the index of the selected item, or -1 when nothing is selected. Where several
+    /// options are selected this is the first of them; <see cref="SelectedIndices"/> gives them
+    /// all. Setting it selects that one option and deselects the rest.
     /// </summary>
     public int SelectedIndex
     {
         get
         {
-            string value = Elements.GetString(Keys.V);
-            return IndexInOptArray(value);
+            int[] indices = SelectedIndicesFromValue();
+            return indices.Length == 0 ? -1 : indices[0];
         }
+        set => SelectedIndices = new[] { value };
+    }
+
+    /// <summary>
+    /// Gets or sets the indices of every selected option, in ascending order. Empty when nothing
+    /// is selected, and setting it to an empty array selects nothing.
+    /// </summary>
+    /// <remarks>
+    /// A list box is the only field that can offer more than one choice at a time, and it could
+    /// not be told to take one: it had an index and no more, so a document with several options
+    /// selected could not be written, and one read back threw rather than answering, because
+    /// <c>/V</c> is an array in that case and was being read as a string.
+    /// <para>
+    /// Selecting several options needs the <c>MultiSelect</c> flag, without which a viewer is told
+    /// at most one may be chosen, and a document saying both would contradict itself.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// More than one index is given for a list that does not allow multiple selection.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// An index names no option the list offers.
+    /// </exception>
+    public int[] SelectedIndices
+    {
+        get => SelectedIndicesFromValue();
         set
         {
-            string key = ValueInOptArray(value);
-            Elements.SetString(Keys.V, key);
+            int[] indices = Ordered(value);
+
+            if (indices.Length > 1 && !AllowsMultipleSelection)
+                throw new InvalidOperationException(
+                    "The list allows one option to be selected at a time. Set the MultiSelect flag "
+                    + "on the field before selecting " + indices.Length + " of them.");
+
+            // Mapped before anything is written, so an index the list has no option for leaves the
+            // field as it was rather than half changed.
+            string[] texts = new string[indices.Length];
+            for (int idx = 0; idx < indices.Length; idx++)
+                texts[idx] = ValueInOptArray(indices[idx]);
+
+            if (indices.Length == 0)
+                Elements.Remove(Keys.V);
+            else if (indices.Length == 1)
+                Elements.SetString(Keys.V, texts[0]);
+            else
+            {
+                PdfArray values = new PdfArray(Owner);
+                foreach (string text in texts)
+                    values.Elements.Add(new PdfString(text));
+                Elements[Keys.V] = values;
+            }
+
+            // /I is for a list that allows several choices. The specification says it should not
+            // be used by one that does not, so a single-choice list carries /V alone and any /I
+            // left over from before is taken away rather than left to disagree with it.
+            WriteSelectedIndices(AllowsMultipleSelection ? indices : new int[0]);
         }
     }
 
