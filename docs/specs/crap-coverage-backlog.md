@@ -15,7 +15,7 @@ dotnet test PdfSharpCore.slnx -f net10.0 --settings coverage.runsettings `
 3,510 tests, exit 0, no test-host crash. **75.0% of lines and 69.2% of branches.** Of 7,287
 methods, 237 score above the CRAP threshold of 30 and 109 of those have never been executed at all.
 
-### Where it stands now
+## Where it stands now
 
 Re-measured the same way after each batch. Every batch is done.
 
@@ -30,9 +30,15 @@ Re-measured the same way after each batch. Every batch is done.
 | batches 6 and 7 | 3,781 | 77.3% | 72.5% |
 | batches 8, 9 and 10 | 3,818 | 77.6% | 73.2% |
 | batches 11 to 14 | 3,890 | **78.3%** | **73.9%** |
+| the pull request review | 3,897 | **78.3%** | **73.9%** |
 
 Every run exit 0, and every total checked against `dotnet test --list-tests` rather than read off
 the word `Passed`.
+
+The last row is the review of the pull request the rest of this was raised in. It moves neither
+number, which is the point of recording it: three more defects (F18–F20) and four tests that were
+not asserting what they said they were, none of it visible in a coverage percentage. The lines were
+already covered. What was wrong was what the tests claimed about them.
 
 Batches 0 and 1 were settled by deleting the target rather than covering it, so their movement is
 the denominator shrinking — six unreachable methods carrying about 4,800 points between them are
@@ -124,10 +130,20 @@ what pins it now. Numbered in the order they were found, which is the order of t
 | F15 | The content lexer could not read `d0` or `d1`, so **every Type 3 glyph was misread** and every operator after the first got an extra operand | yes |
 | F16 | An unterminated string ending in a backslash put U+FFFF into the text | yes |
 | F17 | A repeated symbol was drawn `Count` squared times, into the width reserved for `Count` | yes |
+| F18 | The UTF-16 half of the literal string scanner had F16's fault and did not get F16's fix | yes |
+| F19 | `GetMatrix` refused the literal that `SetMatrix` and its own create branch write, so **no matrix this library wrote could be read back** | yes |
+| F20 | A check box whose single widget is a child of its own ignored `Checked = true` entirely | yes |
 
-Fifteen of the seventeen are fixed. F3 is recorded rather than fixed because fixing it changes what
-the reader accepts, which is a decision rather than a repair. F1 is not really an open defect at
-all — see the correction under it.
+Eighteen of the twenty are fixed. F3 is recorded rather than fixed because fixing it changes what
+the reader accepts, which is a decision rather than a repair. F1 is half fixed: the unreachable
+predicates are deleted, and the one rule they held that is not enforced anywhere else —
+`\pagebreak` in a header — is deliberately left as the silent no-op it is. See the correction
+under it for why the fix does not belong in the parser.
+
+F18, F19 and F20 came out of the review of the pull request this spec was raised in, which is worth
+saying: three of them are the same shape as findings already in this list — one half of a pair of
+near-copies getting a fix its twin did not (F18, and F6 before it), and a value that cannot be read
+back by the method that wrote it (F19, and F9–F11 before it).
 
 ### F1 — the scanner's five element predicates were unreachable, and the rules they held are unenforced
 
@@ -260,7 +276,7 @@ nothing raises it.
 file never comes back. Found while looking for a parser error to assert against: truncation is not
 needed. Both of these are complete and balanced, and both hang for good:
 
-```
+```text
 \document{\section[PageSetup{PageFormat = NoSuchFormat}]{\paragraph{t}}}
 \document[Info{Title = "x"]{\section{\paragraph{t}}}
 ```
@@ -366,15 +382,36 @@ maintained as null at the end of the buffer rather than read from past it.
 Reached by a document whose last character is `+` or `-`. Demonstrated directly against the scanner
 before fixing:
 
-```
+```text
 'x+' index 1 -> IndexOutOfRangeException
 'x-' index 1 -> IndexOutOfRangeException
 ```
 
-Fixed to `>` in both arms. Pinned from the outside by
-`ASignAtTheVeryEndOfTheDocumentIsNotReadPastTheEndOfIt`, which is the honest test — the public route
-to it is currently blocked by F3, since a document malformed enough to leave a trailing sign at a
-peek point tends to hang before the peek happens.
+Fixed to `>` in both arms.
+
+Pinned by `ASignAtTheVeryEndOfTheDocumentIsNotReadPastTheEndOfIt`, which took a second attempt. The
+first version ended the document with a sign after its closing brace — `\document{…}}}+` — and that
+input never reaches the lookahead at all: the parser has finished by then and says "End of file
+expected". It also called the reader through a helper that catches every exception, so it could not
+have seen the throw even had one happened. The test passed with the defect deliberately put back,
+which is how it was found; the review of the pull request this spec was raised in caught the second
+half of that.
+
+The lookahead is reached from three places, and all three are a keyword asking whether an attribute
+block or an argument list follows it. So the sign has to arrive immediately after such a keyword and
+be the last character of the document. Measured across a spread of candidates, with the fix out and
+then in:
+
+```text
+\document{\section{\paragraph{a\space+       IndexOutOfRangeException   ->  does not come back
+\document{\section{\paragraph{aield(Page)+ IndexOutOfRangeException   ->  does not come back
+\document{\section{\paragraph{t}}}+          "End of file expected."    ->  "End of file expected."
+```
+
+The fixed reader does not come back from those two, because they are also truncated and that is
+F3 — a different defect, separately pinned. So the assertion is that the fault is not an
+`IndexOutOfRangeException`, read on a thread of its own, with not coming back an acceptable answer
+and reading off the end of the buffer not.
 
 ### F7 — `DdlReader.ObjectFromString` threw away the error list it was handed
 
@@ -551,7 +588,7 @@ specification requires a Type 3 glyph description to **begin** with one of the t
 So the scanner read `d`, the setdash operator, and left the digit behind as an operand of whatever
 came next. Reading the first line of any Type 3 glyph:
 
-```
+```text
 1000 0 0 0 200 200 d1 /Im1 Do   ->   d(6) Do(2)
 ```
 
@@ -626,7 +663,7 @@ for (int idx = 1; idx < character.Count; ++idx)
 So `AddCharacter(SymbolName.Bullet, 3)` drew nine bullets, and four drew sixteen — measured
 directly before fixing:
 
-```
+```text
 count 1 -> 1 glyph    count 2 -> 4 glyphs    count 3 -> 9 glyphs    count 4 -> 16 glyphs
 ```
 
@@ -647,6 +684,149 @@ void RenderSymbol(Character character)
 Pinned by `ARepeatedSymbolIsDrawnAsManyTimesAsItSaysItIs` over counts of one, two, three and five,
 and by `ARepeatedSymbolTakesTheWidthTheFormatterReservedForIt`, which checks that what follows the
 symbols begins where they end.
+
+### F18 — the UTF-16 half of the string scanner had F16's fault and did not get F16's fix
+
+`ScanLiteralString` is two loops, not one. A literal opening with the UTF-16 byte order mark is
+read two bytes at a time by the first; everything else is read a byte at a time by the second. The
+two are near-copies of one another, down to the comment `// TODO: not sure that this is correct...`
+in both, and F16 fixed only the second.
+
+Both compose a character and then append it, and in both the escape arm reads the next character
+before the guard at the top of the loop can be reached again:
+
+```csharp
+case '\':
+{
+    ch = ScanNextChar();   // content ends here, so ch is Chars.EOF
+    ...
+}
+break;
+```
+
+So content ending in a lone backslash put U+FFFF into the UTF-16 string exactly as it had into the
+8-bit one. The fix is F16's, in the other loop:
+
+```csharp
+if (ch == Chars.EOF)
+    return _symbol = CSymbol.String;
+
+_token.Append(ch);
+```
+
+`CLAUDE.md` names this shape — *"a change to one nearly always belongs in the other"* — for the two
+lexers and for the category axis renderers. It holds inside a single method too, and F6 was the
+same thing: `PeekPunctuator` and `ScanPunctuator` are copies, and only one had the bound wrong.
+
+Pinned by `ScanLiteralString_endsAUnicodeStringAtTheEndOfTheContentWithoutInventingCharacters`,
+which feeds the scanner raw bytes because the branch is chosen by a byte order mark. The tests
+beside it — `ScanLiteralString_readsAUnicodeStringTwoBytesAtATime` and
+`ScanLiteralString_carriesTheHighByteOfAUnicodeCharacter` — say the ordinary case still reads, and
+were what made the omission findable: the loop was covered, and the one line the 8-bit copy had
+gained was the line missing from it.
+
+### F19 — no matrix this library wrote could be read back
+
+`PdfDictionary.Elements.GetMatrix` accepted a matrix written as an array of six numbers and refused
+one written as a literal:
+
+```csharp
+else if (obj is PdfLiteral)
+{
+    throw new NotImplementedException("Parsing matrix from literal.");
+}
+```
+
+The literal is the shape it meets. `SetMatrix` writes one:
+
+```csharp
+public void SetMatrix(string key, XMatrix matrix)
+{
+    _elements[key] = PdfLiteral.FromMatrix(matrix);
+}
+```
+
+and so did `GetMatrix`'s own create branch, which wrote the identity as the hard-coded string
+`"[1 0 0 1 0 0]"` under a comment reading `// cannot be parsed, implement a PdfMatrix...`. Nothing
+in the library writes a matrix any other way: `PdfFormXObject`, `PdfShadingPattern` and
+`PdfGradientSoftMask` all set `/Matrix` through `SetMatrix`. So every matrix the library produced
+was one it could not read, and a caller asking a form XObject for its own `/Matrix` got
+`NotImplementedException`.
+
+Nothing had to change about what is written — six numbers between brackets is what a PDF array
+looks like on the page anyway. Only the reading:
+
+```csharp
+else if (obj is PdfLiteral literal)
+{
+    value = MatrixFromLiteral(literal);
+}
+```
+
+`MatrixFromLiteral` strips the brackets, splits on whitespace and parses six invariant-culture
+numbers, throwing `InvalidCastException` for anything that is not six of them — the same exception
+the array path throws for an array of the wrong length, so the two shapes now fail alike as well as
+succeed alike. The create branch now writes `PdfLiteral.FromMatrix` rather than its own copy of the
+identity, so there is one spelling of a written matrix instead of two.
+
+Pinned by `AMatrixTheCreateOverloadWroteIsReadBackAsTheIdentity`,
+`AMatrixSetAsALiteralComesBackWithTheNumbersItWasGiven` and `ALiteralThatIsNotSixNumbersIsNotAMatrix`.
+The first of those was in the branch already, asserting the `NotImplementedException` under the
+name `AMatrixTheCreateOverloadWroteCannotBeReadBack` — a test that recorded the defect accurately
+and should have been a finding rather than a pin.
+
+### F20 — a check box whose widget is a child of its own ignored being ticked
+
+`PdfCheckBoxField.Checked` has two paths: the field has no children, or it has exactly two. The
+two-child path is upstream's answer to a document where the same field is drawn in two places, and
+its comment records that finding it took two working days. Every other number of children fell off
+the end of both the getter and the setter:
+
+```csharp
+if (Fields.Elements.Items.Length == 2)
+{
+    ...
+}
+// and nothing otherwise
+```
+
+One child is not an unusual shape. A field whose widget annotation is a separate object rather than
+merged into the field dictionary is ordinary, and it is a tick box like any other: it has one value
+and one appearance state to show. Under the old code `Checked = true` did nothing at all to it, and
+the getter then answered `false` — a requested state change lost with no error.
+
+The single-child case is now handled where it belongs, beside the no-children one:
+
+```csharp
+else if (Fields.Elements.Items.Length == 1)
+{
+    PdfDictionary child = ChildAt(0);
+    string name = value ? OnStateOf(child) : OffStateOf(child);
+    if (child != null && name.Length != 0)
+    {
+        child.Elements.SetName(Keys.V, name);
+        child.Elements.SetName(PdfAnnotation.Keys.AS, name);
+        Elements.SetName(Keys.V, name);
+    }
+}
+```
+
+The getter reads the first child whatever the number of children, which it can now do because the
+`== 2` restriction on it was arbitrary: the pair path already answered from child 0 alone.
+
+Three or more children is still left alone, deliberately. The pair scheme is not "all the widgets
+show the state" — it is child 0 on and child 1 off, and unticking swaps them, so the two children
+are a pair rather than a set. That says nothing about what a third widget should be, and inventing
+an answer would change what real forms are written with. `AFieldWithThreeChildrenIsStillLeftAlone`
+records it, and says why in the words above rather than leaving the reader to work it out.
+
+`ChildAt` also fixes a smaller thing on the way past: the existing code casts each child to
+`PdfReference` unconditionally, so a child written as a direct dictionary throws
+`InvalidCastException`. The helper follows a reference when there is one and takes the dictionary
+when there is not.
+
+Pinned by `AFieldWithOneChildTakesTheStateItIsAskedFor` and
+`AFieldWithOneChildCanBeClearedAgain`.
 
 ## Batch 2 — public DOM members with no test at all
 
@@ -1016,6 +1196,39 @@ does not mistake them for work.
 
 If any of these matters later, the answer is to split the method, and that is a refactor with its
 own spec — not an item here.
+
+## What the review of the pull request found
+
+The work above was raised as one pull request, and reviewing it turned up three more defects in the
+code — F18, F19 and F20 — and four tests that did not assert what their names claimed. The second
+group is worth recording separately, because a test that cannot fail is worse than no test: it
+occupies the place a real one would have gone and reports the opposite of the truth.
+
+| the test | what it claimed | what it did |
+|---|---|---|
+| `ASignAtTheVeryEndOfTheDocumentIsNotReadPastTheEndOfIt` | the lookahead does not read off the end | called the reader through a helper that catches every exception, on an input that never reaches the lookahead. Passed with the defect deliberately put back |
+| `AFormattedTextNamingAStyleThatDoesNotExistFallsBackToTheInvalidOne` | the fallback style arrives | asserted only that `Font` is not null, and `FormattedText.Font` makes one on being asked |
+| `AGridlineFormatThatStatesNothingAtAllDrawsNoGridline` | no gridline is drawn | measured that no line is drawn *at the stated width*. A silent format does draw a gridline, at a hairline default — the name was the wrong half, not the assertion |
+| `ABarChartWithABlankInItIsStillLabelled` | the chart is still labelled | asserted only that drawing does not throw |
+
+Three shapes to watch for, from those four:
+
+- **A helper that catches broadens what the test tolerates.** `ComplaintsAbout` exists to collect
+  what the reader complains about, and collecting requires catching. That makes it exactly the
+  wrong route for a test whose claim is that something is *not* thrown. The three copies of it are
+  now one, in `ReaderDiagnostics`, whose summary says so.
+- **An assertion that a lazily-built thing is not null asserts nothing.** Ask for a value only that
+  thing would have.
+- **"Does not throw" is half a test.** It says the code survived; it does not say it did the work.
+  Both of the charting ones read that way, and both had an observable answer available.
+
+The other two review points were declined, with reasons:
+
+- A check box with three or more widget children is still a silent no-op. See F20 for why the pair
+  scheme does not generalise to three.
+- The two hang pins for F3 now run on background threads of their own rather than on `Task.Run`.
+  This was raised as thread-pool starvation and it is real - a reader that does not return keeps
+  its thread for the life of the process - but the fix is the thread, not the pin. The pins stay.
 
 ## Working the list
 
