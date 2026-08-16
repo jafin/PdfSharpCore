@@ -482,10 +482,6 @@ internal sealed class OpenTypeFontface
         for (int idx = 0; idx < tableCount; idx++)
         {
             TableDirectoryEntry entry = TableDictionary[tags[idx]];
-#if DEBUG
-            if (entry.Tag == "glyf" || entry.Tag == "loca")
-                GetType();
-#endif
             entry.FontTable.PrepareForCompilation();
             entry.Offset = tablePosition;
             writer.Position = tablePosition;

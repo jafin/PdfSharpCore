@@ -125,13 +125,13 @@ public abstract class FontResolverBase
 
 
     /// <summary>
-    /// Reports a font file that could not be used. Compiled out of release builds, which also
-    /// keeps the caught exception "used" as far as the compiler is concerned.
+    /// Reports a font file that could not be used. Written to the trace listeners rather than to
+    /// the console, so that a host that wants to hear about unreadable fonts can listen for them
+    /// and one that does not is not made to read them.
     /// </summary>
-    [Conditional("DEBUG")]
     private static void LogError(string message)
     {
-        System.Console.Error.WriteLine(message);
+        Trace.WriteLine(message);
     }
 
 

@@ -66,10 +66,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
     /// </summary>
     public void Add(PdfReference iref)
     {
-#if DEBUG
-        if (iref.ObjectID.ObjectNumber == 948)
-            GetType();
-#endif
         if (iref.ObjectID.IsEmpty)
             iref.ObjectID = new PdfObjectID(GetNewObjectNumber());
 
@@ -204,53 +200,11 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
         // TODO: Is this really so easy?
         var irefs = TransitiveClosure(_document._trailer);
 
-#if DEBUG
-        // Have any two objects the same ID?
-        var ids = new Dictionary<int, int>();
-        foreach (var objID in ObjectTable.Keys)
-        {
-            ids.Add(objID.ObjectNumber, 0);
-        }
-
-        // Have any two irefs the same value?
-        //Dictionary<int, int> ids = new Dictionary<int, int>();
-        ids.Clear();
-        foreach (var iref in ObjectTable.Values)
-        {
-            ids.Add(iref.ObjectNumber, 0);
-        }
-
-        //
-        var refs = new Dictionary<PdfReference, int>();
         foreach (var iref in irefs)
         {
-            refs.Add(iref, 0);
-        }
-
-        foreach (var value in ObjectTable.Values)
-        {
-            if (!refs.ContainsKey(value))
-                value.GetType();
-        }
-
-        foreach (var iref in ObjectTable.Values)
-        {
-            if (iref.Value == null)
-                GetType();
-            Debug.Assert(iref.Value != null);
-        }
-
-        foreach (var iref in irefs)
-        {
-            if (!ObjectTable.ContainsKey(iref.ObjectID))
-                GetType();
             Debug.Assert(ObjectTable.ContainsKey(iref.ObjectID));
-
-            if (iref.Value == null)
-                GetType();
             Debug.Assert(iref.Value != null);
         }
-#endif
 
         MaxObjectNumber = 0;
         ObjectTable.Clear();

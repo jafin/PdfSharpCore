@@ -42,9 +42,6 @@ internal class ContentWriter
     public ContentWriter(Stream contentStream)
     {
         _stream = contentStream;
-#if DEBUG
-        //layout = PdfWriterLayout.Verbose;
-#endif
     }
 
     public void Close(bool closeUnderlyingStream)

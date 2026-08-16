@@ -324,10 +324,6 @@ public sealed partial class Font : DocumentObject
             if (name != null && (name ?? "") != "")
                 serializer.WriteSimpleAttribute("Name", Name);
 
-#if DEBUG // Test
-            if (!size.IsNull && Size != 0 && Size.Point == 0)
-                GetType();
-#endif
             if ((!size.IsNull))
                 serializer.WriteSimpleAttribute("Size", Size);
 

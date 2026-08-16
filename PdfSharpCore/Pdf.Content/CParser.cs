@@ -154,12 +154,6 @@ public sealed class CParser
                 case CSymbol.EndArray:
                     ContentReaderDiagnostics.HandleUnexpectedCharacter(']');
                     break;
-
-#if DEBUG
-                default:
-                    Debug.Assert(false);
-                    break;
-#endif
             }
         }
     }
@@ -184,7 +178,6 @@ public sealed class CParser
         {
             _lexer.ScanInlineImage();
         }
-#if DEBUG
         if (op.OpCode.Operands != -1 && op.OpCode.Operands != _operands.Count)
         {
             if (op.OpCode.OpCodeName != OpCodeName.ID)
@@ -197,7 +190,6 @@ public sealed class CParser
                     op.OpCode.Name, op.OpCode.Operands, _operands.Count));
             }
         }
-#endif
         op.Operands.Add(_operands);
         _operands.Clear();
         return op;

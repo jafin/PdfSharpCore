@@ -372,14 +372,7 @@ public abstract class PdfObject : PdfItem
                         // Fix up inner objects, i.e. recursively walk down the object tree.
                         FixUpObject(iot, owner, pdfObject);
                     }
-                    else
-                    {
-                        // The item is something else, e.g. a name.
-                        // Nothing to do.
-
-                        // ...but let's double check this case in DEBUG build.
-                        DebugCheckNonObjects(item);
-                    }
+                    // The item is something else, e.g. a name. Nothing to do.
                 }
             }
         }
@@ -434,14 +427,7 @@ public abstract class PdfObject : PdfItem
                         // Fix up inner objects, i.e. recursively walk down the object tree.
                         FixUpObject(iot, owner, pdfObject);
                     }
-                    else
-                    {
-                        // The item is something else, e.g. a name.
-                        // Nothing to do.
-
-                        // ...but let's double check this case in DEBUG build.
-                        DebugCheckNonObjects(item);
-                    }
+                    // The item is something else, e.g. a name. Nothing to do.
                 }
             }
         }
@@ -462,32 +448,6 @@ public abstract class PdfObject : PdfItem
             else
                 Debug.Assert(false, "Should not come here. Object is neither a dictionary nor an array.");
         }
-    }
-
-    /// <summary>
-    /// Ensure for future versions of PDFsharp not to forget code for a new kind of PdfItem.
-    /// </summary>
-    /// <param name="item">The item.</param>
-    [Conditional("DEBUG")]
-    static void DebugCheckNonObjects(PdfItem item)
-    {
-        if (item is PdfName)
-            return;
-        if (item is PdfBoolean)
-            return;
-        if (item is PdfInteger)
-            return;
-        if (item is PdfNumber)
-            return;
-        if (item is PdfString)
-            return;
-        if (item is PdfRectangle)
-            return;
-        if (item is PdfNull)
-            return;
-
-        Type type = item.GetType();
-        Debug.Assert(type != null, string.Format("CheckNonObjects: Add {0} to the list.", type.Name));
     }
 
     /// <summary>

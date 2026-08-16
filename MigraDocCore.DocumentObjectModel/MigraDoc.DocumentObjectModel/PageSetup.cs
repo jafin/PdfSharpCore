@@ -412,9 +412,11 @@ public partial class PageSetup : DocumentObject
   /// and carry off a page setup that is still only half written.
   /// </summary>
   private static readonly PageSetup defaultPageSetup = CreateDefaultPageSetup();
-#if DEBUG
+
+  /// <summary>
+  /// What <see cref="defaultPageSetup"/> was built as, kept to check nobody has since written to it.
+  /// </summary>
   private static readonly PageSetup defaultPageSetupClone = defaultPageSetup.Clone();
-#endif
 
   private static PageSetup CreateDefaultPageSetup()
   {
@@ -441,10 +443,8 @@ public partial class PageSetup : DocumentObject
   /// Checks that nobody has written to the shared default, which Document.DefaultPageSetup hands
   /// straight out to whoever asks for it.
   /// </summary>
-  [Conditional("DEBUG")]
   private static void AssertDefaultPageSetupUnmodified()
   {
-#if DEBUG
     Debug.Assert(defaultPageSetup.PageFormat == defaultPageSetupClone.PageFormat, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.SectionStart == defaultPageSetupClone.SectionStart, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.Orientation == defaultPageSetupClone.Orientation, "DefaultPageSetup must not be modified");
@@ -460,7 +460,6 @@ public partial class PageSetup : DocumentObject
     Debug.Assert(defaultPageSetup.DifferentFirstPageHeaderFooter == defaultPageSetupClone.DifferentFirstPageHeaderFooter, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.MirrorMargins == defaultPageSetupClone.MirrorMargins, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.HorizontalPageBreak == defaultPageSetupClone.HorizontalPageBreak, "DefaultPageSetup must not be modified");
-#endif
   }
 
   #region Internal

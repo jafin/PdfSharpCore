@@ -674,9 +674,9 @@ internal class NameTable : OpenTypeFontTable
     {
         try
         {
-#if DEBUG
+            // The caller seeks to this table before constructing it, but the reads below are
+            // relative to the shared cursor, so put it where this table starts either way.
             _fontData.Position = DirectoryEntry.Offset;
-#endif
             bytes = new byte[DirectoryEntry.PaddedLength];
             Buffer.BlockCopy(_fontData.FontSource.Bytes, DirectoryEntry.Offset, bytes, 0, DirectoryEntry.Length);
 

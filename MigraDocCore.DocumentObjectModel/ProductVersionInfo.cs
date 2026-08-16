@@ -186,8 +186,4 @@ public static class ProductVersionInfo
   /// searches in the Add Package Reference dialog box or filtering in the Package Manager Console window.
   /// </summary>                  
   public const string NuGetTags = "PDFsharp MigraDoc PDF RTF document creation";
-
-#if DEBUG
-  public static int BuildNumber = (System.DateTime.Now - new System.DateTime(2001, 7, 4)).Days;
-#endif
 }

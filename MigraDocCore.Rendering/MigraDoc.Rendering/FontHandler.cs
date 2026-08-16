@@ -41,10 +41,6 @@ namespace MigraDocCore.Rendering;
 /// </summary>
 internal class FontHandler
 {
-#if DEBUG
-  internal static int CreateFontCounter;
-#endif
-
   /// <summary>
   /// Converts an DOM Font to an XFont.
   /// </summary>
@@ -60,9 +56,6 @@ internal class FontHandler
 
     if (xFont == null)
       xFont = new XFont(font.Name, font.Size, style, options);
-#if DEBUG
-    CreateFontCounter++;
-#endif
     return xFont;
   }
 

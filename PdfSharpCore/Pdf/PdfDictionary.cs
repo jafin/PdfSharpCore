@@ -190,14 +190,11 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         //int count = Elements.Count;
         PdfName[] keys = Elements.KeyNames;
 
-#if DEBUG
         // TODO: automatically set length
         if (_stream != null)
             Debug.Assert(Elements.ContainsKey(PdfStream.Keys.Length), "Dictionary has a stream but no length is set.");
-#endif
 
-#if DEBUG
-        // Sort keys for debugging purposes. Comparing PDF files with for example programms like
+        // Sort keys for diffing purposes. Comparing PDF files with for example programms like
         // Araxis Merge is easier with sorted keys.
         if (writer.Layout == PdfWriterLayout.Verbose)
         {
@@ -205,7 +202,6 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             list.Sort(PdfName.Comparer);
             list.CopyTo(keys, 0);
         }
-#endif
 
         foreach (PdfName key in keys)
             WriteDictionaryElement(writer, key);
@@ -223,15 +219,12 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         if (key == null)
             throw new ArgumentNullException(nameof(key));
         PdfItem item = Elements[key];
-#if DEBUG
-        // TODO: simplify PDFsharp
         if (item is PdfObject && ((PdfObject)item).IsIndirect)
         {
-            // Replace an indirect object by its Reference.
+            // Replace an indirect object by its Reference. The Elements setter does this on the way
+            // in, so getting here means something else put the object there.
             item = ((PdfObject)item).Reference;
-            Debug.Assert(false, "Check when we come here.");
         }
-#endif
         key.WriteObject(writer);
         item.WriteObject(writer);
         writer.NewLine();
@@ -1265,15 +1258,8 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
 
-#if DEBUG
-                PdfDictionary dictionary = value as PdfDictionary;
-                if (dictionary != null)
-                {
-                    PdfDictionary dict = dictionary;
-                    if (dict._stream != null)
-                        throw new ArgumentException("A dictionary with stream cannot be a direct value.");
-                }
-#endif
+                if (value is PdfDictionary dictionary && dictionary._stream != null)
+                    throw new ArgumentException("A dictionary with stream cannot be a direct value.");
 
                 PdfObject obj = value as PdfObject;
                 if (obj != null && obj.IsIndirect)

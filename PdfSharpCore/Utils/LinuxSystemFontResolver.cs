@@ -130,13 +130,13 @@ public static class LinuxSystemFontResolver
 
 
     /// <summary>
-    /// Reports a font discovery problem that is otherwise ignored. Compiled out of release
-    /// builds, which also keeps the caught exception "used" as far as the compiler is concerned.
+    /// Reports a font discovery problem that is otherwise ignored. Written to the trace listeners
+    /// rather than to the console, so that a host that wants to hear about a font directory it
+    /// could not read can listen for it and one that does not is not made to read it.
     /// </summary>
-    [Conditional("DEBUG")]
     private static void LogError(string message)
     {
-        Console.Error.WriteLine(message);
+        Trace.WriteLine(message);
     }
 
 

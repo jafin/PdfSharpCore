@@ -117,31 +117,10 @@ internal sealed class Parser
             objectNumber = ReadInteger();
             generationNumber = ReadInteger();
         }
-#if DEBUG
-        // The following assertion sometime failed (see below)
-        //Debug.Assert(objectID == new PdfObjectID(objectNumber, generationNumber));
-        if (!fromObjecStream && objectID != new PdfObjectID(objectNumber, generationNumber))
-        {
-            // A special kind of bug? Or is this an undocumented PDF feature?
-            // PDF4NET 2.6 provides a sample called 'Unicode', which produces a file 'unicode.pdf'
-            // The iref table of this file contains the following entries:
-            //    iref
-            //    0 148
-            //    0000000000 65535 f
-            //    0000000015 00000 n
-            //    0000000346 00000 n
-            //    ....
-            //    0000083236 00000 n
-            //    0000083045 00000 n
-            //    0000083045 00000 n
-            //    0000083045 00000 n
-            //    0000083045 00000 n
-            //    0000080334 00000 n
-            //    ....
-            // Object 84, 85, 86, and 87 maps to the same dictionary, but all PDF readers I tested
-            // ignores this mismatch! The following assertion failed about 50 times with this file.
-        }
-#endif
+        // The object header can disagree with the iref table that led here, and the object ID from
+        // the table is the one to believe. PDF4NET 2.6's 'unicode.pdf' sample, for one, gives
+        // objects 84 to 87 the same offset in its iref table, so all four read back as the same
+        // dictionary with a header saying object 84 — and every reader tested shows it anyway.
         // Always use object ID from iref table (see above).
         objectNumber = objectID.ObjectNumber;
         generationNumber = objectID.GenerationNumber;
@@ -1190,10 +1169,6 @@ internal sealed class Parser
         for (int idx = 0; idx < n; idx++)
         {
             int number = ReadInteger();
-#if DEBUG
-            if (number == 1074)
-                GetType();
-#endif
             int offset = ReadInteger() + first; // Calculate absolute offset.
             header[idx] = new int[] { number, offset };
         }
@@ -1522,18 +1497,11 @@ internal sealed class Parser
 
                         int position = (int)item.Field2;
                         objectID = ReadObjectNumber(position);
-#if DEBUG
-                        if (objectID.ObjectNumber == 1074)
-                            GetType();
-#endif
                         Debug.Assert(objectID.GenerationNumber == item.Field3);
 
                         //// Ignore the latter one.
                         if (!xrefTable.Contains(objectID))
                         {
-#if DEBUG
-                            GetType();
-#endif
                             // Add iref for all uncompressed objects.
                             xrefTable.Add(new PdfReference(objectID, position));
                         }

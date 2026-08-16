@@ -453,10 +453,6 @@ internal class TableRenderer : Renderer
         leftOffset += table.Columns[0].LeftPadding;
         layoutInfo.Left = -leftOffset;
       }
-#if DEBUG
-      else
-        table.GetType();
-#endif
     }
 
     switch (table.Rows.Alignment)
