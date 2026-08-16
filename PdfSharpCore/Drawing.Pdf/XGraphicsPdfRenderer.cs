@@ -1411,7 +1411,14 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         string operatorText;
         try
         {
-            operatorText = string.Format(CultureInfo.InvariantCulture, format, args).Trim();
+            // Numbers only. The show-text operators are assembled elsewhere and handed here whole,
+            // so a string operand is a run of the document's own text - and this message names an
+            // exception that a caller will log. The numbers are what the message exists to carry.
+            object[] withoutText = new object[args.Length];
+            for (int idx = 0; idx < args.Length; idx++)
+                withoutText[idx] = args[idx] is string ? "..." : args[idx];
+
+            operatorText = string.Format(CultureInfo.InvariantCulture, format, withoutText).Trim();
         }
         catch (FormatException)
         {
