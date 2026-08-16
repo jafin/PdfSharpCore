@@ -255,7 +255,11 @@ internal class CoreGraphicsPath
         int count = points.Count;
         Debug.Assert((count + 2) % 3 == 0);
 
-        MoveOrLineTo(x + width / 2, y + height / 2);
+        // MoveTo rather than MoveOrLineTo: a pie is a closed shape of its own, like a rectangle or
+        // an ellipse, so it starts a figure rather than continuing one. Joining an open figure
+        // would run a line from wherever that figure had reached into the pie's centre, and the
+        // CloseSubpath below would then close the pair of them as one shape.
+        MoveTo(x + width / 2, y + height / 2);
         LineTo(points[0].X, points[0].Y, false);
         for (int idx = 1; idx < count; idx += 3)
             BezierTo(points[idx].X, points[idx].Y, points[idx + 1].X, points[idx + 1].Y, points[idx + 2].X, points[idx + 2].Y, false);
@@ -280,7 +284,9 @@ internal class CoreGraphicsPath
 
         tension /= 3;
 
-        MoveOrLineTo(points[0].X, points[0].Y);
+        // MoveTo, for the reason given in AddPie: a closed curve is its own figure. AddCurve, just
+        // below, keeps MoveOrLineTo because an open curve does continue the figure it is added to.
+        MoveTo(points[0].X, points[0].Y);
         if (count == 2)
         {
             ToCurveSegment(points[0], points[0], points[1], points[1], tension);

@@ -489,6 +489,46 @@ public class XGraphicsPathTests
         tooFew.Should().Throw<ArgumentException>();
     }
 
+    // Both of these read "Be(1)" while the two shapes began with MoveOrLineTo, which continues an
+    // open figure rather than starting one. The line before them was drawn into the shape, and the
+    // close at the end of the shape closed the pair as a single figure - so a path holding a line
+    // and a pie filled as one region joining the two. Every other closed shape here - rectangle,
+    // ellipse, polygon - starts its own figure, and these two now do the same.
+
+    [Fact]
+    public void APieAfterAnOpenFigureIsAFigureOfItsOwn()
+    {
+        FigureCount(path =>
+        {
+            path.AddLine(10, 10, 60, 60);
+            path.AddPie(100, 100, 200, 200, 0, 90);
+        }).Should().Be(2);
+    }
+
+    [Fact]
+    public void AClosedCurveAfterAnOpenFigureIsAFigureOfItsOwn()
+    {
+        var points = new[] { new XPoint(100, 100), new XPoint(300, 100), new XPoint(200, 250) };
+
+        FigureCount(path =>
+        {
+            path.AddLine(10, 10, 60, 60);
+            path.AddClosedCurve(points);
+        }).Should().Be(2);
+    }
+
+    [Fact]
+    public void AnArcAfterAnOpenFigureStillContinuesIt()
+    {
+        // The counterpart of the two above, and the reason they are not simply "always MoveTo":
+        // an arc is an open shape, so it goes on drawing the figure it was added to.
+        FigureCount(path =>
+        {
+            path.AddLine(10, 10, 60, 60);
+            path.AddArc(100, 100, 200, 200, 0, 90);
+        }).Should().Be(1);
+    }
+
     [Fact]
     public void AddingOnePathToAnotherAddsIt()
     {
