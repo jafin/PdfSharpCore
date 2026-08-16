@@ -37,14 +37,28 @@ using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 namespace MigraDocCore.DocumentObjectModel.Visitors;
 
 /// <summary>
-/// Summary description for VisitorBase.
+/// Walks a document and flattens the formatting it finds: every value a document object leaves
+/// unset is filled in from the style or parent object it would have inherited it from, so that
+/// what comes out the other side can be rendered without consulting anything above it.
 /// </summary>
+/// <remarks>
+/// The <c>Flatten…</c> methods below all take the object being flattened and the reference it
+/// inherits from, and copy across only the values that are still null. A few are empty: they mark
+/// a place where a type has nothing to inherit today but is visited alongside those that do.
+/// </remarks>
 public abstract class VisitorBase : DocumentObjectVisitor
 {
+  /// <summary>
+  /// Initializes a new instance of the <see cref="VisitorBase"/> class.
+  /// </summary>
   public VisitorBase()
   {
   }
 
+  /// <summary>
+  /// Visits a document object, and through it everything below it. Objects that cannot be
+  /// visited are ignored.
+  /// </summary>
   public override void Visit(DocumentObject documentObject)
   {
     IVisitable visitable = documentObject as IVisitable;
@@ -52,6 +66,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       visitable.AcceptVisitor(this, true);
   }
 
+  /// <summary>Fills in every paragraph format value left unset from <paramref name="refFormat"/>.</summary>
   protected void FlattenParagraphFormat(ParagraphFormat format, ParagraphFormat refFormat)
   {
     if (format.alignment == null)
@@ -133,6 +148,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       FlattenListInfo(format.ListInfo, refFormat.listInfo);
   }
 
+  /// <summary>Fills in every list value left unset from <paramref name="refListInfo"/>.</summary>
   protected void FlattenListInfo(ListInfo listInfo, ListInfo refListInfo)
   {
     if (listInfo.continuePreviousList == null)
@@ -143,6 +159,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       listInfo.numberPosition = refListInfo.numberPosition;
   }
 
+  /// <summary>Fills in every font value left unset from <paramref name="refFont"/>.</summary>
   protected void FlattenFont(Font font, Font refFont)
   {
     if (font.name == null)
@@ -163,6 +180,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
       font.subscript = refFont.subscript;
   }
 
+  /// <summary>Fills in every shading value left unset from <paramref name="refShading"/>.</summary>
   protected void FlattenShading(Shading shading, Shading refShading)
   {
     //fClear?
@@ -172,6 +190,10 @@ public abstract class VisitorBase : DocumentObjectVisitor
       shading.color = refShading.color;
   }
 
+  /// <summary>
+  /// Returns a border with every value left unset filled in from the <see cref="Borders"/> collection
+  /// holding it, creating the border first if there is none.
+  /// </summary>
   protected Border FlattenedBorderFromBorders(Border border, Borders parentBorders)
   {
     if (border == null)
@@ -222,6 +244,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     return shading;
   }
 
+  /// <summary>Fills in every border value left unset from <paramref name="refBorders"/>.</summary>
   protected void FlattenBorders(Borders borders, Borders refBorders)
   {
     if (borders.visible == null)
@@ -264,6 +287,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     }
   }
 
+  /// <summary>Fills in every value of a single border left unset from <paramref name="refBorder"/>.</summary>
   protected void FlattenBorder(Border border, Border refBorder)
   {
     if (border.visible == null)
@@ -276,6 +300,9 @@ public abstract class VisitorBase : DocumentObjectVisitor
       border.color = refBorder.color;
   }
 
+  /// <summary>
+  /// Takes on the inherited tab stops when none have been set here, and drops any marked for removal.
+  /// </summary>
   protected void FlattenTabStops(TabStops tabStops, TabStops refTabStops)
   {
     if (!tabStops.fClearAll)
@@ -298,6 +325,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     tabStops.fClearAll = true;
   }
 
+  /// <summary>Fills in every page setup value left unset from <paramref name="refPageSetup"/>.</summary>
   protected void FlattenPageSetup(PageSetup pageSetup, PageSetup refPageSetup)
   {
     Unit dummyUnit;
@@ -361,14 +389,20 @@ public abstract class VisitorBase : DocumentObjectVisitor
       pageSetup.horizontalPageBreak = refPageSetup.horizontalPageBreak;
   }
 
+  /// <summary>
+  /// Flattens a header or footer. Empty: a header or footer inherits nothing of its own, its
+  /// paragraphs being flattened against their styles like any others.
+  /// </summary>
   protected void FlattenHeaderFooter(HeaderFooter headerFooter, bool isHeader)
   {
   }
 
+  /// <summary>Flattens a fill format. Empty: a fill format has nothing to inherit.</summary>
   protected void FlattenFillFormat(FillFormat fillFormat)
   {
   }
 
+  /// <summary>Fills in the line width when it is unset and <paramref name="refLineFormat"/> has one.</summary>
   protected void FlattenLineFormat(LineFormat lineFormat, LineFormat refLineFormat)
   {
     if (refLineFormat != null)
@@ -378,6 +412,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
     }
   }
 
+  /// <summary>Flattens a chart axis. Empty: an axis takes its formatting from the chart it is drawn in.</summary>
   protected void FlattenAxis(Axis axis)
   {
     if (axis == null)
@@ -406,10 +441,12 @@ public abstract class VisitorBase : DocumentObjectVisitor
     //      axis.title;
   }
 
+  /// <summary>Flattens a plot area. Empty: a plot area has nothing to inherit.</summary>
   protected void FlattenPlotArea(PlotArea plotArea)
   {
   }
 
+  /// <summary>Flattens a data label. Empty: a data label has nothing to inherit.</summary>
   protected void FlattenDataLabel(DataLabel dataLabel)
   {
   }

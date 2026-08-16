@@ -359,6 +359,7 @@ public class Lexer
         return Symbol.Real;
     }
 
+    /// <summary>Scans a number, which may turn out to be the first part of an indirect reference.</summary>
     public Symbol ScanNumberOrReference()
     {
         Symbol result = ScanNumber();
@@ -591,6 +592,7 @@ public class Lexer
         return _symbol = Symbol.String;
     }
 
+    /// <summary>Scans a string written in angle brackets as pairs of hexadecimal digits.</summary>
     public Symbol ScanHexadecimalString()
     {
         Debug.Assert(_currChar == Chars.Less);
@@ -840,6 +842,7 @@ public class Lexer
         //Debug.As sert(_token.ToString().IndexOf('.') == -1);
         uint.Parse(_token.ToString(), CultureInfo.InvariantCulture);
 
+    /// <summary>Interprets the current token as a long integer literal.</summary>
     public long TokenToLong => long.Parse(_token.ToString(), CultureInfo.InvariantCulture);
 
     /// <summary>

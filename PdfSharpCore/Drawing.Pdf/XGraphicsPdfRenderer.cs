@@ -536,7 +536,14 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Draws the rule that underlines or strikes out a run of text.
     /// </summary>
+    /// <param name="decoration">Which rule to draw, and whether it skips the spaces between words.</param>
+    /// <param name="s">The run of text the rule goes under or through.</param>
+    /// <param name="font">The font the run is set in, used to measure the words.</param>
+    /// <param name="format">The string format the run was drawn with, which decides where it starts.</param>
+    /// <param name="brush">The brush the rule is painted with.</param>
+    /// <param name="x">Where the run starts, in world coordinates.</param>
     /// <param name="top">Where the top of the rule sits, in world coordinates.</param>
+    /// <param name="width">How wide the run is.</param>
     /// <param name="thickness">How thick the rule is, from the font's own metrics.</param>
     void DrawTextRule(XTextDecoration decoration, string s, XFont font, XStringFormat format,
         XBrush brush, double x, double top, double width, double thickness)

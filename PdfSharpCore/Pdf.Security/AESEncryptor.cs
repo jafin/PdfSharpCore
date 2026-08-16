@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using PdfSharpCore.Internal;
 
 namespace PdfSharpCore.Pdf.Security;
 
@@ -310,10 +311,12 @@ internal class AESEncryptor : RC4Encryptor
                 Array.Copy(suffix, 0, output, offset, suffix.Length);
                 dataLength = offset + suffix.Length;
             }
-            catch
+            catch (Exception ex) when (!Unrecoverable.Is(ex))
             {
-                // return unmodified
-                // (encountered documents that were "partly" encrypted, i.e. everything was encrypted except object-streams)
+                // Return the bytes unmodified: documents turn up that are only partly encrypted -
+                // everything encrypted except the object streams - and the plaintext run through
+                // the decryptor is what fails here. Treating that as "already decrypted" is what
+                // lets those documents be read at all.
                 return bytes;
             }
         }

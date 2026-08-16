@@ -42,6 +42,7 @@ namespace MigraDocCore.DocumentObjectModel.Fields;
 /// </summary>
 public abstract partial class NumericFieldBase : DocumentObject
 {
+  /// <summary>The numbering formats a numeric field accepts, empty meaning ordinary digits.</summary>
   protected static string[] validFormatStrings =
   {
     "",

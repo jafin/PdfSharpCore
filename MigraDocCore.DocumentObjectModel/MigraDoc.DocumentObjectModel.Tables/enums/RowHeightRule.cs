@@ -37,7 +37,10 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// </summary>
 public enum RowHeightRule
 {
+  /// <summary>At least the given height, growing for contents that need more.</summary>
   AtLeast,
+  /// <summary>Whatever height the contents need.</summary>
   Auto,
+  /// <summary>Exactly the given height, clipping contents that need more.</summary>
   Exactly
 }

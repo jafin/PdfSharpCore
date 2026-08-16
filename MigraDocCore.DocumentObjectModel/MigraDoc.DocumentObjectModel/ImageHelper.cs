@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
 
@@ -61,10 +62,9 @@ public class ImageHelper
           return fullname;
       }
     }
-    catch (Exception ex)
+    catch (Exception ex) when (!Unrecoverable.Is(ex))
     {
       Debug.Assert(false, "Should never occur with properly formatted Wiki texts. " + ex);
-      //throw;
     }
     return null;
   }

@@ -377,6 +377,7 @@ public partial class Borders : DocumentObject, IEnumerable
         get => clearAll;
         set => clearAll = value;
     }
+    /// <summary>Backing field for <see cref="BordersCleared"/>.</summary>
     protected bool clearAll = false;
     #endregion
 

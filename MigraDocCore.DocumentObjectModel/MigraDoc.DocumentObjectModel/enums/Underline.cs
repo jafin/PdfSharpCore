@@ -37,12 +37,19 @@ namespace MigraDocCore.DocumentObjectModel;
 /// </summary>
 public enum Underline
 {
+  /// <summary>Not drawn at all.</summary>
   None,
+  /// <summary>A single continuous rule.</summary>
   Single,
+  /// <summary>A single rule under each word, with the spaces between them left clear.</summary>
   Words,
+  /// <summary>A dotted rule.</summary>
   Dotted,
+  /// <summary>A dashed rule.</summary>
   Dash,
+  /// <summary>A rule of alternating dots and dashes.</summary>
   DotDash,
+  /// <summary>A rule of two dots followed by a dash, repeating.</summary>
   DotDotDash,
 
   /* --- unsupported ---

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -271,6 +272,131 @@ public class AcroFormFieldKindTests
 
         act.Should().NotThrow();
         field.SelectedIndex.Should().Be(0, "the field keeps what it had");
+    }
+
+    // ----- a combo box taking text it does not offer ----------------------------------------------
+
+    /// <summary>
+    ///   An editable combo box accepts text that is none of its options, so the field has to record
+    ///   that text <em>as</em> an option: otherwise <c>/V</c> names nothing in <c>/Opt</c> and
+    ///   <c>/I</c> has no index to point at.
+    ///   <para>
+    ///   The append used to reach into the field dictionary by position - the third value in it,
+    ///   whatever that happened to be - and cast it to an array. Here the third entry is
+    ///   <c>/FT</c>, a name, so the cast threw and an empty catch swallowed it: the text never
+    ///   reached <c>/Opt</c> and <c>/I</c> stayed where it was. Worse, in a dictionary whose third
+    ///   entry <em>was</em> an array the text was appended to that array instead, silently.
+    ///   </para>
+    /// </summary>
+    [Fact]
+    public void AComboBoxGivenTextItDoesNotOfferAddsItToTheOptions()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfString("Middlesex");
+
+        OptionsOf(field).Should().Equal("Kent", "Sussex", "Middlesex");
+        field.SelectedIndex.Should().Be(2);
+        field.Elements.GetInteger("/I").Should().Be(2, "a viewer reads /I rather than searching /Opt");
+    }
+
+    [Fact]
+    public void AComboBoxGivenAValueItAlreadyOffersLeavesTheOptionsAlone()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfString("Sussex");
+
+        OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex" },
+            "the option was already on offer, so nothing needed adding");
+        field.SelectedIndex.Should().Be(1);
+    }
+
+    /// <summary>
+    ///   <c>/Opt</c> is optional, so a combo box may have none at all. The value still has to land
+    ///   somewhere, which means making the array rather than assuming one.
+    /// </summary>
+    [Fact]
+    public void AComboBoxWithNoOptionsAtAllIsGivenAnOptionArray()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit))
+            .AcroForm.Fields["county"];
+
+        field.Value = new PdfString("Middlesex");
+
+        OptionsOf(field).Should().Equal("Middlesex");
+        field.SelectedIndex.Should().Be(0);
+    }
+
+    /// <summary>
+    ///   A choice field's value is a text string, and so is every entry of its <c>/Opt</c> array.
+    ///   A caller may still hand it a name, which is taken to mean the text the name stands for -
+    ///   the same reading <see cref="PdfRadioButtonField"/> gives its own <c>/V</c>, where the
+    ///   slash that makes a name a name is not part of the value. Stored as a name it would be
+    ///   invisible to the search through <c>/Opt</c>, so <c>/I</c> would never be pointed at it.
+    /// </summary>
+    [Fact]
+    public void AComboBoxGivenANameStoresTheTextItStandsFor()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfName("/Middlesex");
+
+        OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex", "Middlesex" });
+        field.Value.Should().BeOfType<PdfString>().Which.Value.Should().Be("Middlesex");
+        field.SelectedIndex.Should().Be(2);
+        field.Elements.GetInteger("/I").Should().Be(2);
+    }
+
+    [Fact]
+    public void AComboBoxGivenANameForAnOptionItAlreadyOffersChoosesThatOption()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfName("/Sussex");
+
+        OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex" },
+            "the option was already on offer, so nothing needed adding");
+        field.SelectedIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void AComboBoxRefusesAValueThatIsNotText()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo)).AcroForm.Fields["county"];
+
+        // Fully qualified: this test assembly has a PdfInteger of its own.
+        var act = () => field.Value = new PdfSharpCore.Pdf.PdfInteger(3);
+
+        act.Should().Throw<NotImplementedException>();
+    }
+
+    static List<string> OptionsOf(PdfAcroField field)
+    {
+        var options = new List<string>();
+        var opt = field.Elements.GetArray("/Opt");
+        if (opt != null)
+            foreach (var item in opt.Elements)
+                options.Add(((PdfString)item).Value);
+        return options;
     }
 
     [Fact]

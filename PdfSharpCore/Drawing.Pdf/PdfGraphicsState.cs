@@ -293,6 +293,14 @@ internal sealed class PdfGraphicsState : ICloneable
     /// <summary>
     /// Realizes the colours text or a path is painted with.
     /// </summary>
+    /// <param name="brush">The brush the fill colour is taken from.</param>
+    /// <param name="colorMode">Whether colours are written as RGB or CMYK.</param>
+    /// <param name="renderingMode">
+    /// The text rendering mode: 0 fills, 1 strokes, 2 does both. Anything else is treated as a
+    /// path rather than as text.
+    /// </param>
+    /// <param name="fontEmSize">The em size of the font, which scales a simulated stroke width.</param>
+    /// <param name="isForPen">True when realizing the stroking colour rather than the filling one.</param>
     /// <param name="textPen">
     /// The pen a stroking text rendering mode strokes with. Null falls back to a pen made from the
     /// brush's own colour, which is how bold simulation fattens a face that has no bold of its own.

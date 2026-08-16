@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using PdfSharpCore.Internal;
 
 namespace PdfSharpCore.Drawing;
 
@@ -404,7 +405,7 @@ public struct XUnit : IFormattable
         {
             unit._value = Double.Parse(value.Substring(0, valLen).Trim(), CultureInfo.InvariantCulture);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             unit._value = 1;
             string message = String.Format("String '{0}' is not a valid value for structure 'XUnit'.", value);

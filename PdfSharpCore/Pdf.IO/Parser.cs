@@ -1365,7 +1365,7 @@ internal sealed class Parser
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ParserDiagnostics.ThrowParserException(
                 "Invalid entry in XRef table, ID=" + id + ", Generation=" + generation + ", Position=" + position,
@@ -1584,10 +1584,11 @@ internal sealed class Parser
                 datetime = DateTime.Parse(date, CultureInfo.InvariantCulture);
             }
         }
-        // ReSharper disable once EmptyGeneralCatchClause
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
-            // If we cannot parse datetime, just eat it, but give a hint in DEBUG build.
+            // A date that will not parse is left as the default rather than failing the read: a
+            // malformed /CreationDate is not a reason to refuse the document. The assertion gives
+            // a hint in a DEBUG build and costs nothing in a Release one.
             Debug.Assert(false, ex.Message);
         }
 

@@ -204,6 +204,7 @@ public sealed class IntervalSet : IReadOnlyList<XInterval>
         return found;
     }
 
+    /// <summary>Returns an enumerator over the intervals, in ascending order.</summary>
     public IEnumerator<XInterval> GetEnumerator()
     {
         return ((IEnumerable<XInterval>)_intervals).GetEnumerator();
@@ -211,6 +212,7 @@ public sealed class IntervalSet : IReadOnlyList<XInterval>
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>Returns the intervals in braces, or <c>{}</c> when there are none.</summary>
     public override string ToString()
     {
         return _intervals.Length == 0 ? "{}" : "{" + string.Join(", ", _intervals) + "}";

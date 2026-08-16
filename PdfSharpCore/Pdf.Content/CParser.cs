@@ -34,7 +34,6 @@ using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Content.Objects;
 
-#pragma warning disable 1591
 
 namespace PdfSharpCore.Pdf.Content;
 
@@ -43,6 +42,7 @@ namespace PdfSharpCore.Pdf.Content;
 /// </summary>
 public sealed class CParser
 {
+    /// <summary>Initializes a parser over the combined content streams of a page.</summary>
     public CParser(PdfPage page)
     {
         _page = page;
@@ -51,24 +51,29 @@ public sealed class CParser
         _lexer = new CLexer(bytes);
     }
 
+    /// <summary>Initializes a parser over the given content stream bytes.</summary>
     public CParser(byte[] content)
     {
         _lexer = new CLexer(content);
     }
 
+    /// <summary>Initializes a parser over the content stream held in the given stream.</summary>
     public CParser(MemoryStream content)
     {
         _lexer = new CLexer(content.ToArray());
     }
 
 
+    /// <summary>Initializes a parser reading from an existing lexer.</summary>
     public CParser(CLexer lexer)
     {
         _lexer = lexer;
     }
 
+    /// <summary>Gets the symbol the lexer stopped on.</summary>
     public CSymbol Symbol => _lexer.Symbol;
 
+    /// <summary>Reads the whole content stream into a sequence of operators and their operands.</summary>
     public CSequence ReadContent()
     {
         CSequence sequence = new CSequence();

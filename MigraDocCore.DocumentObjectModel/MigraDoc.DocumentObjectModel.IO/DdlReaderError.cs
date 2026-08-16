@@ -53,6 +53,7 @@ public class DdlReaderError
     this.SourceColumn = sourceColumn;
   }
 
+  /// <summary>Initializes a new error that names no source position.</summary>
   public DdlReaderError(DdlErrorLevel errorLevel, string errorMessage, int errorNumber)
   {
     this.ErrorLevel = errorLevel;
@@ -81,6 +82,7 @@ public class DdlReaderError
   //    {
   //    }
 
+  /// <summary>The number reported for an error that carries none.</summary>
   public const int NoErrorNumber = -1;
 
   /// <summary>

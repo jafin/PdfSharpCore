@@ -34,7 +34,6 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
 
-#pragma warning disable 1591
 
 namespace PdfSharpCore;
 
@@ -74,7 +73,7 @@ static class PSSR
             message = message != null ? Format(message, args) : "INTERNAL ERROR: Message not found in resources.";
             return message;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             message = String.Format("UNEXPECTED ERROR while formatting message with ID {0}: {1}", id.ToString(), ex.ToString());
         }
@@ -91,7 +90,7 @@ static class PSSR
         {
             message = String.Format(format, args);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             message = String.Format("UNEXPECTED ERROR while formatting message '{0}': {1}", format, ex);
         }

@@ -36,6 +36,7 @@ using System.IO;
 using System.Text;
 using MigraDocCore.DocumentObjectModel.Internals;
 using System.Reflection;
+using PdfSharpCore;
 
 namespace MigraDocCore.DocumentObjectModel;
 
@@ -119,7 +120,7 @@ internal class Serializer
     if (fWriteStamp)
     {
       WriteComment("Created by empira MigraDoc Document Object Model");
-      WriteComment(String.Format("generated file created {0:d} at {0:t}", DateTime.Now));
+      WriteComment(String.Format("generated file created {0:d} at {0:t}", GlobalTimeSettings.Now));
     }
   }
 

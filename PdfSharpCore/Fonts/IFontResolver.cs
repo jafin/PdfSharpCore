@@ -51,5 +51,6 @@ public interface IFontResolver
     /// <param name="faceName">A face name previously retrieved by ResolveTypeface.</param>
     byte[] GetFont(string faceName);
 
+    /// <summary>Gets the family name used when a document asks for no font in particular.</summary>
     string DefaultFontName { get; }
 }

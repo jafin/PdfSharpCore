@@ -110,6 +110,8 @@ public sealed class XPen
         return new XPen(this);
     }
 
+    /// <summary>Gets or sets the brush this pen strokes with, in place of a single colour.</summary>
+    /// <exception cref="ArgumentException">The pen is immutable.</exception>
     public XBrush Brush
     {
         get => _brush;

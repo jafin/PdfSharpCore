@@ -37,6 +37,7 @@ namespace MigraDocCore.DocumentObjectModel.Visitors;
 /// </summary>
 public class RtfFlattenVisitor : VisitorBase
 {
+  /// <summary>Initializes a new instance of the <see cref="RtfFlattenVisitor"/> class.</summary>
   public RtfFlattenVisitor()
   {
   }

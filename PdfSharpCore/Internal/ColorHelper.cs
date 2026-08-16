@@ -28,10 +28,13 @@
 #endregion
 
 using System;
-#pragma warning disable 649
 
 namespace PdfSharpCore.Internal;
 
+// Both structs are written field by field by their callers through a local of the struct type,
+// which the compiler does not count as an assignment to the field itself. Scoped rather than
+// disabled for the whole file, so that a field that goes unassigned by accident still warns.
+#pragma warning disable 0649
 struct SColor
 {
     public byte a;
@@ -47,6 +50,7 @@ struct SCColor
     public float g;
     public float b;
 }
+#pragma warning restore 0649
 
 static class ColorHelper
 {

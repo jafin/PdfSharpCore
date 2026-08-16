@@ -10,6 +10,12 @@
     -->
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <!-- Ship the XML documentation alongside the assembly, so a consumer of the package gets the
+         doc comments as IntelliSense. This project is clean of CS1591, so a public member added
+         without one now warns. Set per project rather than in Directory.Build.props, which is
+         imported before GeneratePackageOnBuild is known, or Directory.Build.targets, which is
+         imported after the SDK has already derived DocumentationFile from it. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>Stefan Steiger and Contributors</Authors>
     <Description>Digital signing for PdfSharpCore: CMS/PKCS#7 detached signatures and PAdES B-B, built on the .NET cryptography stack.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>

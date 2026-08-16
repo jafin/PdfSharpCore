@@ -34,8 +34,6 @@ using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Internal;
 
-#pragma warning disable 0169
-#pragma warning disable 0649
 
 namespace PdfSharpCore.Pdf.Security;
 

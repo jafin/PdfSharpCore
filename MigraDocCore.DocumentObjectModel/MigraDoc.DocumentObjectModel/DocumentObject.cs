@@ -92,6 +92,7 @@ public abstract partial class DocumentObject
   /// </summary>
   internal DocumentObject Parent => parent;
 
+  /// <summary>Backing field for <see cref="Parent"/>.</summary>
   [DV(RefOnly = true)]
   protected internal DocumentObject parent;
 

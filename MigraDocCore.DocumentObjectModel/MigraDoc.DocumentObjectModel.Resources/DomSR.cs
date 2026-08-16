@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
@@ -35,8 +36,11 @@ internal static class DomSR
                 message = "<<<error: message not found>>>";
             return message;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
+            // Formatting an error message must not itself throw, or the real error is lost behind
+            // this one. A bad format string or a wrong argument count is reported in place of the
+            // message rather than replacing the failure being described.
             message = "INTERNAL ERROR while formatting error message: " + ex.ToString();
         }
         return message;

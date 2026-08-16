@@ -39,6 +39,8 @@ using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using PdfSharpCore.Fonts;
 
+using PdfSharpCore;
+
 namespace MigraDocCore.Rendering;
 
 internal struct TabOffset
@@ -212,7 +214,7 @@ internal class ParagraphRenderer : Renderer
         {
             DateTime dt = (fieldInfos.date);
             if (dt == DateTime.MinValue)
-                dt = DateTime.Now;
+                dt = GlobalTimeSettings.Now;
 
             return fieldInfos.date.ToString(((DateField)field).Format);
         }
@@ -1820,7 +1822,7 @@ internal class ParagraphRenderer : Renderer
     FormatResult FormatDateField(DateField dateField)
     {
         reMeasureLine = true;
-        string estimatedFieldValue = DateTime.Now.ToString(dateField.Format);
+        string estimatedFieldValue = GlobalTimeSettings.Now.ToString(dateField.Format);
         return FormatWord(estimatedFieldValue);
     }
 

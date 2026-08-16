@@ -59,46 +59,78 @@ public sealed class PdfComboBoxField : PdfChoiceField
         }
         set
         {
-            // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		  
-            if (value != -1) //R080325
+            // Minus one means nothing chosen. There is no option at that index to name in /V,
+            // so the field keeps what it had rather than being emptied.
+            if (value != -1)
             {
                 string key = ValueInOptArray(value);
                 Elements.SetString(Keys.V, key);
-                Elements.SetInteger("/I", value); //R080304 !!!!!!! sonst reagiert die Combobox überhaupt nicht !!!!!
+                // A viewer reads /I to decide which option is highlighted and ignores /V for
+                // that, so writing /V alone leaves the combo box looking unchanged.
+                Elements.SetInteger("/I", value);
             }
         }
     }
 
     /// <summary>
-    /// Gets or sets the value of the field.
+    /// Gets or sets the value of the field. A value the field does not already offer is added to
+    /// its <c>/Opt</c> array, which is what an editable combo box does with text typed into it.
     /// </summary>
-    // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		  
-    public override PdfItem Value //R080304
+    public override PdfItem Value
     {
         get => Elements[Keys.V];
         set
         {
             if (ReadOnly)
                 throw new InvalidOperationException("The field is read only.");
-            if (value is PdfString || value is PdfName)
-            {
-                Elements[Keys.V] = value;
-                SelectedIndex = SelectedIndex; //R080304 !!!
-                if (SelectedIndex == -1)
-                {
-                    //R080317 noch nicht rund
-                    try
-                    {
-                        //anhängen
-                        ((PdfArray)(((PdfItem[])(Elements.Values))[2])).Elements.Add(Value);
-                        SelectedIndex = SelectedIndex;
-                    }
-                    catch { }
-                }
-            }
-            else
+            if (!(value is PdfString || value is PdfName))
                 throw new NotImplementedException("Values other than string cannot be set.");
+
+            // A choice field's value is a text string, and so is every entry of its /Opt array. A
+            // caller passing a name is taken to mean the text the name stands for, as the radio
+            // group does when it compares its own /V against /Opt: the slash that makes a name a
+            // name is not part of the value. Storing the name itself would write /V and the option
+            // as names, which no reader is obliged to make sense of, and IndexInOptArray does not
+            // look at names, so /I would never be pointed at the option either.
+            PdfString text = value as PdfString ?? new PdfString(TextOfName((PdfName)value));
+
+            Elements[Keys.V] = text;
+            SyncSelectedIndex();
+            if (SelectedIndex != -1)
+                return;
+
+            // The value names no option the field offers, so record it as one. /Opt is optional
+            // and a field that never had options has no array to append to yet.
+            PdfArray options = Elements.GetArray(PdfChoiceField.Keys.Opt);
+            if (options == null)
+            {
+                options = new PdfArray(Owner);
+                Elements[PdfChoiceField.Keys.Opt] = options;
+            }
+            options.Elements.Add(text);
+            SyncSelectedIndex();
         }
+    }
+
+    /// <summary>
+    /// Points <c>/I</c> at the option <c>/V</c> names, and rewrites <c>/V</c> with that option's
+    /// own text so the two agree. Leaves both alone when <c>/V</c> names no option on offer,
+    /// because there is no index to point at.
+    /// </summary>
+    void SyncSelectedIndex()
+    {
+        int index = SelectedIndex;
+        if (index != -1)
+            SelectedIndex = index;
+    }
+
+    /// <summary>
+    /// The text a name stands for, without the solidus that makes it a name.
+    /// </summary>
+    static string TextOfName(PdfName name)
+    {
+        string value = name.Value ?? "";
+        return value.Length != 0 && value[0] == '/' ? value.Substring(1) : value;
     }
 
     /// <summary>

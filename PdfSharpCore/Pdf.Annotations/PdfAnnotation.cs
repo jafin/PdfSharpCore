@@ -66,7 +66,7 @@ public abstract class PdfAnnotation : PdfDictionary
     {
         Elements.SetName(Keys.Type, "/Annot");
         Elements.SetString(Keys.NM, Guid.NewGuid().ToString("D"));
-        Elements.SetDateTime(Keys.M, DateTime.Now);
+        Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetInteger(Keys.F, (int)value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
         }
     }
 
@@ -123,7 +123,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetRectangle(Keys.Rect, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
             OnAppearanceInvalidated();
         }
     }
@@ -139,7 +139,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetString(Keys.T, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
         }
     }
 
@@ -153,7 +153,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetString(Keys.Subj, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
         }
     }
 
@@ -166,7 +166,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetDateTime(Keys.CreationDate, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
         }
     }
 
@@ -181,7 +181,7 @@ public abstract class PdfAnnotation : PdfDictionary
         set
         {
             Elements.SetString(Keys.Contents, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
         }
     }
 
@@ -214,7 +214,7 @@ public abstract class PdfAnnotation : PdfDictionary
             // TODO: an array.SetColor(clr) function may be useful here
             PdfArray array = new PdfArray(Owner, new PdfReal[] { new(value.R / 255.0), new(value.G / 255.0), new(value.B / 255.0) });
             Elements[Keys.C] = array;
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
             OnAppearanceInvalidated();
         }
     }
@@ -238,7 +238,7 @@ public abstract class PdfAnnotation : PdfDictionary
             if (value < 0 || value > 1)
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Opacity must be a value in the range from 0 to 1.");
             Elements.SetReal(Keys.CA, value);
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
             OnAppearanceInvalidated();
         }
     }

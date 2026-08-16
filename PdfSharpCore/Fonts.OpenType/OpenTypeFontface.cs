@@ -38,7 +38,6 @@ using PdfSharpCore.Drawing;
 
 using Fixed = System.Int32;
 
-#pragma warning disable 0649
 
 namespace PdfSharpCore.Fonts.OpenType;
 
@@ -176,8 +175,13 @@ internal sealed class OpenTypeFontface
     internal GlyphDataTable glyf;
     internal IndexToLocationTable loca;
     internal GlyphSubstitutionTable gsub;
+    // The vertical metrics tables are declared but never read: nothing here lays text out
+    // vertically yet, so Read() does not seek them and these stay null. Scoped rather than
+    // disabled for the whole file, so that a field that goes unassigned by accident still warns.
+#pragma warning disable 0649
     internal VerticalHeaderTable vhea; // TODO
     internal VerticalMetricsTable vmtx; // TODO
+#pragma warning restore 0649
     // ReSharper restore InconsistentNaming
 
     public bool CanRead => FontSource != null;
@@ -280,90 +284,82 @@ internal sealed class OpenTypeFontface
         const uint OTTO = 0x4f54544f;  // Adobe OpenType CFF data, tag: 'OTTO'
         const uint TTCF = 0x74746366;  // TrueType Collection tag: 'ttcf'  
         // ReSharper restore InconsistentNaming
-        try
+        // Check if data is a TrueType collection font.
+        uint startTag = ReadULong();
+        if (startTag == TTCF)
         {
-            // Check if data is a TrueType collection font.
-            uint startTag = ReadULong();
-            if (startTag == TTCF)
-            {
-                _fontTechnology = FontTechnology.TrueTypeCollection;
-                throw new InvalidOperationException("TrueType collection fonts are not yet supported by PdfSharpCore.");
-            }
-
-            // Read offset table
-            _offsetTable.Version = startTag;
-            _offsetTable.TableCount = ReadUShort();
-            _offsetTable.SearchRange = ReadUShort();
-            _offsetTable.EntrySelector = ReadUShort();
-            _offsetTable.RangeShift = ReadUShort();
-
-            // Move to table dictionary at position 12
-            Debug.Assert(_pos == 12);
-            //tableDictionary = (offsetTable.TableCount);
-
-            if (_offsetTable.Version == OTTO)
-                _fontTechnology = FontTechnology.PostscriptOutlines;
-            else
-                _fontTechnology = FontTechnology.TrueTypeOutlines;
-
-            for (int idx = 0; idx < _offsetTable.TableCount; idx++)
-            {
-                TableDirectoryEntry entry = TableDirectoryEntry.ReadFrom(this);
-                TableDictionary.Add(entry.Tag, entry);
-            }
-
-            // PDFlib checks this, but it is not part of the OpenType spec anymore
-            if (TableDictionary.ContainsKey("bhed"))
-                throw new NotSupportedException("Bitmap fonts are not supported by PdfSharpCore.");
-
-            // Read required tables
-            if (Seek(CMapTable.Tag) != -1)
-                cmap = new CMapTable(this);
-
-            if (Seek(ControlValueTable.Tag) != -1)
-                cvt = new ControlValueTable(this);
-
-            if (Seek(FontProgram.Tag) != -1)
-                fpgm = new FontProgram(this);
-
-            if (Seek(MaximumProfileTable.Tag) != -1)
-                maxp = new MaximumProfileTable(this);
-
-            if (Seek(NameTable.Tag) != -1)
-                name = new NameTable(this);
-
-            if (Seek(FontHeaderTable.Tag) != -1)
-                head = new FontHeaderTable(this);
-
-            if (Seek(HorizontalHeaderTable.Tag) != -1)
-                hhea = new HorizontalHeaderTable(this);
-
-            if (Seek(HorizontalMetricsTable.Tag) != -1)
-                hmtx = new HorizontalMetricsTable(this);
-
-            if (Seek(OS2Table.Tag) != -1)
-                os2 = new OS2Table(this);
-
-            if (Seek(PostScriptTable.Tag) != -1)
-                post = new PostScriptTable(this);
-
-            if (Seek(GlyphDataTable.Tag) != -1)
-                glyf = new GlyphDataTable(this);
-
-            if (Seek(IndexToLocationTable.Tag) != -1)
-                loca = new IndexToLocationTable(this);
-
-            if (Seek(GlyphSubstitutionTable.Tag) != -1)
-                gsub = new GlyphSubstitutionTable(this);
-
-            if (Seek(ControlValueProgram.Tag) != -1)
-                prep = new ControlValueProgram(this);
+            _fontTechnology = FontTechnology.TrueTypeCollection;
+            throw new InvalidOperationException("TrueType collection fonts are not yet supported by PdfSharpCore.");
         }
-        catch (Exception)
+
+        // Read offset table
+        _offsetTable.Version = startTag;
+        _offsetTable.TableCount = ReadUShort();
+        _offsetTable.SearchRange = ReadUShort();
+        _offsetTable.EntrySelector = ReadUShort();
+        _offsetTable.RangeShift = ReadUShort();
+
+        // Move to table dictionary at position 12
+        Debug.Assert(_pos == 12);
+        //tableDictionary = (offsetTable.TableCount);
+
+        if (_offsetTable.Version == OTTO)
+            _fontTechnology = FontTechnology.PostscriptOutlines;
+        else
+            _fontTechnology = FontTechnology.TrueTypeOutlines;
+
+        for (int idx = 0; idx < _offsetTable.TableCount; idx++)
         {
-            GetType();
-            throw;
+            TableDirectoryEntry entry = TableDirectoryEntry.ReadFrom(this);
+            TableDictionary.Add(entry.Tag, entry);
         }
+
+        // PDFlib checks this, but it is not part of the OpenType spec anymore
+        if (TableDictionary.ContainsKey("bhed"))
+            throw new NotSupportedException("Bitmap fonts are not supported by PdfSharpCore.");
+
+        // Read required tables
+        if (Seek(CMapTable.Tag) != -1)
+            cmap = new CMapTable(this);
+
+        if (Seek(ControlValueTable.Tag) != -1)
+            cvt = new ControlValueTable(this);
+
+        if (Seek(FontProgram.Tag) != -1)
+            fpgm = new FontProgram(this);
+
+        if (Seek(MaximumProfileTable.Tag) != -1)
+            maxp = new MaximumProfileTable(this);
+
+        if (Seek(NameTable.Tag) != -1)
+            name = new NameTable(this);
+
+        if (Seek(FontHeaderTable.Tag) != -1)
+            head = new FontHeaderTable(this);
+
+        if (Seek(HorizontalHeaderTable.Tag) != -1)
+            hhea = new HorizontalHeaderTable(this);
+
+        if (Seek(HorizontalMetricsTable.Tag) != -1)
+            hmtx = new HorizontalMetricsTable(this);
+
+        if (Seek(OS2Table.Tag) != -1)
+            os2 = new OS2Table(this);
+
+        if (Seek(PostScriptTable.Tag) != -1)
+            post = new PostScriptTable(this);
+
+        if (Seek(GlyphDataTable.Tag) != -1)
+            glyf = new GlyphDataTable(this);
+
+        if (Seek(IndexToLocationTable.Tag) != -1)
+            loca = new IndexToLocationTable(this);
+
+        if (Seek(GlyphSubstitutionTable.Tag) != -1)
+            gsub = new GlyphSubstitutionTable(this);
+
+        if (Seek(ControlValueProgram.Tag) != -1)
+            prep = new ControlValueProgram(this);
     }
 
     /// <summary>

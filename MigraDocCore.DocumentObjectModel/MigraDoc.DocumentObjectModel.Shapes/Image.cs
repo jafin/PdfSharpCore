@@ -82,6 +82,7 @@ public partial class Image : Shape
     // Written only through the reflection layer, so it needs an initializer to count as assigned.
     internal string name = null;
 
+    /// <summary>Gets or sets the decoded image this shape draws.</summary>
     public IImageSource Source { get; set; }
 
     /// <summary>
@@ -222,11 +223,10 @@ public partial class Image : Shape
             else
                 filePath = Path.Combine(filePath, Source.Name);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             Debug.Assert(false, "Should never occur with properly formatted Wiki texts. " + ex);
             return null;
-            //throw;
         }
 
         return filePath;

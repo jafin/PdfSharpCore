@@ -55,44 +55,28 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     public OpenTypeDescriptor(string fontDescriptorKey, XFont font)
         : base(fontDescriptorKey)
     {
-        try
-        {
-            FontFace = font.GlyphTypeface.Fontface;
-            FontName = font.Name;
-            Initialize();
-        }
-        catch
-        {
-            GetType();
-            throw;
-        }
+        FontFace = font.GlyphTypeface.Fontface;
+        FontName = font.Name;
+        Initialize();
     }
 
     internal OpenTypeDescriptor(string fontDescriptorKey, string idName, byte[] fontData)
         : base(fontDescriptorKey)
     {
-        try
+        FontFace = new OpenTypeFontface(fontData, idName);
+        // Try to get real name form name table
+        if (idName.Contains("XPS-Font-") && FontFace.name != null && FontFace.name.Name.Length != 0)
         {
-            FontFace = new OpenTypeFontface(fontData, idName);
-            // Try to get real name form name table
-            if (idName.Contains("XPS-Font-") && FontFace.name != null && FontFace.name.Name.Length != 0)
-            {
-                string tag = String.Empty;
-                if (idName.IndexOf('+') == 6)
-                    tag = idName.Substring(0, 6);
-                idName = tag + "+" + FontFace.name.Name;
-                if (FontFace.name.Style.Length != 0)
-                    idName += "," + FontFace.name.Style;
-                //idName = idName.Replace(" ", "");
-            }
-            FontName = idName;
-            Initialize();
+            string tag = String.Empty;
+            if (idName.IndexOf('+') == 6)
+                tag = idName.Substring(0, 6);
+            idName = tag + "+" + FontFace.name.Name;
+            if (FontFace.name.Style.Length != 0)
+                idName += "," + FontFace.name.Style;
+            //idName = idName.Replace(" ", "");
         }
-        catch (Exception)
-        {
-            GetType();
-            throw;
-        }
+        FontName = idName;
+        Initialize();
     }
 
     internal OpenTypeFontface FontFace;
@@ -281,37 +265,29 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     /// </summary>
     public int CharCodeToGlyphIndex(char value)
     {
-        try
+        CMap4 cmap4 = FontFace.cmap.cmap4;
+        int segCount = cmap4.segCountX2 / 2;
+        int seg;
+        for (seg = 0; seg < segCount; seg++)
         {
-            CMap4 cmap4 = FontFace.cmap.cmap4;
-            int segCount = cmap4.segCountX2 / 2;
-            int seg;
-            for (seg = 0; seg < segCount; seg++)
-            {
-                if (value <= cmap4.endCount[seg])
-                    break;
-            }
-            Debug.Assert(seg < segCount);
-
-            if (value < cmap4.startCount[seg])
-                return 0;
-
-            if (cmap4.idRangeOffs[seg] == 0)
-                return (value + cmap4.idDelta[seg]) & 0xFFFF;
-
-            int idx = cmap4.idRangeOffs[seg] / 2 + (value - cmap4.startCount[seg]) - (segCount - seg);
-            Debug.Assert(idx >= 0 && idx < cmap4.glyphCount);
-
-            if (cmap4.glyphIdArray[idx] == 0)
-                return 0;
-
-            return (cmap4.glyphIdArray[idx] + cmap4.idDelta[seg]) & 0xFFFF;
+            if (value <= cmap4.endCount[seg])
+                break;
         }
-        catch
-        {
-            GetType();
-            throw;
-        }
+        Debug.Assert(seg < segCount);
+
+        if (value < cmap4.startCount[seg])
+            return 0;
+
+        if (cmap4.idRangeOffs[seg] == 0)
+            return (value + cmap4.idDelta[seg]) & 0xFFFF;
+
+        int idx = cmap4.idRangeOffs[seg] / 2 + (value - cmap4.startCount[seg]) - (segCount - seg);
+        Debug.Assert(idx >= 0 && idx < cmap4.glyphCount);
+
+        if (cmap4.glyphIdArray[idx] == 0)
+            return 0;
+
+        return (cmap4.glyphIdArray[idx] + cmap4.idDelta[seg]) & 0xFFFF;
     }
 
     /// <summary>
@@ -319,27 +295,19 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     /// </summary>
     public int GlyphIndexToPdfWidth(int glyphIndex)
     {
-        try
-        {
-            int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
-            int unitsPerEm = FontFace.head.unitsPerEm;
+        int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
+        int unitsPerEm = FontFace.head.unitsPerEm;
 
-            // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
-            if (glyphIndex >= numberOfHMetrics)
-                glyphIndex = numberOfHMetrics - 1;
+        // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
+        if (glyphIndex >= numberOfHMetrics)
+            glyphIndex = numberOfHMetrics - 1;
 
-            int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
+        int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
 
-            // Sometimes the unitsPerEm is 1000, sometimes a power of 2.
-            if (unitsPerEm == 1000)
-                return width;
-            return width * 1000 / unitsPerEm; // normalize
-        }
-        catch (Exception)
-        {
-            GetType();
-            throw;
-        }
+        // Sometimes the unitsPerEm is 1000, sometimes a power of 2.
+        if (unitsPerEm == 1000)
+            return width;
+        return width * 1000 / unitsPerEm; // normalize
     }
 
     public int PdfWidthFromCharCode(char ch)
@@ -354,24 +322,16 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     /// </summary>
     public double GlyphIndexToEmfWidth(int glyphIndex, double emSize)
     {
-        try
-        {
-            int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
-            int unitsPerEm = FontFace.head.unitsPerEm;
+        int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
+        int unitsPerEm = FontFace.head.unitsPerEm;
 
-            // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
-            if (glyphIndex >= numberOfHMetrics)
-                glyphIndex = numberOfHMetrics - 1;
+        // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
+        if (glyphIndex >= numberOfHMetrics)
+            glyphIndex = numberOfHMetrics - 1;
 
-            int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
+        int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
 
-            return width * emSize / unitsPerEm; // normalize
-        }
-        catch (Exception)
-        {
-            GetType();
-            throw;
-        }
+        return width * emSize / unitsPerEm; // normalize
     }
 
     /// <summary>
@@ -379,21 +339,13 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     /// </summary>
     public int GlyphIndexToWidth(int glyphIndex)
     {
-        try
-        {
-            int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
+        int numberOfHMetrics = FontFace.hhea.numberOfHMetrics;
 
-            // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
-            if (glyphIndex >= numberOfHMetrics)
-                glyphIndex = numberOfHMetrics - 1;
+        // glyphIndex >= numberOfHMetrics means the font is mono-spaced and all glyphs have the same width
+        if (glyphIndex >= numberOfHMetrics)
+            glyphIndex = numberOfHMetrics - 1;
 
-            int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
-            return width;
-        }
-        catch (Exception)
-        {
-            GetType();
-            throw;
-        }
+        int width = FontFace.hmtx.Metrics[glyphIndex].advanceWidth;
+        return width;
     }
 }

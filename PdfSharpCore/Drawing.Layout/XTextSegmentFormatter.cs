@@ -6,6 +6,11 @@ using System.Linq;
 
 namespace PdfSharpCore.Drawing.Layout;
 
+/// <summary>
+/// Lays out a sequence of <see cref="TextSegment"/> into a rectangle, wrapping between segments as
+/// well as within them, so that a paragraph whose font or colour changes part way through is drawn
+/// as one flow.
+/// </summary>
 public class XTextSegmentFormatter
 {
 	private readonly XGraphics _gfx;
@@ -110,7 +115,7 @@ public class XTextSegmentFormatter
 	/// <param name="font">The font.</param>
 	/// <param name="brush">The text brush.</param>
 	/// <param name="width">Max text width</param>
-	/// <param name="format">The format. Must be <c>XStringFormat.TopLeft</param>
+	/// <param name="format">The format. Must be <c>XStringFormat.TopLeft</c>.</param>
 	/// <returns></returns>
 	public XSize CalculateTextSize(string text, XFont font, XBrush brush, double width, XStringFormat format)
 	{
@@ -138,7 +143,7 @@ public class XTextSegmentFormatter
 	/// </summary>
 	/// <param name="textSegments">The texts to be drawn with font and color information.</param>
 	/// <param name="width">Max text width</param>
-	/// <param name="format">The format. Must be <c>XStringFormat.TopLeft</param>
+	/// <param name="format">The format. Must be <c>XStringFormat.TopLeft</c>.</param>
 	/// <returns></returns>
 	public XSize CalculateTextSize(IEnumerable<TextSegment> textSegments, double width, XStringFormat format)
 	{

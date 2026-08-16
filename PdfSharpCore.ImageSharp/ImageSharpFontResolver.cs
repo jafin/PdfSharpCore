@@ -14,12 +14,14 @@ public class ImageSharpFontResolver
     : FontResolverBase
 {
 
+    /// <summary>Reads the family name and style out of a single-font file.</summary>
     protected override FontMetadata ReadFontMetadata(string fontFilePath)
     {
         return ToMetadata(FontDescription.LoadDescription(fontFilePath));
     }
 
 
+    /// <summary>Reads the family name and style of one face of a font file, by index within a collection.</summary>
     protected override FontMetadata ReadFontMetadata(string fontFilePath, int faceIndex)
     {
         if (faceIndex < 0)
@@ -36,6 +38,7 @@ public class ImageSharpFontResolver
     }
 
 
+    /// <summary>Reads the family name and style of every face of a collection file, opening it once.</summary>
     protected override FontMetadata[] ReadCollectionMetadata(string fontFilePath, int faceCount)
     {
         FontDescription[] descriptions = FontDescription.LoadFontCollectionDescriptions(fontFilePath);

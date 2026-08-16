@@ -213,6 +213,7 @@ public sealed partial class Font : DocumentObject
     [DV]
     internal bool? subscript;
 
+    /// <summary>Gets or sets how the text is struck through.</summary>
     public Strikethrough Strikethrough
     {
         get => strikethrough ?? default;

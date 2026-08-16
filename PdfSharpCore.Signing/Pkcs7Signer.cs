@@ -121,7 +121,7 @@ public sealed class Pkcs7Signer : IPdfSigner
         }
 
         if (IncludeSigningTime)
-            signer.SignedAttributes.Add(new Pkcs9SigningTime(DateTime.Now));
+            signer.SignedAttributes.Add(new Pkcs9SigningTime(GlobalTimeSettings.Now));
 
         if (Format == PdfSignatureFormat.Pades)
             signer.SignedAttributes.Add(SigningCertificateV2());

@@ -42,6 +42,8 @@ namespace MigraDocCore.DocumentObjectModel.Visitors;
 /// </summary>
 public class CellComparer : IComparer<Cell>
 {
+  /// <summary>Compares two cells by position, top to bottom and then left to right.</summary>
+  /// <exception cref="ArgumentNullException">Either cell is null.</exception>
   public int Compare(Cell lhs, Cell rhs)
   {
     if (ReferenceEquals(lhs, null))

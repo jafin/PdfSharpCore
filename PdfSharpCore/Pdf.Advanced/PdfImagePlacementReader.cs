@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;
 
@@ -59,7 +60,7 @@ internal sealed class PdfImagePlacementReader
         {
             sequence = ContentReader.ReadContent(content);
         }
-        catch (Exception)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             // Content that cannot be read says nothing about what it draws.
             return;

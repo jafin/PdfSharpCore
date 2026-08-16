@@ -520,6 +520,10 @@ public partial class Hyperlink : DocumentObject, IVisitable
     #endregion
 
     #region IDomVisitable Members
+    /// <summary>
+    /// Lets a visitor visit this hyperlink, and its elements when
+    /// <paramref name="visitChildren"/> says so.
+    /// </summary>
     public void AcceptVisitor(DocumentObjectVisitor visitor, bool visitChildren)
     {
         visitor.VisitHyperlink(this);

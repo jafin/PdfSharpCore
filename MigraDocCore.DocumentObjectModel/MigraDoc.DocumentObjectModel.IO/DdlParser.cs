@@ -795,7 +795,7 @@ internal class DdlParser
                     symtype = (SymbolName)Enum.Parse(typeof(SymbolName), Token, true);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!Unrecoverable.Is(ex))
             {
                 ThrowParserException(ex, DomMsgID.InvalidEnum, Token);
             }
@@ -1387,7 +1387,7 @@ internal class DdlParser
             {
                 chartType = (ChartType)Enum.Parse(typeof(ChartType), chartTypeName, true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!Unrecoverable.Is(ex))
             {
                 ThrowParserException(ex, DomMsgID.UnknownChartType, chartTypeName);
             }
@@ -2035,7 +2035,7 @@ internal class DdlParser
                 ThrowParserException(DomMsgID.InvalidType, vd.ValueType.Name, vd.ValueName);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ReportParserException(ex, DomMsgID.InvalidAssignment, vd.ValueName);
         }
@@ -2118,7 +2118,7 @@ internal class DdlParser
             object val = Enum.Parse(vd.ValueType, Token, true);
             dom.SetValue(vd.ValueName, val);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ThrowParserException(ex, DomMsgID.InvalidEnum, scanner.Token, vd.ValueName);
         }
@@ -2139,7 +2139,7 @@ internal class DdlParser
             dom.SetValue(vd.ValueName, val);
             ReadCode();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ReportParserException(ex, DomMsgID.InvalidAssignment, vd.ValueName);
         }
@@ -2182,7 +2182,7 @@ internal class DdlParser
                 //dom.SetValue(vd.ValueName, docObj);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ReportParserException(ex, DomMsgID.InvalidAssignment, vd.ValueName);
         }
@@ -2198,7 +2198,7 @@ internal class DdlParser
             // What ever it is, send it to SetValue.
             dom.SetValue(vd.ValueName, Token);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             ThrowParserException(ex, DomMsgID.InvalidEnum, scanner.Token, vd.ValueName);
         }
@@ -2252,7 +2252,7 @@ internal class DdlParser
                         color = Color.Parse(Token);
                         ReadCode();  // read token
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (!Unrecoverable.Is(ex))
                     {
                         ThrowParserException(ex, DomMsgID.InvalidColor, scanner.Token);
                     }

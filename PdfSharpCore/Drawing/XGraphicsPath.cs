@@ -66,6 +66,7 @@ public sealed class XGraphicsPath
         AddLine(pt1.X, pt1.Y, pt2.X, pt2.Y);
     }
 
+    /// <summary>Starts a new figure at the given point without drawing anything.</summary>
     public void AddMove(double x1, double y1)
         => _corePath.MoveTo(x1, y1);
 

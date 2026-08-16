@@ -32,6 +32,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using PdfSharpCore.Internal;
 
 using Fixed = System.Int32;
 using FWord = System.Int16;
@@ -136,7 +137,7 @@ internal class CMap4 : OpenTypeFontTable
             for (int idx = 0; idx < glyphCount; idx++)
                 glyphIdArray[idx] = _fontData.ReadUShort();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -215,7 +216,7 @@ internal class CMapTable : OpenTypeFontTable
             if (!success)
                 throw new InvalidOperationException("Font has no usable platform or encoding ID. It cannot be used with PdfSharpCore.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -274,7 +275,7 @@ internal class FontHeaderTable : OpenTypeFontTable
             indexToLocFormat = _fontData.ReadShort();
             glyphDataFormat = _fontData.ReadShort();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -337,7 +338,7 @@ internal class HorizontalHeaderTable : OpenTypeFontTable
             metricDataFormat = _fontData.ReadShort();
             numberOfHMetrics = _fontData.ReadUShort();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -364,7 +365,7 @@ internal class HorizontalMetrics : OpenTypeFontTable
             advanceWidth = _fontData.ReadUFWord();
             lsb = _fontData.ReadFWord();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -415,7 +416,7 @@ internal class HorizontalMetricsTable : OpenTypeFontTable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -474,7 +475,7 @@ internal class VerticalHeaderTable : OpenTypeFontTable
             metricDataFormat = _fontData.ReadShort();
             numberOfHMetrics = _fontData.ReadUShort();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -502,7 +503,7 @@ internal class VerticalMetrics : OpenTypeFontTable
             advanceWidth = _fontData.ReadUFWord();
             lsb = _fontData.ReadFWord();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -557,7 +558,7 @@ internal class VerticalMetricsTable : OpenTypeFontTable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -617,7 +618,7 @@ internal class MaximumProfileTable : OpenTypeFontTable
             maxComponentElements = _fontData.ReadUShort();
             maxComponentDepth = _fontData.ReadUShort();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -746,7 +747,7 @@ internal class NameTable : OpenTypeFontTable
             }
             Debug.Assert(!String.IsNullOrEmpty(Name));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -886,7 +887,7 @@ internal class OS2Table : OpenTypeFontTable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -935,7 +936,7 @@ internal class PostScriptTable : OpenTypeFontTable
             minMemType1 = _fontData.ReadULong();
             maxMemType1 = _fontData.ReadULong();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -970,7 +971,7 @@ internal class ControlValueTable : OpenTypeFontTable
             for (int idx = 0; idx < length; idx++)
                 array[idx] = _fontData.ReadFWord();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -1005,7 +1006,7 @@ internal class FontProgram : OpenTypeFontTable
             for (int idx = 0; idx < length; idx++)
                 bytes[idx] = _fontData.ReadByte();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -1041,7 +1042,7 @@ internal class ControlValueProgram : OpenTypeFontTable
             for (int idx = 0; idx < length; idx++)
                 bytes[idx] = _fontData.ReadByte();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
@@ -1066,12 +1067,8 @@ internal class GlyphSubstitutionTable : OpenTypeFontTable
 
     public void Read()
     {
-        try
-        {
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
-        }
+        // Nothing is read from GSUB. The table is located and its directory entry kept, which is
+        // what subsetting needs to copy it across; the substitution rules inside it are not
+        // interpreted. The empty body is deliberate rather than unfinished.
     }
 }

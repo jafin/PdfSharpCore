@@ -32,8 +32,10 @@
 // ReSharper disable RedundantNameQualifier because it is required for hybrid build
 namespace PdfSharpCore.Drawing;
 
+/// <summary>The state two-colour gradient brushes have in common: the colour at each end.</summary>
 public class XBaseGradientBrush : XBrush
 {
+    /// <summary>Initializes a new gradient brush running between the two given colours.</summary>
     protected XBaseGradientBrush(XColor color1, XColor color2)
     {
         _color1 = color1;

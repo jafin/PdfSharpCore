@@ -88,7 +88,7 @@ public abstract class PdfSquareCircleAnnotation : PdfAnnotation
         {
             _interior = value;
             WriteInteriorColor();
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
             OnAppearanceInvalidated();
         }
     }
@@ -120,7 +120,7 @@ public abstract class PdfSquareCircleAnnotation : PdfAnnotation
             border.Elements.SetName("/S", "/S");
             Elements[Keys.BS] = border;
 
-            Elements.SetDateTime(Keys.M, DateTime.Now);
+            Elements.SetDateTime(Keys.M, GlobalTimeSettings.Now);
             OnAppearanceInvalidated();
         }
     }

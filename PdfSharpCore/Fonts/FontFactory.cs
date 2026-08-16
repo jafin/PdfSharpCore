@@ -35,7 +35,6 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts.OpenType;
 using PdfSharpCore.Internal;
 
-#pragma warning disable 1591
 // ReSharper disable RedundantNameQualifier
 
 namespace PdfSharpCore.Fonts;
