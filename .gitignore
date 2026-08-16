@@ -275,3 +275,6 @@ __pycache__/
 # The PDFs the demonstration app writes
 /output/
 /SampleApp/output/
+
+# Research trails from /autoresearch runs. The conclusions worth keeping go to docs/specs/.
+/autoresearch/
