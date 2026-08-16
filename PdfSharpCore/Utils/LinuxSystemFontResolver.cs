@@ -240,8 +240,8 @@ public static class LinuxSystemFontResolver
                     }
 
                     dirs.Add(path);
-                } // Whend 
-            } // End Using reader 
+                }
+            }
         }
         catch (Exception ex) when (!Unrecoverable.Is(ex))
         {

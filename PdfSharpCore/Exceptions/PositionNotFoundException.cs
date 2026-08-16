@@ -10,5 +10,5 @@ namespace PdfSharpCore.Exceptions;
 public class PositionNotFoundException : System.Exception
 {
     /// <summary>Initializes a new instance naming the object that could not be found.</summary>
-    public PositionNotFoundException(PdfObjectID id) : base($"Object with ID {id} resolved with negative position ") { }
+    public PositionNotFoundException(PdfObjectID id) : base($"Object with ID {id} resolved with negative position.") { }
 }

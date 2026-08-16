@@ -86,7 +86,15 @@ public sealed class PdfComboBoxField : PdfChoiceField
             if (!(value is PdfString || value is PdfName))
                 throw new NotImplementedException("Values other than string cannot be set.");
 
-            Elements[Keys.V] = value;
+            // A choice field's value is a text string, and so is every entry of its /Opt array. A
+            // caller passing a name is taken to mean the text the name stands for, as the radio
+            // group does when it compares its own /V against /Opt: the slash that makes a name a
+            // name is not part of the value. Storing the name itself would write /V and the option
+            // as names, which no reader is obliged to make sense of, and IndexInOptArray does not
+            // look at names, so /I would never be pointed at the option either.
+            PdfString text = value as PdfString ?? new PdfString(TextOfName((PdfName)value));
+
+            Elements[Keys.V] = text;
             SyncSelectedIndex();
             if (SelectedIndex != -1)
                 return;
@@ -99,7 +107,7 @@ public sealed class PdfComboBoxField : PdfChoiceField
                 options = new PdfArray(Owner);
                 Elements[PdfChoiceField.Keys.Opt] = options;
             }
-            options.Elements.Add(value);
+            options.Elements.Add(text);
             SyncSelectedIndex();
         }
     }
@@ -114,6 +122,15 @@ public sealed class PdfComboBoxField : PdfChoiceField
         int index = SelectedIndex;
         if (index != -1)
             SelectedIndex = index;
+    }
+
+    /// <summary>
+    /// The text a name stands for, without the solidus that makes it a name.
+    /// </summary>
+    static string TextOfName(PdfName name)
+    {
+        string value = name.Value ?? "";
+        return value.Length != 0 && value[0] == '/' ? value.Substring(1) : value;
     }
 
     /// <summary>

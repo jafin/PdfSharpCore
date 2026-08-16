@@ -337,6 +337,46 @@ public class AcroFormFieldKindTests
         field.SelectedIndex.Should().Be(0);
     }
 
+    /// <summary>
+    ///   A choice field's value is a text string, and so is every entry of its <c>/Opt</c> array.
+    ///   A caller may still hand it a name, which is taken to mean the text the name stands for -
+    ///   the same reading <see cref="PdfRadioButtonField"/> gives its own <c>/V</c>, where the
+    ///   slash that makes a name a name is not part of the value. Stored as a name it would be
+    ///   invisible to the search through <c>/Opt</c>, so <c>/I</c> would never be pointed at it.
+    /// </summary>
+    [Fact]
+    public void AComboBoxGivenANameStoresTheTextItStandsFor()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfName("/Middlesex");
+
+        OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex", "Middlesex" });
+        field.Value.Should().BeOfType<PdfString>().Which.Value.Should().Be("Middlesex");
+        field.SelectedIndex.Should().Be(2);
+        field.Elements.GetInteger("/I").Should().Be(2);
+    }
+
+    [Fact]
+    public void AComboBoxGivenANameForAnOptionItAlreadyOffersChoosesThatOption()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+
+        field.Value = new PdfName("/Sussex");
+
+        OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex" },
+            "the option was already on offer, so nothing needed adding");
+        field.SelectedIndex.Should().Be(1);
+    }
+
     [Fact]
     public void AComboBoxRefusesAValueThatIsNotText()
     {
