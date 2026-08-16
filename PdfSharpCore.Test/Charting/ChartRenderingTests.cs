@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using AwesomeAssertions;
@@ -288,9 +289,25 @@ public class ChartRenderingTests
     [InlineData(null, "19%")]
     public void APieLabelsItsSharesTheWayTheFormatAsks(string format, string expected)
     {
-        // 42 of 42 + 58 + 51 + 73 = 224 is 18.75%, worth using because it rounds differently at
-        // each of the precisions above rather than being a round number twice over.
-        Shows(Drawn(Pie(format, 42, 58, 51, 73)), expected).Should().BeTrue();
+        // The renderer formats with the ambient culture, as every ToString(format) in the charting
+        // package does, so the expectations above are only true under one. Pinned rather than
+        // localised because a percent format varies in more than the decimal separator - the
+        // symbol moves, and some cultures put a space in front of it - and an expectation rebuilt
+        // from the same rules the renderer uses would assert nothing. CurrentCulture is per thread
+        // and xUnit gives a test method a thread to itself, so this does not reach a test running
+        // beside it.
+        CultureInfo previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        try
+        {
+            // 42 of 42 + 58 + 51 + 73 = 224 is 18.75%, worth using because it rounds differently at
+            // each of the precisions above rather than being a round number twice over.
+            Shows(Drawn(Pie(format, 42, 58, 51, 73)), expected).Should().BeTrue();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
     }
 
     [Fact]

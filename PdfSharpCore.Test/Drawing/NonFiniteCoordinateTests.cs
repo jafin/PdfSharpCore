@@ -98,8 +98,11 @@ public class NonFiniteCoordinateTests
         var drawing = () => Draw(gfx =>
             gfx.DrawLine(XPens.Black, double.NaN, 10, 40, 40));
 
+        // The quoted operator, not merely the word: the sentence after it says "PDF cannot express
+        // NaN or infinity", so matching on "NaN" alone passes whether or not the operator is there
+        // at all - which is the one thing this test exists to check.
         drawing.Should().Throw<InvalidOperationException>()
-            .WithMessage("*NaN*");
+            .WithMessage("*\"NaN *m\"*");
     }
 
     [Fact]
