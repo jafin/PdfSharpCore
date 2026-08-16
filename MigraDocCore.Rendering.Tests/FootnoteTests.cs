@@ -445,23 +445,69 @@ public class FootnoteTests
     }
 
     /// <summary>
-    ///   The generated marks the page shows, in the order the notes are numbered.
+    ///   The generated marks the page shows, in the order the note block draws them.
     /// </summary>
     /// <remarks>
-    ///   Each mark is drawn twice - beside the claim and at the head of the note - so the sequence
-    ///   is read off the note block, where they appear once each in order. The lowest marks on the
-    ///   page are the block's.
+    ///   <para>
+    ///     Each mark is drawn twice - beside the claim and at the head of the note - so the
+    ///     sequence is read off the note block, where they appear once each in order. The block is
+    ///     rendered after the body, so the last time a mark is shown on the page is the block's
+    ///     copy of it, and sorting the marks by that position puts them in the block's order.
+    ///   </para>
+    ///   <para>
+    ///     Ordered by where each mark was actually drawn rather than by the order they were asked
+    ///     for. Walking the candidates and keeping the ones that appear returns them in the
+    ///     caller's own order however the page was drawn, so a page marked three, two, one would
+    ///     have satisfied the assertion this feeds.
+    ///   </para>
     /// </remarks>
     static IReadOnlyList<string> MarksOn(PdfPage page, params string[] candidates)
     {
-        var shown = new List<string>();
+        var runs = Glyphs.RunsOn(page);
+
+        var found = new List<(int At, string Mark)>();
         foreach (var mark in candidates)
         {
-            if (CountOfMark(page, mark) > 0)
-                shown.Add(mark);
+            var at = LastRunShowing(runs, Glyphs.For(mark));
+            if (at >= 0)
+                found.Add((at, mark));
         }
 
-        return shown;
+        found.Sort((left, right) => left.At.CompareTo(right.At));
+        return found.Select(entry => entry.Mark).ToList();
+    }
+
+    /// <summary>
+    ///   Which of the page's show-text runs last consists of exactly this mark, or -1 for none.
+    /// </summary>
+    /// <remarks>
+    ///   Whole runs rather than a search through the glyphs: under roman numbering the marks are
+    ///   prefixes of one another, so looking for the glyphs of <c>I</c> in a flattened sequence
+    ///   finds the last one inside <c>III</c> and reports the first note as the last drawn. A mark
+    ///   is shown as a run of its own, so equality against the run says where it really went.
+    /// </remarks>
+    static int LastRunShowing(IReadOnlyList<IReadOnlyList<int>> runs, IReadOnlyList<int> wanted)
+    {
+        for (var at = runs.Count - 1; at >= 0; at--)
+        {
+            if (runs[at].Count != wanted.Count)
+                continue;
+
+            var matches = true;
+            for (var idx = 0; idx < wanted.Count; idx++)
+            {
+                if (runs[at][idx] != wanted[idx])
+                {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if (matches)
+                return at;
+        }
+
+        return -1;
     }
 
     /// <summary>How many times a mark is drawn on the page.</summary>

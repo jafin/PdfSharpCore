@@ -24,15 +24,37 @@ internal static class Glyphs
     {
         var glyphs = new List<int>();
 
+        foreach (var run in RunsOn(page))
+            glyphs.AddRange(run);
+
+        return glyphs;
+    }
+
+    /// <summary>
+    ///   The same glyphs, kept in the runs the page draws them in rather than run together.
+    /// </summary>
+    /// <remarks>
+    ///   Needed wherever one piece of text can appear inside another. Searching the flattened
+    ///   sequence for the glyphs of "I" finds them inside "III" as readily as on their own, so a
+    ///   caller asking where a roman numeral was drawn has to compare whole runs to get an answer
+    ///   that is about the numeral rather than about its first letter.
+    /// </remarks>
+    internal static IReadOnlyList<IReadOnlyList<int>> RunsOn(PdfPage page)
+    {
+        var runs = new List<IReadOnlyList<int>>();
+
         foreach (var run in TextOperators.ShownStrings(page))
         {
             // Two bytes per glyph. Reading a run a byte at a time shifts everything by half a
             // glyph and produces a sequence that differs everywhere.
+            var glyphs = new List<int>();
             for (var idx = 0; idx + 1 < run.Length; idx += 2)
                 glyphs.Add((run[idx] << 8) | run[idx + 1]);
+
+            runs.Add(glyphs);
         }
 
-        return glyphs;
+        return runs;
     }
 
     /// <summary>
