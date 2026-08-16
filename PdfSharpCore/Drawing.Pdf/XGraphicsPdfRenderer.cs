@@ -1629,6 +1629,45 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Begins the graphic mode (i.e. ends the text mode).
     /// </summary>
+    /// <summary>
+    /// Opens a marked-content sequence carrying the identifier that ties these marks to a structure
+    /// element.
+    /// </summary>
+    /// <remarks>
+    /// In graphic mode, always. A <c>BDC</c> between <c>BT</c> and <c>ET</c> would nest a
+    /// marked-content sequence inside a text object, which is legal in the grammar and wrong here:
+    /// the sequence has to be able to contain the whole text object, not sit inside it.
+    /// </remarks>
+    internal void BeginMarkedContent(string tag, int mcid)
+    {
+        BeginGraphicMode();
+        _content.Append(tag).Append(" <</MCID ").Append(mcid).Append(">> BDC\n");
+    }
+
+    /// <summary>
+    /// Opens an artifact sequence: content that is on the page but is not part of what the page
+    /// says — a running head, a folio, a rule, the shading behind a table.
+    /// </summary>
+    /// <remarks>
+    /// This matters as much as tagging the real content does. Everything on a page is either
+    /// content or an artifact, and something that is neither is a PDF/UA failure, so marking the
+    /// furniture is half the rule rather than a tidiness measure.
+    /// </remarks>
+    internal void BeginArtifact()
+    {
+        BeginGraphicMode();
+        _content.Append("/Artifact BMC\n");
+    }
+
+    /// <summary>
+    /// Closes the innermost marked-content or artifact sequence.
+    /// </summary>
+    internal void EndMarkedContent()
+    {
+        BeginGraphicMode();
+        _content.Append("EMC\n");
+    }
+
     internal void BeginGraphicMode()
     {
         if (_streamMode != StreamMode.Graphic)

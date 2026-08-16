@@ -1,18 +1,58 @@
 # Proposal — tagged PDF and PDF/UA accessible output
 
-What accessible output would cover, and what it would deliberately leave out.
-Gap **G2** of `autoresearch/improve-260816-1032/improvement-plan.md`. Nothing here is built.
+What accessible output covers, and what it deliberately leaves out.
+Gap **G2** of the competitive gap analysis. **Stage A is built. Stages B and C are not.**
 
 | item | what | stage | status |
 |---|---|---|---|
-| 1 | `PdfSharpCore.Pdf.Structure` — structure tree, role map, parent tree | A | proposed |
-| 2 | `XGraphics.BeginMarkedContent` / `BeginArtifact`, and `BDC`/`EMC` emission | A | proposed |
-| 3 | Catalog `/MarkInfo`, `/Lang`, `/ViewerPreferences /DisplayDocTitle` | A | proposed |
-| 4 | MigraDoc tags its own output — headings, tables, lists, figures, links | B | proposed |
-| 5 | `Image.AlternativeText`, `Table.Summary` on the DOM | B | proposed |
-| 6 | PDF/UA-1 identifier in XMP, `/ActualText`, `/Tabs /S`, a pre-save validator | C | proposed |
+| 1 | `PdfSharpCore.Pdf.Structure` — structure tree, role map, parent tree | A | done |
+| 2 | `XGraphics.BeginMarkedContent` / `BeginArtifact`, and `BDC`/`EMC` emission | A | done |
+| 3 | Catalog `/MarkInfo`, `/Lang` | A | done |
+| 3b | `/ViewerPreferences /DisplayDocTitle`, and requiring a title | A | not started |
+| 4 | MigraDoc tags its own output — headings, tables, lists, figures, links | B | not started |
+| 5 | `Image.AlternativeText`, `Table.Summary` on the DOM | B | not started |
+| 6 | PDF/UA-1 identifier in XMP, `/ActualText`, `/Tabs /S`, a pre-save validator | C | not started |
 
-Estimated effort: **8–12 engineer-weeks** across three separately shippable stages.
+Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs`.
+
+```csharp
+using (gfx.BeginMarkedContent(PdfTag.H1))
+    gfx.DrawString("Invoice", headingFont, XBrushes.Black, 40, 60);
+
+using (gfx.BeginArtifact())                       // running heads, folios, rules
+    gfx.DrawString("Page 3 of 9", smallFont, XBrushes.Gray, 500, 800);
+```
+
+Asking for `PdfDocument.Structure` is what makes a document tagged. One that never does is written
+exactly as it was before — no tree, no `/MarkInfo`, and not one extra byte, which the first test
+pins.
+
+## What Stage A settled that the proposal had not
+
+**A container element holds both its own marks and its child elements.** Opening a scope inside
+another gives the outer element a `/K` of `[mcid, childRef]` rather than `[childRef]`. That is
+correct and it is what the standard intends: the identifier covers anything drawn directly in the
+section and outside the heading. It is worth knowing before reading a `/K` array, because the first
+entry is often an integer and code that assumes a dictionary there finds null.
+
+**The marked-content scope is a `using`, and that is load-bearing rather than stylistic.** An
+unbalanced `BDC` corrupts every mark after it on the page, so an early return or a throw mid-paragraph
+must not be able to leave one open. There is a test that throws inside a scope and then asserts the
+`BDC` and `EMC` counts still match.
+
+**`BDC` is always emitted in graphic mode.** A marked-content sequence opened between `BT` and `ET`
+nests inside the text object instead of containing it. `BeginGraphicMode` is called first, always.
+
+## Still true, and still the reason to finish this
+
+Stage A is a hand-driven API. **The value is in Stage B** — a caller should get an accessible
+document out of MigraDoc without tagging anything by hand, because almost nobody will do it by hand.
+Until then this is the plumbing and not the feature, and no document produced through
+`MigraDocCore.Rendering` is tagged at all.
+
+Stage C, and therefore any actual PDF/UA claim, additionally needs the XMP identifier — which
+`docs/specs/pdf-a-conformance.md` now has the writer for — and veraPDF in CI, without which a
+conformance claim is self-certified.
 
 ---
 

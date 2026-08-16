@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing.Pdf;
@@ -38,6 +39,10 @@ using PdfSharpCore.Pdf.Annotations;
 // ReSharper disable UseNullPropagation
 // ReSharper disable RedundantNameQualifier
 // ReSharper disable UseNameofExpression
+
+// PdfSharpCore.Drawing.Pdf shadows the name Pdf in here, so the structure namespace
+// needs an alias rather than a relative reference.
+using PdfStructure = PdfSharpCore.Pdf.Structure;
 
 namespace PdfSharpCore.Drawing; // #??? aufräumen
 
@@ -1478,6 +1483,98 @@ public sealed class XGraphics : IDisposable
     public void DrawMatrixCode(BarCodes.MatrixCode matrixcode, XBrush brush, XPoint position)
     {
         matrixcode.Render(this, brush, position);
+    }
+
+    #endregion
+
+    // --------------------------------------------------------------------------------------------
+
+    #region Marked content
+
+    /// <summary>
+    /// Marks everything drawn until the returned scope is disposed as a piece of content of the
+    /// given kind, and adds it to the document's structure tree.
+    /// </summary>
+    /// <remarks>
+    /// <code>
+    /// using (gfx.BeginMarkedContent(PdfTag.H1))
+    ///     gfx.DrawString("Invoice", headingFont, XBrushes.Black, 40, 60);
+    /// </code>
+    /// Scopes nest, and a scope opened inside another becomes its child in the tree. Everything on
+    /// a page should be inside one of these or inside <see cref="BeginArtifact"/>; content that is
+    /// neither is what a PDF/UA validator objects to first.
+    /// </remarks>
+    /// <param name="tag">What the content is.</param>
+    /// <param name="alternateText">
+    /// Text standing in for the content for a reader who cannot see it. A figure without it says
+    /// nothing at all, so tagging an image and leaving this null is worse than making it an artifact.
+    /// </param>
+    public IDisposable BeginMarkedContent(PdfStructure.PdfTag tag, string alternateText = null)
+    {
+        var renderer = PdfRenderer("Marked content can only be written to a PDF page.");
+        var page = renderer._page
+            ?? throw new InvalidOperationException(
+                "Marked content can only be written to a PDF page, not to a form.");
+
+        var structure = page.Owner.Structure;
+        var element = structure.CreateElement(tag, _markedContent.Count > 0 ? _markedContent.Peek() : null);
+        if (alternateText != null)
+            element.AlternateText = alternateText;
+
+        var mcid = structure.AddMarkedContent(page, element);
+        renderer.BeginMarkedContent(tag.Name, mcid);
+        _markedContent.Push(element);
+
+        return new MarkedContentScope(this, true);
+    }
+
+    /// <summary>
+    /// Marks everything drawn until the returned scope is disposed as an artifact: on the page, but
+    /// not part of what the page says.
+    /// </summary>
+    /// <remarks>
+    /// Running heads, folios, rules, the shading behind a table. An artifact joins no structure
+    /// element and is skipped by anything reading the document aloud, which is the point — a page
+    /// number read out between every paragraph is worse than no page number.
+    /// </remarks>
+    public IDisposable BeginArtifact()
+    {
+        PdfRenderer("Artifacts can only be written to a PDF page.").BeginArtifact();
+        return new MarkedContentScope(this, false);
+    }
+
+    Drawing.Pdf.XGraphicsPdfRenderer PdfRenderer(string message) =>
+        _renderer as Drawing.Pdf.XGraphicsPdfRenderer
+        ?? throw new InvalidOperationException(message);
+
+    readonly Stack<PdfStructure.PdfStructureElement> _markedContent = new();
+
+    /// <summary>
+    /// Closes a marked-content sequence when it is disposed, so that a scope cannot be left open by
+    /// an early return or an exception.
+    /// </summary>
+    sealed class MarkedContentScope : IDisposable
+    {
+        readonly XGraphics _gfx;
+        readonly bool _isStructural;
+        bool _closed;
+
+        public MarkedContentScope(XGraphics gfx, bool isStructural)
+        {
+            _gfx = gfx;
+            _isStructural = isStructural;
+        }
+
+        public void Dispose()
+        {
+            if (_closed)
+                return;
+
+            _closed = true;
+            if (_isStructural)
+                _gfx._markedContent.Pop();
+            ((Drawing.Pdf.XGraphicsPdfRenderer)_gfx._renderer).EndMarkedContent();
+        }
     }
 
     #endregion

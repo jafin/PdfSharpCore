@@ -458,6 +458,12 @@ public sealed class PdfDocument : PdfObject, IDisposable
         // Let catalog do the rest.
         Catalog.PrepareForSave();
 
+        // Before the metadata, because a document that is tagged says so in its XMP as well as in
+        // its catalog, and before Compact, because the tree's objects reach the catalog only once
+        // this has hung them there.
+        if (IsTagged)
+            Structure.PrepareForSave();
+
         // After the information dictionary is settled and before anything is compacted away: the
         // XMP packet is built from that dictionary and has to agree with it, and the objects it
         // adds are reachable from the catalog, so Compact leaves them alone.
@@ -535,6 +541,22 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// <see cref="Metadata.XmpMetadata.AdditionalDescriptions"/>.
     /// </remarks>
     public Action<Metadata.XmpMetadata> CustomizeMetadata { get; set; }
+
+    /// <summary>
+    /// Gets the structure tree of this document, creating it on first use.
+    /// </summary>
+    /// <remarks>
+    /// Asking for this is what makes a document tagged. A document that never does is written
+    /// exactly as it was before — no structure tree, no <c>/MarkInfo</c>, and not one extra byte.
+    /// </remarks>
+    public Structure.PdfStructureBuilder Structure => _structure ??= new Structure.PdfStructureBuilder(this);
+    Structure.PdfStructureBuilder _structure;
+
+    /// <summary>
+    /// Gets a value indicating whether anything has been tagged, without creating a structure tree
+    /// by asking.
+    /// </summary>
+    internal bool IsTagged => _structure != null;
 
     /// <summary>
     /// Gets or sets the PDF version number. Return value 14 e.g. means PDF 1.4 / Acrobat 5 etc.
