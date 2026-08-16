@@ -140,8 +140,11 @@ public partial class Table : DocumentObject, IVisitable
     /// </summary>
     public void SetShading(int clm, int row, int clms, int rows, Color clr)
     {
-        var rowsCount = this.rows.Count;
-        var clmsCount = columns.Count;
+        // Through the properties rather than the fields: the fields are null until something has
+        // asked for the collection, so a table that has had no row or column added to it threw
+        // NullReferenceException here and never reached the range checks below.
+        var rowsCount = Rows.Count;
+        var clmsCount = Columns.Count;
 
         if (row < 0 || row >= rowsCount)
             throw new ArgumentOutOfRangeException(nameof(row), row, "Invalid row index.");
