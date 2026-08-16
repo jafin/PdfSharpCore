@@ -528,8 +528,15 @@ public class FormattedDocument : IAreaProvider, IFootnoteAreaProvider
         {
             FormattedFootnote formatted =
                 new FormattedFootnote(documentRenderer, note, currentFieldInfos, width);
-            formatted.Format(gfx);
+
+            // Registered before it is formatted, not after. Formatting measures the mark to size
+            // the gutter it hangs in, and a generated mark does not exist until the note has an
+            // entry to take its ordinal from - so formatting first measured an empty string, and
+            // every note fell back to the bare minimum gutter. A mark wider than that, which "10"
+            // and "viii" both are, was then written over the note's first word. Place overwrites,
+            // so registering first is safe on the second and later attempts at the same note.
             registry.Place(note, sectionNumber, currentPage, formatted);
+            formatted.Format(gfx);
         }
 
         XUnit required = FootnoteBlockHeight(currentPage);
