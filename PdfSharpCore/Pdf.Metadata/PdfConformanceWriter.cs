@@ -71,12 +71,31 @@ internal static class PdfConformanceWriter
 
         if (options.Conformance != PdfAConformance.PdfA3B && HasEmbeddedFiles(document))
             throw new InvalidOperationException(
-                "Only PDF/A-3 may carry embedded files; " + options.Conformance + " may not. This is "
-                + "the rule that makes PDF/A-3 the profile hybrid e-invoices such as ZUGFeRD and "
-                + "Factur-X are built on.");
+                options.Conformance + " may not carry an embedded file unless that file is itself "
+                + "PDF/A — and nothing here can establish that, so the claim is refused rather than "
+                + "made on trust. PDF/A-3 is the profile with no such restriction, which is why "
+                + "hybrid e-invoices such as ZUGFeRD and Factur-X are built on it.");
 
-        // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raise rather than
-        // set, so a document that has already asked for more keeps it.
+        // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raising a low
+        // version is not enough on its own: a document that has already asked for something newer
+        // keeps it, and would carry a PDF/A-1 claim over a header PDF/A-1 does not allow.
+        if (options.Conformance == PdfAConformance.PdfA1B && document._version > 14)
+            throw new InvalidOperationException(
+                "PDF/A-1 is defined against PDF 1.4, and this document is written as PDF 1."
+                + (document._version % 10) + ". Either claim PDF/A-2 or later, or stop asking for "
+                + "the feature that raised the version.");
+
+        // Asked separately because the version it implies is not set until the document is written,
+        // which is after this runs. A cross-reference stream is a PDF 1.5 construction and PDF/A-1
+        // predates it.
+        if (options.Conformance == PdfAConformance.PdfA1B
+            && options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
+            throw new InvalidOperationException(
+                "PDF/A-1 is defined against PDF 1.4 and a cross-reference stream is a PDF 1.5 "
+                + "construction, so the two cannot both be asked for. Either claim PDF/A-2 or later, "
+                + "or leave Options.CrossReferenceFormat as Classic.");
+
+        // Raise rather than set, so a document that has already asked for more keeps it.
         var floor = options.Conformance == PdfAConformance.PdfA1B ? 14 : 17;
         if (document._version < floor)
             document._version = floor;
@@ -94,9 +113,14 @@ internal static class PdfConformanceWriter
     static void AttachMetadata(PdfDocument document)
     {
         var metadata = XmpMetadata.FromDocument(document);
-        metadata.Conformance = document.Options.Conformance;
 
         document.CustomizeMetadata?.Invoke(metadata);
+
+        // Set after the callback rather than before it. The conformance claim is what a validator
+        // reads to decide which rules to hold the file to, and Options.Conformance is the one place
+        // that decides it — a callback that could clear it, or set one the document was never
+        // checked against, would be a way of writing a claim nothing stands behind.
+        metadata.Conformance = document.Options.Conformance;
 
         var stream = new PdfDictionary(document);
         stream.Elements.SetName("/Type", "/Metadata");

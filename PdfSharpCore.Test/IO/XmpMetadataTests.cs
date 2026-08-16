@@ -147,6 +147,38 @@ public class XmpMetadataTests
     }
 
     [Fact]
+    public void ADocumentAlreadyPastPdfOnePointFourMayNotClaimPdfA1()
+    {
+        // Raising a low version is not enough on its own: a document that has already asked for
+        // something newer keeps the newer version, and would then carry a PDF/A-1 claim over a
+        // header PDF/A-1 does not allow. Asking for a cross-reference stream is one way to get
+        // there without meaning to.
+        var saving = () => Save(document =>
+        {
+            Conforming(PdfAConformance.PdfA1B)(document);
+            document.Options.CrossReferenceFormat = PdfCrossReferenceFormat.Stream;
+        });
+
+        saving.Should().Throw<InvalidOperationException>().WithMessage("*PDF/A-1*");
+    }
+
+    [Fact]
+    public void TheHookCannotWithdrawTheConformanceClaim()
+    {
+        // The claim is what a validator reads to decide which rules to hold the file to, and
+        // Options.Conformance is the one place that decides it. A hook able to clear it, or to set
+        // one the document was never checked against, would be a way of writing a claim that
+        // nothing stands behind.
+        var bytes = Save(document =>
+        {
+            Conforming(PdfAConformance.PdfA2B)(document);
+            document.CustomizeMetadata = metadata => metadata.Conformance = PdfAConformance.None;
+        });
+
+        Latin1(bytes).Should().Contain("pdfaid:part");
+    }
+
+    [Fact]
     public void TheHookCanAddASchemaTheLibraryKnowsNothingAbout()
     {
         // What a PDF/UA identifier or a ZUGFeRD extension schema would go in through.

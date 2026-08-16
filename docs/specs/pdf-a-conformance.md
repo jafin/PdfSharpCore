@@ -23,7 +23,9 @@ of code. Until then the failure is loud — saving without one throws and the me
 
 **Enforcement is partial, and the code says which parts.** These are checked: no encryption, a title
 present, an output intent profile present, embedded files only under PDF/A-3, and the version floor
-for the claimed part. These are **not** checked: no transparency and no JPXDecode under PDF/A-1 (both
+and version ceiling for the claimed part — PDF/A-1 is refused outright for a document already past
+PDF 1.4, and for one asking for a cross-reference stream, which is a PDF 1.5 construction. These are
+**not** checked: no transparency and no JPXDecode under PDF/A-1 (both
 need a walk of every page's resources — `PdfTransparencyDetector` answers the question for one
 XObject, not for a page), and `/Interpolate true` on images. A successful save is therefore not a
 validator's verdict, and `Enforce` says so in its own remarks rather than leaving silence to imply
@@ -127,7 +129,13 @@ discover from a validator, or from their customer, that it does not conform. So 
 | Output intent for device colour | all parts | item 2 |
 | No transparency, no JPXDecode | **A-1 only** | must be enforced — the repo has soft masks and transparency groups |
 | No `/Interpolate true` on images | all parts | must be enforced |
-| No embedded files | **A-1 and A-2 only**; A-3 permits them | must be enforced |
+| No embedded files | **A-1 outright; A-2 unless the file is itself PDF/A**; A-3 permits any | refused for A-1 and A-2 |
+
+PDF/A-2's embedded-file rule is the one place this is stricter than the standard, and deliberately.
+A-2 permits an embedded file that is itself PDF/A, and nothing here can establish that a given
+attachment is — so the claim is refused rather than made on trust. A document that needs both an
+attachment and a conformance claim it can stand behind should claim PDF/A-3, which has no such
+restriction and is what the hybrid e-invoice profiles are built on.
 
 The A-1 transparency rule is the one that will bite: this fork has transparency groups, soft masks and
 gradient soft masks, and a document using them cannot be PDF/A-1. Saying so at save time, in a message
