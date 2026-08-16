@@ -63,7 +63,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         //PdfDocument.Gob.AttatchDocument(Handle);
 
-        _creation = DateTime.Now;
+        _creation = GlobalTimeSettings.Now;
         _state = DocumentState.Created;
         _version = 14;
         Initialize();
@@ -80,7 +80,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         //PdfDocument.Gob.AttatchDocument(Handle);
 
-        _creation = DateTime.Now;
+        _creation = GlobalTimeSettings.Now;
         _state = DocumentState.Created;
         _version = 14;
         Initialize();
@@ -100,7 +100,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         //PdfDocument.Gob.AttatchDocument(Handle);
 
-        _creation = DateTime.Now;
+        _creation = GlobalTimeSettings.Now;
         _state = DocumentState.Created;
         Initialize();
         Info.CreationDate = _creation;
@@ -112,7 +112,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         //PdfDocument.Gob.AttatchDocument(Handle);
 
-        _creation = DateTime.Now;
+        _creation = GlobalTimeSettings.Now;
         _state = DocumentState.Imported;
 
         //_info = new PdfInfo(this);
@@ -651,7 +651,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
         // IsImported tells a document PdfReader opened from a newly created one, which shares the
         // default open mode of Modify and is dated by its creation date alone, as it always was.
         if (IsImported && _openMode == PdfDocumentOpenMode.Modify && !info.ModificationDateIsTheCallersOwn)
-            info.Elements.SetDateTime(PdfDocumentInformation.Keys.ModDate, DateTime.Now);
+            info.Elements.SetDateTime(PdfDocumentInformation.Keys.ModDate, GlobalTimeSettings.Now);
 
         // Prepare used fonts.
         if (_fontTable != null)
@@ -1285,6 +1285,11 @@ public sealed class PdfDocument : PdfObject, IDisposable
         PdfPageResizer.ResizeAll(this, size, PageSize.Undefined, options);
     }
 
+    /// <summary>
+    /// Replaces images with identical content by a single shared XObject, so that a document which
+    /// drew the same picture on many pages carries one copy of it. Images are matched by the MD5 of
+    /// their stream, so only byte-identical ones are merged.
+    /// </summary>
     public void ConsolidateImages()
     {
         var images = ImageInfo.FindAll(this);

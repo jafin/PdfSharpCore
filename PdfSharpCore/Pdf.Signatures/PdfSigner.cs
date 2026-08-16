@@ -157,7 +157,7 @@ public static class PdfSigner
         signature.Elements["/ByteRange"] = new PdfLiteral(ByteRangePlaceholder);
         signature.Elements["/Contents"] = new PdfLiteral("<" + new string('0', reserved * 2) + ">");
 
-        signature.Elements.SetDateTime("/M", options.SigningTime ?? DateTime.Now);
+        signature.Elements.SetDateTime("/M", options.SigningTime ?? GlobalTimeSettings.Now);
 
         if (!String.IsNullOrEmpty(options.SignerName))
             signature.Elements.SetString("/Name", options.SignerName);

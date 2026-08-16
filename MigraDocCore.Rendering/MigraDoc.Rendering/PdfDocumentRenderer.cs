@@ -36,6 +36,8 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 
+using PdfSharpCore;
+
 namespace MigraDocCore.Rendering;
 
 /// <summary>
@@ -208,7 +210,7 @@ public class PdfDocumentRenderer
         if (pdfDocument == null)
             pdfDocument = CreatePdfDocument();
 
-        documentRenderer.printDate = DateTime.Now;
+        documentRenderer.printDate = GlobalTimeSettings.Now;
         for (int pageNr = startPage; pageNr <= endPage; ++pageNr)
         {
             PdfPage pdfPage = pdfDocument.AddPage();

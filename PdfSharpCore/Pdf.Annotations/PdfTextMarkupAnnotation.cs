@@ -60,7 +60,7 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotation
     /// </summary>
     protected PdfTextMarkupAnnotation()
     {
-        Elements.SetDateTime(Keys.CreationDate, DateTime.Now);
+        Elements.SetDateTime(Keys.CreationDate, GlobalTimeSettings.Now);
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotation
     protected PdfTextMarkupAnnotation(PdfDocument document)
         : base(document)
     {
-        Elements.SetDateTime(Keys.CreationDate, DateTime.Now);
+        Elements.SetDateTime(Keys.CreationDate, GlobalTimeSettings.Now);
     }
 
     /// <summary>

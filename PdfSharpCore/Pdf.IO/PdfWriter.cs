@@ -515,7 +515,7 @@ internal class PdfWriter
         // credit: in development, and never in release.
         if (_layout == PdfWriterLayout.Verbose && _commentPosition >= 0)
         {
-            TimeSpan duration = DateTime.Now - document._creation;
+            TimeSpan duration = GlobalTimeSettings.Now - document._creation;
 
             _stream.Position = _commentPosition;
             // Without InvariantCulture parameter the following line fails if the current culture is e.g.

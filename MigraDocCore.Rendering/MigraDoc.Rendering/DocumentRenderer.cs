@@ -39,6 +39,8 @@ using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 
+using PdfSharpCore;
+
 namespace MigraDocCore.Rendering;
 
 /// <summary>
@@ -167,7 +169,7 @@ public class DocumentRenderer
         if (printDate != DateTime.MinValue)
             fieldInfos.date = printDate;
         else
-            fieldInfos.date = DateTime.Now;
+            fieldInfos.date = GlobalTimeSettings.Now;
 
         if ((options & PageRenderOptions.RenderHeader) == PageRenderOptions.RenderHeader)
             RenderHeader(gfx, page);
@@ -350,6 +352,9 @@ public class DocumentRenderer
     /// <summary>
     /// Adds an outline entry pointing at a place on a page.
     /// </summary>
+    /// <param name="level">The depth of the entry in the outline tree, counting from one.</param>
+    /// <param name="title">The text of the entry.</param>
+    /// <param name="destinationPage">The page the entry points at.</param>
     /// <param name="destinationTop">
     /// How far up the destination page the heading sits, in the coordinates a PDF page is
     /// measured in. NaN points the entry at the page without saying where on it, which leaves
