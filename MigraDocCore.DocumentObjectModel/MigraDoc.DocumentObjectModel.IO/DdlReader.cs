@@ -178,8 +178,10 @@ public class DdlReader : IDisposable
     {
         using (var stringReader = new StringReader(ddl))
         {
-
-            using (var reader = new DdlReader(stringReader))
+            // With the errors: this overload used to build the reader without them, so the list
+            // the caller passed in was never connected to the parser and came back empty however
+            // wrong the DDL was. ObjectFromFile has always passed its own along.
+            using (var reader = new DdlReader(stringReader, errors))
                 return reader.ReadObject();
         }
     }
