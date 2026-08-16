@@ -101,19 +101,33 @@ public sealed class PdfNameObject : PdfObject
     }
 
     /// <summary>
-    /// Determines whether a name is equal to a string.
+    /// Determines whether a name is equal to a string. A null name equals a null string and
+    /// nothing else.
     /// </summary>
+    /// <remarks>
+    /// The null check is what makes <c>nameObject != null</c> safe at a call site. An untyped
+    /// null binds to this overload rather than to reference equality, so without it every such
+    /// comparison dereferences the name it is testing for null and throws
+    /// <see cref="NullReferenceException"/>. <see cref="PdfName"/>, which this is the indirect
+    /// twin of, has always guarded it.
+    /// </remarks>
     public static bool operator ==(PdfNameObject name, string str)
     {
-        return name._value == str;
+        if (ReferenceEquals(name, null))
+            return str == null;
+
+        // Value is settable and may itself be null, which must not make the object that holds it
+        // look like a null object: only the reference check above answers that question.
+        return str != null && name._value == str;
     }
 
     /// <summary>
-    /// Determines whether a name is not equal to a string.
+    /// Determines whether a name is not equal to a string. A null name differs from every string
+    /// but null.
     /// </summary>
     public static bool operator !=(PdfNameObject name, string str)
     {
-        return name._value != str;
+        return !(name == str);
     }
 
     /// <summary>

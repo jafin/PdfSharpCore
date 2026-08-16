@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -111,7 +112,128 @@ public abstract class PdfChoiceField : PdfAcroField
     }
 
     /// <summary>
-    /// Predefined keys of this dictionary. 
+    /// The indices in <c>/Opt</c> of the options currently chosen, in ascending order. Empty when
+    /// nothing is chosen, or when what is chosen is no longer among the options on offer.
+    /// </summary>
+    /// <remarks>
+    /// Read from <c>/V</c> rather than from <c>/I</c>. The two are allowed to disagree, and the
+    /// specification says <c>/V</c> is the one that wins; <c>/I</c> is there for a reader that
+    /// would otherwise have to search <c>/Opt</c>, and to tell apart two options that display
+    /// differently but export the same text. <c>/V</c> is a text string when one option is chosen
+    /// and an array of them when several are, which is why this reads both.
+    /// </remarks>
+    protected int[] SelectedIndicesFromValue()
+    {
+        PdfItem value = Elements[Keys.V];
+        if (value is Advanced.PdfReference reference)
+            value = reference.Value;
+
+        if (value == null || value is PdfNull)
+            return new int[0];
+
+        // The export values /V names, in the order it names them.
+        var chosenTexts = new List<string>();
+        if (value is PdfArray chosen)
+            foreach (PdfItem item in chosen.Elements)
+                chosenTexts.Add(TextOfOption(item));
+        else
+            chosenTexts.Add(TextOfOption(value));
+
+        int[] disambiguated = SelectedIndicesFromIndexEntry(chosenTexts);
+        if (disambiguated != null)
+            return disambiguated;
+
+        var indices = new List<int>();
+        foreach (string text in chosenTexts)
+        {
+            int index = IndexInOptArray(text);
+            if (index != -1 && !indices.Contains(index))
+                indices.Add(index);
+        }
+
+        indices.Sort();
+        return indices.ToArray();
+    }
+
+    /// <summary>
+    /// The options <c>/I</c> names, when what it names is the same set of export values that
+    /// <c>/V</c> does; null when there is no usable <c>/I</c>, or when it names something else.
+    /// </summary>
+    /// <remarks>
+    /// Two options may display differently and export the same text, and the specification says
+    /// <c>/I</c> shall be used to tell them apart - searching <c>/Opt</c> for the text in <c>/V</c>
+    /// finds the first of them and cannot do better. So <c>/I</c> is believed where it agrees with
+    /// <c>/V</c> about which values are chosen, and disbelieved where it does not, <c>/V</c> being
+    /// the entry the specification gives precedence to.
+    /// </remarks>
+    int[] SelectedIndicesFromIndexEntry(List<string> chosenTexts)
+    {
+        PdfArray entry = Elements.GetArray(Keys.I);
+        PdfArray opt = Elements.GetArray(Keys.Opt);
+        if (entry == null || opt == null || entry.Elements.Count != chosenTexts.Count)
+            return null;
+
+        var indices = new List<int>();
+        var unaccountedFor = new List<string>(chosenTexts);
+        foreach (PdfItem item in entry.Elements)
+        {
+            PdfItem resolved = item is Advanced.PdfReference reference ? reference.Value : item;
+            if (!(resolved is PdfInteger number))
+                return null;
+
+            int index = number.Value;
+            if (index < 0 || index >= opt.Elements.Count || indices.Contains(index))
+                return null;
+
+            // Removing rather than searching, so that two options exporting the same text account
+            // for two entries in /V rather than both matching the one.
+            if (!unaccountedFor.Remove(ValueInOptArray(index)))
+                return null;
+
+            indices.Add(index);
+        }
+
+        indices.Sort();
+        return indices.ToArray();
+    }
+
+    /// <summary>
+    /// Writes <c>/I</c> as the array of chosen indices the specification calls for, sorted
+    /// ascending, and removes the entry when <paramref name="indices"/> is empty rather than
+    /// leaving one behind that says something the field no longer does.
+    /// </summary>
+    protected void WriteSelectedIndices(int[] indices)
+    {
+        if (indices == null || indices.Length == 0)
+        {
+            Elements.Remove(Keys.I);
+            return;
+        }
+
+        // Sorted here rather than trusted from the caller, so that the entry is in the order the
+        // specification gives for it however this is reached.
+        PdfArray entry = new PdfArray(Owner);
+        foreach (int index in Ordered(indices))
+            entry.Elements.Add(new PdfInteger(index));
+        Elements[Keys.I] = entry;
+    }
+
+    /// <summary>
+    /// Sorts and removes repeats, so that a caller need not, and so that <c>/I</c> and <c>/V</c>
+    /// are written in the one order the specification gives for <c>/I</c>.
+    /// </summary>
+    internal static int[] Ordered(int[] indices)
+    {
+        var ordered = new List<int>();
+        foreach (int index in indices ?? new int[0])
+            if (!ordered.Contains(index))
+                ordered.Add(index);
+        ordered.Sort();
+        return ordered.ToArray();
+    }
+
+    /// <summary>
+    /// Predefined keys of this dictionary.
     /// The description comes from PDF 1.4 Reference.
     /// </summary>
     public new class Keys : PdfAcroField.Keys

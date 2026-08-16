@@ -245,6 +245,213 @@ public class AcroFormFieldKindTests
             "a viewer reads /I rather than searching /Opt");
     }
 
+    // ----- a list box taking more than one choice -------------------------------------------------
+
+    /// <summary>
+    ///   A list box is the only field that can offer several choices at once - the MultiSelect
+    ///   flag is meaningless on a combo box - and it could not be told to take one. It had an
+    ///   index and no more.
+    ///   <para>
+    ///   Reading one was worse than not being able to write one. <c>/V</c> holds an array when
+    ///   several options are chosen, and the getter read it with <c>GetString</c>, which is
+    ///   written to throw <see cref="InvalidCastException"/> for anything that is not a string.
+    ///   It threw <see cref="NullReferenceException"/> instead, on the way to saying so - see
+    ///   <see cref="PdfNameObjectComparisonTests"/> for why. Either way, opening an ordinary form
+    ///   built by something else and asking what was selected threw.
+    ///   </para>
+    /// </summary>
+    [Fact]
+    public void AListBoxReadsAValueThatNamesSeveralOptions()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+            // As another producer would have written it.
+            var chosen = new PdfArray(f.Owner);
+            chosen.Elements.Add(new PdfString("Kent"));
+            chosen.Elements.Add(new PdfString("Surrey"));
+            f.Elements["/V"] = chosen;
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices.Should().Equal(new[] { 0, 2 });
+        field.SelectedIndex.Should().Be(0, "the first of them, for a caller that wants only one");
+    }
+
+    [Fact]
+    public void AListBoxSelectsSeveralOptionsAtOnce()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices = new[] { 2, 0 };
+
+        field.SelectedIndices.Should().Equal(new[] { 0, 2 }, "ascending, as the specification asks");
+        SelectedIndicesOf(field).Should().Equal(new[] { 0, 2 });
+        OptionTextsOfValue(field).Should().Equal(new[] { "Kent", "Surrey" });
+    }
+
+    /// <summary>
+    ///   <c>/I</c> belongs to a list that allows several choices. The specification says it should
+    ///   not be used by one that does not, so a single-choice list carries <c>/V</c> alone - and
+    ///   an entry left over from when the list did allow several is taken away rather than left
+    ///   saying something the field no longer does.
+    /// </summary>
+    [Fact]
+    public void ASingleChoiceListCarriesNoIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithOptions(f, "Kent", "Sussex")).AcroForm.Fields["county"];
+
+        field.SelectedIndex = 1;
+
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeFalse();
+        field.SelectedIndex.Should().Be(1, "/V alone is enough to find it again");
+    }
+
+    [Fact]
+    public void ASingleChoiceListRefusesToSelectSeveralOptions()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithOptions(f, "Kent", "Sussex")).AcroForm.Fields["county"];
+
+        var act = () => field.SelectedIndices = new[] { 0, 1 };
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*MultiSelect*", "the flag is what the caller has to set");
+        field.SelectedIndices.Should().BeEmpty("nothing was written");
+    }
+
+    [Fact]
+    public void AListBoxSelectsNothingWhenGivenNoIndices()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+        field.SelectedIndices = new[] { 0, 1 };
+
+        field.SelectedIndices = new int[0];
+
+        field.SelectedIndices.Should().BeEmpty();
+        field.Elements.ContainsKey("/V").Should().BeFalse();
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeFalse();
+    }
+
+    /// <summary>
+    ///   An index the list has no option for leaves the field as it was, rather than writing
+    ///   <c>/V</c> and then failing on the way to <c>/I</c>.
+    /// </summary>
+    [Fact]
+    public void AListBoxRefusingAnIndexLeavesWhatWasThereAlone()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex");
+        }).AcroForm.Fields["county"];
+        field.SelectedIndex = 0;
+
+        var act = () => field.SelectedIndices = new[] { 1, 7 };
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+        field.SelectedIndices.Should().Equal(new[] { 0 });
+    }
+
+    /// <summary>
+    ///   Two options may display differently and export the same text, which is one of the two
+    ///   cases the specification says <c>/I</c> shall be used for: searching <c>/Opt</c> for the
+    ///   text in <c>/V</c> finds the first of them and cannot do better. Without reading <c>/I</c>
+    ///   the round trip lost the selection - both chosen options collapsed onto the first.
+    /// </summary>
+    [Fact]
+    public void TwoOptionsExportingTheSameTextAreToldApartByTheIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices = new[] { 0, 1 };
+
+        field.SelectedIndices.Should().Equal(new[] { 0, 1 },
+            "/I says which two, where /V says only that both are Kent");
+    }
+
+    [Fact]
+    public void OneOfTwoOptionsExportingTheSameTextIsToldApartByTheIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices = new[] { 1 };
+
+        field.SelectedIndices.Should().Equal(new[] { 1 }, "the second Kent, not the first");
+    }
+
+    /// <summary>
+    ///   Where the two entries disagree the specification gives <c>/V</c> precedence, so an
+    ///   <c>/I</c> naming options <c>/V</c> does not is passed over rather than believed.
+    /// </summary>
+    [Fact]
+    public void AnIndexEntryThatContradictsTheValueIsIgnored()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+            f.Elements["/V"] = new PdfString("Surrey");
+            var stale = new PdfArray(f.Owner);
+            stale.Elements.Add(new PdfSharpCore.Pdf.PdfInteger(0));
+            f.Elements["/I"] = stale;
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices.Should().Equal(new[] { 2 }, "/V names Surrey, whatever /I says");
+    }
+
+    [Fact]
+    public void AListWithNoOptionsRefusesToSelectOne()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county").AcroForm.Fields["county"];
+
+        var act = () => ((PdfListBoxField)field).SelectedIndices = new[] { 0 };
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+        field.Elements.ContainsKey("/V").Should().BeFalse("nothing was written");
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SeveralSelectedOptionsSurviveARoundTrip()
+    {
+        var document = FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+        });
+        ((PdfListBoxField)document.AcroForm.Fields["county"]).SelectedIndices = new[] { 0, 2 };
+
+        using var written = new MemoryStream();
+        document.Save(written, false);
+        written.Position = 0;
+        // Fully qualified: this test assembly has a PdfReader of its own.
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(
+            written, PdfSharpCore.Pdf.IO.PdfDocumentOpenMode.Modify);
+
+        var field = (PdfListBoxField)reopened.AcroForm.Fields["county"];
+        field.SelectedIndices.Should().Equal(new[] { 0, 2 });
+        SelectedIndicesOf(field).Should().Equal(new[] { 0, 2 });
+        field.Elements.GetArray("/V").Should().NotBeNull("several chosen options make /V an array");
+    }
+
     [Fact]
     public void AChoiceFieldRefusesAnIndexItHasNoOptionFor()
     {
@@ -473,6 +680,22 @@ public class AcroFormFieldKindTests
             foreach (var item in entry.Elements)
                 indices.Add(((PdfSharpCore.Pdf.PdfInteger)item).Value);
         return indices;
+    }
+
+    /// <summary>
+    ///   The option texts named by <c>/V</c>, which is a text string when one option is chosen and
+    ///   an array of them when several are.
+    /// </summary>
+    static List<string> OptionTextsOfValue(PdfAcroField field)
+    {
+        var texts = new List<string>();
+        var value = field.Elements["/V"];
+        if (value is PdfArray chosen)
+            foreach (var item in chosen.Elements)
+                texts.Add(((PdfString)item).Value);
+        else if (value is PdfString single)
+            texts.Add(single.Value);
+        return texts;
     }
 
     static List<string> OptionsOf(PdfAcroField field)
