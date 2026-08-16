@@ -241,6 +241,148 @@ public class CLexerTests
             .ToArray());
     }
 
+    // ----- literal strings ------------------------------------------------------------------------
+
+    [Theory(Timeout = 5000)]
+    [InlineData("(plain)", "plain")]
+    [InlineData("()", "")]
+    [InlineData("(a(nested)b)", "a(nested)b", "a bracketed run is part of the string")]
+    [InlineData("(a((two deep))b)", "a((two deep))b")]
+    [InlineData("(a\\(b)", "a(b", "and an escaped bracket needs no partner")]
+    [InlineData("(a\\)b)", "a)b")]
+    [InlineData("(a\\\\b)", "a\\b")]
+    public async Task ScanLiteralString_readsBracketsWhetherBalancedOrEscaped(
+        string content, string expected, string because = "")
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(new[] { expected }, because);
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData("(a\\nb)", "a\nb")]
+    [InlineData("(a\\rb)", "a\rb")]
+    [InlineData("(a\\tb)", "a\tb")]
+    [InlineData("(a\\bb)", "a\bb")]
+    [InlineData("(a\\fb)", "a\fb")]
+    public async Task ScanLiteralString_readsEveryNamedEscape(string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData("(\\101)", "A", "three digits")]
+    [InlineData("(\\10)", "\b", "two")]
+    [InlineData("(\\7)", "\a", "and one")]
+    [InlineData("(\\1011)", "A1", "a fourth digit is text, not part of the code")]
+    [InlineData("(\\0)", "\0", "and nought is a character like any other")]
+    public async Task ScanLiteralString_readsAnOctalCodeOfOneTwoOrThreeDigits(
+        string content, string expected, string because)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(new[] { expected }, because);
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData("(a\\8b)", "a8b")]
+    [InlineData("(a\\9b)", "a9b")]
+    public async Task ScanLiteralString_keepsTheDigitWhenItIsNotAnOctalOne(
+        string content, string expected)
+    {
+        // Eight and nine end an octal code rather than extending one, so the backslash is
+        // dropped and the digit kept as the text it is.
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData("(a\\\nb)")]
+    [InlineData("(a\\\rb)")]
+    [InlineData("(a\\\r\nb)")]
+    public async Task ScanLiteralString_treatsABackslashBeforeAnEndOfLineAsAContinuation(
+        string content)
+    {
+        // A long string may be broken across lines of the file without the break becoming part
+        // of it. All three spellings of an end of line have to work, which they do because the
+        // scanner turns them all into one before the escape is looked at.
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("ab");
+    }
+
+    /// <summary>
+    ///   Content that stops in the middle of a string. The scanner gives up at the end rather
+    ///   than scanning for ever, and what it has read so far is the string - but a backslash
+    ///   immediately before the end used to put the end-of-file marker itself into the text,
+    ///   because the escape read past the guard that watches for it. See the backlog spec's
+    ///   finding F16.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData("(unterminated", "unterminated")]
+    [InlineData("(a\\", "a")]
+    [InlineData("(", "")]
+    [InlineData("(a(unclosed inner", "a(unclosed inner")]
+    public async Task ScanLiteralString_endsAtTheEndOfTheContentWithoutInventingCharacters(
+        string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_readsAStringThatIsNothingButEscapes()
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes("(\\n\\r\\t\\\\\\(\\))")));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("\n\r\t\\()");
+    }
+
+    /// <summary>
+    ///   <c>d0</c> and <c>d1</c> are the only content operators with a digit in them, and a
+    ///   Type 3 glyph description has to begin with one of the two. The scanner ended an operator
+    ///   at the first character that was not a letter, so it read the setdash operator <c>d</c>
+    ///   and left the digit to become an operand of whatever came next - which meant every
+    ///   operator in every Type 3 glyph was handed one operand too many, and the first of them
+    ///   was a number where a name should be. See the backlog spec's finding F15.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData("1000 0 d0 /Im1 Do", "d0")]
+    [InlineData("1000 0 0 0 200 200 d1 /Im1 Do", "d1")]
+    public async Task ScanNextToken_readsTheGlyphMetricOperatorsAsOneTokenEach(
+        string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.Operator).Should().Equal(expected, "Do");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ScanNextToken_stillReadsSetdashAsItself()
+    {
+        // The operator the two are told apart from. A digit only joins a 'd' when it follows it
+        // with nothing in between, which is never how setdash and its next operand are written.
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("[3 3] 0 d 0 0 m")));
+
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("d", "m");
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData("d2")]
+    [InlineData("d9")]
+    public async Task ScanNextToken_joinsNoOtherDigitToAnOperator(string content)
+    {
+        // There is no d2, so the digit is an operand of whatever follows rather than part of the
+        // operator - which is what the scanner did for d0 and d1 too, and should not have.
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("d");
+    }
+
     static IEnumerable<string> TokensOf(IEnumerable<(CSymbol Symbol, string Token)> tokens, CSymbol symbol)
     {
         return tokens.Where(token => token.Symbol == symbol).Select(token => token.Token);
