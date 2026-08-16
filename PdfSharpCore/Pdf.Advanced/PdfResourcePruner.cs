@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;
 
@@ -112,7 +113,7 @@ internal sealed class PdfResourcePruner
         {
             sequence = ContentReader.ReadContent(content);
         }
-        catch (Exception)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             // Content that cannot be read cannot be told what it draws with.
             _understood = false;

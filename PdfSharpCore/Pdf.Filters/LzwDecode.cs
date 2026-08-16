@@ -176,8 +176,13 @@ public class LzwDecode : Filter
 
                 return code;
             }
-            catch
+            catch (IndexOutOfRangeException)
             {
+                // Reading past the end of the data means the stream stopped without its end-of-data
+                // marker, which truncated and malformed PDFs both do. 257 is that marker, so
+                // answering it here ends the decode tidily rather than throwing. Narrow on purpose:
+                // an index past the end is the only failure this arithmetic can produce, and
+                // anything else coming out of it would be a bug worth seeing.
                 return 257;
             }
         }

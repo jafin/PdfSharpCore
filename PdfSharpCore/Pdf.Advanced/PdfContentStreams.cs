@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PdfSharpCore.Internal;
 
 namespace PdfSharpCore.Pdf.Advanced;
 
@@ -69,7 +70,7 @@ internal static class PdfContentStreams
         {
             content = stream.Stream.UnfilteredValue;
         }
-        catch (Exception)
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             // A filter that cannot be undone leaves the content unreadable.
             return false;
