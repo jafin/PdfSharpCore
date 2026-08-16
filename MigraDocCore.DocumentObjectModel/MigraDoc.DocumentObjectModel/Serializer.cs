@@ -177,15 +177,14 @@ internal class Serializer
     int splitIndexCRLF = str.Substring(0, wrapAt).LastIndexOf("\x0D\x0A");
     int splitIndex = Math.Max(splitIndexBlank, splitIndexCRLF);
     if (splitIndex == -1)
-    {
-      // Nothing to break on within the line, so take the first break past it: whichever of the
-      // two comes first, or the one that is there when only one of them is. Asking for the
-      // smaller of the two indexes alone answered -1 whenever either kind was absent, which for
-      // a line holding blanks but no line break meant it was never wrapped at all.
-      int blank = str.IndexOf(" ", wrapAt);
-      int crlf = str.IndexOf("\x0D\x0A", wrapAt);
-      splitIndex = blank == -1 ? crlf : crlf == -1 ? blank : Math.Min(blank, crlf);
-    }
+      // Nothing to break on within the line, so take the first blank past it. Asking instead for
+      // the smaller of the next blank and the next line break answered -1 whenever either kind
+      // was absent, since a missing one reads as -1 and no real index is smaller than that; a
+      // line holding blanks but no line break - which is most prose - was therefore never
+      // wrapped at all. A line break is not looked for out here on purpose: one past the limit
+      // already ends the line when it is written, so breaking at it would only hand the line
+      // break itself to the next write and end the line twice.
+      splitIndex = str.IndexOf(" ", wrapAt);
     return splitIndex > 0 ? str.Substring(0, splitIndex) : str;
   }
 

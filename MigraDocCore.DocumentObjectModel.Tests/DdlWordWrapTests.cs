@@ -76,14 +76,14 @@ public class DdlWordWrapTests
     {
         // The break has to be looked for past the limit, and there is a blank there but no line
         // break. Asking for the smaller of the two indexes answered -1 for the missing one and so
-        // reported "nowhere to break", leaving the whole 500 characters on a single line.
+        // reported "nowhere to break", leaving all 501 characters on a single line.
         var document = new Document();
         document.AddSection().AddParagraph(new string('a', 250) + " " + new string('b', 250));
 
         string[] lines = DdlWriter.WriteToString(document).Replace("\r\n", "\n").Split('\n');
 
         lines.Should().OnlyContain(line => line.Length < 400,
-            "the text is broken at the blank rather than written as one 500 character line");
+            "the text is broken at the blank rather than written as one 501 character line");
     }
 
     /// <summary>
