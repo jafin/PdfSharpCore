@@ -1,0 +1,83 @@
+using System;
+using AwesomeAssertions;
+using PdfSharpCore.Pdf;
+using Xunit;
+
+namespace PdfSharpCore.Test.Pdfs;
+
+/// <summary>
+///   <see cref="PdfNameObject"/> overloads <c>==</c> and <c>!=</c> against <see cref="string"/>,
+///   and an untyped null binds to that overload rather than to reference equality. So the ordinary
+///   looking <c>nameObject != null</c> does not test for null at all: it asks the operator, which
+///   dereferenced the very thing being tested.
+///   <para>
+///   Five places in the library are written that way, four of them the type lookups inside
+///   <see cref="PdfDictionary"/>. The result was that <c>GetString</c> and <c>GetName</c> answered
+///   a <see cref="NullReferenceException"/> instead of the <see cref="InvalidCastException"/> they
+///   are written to throw, for every value that is neither a string nor a name. Reading a choice
+///   field whose <c>/V</c> is an array - which is how a list box with several options selected is
+///   written - was one way in.
+///   </para>
+///   <para>
+///   <see cref="PdfName"/>, which this is the indirect twin of, has always had the guard.
+///   </para>
+/// </summary>
+public class PdfNameObjectComparisonTests
+{
+    [Fact]
+    public void ANullNameIsNotEqualToAString()
+    {
+        PdfNameObject name = null;
+
+        (name != null).Should().BeFalse("a null name is null, and asking must not throw");
+        (name == null).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ANullNameComparesUnequalToAnActualString()
+    {
+        PdfNameObject name = null;
+
+        (name == "/Kent").Should().BeFalse();
+        (name != "/Kent").Should().BeTrue();
+    }
+
+    [Fact]
+    public void ANameComparesByItsValue()
+    {
+        var name = new PdfNameObject(new PdfDocument(), "/Kent");
+
+        (name == "/Kent").Should().BeTrue();
+        (name != "/Kent").Should().BeFalse();
+        (name == "/Sussex").Should().BeFalse();
+        (name != null).Should().BeTrue();
+    }
+
+    /// <summary>
+    ///   The behaviour the guard restores at the call sites: a dictionary entry that is neither a
+    ///   string nor a name reports itself as one, rather than falling over on the way to saying so.
+    /// </summary>
+    [Fact]
+    public void ReadingANonStringEntryAsAStringSaysSoRatherThanThrowingNullReference()
+    {
+        var document = new PdfDocument();
+        var dictionary = new PdfDictionary(document);
+        dictionary.Elements["/V"] = new PdfArray(document, new PdfString("Kent"));
+
+        var act = () => dictionary.Elements.GetString("/V");
+
+        act.Should().Throw<InvalidCastException>("that is what the method is written to throw");
+    }
+
+    [Fact]
+    public void ReadingANonNameEntryAsANameSaysSoRatherThanThrowingNullReference()
+    {
+        var document = new PdfDocument();
+        var dictionary = new PdfDictionary(document);
+        dictionary.Elements["/V"] = new PdfArray(document, new PdfString("Kent"));
+
+        var act = () => dictionary.Elements.GetName("/V");
+
+        act.Should().Throw<InvalidCastException>();
+    }
+}
