@@ -403,7 +403,7 @@ size given" apart from "no area". Five of `CodeDataMatrix`'s eight constructors 
 it, and nothing downstream checked, so `Render` divided that by the module count and drew every dark
 module as
 
-```
+```text
 NaN NaN -Infinity -Infinity re
 ```
 
@@ -857,8 +857,9 @@ does today with the three combined layouts.
 
 ## Deliberately not done
 
-- **No footnote rendering and no MigraDoc barcode renderer.** Items 14 and 15 make both audible.
-  Building either is a feature with its own spec.
+- **No MigraDoc barcode renderer.** Item 15 makes it audible rather than silent; drawing one is a
+  feature with its own spec. Footnote rendering was on this list for the same reason and came off
+  it: items 33 to 35 built it.
 - **No CJK font.** Item 10 says so on the page. A face that covers CJK is megabytes for one panel.
 - **No `.ttc` demonstration.** `FontResolverBase` supports the `file.ttc#1` form and the app carries
   no collection file; manufacturing one to demonstrate it would be demonstrating the asset.

@@ -2,8 +2,8 @@
 
 > **No runnable version.** Nothing in `SampleApp` covers this one; reading images back out of a PDF is not something any demo does.
 >
-> See [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a
-> backend registered before any of the code below will run.
+> No backend needed either, unlike most of these pages: the code below opens a document,
+> walks its objects and writes bytes out. Nothing here draws, so neither seam is read.
 
 This sample shows how to export JPEG images from a PDF file.
 

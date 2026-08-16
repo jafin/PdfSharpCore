@@ -1,6 +1,6 @@
 # Colors CMYK
 
-> **Runnable version:** the `Compress`, which measures what `ColorMode` costs demo.
+> **Runnable version:** the `Compress` demo, which measures what `ColorMode` costs.
 > `dotnet run --project SampleApp -- run -e Compress`
 >
 > The demos are built on every commit and their page counts are asserted by

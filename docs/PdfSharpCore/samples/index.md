@@ -13,8 +13,10 @@ dotnet run --project SampleApp -- run       # write one PDF per demo into Sample
 dotnet run --project SampleApp -- run -e Vectors    # just the one
 ```
 
-Each demo prints the source that drew its PDF, read back out of the assembly, so what appears on the
-terminal cannot drift from what ran.
+Each demo prints the source that drew its PDF. It comes off disk where the file is there to read -
+a checkout, in other words - and out of the assembly otherwise, which is what a published binary
+and any other machine get. Editing a demo's source without rebuilding is the one way to make the
+panel disagree with what ran.
 
 ## Before any of this runs
 
