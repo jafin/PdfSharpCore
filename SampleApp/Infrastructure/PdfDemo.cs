@@ -71,6 +71,19 @@ public abstract class PdfDemo
     /// </summary>
     public abstract int PageCount { get; }
 
+    /// <summary>
+    ///   The password the PDF this demo writes needs before it can be opened, or null - which is
+    ///   almost always the answer.
+    /// </summary>
+    /// <remarks>
+    ///   Only <c>Protect</c> overrides this. A demonstration of encryption whose own output is not
+    ///   encrypted demonstrates nothing, and the smoke test opens every declared output to check it
+    ///   is a PDF with the pages the demo claims - which on an encrypted file means supplying the
+    ///   password. Declaring it here rather than teaching the test about one demo by name keeps the
+    ///   test's data source the registry, the way the rest of it works.
+    /// </remarks>
+    public virtual string? OpenPassword => null;
+
     /// <summary>The file this demo is written in, as it was at build time.</summary>
     public string SourceFilePath { get; }
 
@@ -96,6 +109,7 @@ public abstract class PdfDemo
         }
         stopwatch.Stop();
 
-        return new DemoResult(Name, path, pages, new FileInfo(path).Length, stopwatch.Elapsed);
+        return new DemoResult(
+            Name, path, pages, new FileInfo(path).Length, stopwatch.Elapsed, OpenPassword);
     }
 }

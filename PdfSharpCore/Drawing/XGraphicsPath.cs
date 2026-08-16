@@ -318,7 +318,7 @@ public sealed class XGraphicsPath
     /// </summary>
     public void AddPie(double x, double y, double width, double height, double startAngle, double sweepAngle)
     {
-        DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddPie");
+        _corePath.AddPie(x, y, width, height, startAngle, sweepAngle);
     }
 
     // ----- AddClosedCurve ------------------------------------------------------------------------
@@ -343,7 +343,7 @@ public sealed class XGraphicsPath
             return;
         if (count < 2)
             throw new ArgumentException("Not enough points.", nameof(points));
-        DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddClosedCurve");
+        _corePath.AddClosedCurve(points, tension);
     }
 
     // ----- AddPath ------------------------------------------------------------------------------
@@ -353,7 +353,13 @@ public sealed class XGraphicsPath
     /// </summary>
     public void AddPath(XGraphicsPath path, bool connect)
     {
-        DiagnosticsHelper.HandleNotImplemented("XGraphicsPath.AddPath");
+        if (path == null)
+            throw new ArgumentNullException(nameof(path));
+
+        // The appended path's own FillMode is not carried over. A path has one fill rule and it
+        // belongs to the path being drawn, so taking the other one's would silently change how the
+        // figures already here are filled.
+        _corePath.AddPath(path._corePath, connect);
     }
 
     // ----- AddString ----------------------------------------------------------------------------

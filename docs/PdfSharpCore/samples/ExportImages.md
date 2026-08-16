@@ -1,5 +1,10 @@
 # Export Images
 
+> **No runnable version.** Nothing in `SampleApp` covers this one; reading images back out of a PDF is not something any demo does.
+>
+> No backend needed either, unlike most of these pages: the code below opens a document,
+> walks its objects and writes bytes out. Nothing here draws, so neither seam is read.
+
 This sample shows how to export JPEG images from a PDF file.
 
 Note: This snippet shows how to export JPEG images from a PDF file. PdfSharpCore cannot convert PDF pages to JPEG files. This sample does not handle non-JPEG images. It does not (yet) handle JPEG images that have been flate-encoded.

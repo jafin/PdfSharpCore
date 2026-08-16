@@ -41,7 +41,7 @@ namespace MigraDocCore.Rendering;
 /// <summary>
 /// Represents a formatted document.
 /// </summary>
-public class FormattedDocument : IAreaProvider
+public class FormattedDocument : IAreaProvider, IFootnoteAreaProvider
 {
     enum PagePosition
     {
@@ -450,12 +450,141 @@ public class FormattedDocument : IAreaProvider
         ++currentPage;
         ++shownPageNumber;
         ++sectionPages;
+
+        // A fresh page has nothing set aside on it yet. Pages are filled in order and never
+        // revisited, so this is the whole of the bookkeeping the reservation needs.
+        reservedForFootnotes = 0;
+
         InitFieldInfos();
         FormatHeadersFooters();
         isNewSection = false;
-        return CalcContentRect(currentPage);
+
+        // Kept, because the render pass needs it and cannot work it out: CalcContentRect reads
+        // currentSection, which means something only while the document is being formatted.
+        Rectangle contentRect = CalcContentRect(currentPage);
+        pageContentRects[currentPage] = contentRect;
+        return contentRect;
     }
     int currentPage;
+
+    readonly Dictionary<int, Rectangle> pageContentRects = new Dictionary<int, Rectangle>();
+
+    /// <summary>
+    /// The rectangle the page's body text was laid out in - the page less its margins.
+    /// </summary>
+    internal Rectangle ContentRectOf(int page) =>
+        pageContentRects.TryGetValue(page, out Rectangle rect) ? rect : CalcContentRect(page);
+
+    /// <summary>
+    /// How far down the page the last thing laid out on it reaches, or zero for a page with
+    /// nothing on it.
+    /// </summary>
+    /// <remarks>
+    /// This is what <see cref="FootnoteLocation.BeneathText"/> means by "the text": not the bottom
+    /// of the area the text could have used, but the bottom of what it actually used.
+    /// </remarks>
+    internal XUnit BottomOfContentOn(int page)
+    {
+        if (!pageRenderInfos.TryGetValue(page, out ArrayList renderInfos))
+            return 0;
+
+        XUnit bottom = 0;
+        foreach (RenderInfo renderInfo in renderInfos)
+        {
+            Area contentArea = renderInfo.LayoutInfo.ContentArea;
+            XUnit candidate = contentArea.Y + contentArea.Height;
+            if (candidate > bottom)
+                bottom = candidate;
+        }
+
+        return bottom;
+    }
+
+    /// <summary>
+    /// Lays out the footnotes an element carries and sets room aside for them at the foot of the
+    /// page being filled, returning how much more room that took than was already set aside.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called for every element, and answers zero for almost all of them. The height is worked out
+    /// from every note on the page rather than from the ones just found, so the separator band is
+    /// counted once however many notes there are, and so re-registering a note the formatter is
+    /// trying for a second time does not charge for it twice.
+    /// </para>
+    /// <para>
+    /// The delta is never negative. Notes are only ever added to the page being filled - one that
+    /// moves goes to the next page and is registered against that - so the reservation only grows,
+    /// and a negative would mean giving back room an element has already been laid out in.
+    /// </para>
+    /// </remarks>
+    XUnit IFootnoteAreaProvider.ReserveFootnotes(DocumentObject element, XUnit width, XGraphics gfx)
+    {
+        IReadOnlyList<Footnote> notes = Footnotes.In(element);
+        if (notes.Count == 0)
+            return 0;
+
+        FootnoteRegistry registry = documentRenderer.Footnotes;
+        foreach (Footnote note in notes)
+        {
+            FormattedFootnote formatted =
+                new FormattedFootnote(documentRenderer, note, currentFieldInfos, width);
+
+            // Registered before it is formatted, not after. Formatting measures the mark to size
+            // the gutter it hangs in, and a generated mark does not exist until the note has an
+            // entry to take its ordinal from - so formatting first measured an empty string, and
+            // every note fell back to the bare minimum gutter. A mark wider than that, which "10"
+            // and "viii" both are, was then written over the note's first word. Place overwrites,
+            // so registering first is safe on the second and later attempts at the same note.
+            registry.Place(note, sectionNumber, currentPage, formatted);
+            formatted.Format(gfx);
+        }
+
+        XUnit required = FootnoteBlockHeight(currentPage);
+        XUnit delta = required - reservedForFootnotes;
+        if (delta <= 0)
+            return 0;
+
+        reservedForFootnotes = required;
+        return delta;
+    }
+
+    /// <summary>
+    /// How tall the whole footnote block on a page is - the separator band and every note under it
+    /// - or zero where the page carries none.
+    /// </summary>
+    internal XUnit FootnoteBlockHeight(int page)
+    {
+        FootnoteRegistry registry = documentRenderer.Footnotes;
+        IReadOnlyList<Footnote> notes = registry.On(page);
+        if (notes.Count == 0)
+            return 0;
+
+        XUnit height = FootnoteSeparatorBand;
+        foreach (Footnote note in notes)
+        {
+            FormattedFootnote formatted = registry.FormattedOf(note);
+            if (formatted != null)
+                height += formatted.ContentHeight;
+        }
+
+        return height;
+    }
+
+    /// <summary>
+    /// The space above the notes: a gap, the separator rule, and a gap under it.
+    /// </summary>
+    /// <remarks>
+    /// Fixed rather than settable. The document object model has no property for the separator and
+    /// this work deliberately adds none - see docs/specs/migradoc-footnotes.md - because a rule at
+    /// hairline weight over a third of the column is what Word and LaTeX both draw and what a
+    /// reader expects to see.
+    /// </remarks>
+    internal static readonly XUnit FootnoteSeparatorBand = XUnit.FromPoint(11);
+
+    /// <summary>How far down the separator band the rule itself sits.</summary>
+    internal static readonly XUnit FootnoteSeparatorOffset = XUnit.FromPoint(6);
+
+    XUnit reservedForFootnotes;
 
     Area IAreaProvider.ProbeNextArea()
     {

@@ -880,6 +880,10 @@ internal class ParagraphRenderer : Renderer
             case "Image":
                 RenderImage((Image)docObj);
                 break;
+
+            case "Footnote":
+                RenderFootnote((Footnote)docObj);
+                break;
             //        default:
             //          throw new NotImplementedException(typeName + " is coming soon...");
         }
@@ -1584,8 +1588,76 @@ internal class ParagraphRenderer : Renderer
             case "Image":
                 return FormatImage((Image)docObj);
 
+            // Only the reference mark: the note's own content is block content, laid out on its
+            // own and drawn at the foot of the page. See FormatFootnote.
+            case "Footnote":
+                return FormatFootnote((Footnote)docObj);
+
             default:
                 return FormatResult.Continue;
+        }
+    }
+
+    /// <summary>
+    /// Measures a footnote's reference mark, which occupies the running text exactly as a short
+    /// superscript word does.
+    /// </summary>
+    /// <remarks>
+    /// The note's own content is not measured here and takes no room in the paragraph. It is laid
+    /// out separately by <see cref="FormattedFootnote"/> and the space for it is taken off the foot
+    /// of the page before this paragraph is formatted - see <see cref="TopDownFormatter"/>.
+    /// </remarks>
+    FormatResult FormatFootnote(Footnote footnote)
+    {
+        // The mark's text depends on where every note on the page ended up, so like a page
+        // reference it can change between being measured and being drawn. Same answer as
+        // FormatPageRefField: ask for the line to be measured again.
+        reMeasureLine = true;
+        return FormatAsWord(MeasureFootnoteMark(MarkOf(footnote)));
+    }
+
+    void RenderFootnote(Footnote footnote)
+    {
+        string mark = MarkOf(footnote);
+        if (mark.Length == 0)
+            return;
+
+        XFont xFont = FontHandler.ToSubSuperFont(CurrentFont);
+        gfx.DrawString(mark, xFont, CurrentBrush, currentXPosition, FootnoteMarkBaseline);
+
+        XUnit width = MeasureFootnoteMark(mark);
+        RealizeHyperlink(width);
+        currentXPosition += width;
+    }
+
+    string MarkOf(Footnote footnote) => documentRenderer.Footnotes.MarkFor(footnote);
+
+    /// <summary>
+    /// The mark's width, which is the string measured at the reduced size a superscript is set in.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="MeasureString"/>, which scales by the same factor but only when the run's own
+    /// font says it is a superscript. A reference mark is raised whatever the text around it is set
+    /// in, so the scaling is applied here rather than asked for.
+    /// </remarks>
+    XUnit MeasureFootnoteMark(string mark)
+    {
+        XFont xFont = CurrentFont;
+        return gfx.MeasureString(mark, xFont, StringFormat).Width
+            * FontHandler.GetSubSuperScaling(xFont);
+    }
+
+    /// <summary>
+    /// Where the mark sits: raised off the line's baseline by the same amount a superscript run is.
+    /// </summary>
+    XUnit FootnoteMarkBaseline
+    {
+        get
+        {
+            XFont xFont = CurrentFont;
+            return currentYPosition
+                + FontHandler.GetSubSuperScaling(xFont)
+                * (xFont.GetHeight() - FontHandler.GetDescent(xFont));
         }
     }
 

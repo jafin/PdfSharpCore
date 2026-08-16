@@ -1,5 +1,8 @@
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.BarCodes;
@@ -42,6 +45,35 @@ public class MatrixCodeTests
         var drawing = () => Draw(gfx => gfx.DrawMatrixCode(code, new XPoint(100, 100)));
 
         drawing.Should().NotThrow<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ACodeGivenNoSizeIsDrawnAtOneOfItsOwnRatherThanAtNoneAtAll()
+    {
+        // Five of the eight constructors default Size to XSize.Empty, and an empty XSize is
+        // (-Infinity, -Infinity) rather than a zero one. Every module was therefore drawn as
+        // "NaN NaN -Infinity -Infinity re", which a viewer answers by drawing nothing at all -
+        // so the code came out invisible, from the very constructor the upstream issue uses.
+        var content = ContentOf(gfx =>
+            gfx.DrawMatrixCode(new CodeDataMatrix("HELLO-DATAMATRIX-1234", 26, 26),
+                new XPoint(100, 100)));
+
+        content.Should().NotContain("NaN").And.NotContain("Infinity");
+
+        var rectangles = Regex.Matches(content, @"(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re");
+        rectangles.Count.Should().BeGreaterThan(20,
+            "a 26 by 26 symbol has that many runs of dark modules to draw");
+
+        // Two points to a module and no quiet zone, so the whole symbol is 52 points square and
+        // no single run of modules can be wider than that.
+        foreach (Match rectangle in rectangles)
+        {
+            var width = double.Parse(rectangle.Groups[3].Value, CultureInfo.InvariantCulture);
+            var height = double.Parse(rectangle.Groups[4].Value, CultureInfo.InvariantCulture);
+
+            width.Should().BeGreaterThan(0).And.BeLessThanOrEqualTo(52);
+            height.Should().Be(2, "one module tall, at the default module size");
+        }
     }
 
     [Theory]
@@ -200,5 +232,20 @@ public class MatrixCodeTests
         var page = document.AddPage();
         using var gfx = XGraphics.FromPdfPage(page);
         draw(gfx);
+    }
+
+    /// <summary>
+    ///   The operators the drawing actually wrote, so that a test can judge what a viewer gets
+    ///   rather than only that nothing was thrown on the way.
+    /// </summary>
+    static string ContentOf(Action<XGraphics> draw)
+    {
+        var document = new PdfDocument();
+        document.Options.CompressContentStreams = false;
+        var page = document.AddPage();
+        using (var gfx = XGraphics.FromPdfPage(page))
+            draw(gfx);
+
+        return Encoding.Latin1.GetString(PageContent.Of(page));
     }
 }

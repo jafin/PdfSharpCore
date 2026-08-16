@@ -1,5 +1,14 @@
 # Unprotect Document
 
+> **Runnable version:** the `Protect` demo.
+> `dotnet run --project SampleApp -- run -e Protect`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to unprotect a document (if you know the password).
 
 Note: that we will not explain nor give any tips how to crack a protected document with PdfSharpCore.

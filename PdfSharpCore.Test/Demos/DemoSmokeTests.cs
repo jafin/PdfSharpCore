@@ -54,7 +54,12 @@ public class DemoSmokeTests
         File.Exists(result.OutputPath).Should().BeTrue();
         new FileInfo(result.OutputPath).Length.Should().BeGreaterThan(0);
 
-        using PdfDocument opened = Pdf.IO.PdfReader.Open(result.OutputPath, PdfDocumentOpenMode.Import);
+        // The password is almost always null. The one demo that encrypts its own output declares it
+        // rather than being named here, so that this stays a theory over the registry with no demo
+        // it knows about by name.
+        using PdfDocument opened = demo.OpenPassword is null
+            ? Pdf.IO.PdfReader.Open(result.OutputPath, PdfDocumentOpenMode.Import)
+            : Pdf.IO.PdfReader.Open(result.OutputPath, demo.OpenPassword, PdfDocumentOpenMode.Import);
 
         // Pinned rather than derived, so that a change to the layout engine which silently
         // repaginates a document is a failing test rather than a surprise months later.

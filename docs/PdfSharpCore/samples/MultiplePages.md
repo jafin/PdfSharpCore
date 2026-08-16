@@ -1,5 +1,14 @@
 # Multiple Pages
 
+> **Runnable version:** the `Layout` demo.
+> `dotnet run --project SampleApp -- run -e Layout`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows one way to create a PDF document with multiple pages.
 
 When you program reaches the end of a page, you just have to create a new page by calling the `AddPage()` method of the PdfDocument class. Then you create a new XGraphics object for the new page and use it to draw on the second page, beginning at the top.

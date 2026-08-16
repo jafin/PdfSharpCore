@@ -170,28 +170,64 @@ public class CodeDataMatrix : MatrixCode
                 break;
         }
 
-        XPoint pos = position + CalcDistance(Anchor, AnchorType.TopLeft, Size);
-
         bool[,] modules = DataMatrixSymbol.Build(Text, Encoding, Rows, Columns);
+
+        XSize size = Size.IsEmpty ? DefaultSize(modules) : Size;
+
+        XPoint pos = position + CalcDistance(Anchor, AnchorType.TopLeft, size);
 
         if (QuietZone > 0)
         {
-            XSize sizeWithZone = new XSize(Size.Width, Size.Height);
+            XSize sizeWithZone = new XSize(size.Width, size.Height);
             sizeWithZone.Width = sizeWithZone.Width / (Columns + 2 * QuietZone) * Columns;
             sizeWithZone.Height = sizeWithZone.Height / (Rows + 2 * QuietZone) * Rows;
 
             XPoint posWithZone = new XPoint(pos.X, pos.Y);
-            posWithZone.X += Size.Width / (Columns + 2 * QuietZone) * QuietZone;
-            posWithZone.Y += Size.Height / (Rows + 2 * QuietZone) * QuietZone;
+            posWithZone.X += size.Width / (Columns + 2 * QuietZone) * QuietZone;
+            posWithZone.Y += size.Height / (Rows + 2 * QuietZone) * QuietZone;
 
-            gfx.DrawRectangle(XBrushes.White, pos.X, pos.Y, Size.Width, Size.Height);
+            gfx.DrawRectangle(XBrushes.White, pos.X, pos.Y, size.Width, size.Height);
             DrawModules(gfx, brush, modules, posWithZone, sizeWithZone);
         }
         else
-            DrawModules(gfx, brush, modules, pos, Size);
+            DrawModules(gfx, brush, modules, pos, size);
 
         gfx.Restore(state);
     }
+
+    /// <summary>
+    /// The extent to draw at when the caller never gave one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Five of this class's eight constructors default <see cref="CodeBase.Size"/> to
+    /// <see cref="XSize.Empty"/>, and an empty <see cref="XSize"/> is not a zero one - it is
+    /// (-Infinity, -Infinity), which is how the type distinguishes "no size" from "no area". A
+    /// code built by one of those constructors therefore used to draw every one of its modules at
+    /// an infinite negative extent, which a viewer cannot parse and answers by drawing nothing.
+    /// The barcode came out invisible, and the constructor taking nothing but text and a module
+    /// count is the one the documentation and the upstream issue both use.
+    /// </para>
+    /// <para>
+    /// Two points per module, quiet zone included, puts a 26 by 26 symbol at a little under 18mm
+    /// square: comfortably larger than a reader needs and small enough to sit in the corner of a
+    /// page. No better answer is available here - the code is told how many modules to draw and
+    /// nothing whatever about the paper, so it cannot take a proportion of the page. A caller who
+    /// cares passes a size, and one of the three constructors that take one is how.
+    /// </para>
+    /// <para>
+    /// <see cref="BarCode.InitRendering"/> answers the same question the other way, refusing an
+    /// empty size outright, and the difference is deliberate. A linear code's width depends on how
+    /// many bars its text turns into, so there is no size to fall back on and nothing to do but
+    /// ask. A matrix code is square and is measured in modules, both of which are known by the
+    /// time it is drawn, so a default here means something.
+    /// </para>
+    /// </remarks>
+    XSize DefaultSize(bool[,] modules) => new XSize(
+        (modules.GetLength(1) + 2 * QuietZone) * DefaultModuleSize,
+        (modules.GetLength(0) + 2 * QuietZone) * DefaultModuleSize);
+
+    const double DefaultModuleSize = 2;
 
     /// <summary>
     /// Draws the modules of the symbol, one filled square for each dark one. Drawn rather

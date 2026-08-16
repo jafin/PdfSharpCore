@@ -97,6 +97,29 @@ internal sealed class PdfGraphicsState : ICloneable
         const string format = Config.SignificantFigures3;
         XColor color = pen.Color;
         bool overPrint = pen.Overprint;
+        XBrush penBrush = pen.Brush;
+
+        // A pen built from a brush has no Color of its own - the constructor never sets one - so
+        // pen.Color is XColor.Empty, whose alpha is zero. Left as it stands that reaches the stroke
+        // alpha at the foot of this method and paints the stroke completely transparent, which is
+        // why a pen made from a brush drew nothing at all.
+        //
+        // A solid brush is simply a colour, and is treated as one from here on: it wants "RG" like
+        // any other pen, where handing it to RealizeBrush below would set the *fill* colour instead.
+        // A gradient really does need the pattern, and carries its own transparency through the soft
+        // mask RealizeBrush installs, so the stroke stays opaque rather than taking an alpha from a
+        // colour the pen never had.
+        if (penBrush is XSolidBrush solidPenBrush)
+        {
+            color = solidPenBrush.Color;
+            overPrint = overPrint || solidPenBrush.Overprint;
+            penBrush = null;
+        }
+        else if (penBrush != null)
+        {
+            color = XColors.Black;
+        }
+
         color = ColorSpaceHelper.EnsureColorMode(colorMode, color);
 
         if (_realizedLineWith != pen._width)
@@ -117,12 +140,19 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedLineJoin = (int)pen._lineJoin;
         }
 
-        if (_realizedLineCap == (int)XLineJoin.Miter)
+        // The join, not the cap. This tested _realizedLineCap against a value of XLineJoin, which
+        // agreed with itself only because XLineCap.Flat and XLineJoin.Miter are both zero: a pen
+        // that mitred its joins and rounded its ends never wrote its miter limit at all, and one
+        // with flat ends wrote it whatever its join was.
+        if (_realizedLineJoin == (int)XLineJoin.Miter)
         {
-            if (_realizedMiterLimit != (int)pen._miterLimit && (int)pen._miterLimit != 0)
+            // Written as a real rather than truncated to an integer. A limit is a ratio of the
+            // mitre's length to the pen's width, 1.5 is a perfectly ordinary value for it, and
+            // rounding that to 1 asks for a bevel on every join that is not perfectly straight.
+            if (_realizedMiterLimit != pen._miterLimit && pen._miterLimit > 0)
             {
-                _renderer.AppendFormatInt("{0} M\n", (int)pen._miterLimit);
-                _realizedMiterLimit = (int)pen._miterLimit;
+                _renderer.AppendFormatArgs("{0:" + format + "} M\n", pen._miterLimit);
+                _realizedMiterLimit = pen._miterLimit;
             }
         }
 
@@ -160,20 +190,29 @@ internal sealed class PdfGraphicsState : ICloneable
 
                 case XDashStyle.Custom:
                 {
+                    // This branch is the one place a number reaches the content stream without
+                    // going through an Append method, because the array is assembled as text a
+                    // piece at a time. The check the Append methods make therefore has to be made
+                    // here as well, or a dash length that is not a number would be written out.
                     StringBuilder pdf = new StringBuilder("[", 256);
                     int len = pen._dashPattern == null ? 0 : pen._dashPattern.Length;
                     for (int idx = 0; idx < len; idx++)
                     {
                         if (idx > 0)
                             pdf.Append(' ');
+                        XGraphicsPdfRenderer.EnsureWritable(
+                            pen._dashPattern[idx] * pen._width, "a dash pattern");
                         pdf.Append(PdfEncoders.ToString(pen._dashPattern[idx] * pen._width));
                     }
                     // Make an even number of values look like in GDI+
                     if (len > 0 && len % 2 == 1)
                     {
                         pdf.Append(' ');
+                        XGraphicsPdfRenderer.EnsureWritable(0.2 * pen._width, "a dash pattern");
                         pdf.Append(PdfEncoders.ToString(0.2 * pen._width));
                     }
+                    XGraphicsPdfRenderer.EnsureWritable(
+                        pen._dashOffset * pen._width, "a dash pattern");
                     pdf.AppendFormat(CultureInfo.InvariantCulture, "]{0:" + format + "} d\n", pen._dashOffset * pen._width);
                     string pattern = pdf.ToString();
 
@@ -190,13 +229,15 @@ internal sealed class PdfGraphicsState : ICloneable
             _realizedDashStyle = dashStyle;
         }
 
-        if (pen.Brush != null)
+        // penBrush rather than pen.Brush: a solid one was turned into a colour above and takes the
+        // ordinary stroke-colour path below.
+        if (penBrush != null)
         {
-            RealizeBrush(pen.Brush, colorMode, 0, 0, true);
+            RealizeBrush(penBrush, colorMode, 0, 0, true);
         }
         else if (colorMode != PdfColorMode.Cmyk)
         {
-            if (_realizedStrokeColor.Rgb != color.Rgb)
+            if (_realizedStrokePattern || _realizedStrokeColor.Rgb != color.Rgb)
             {
                 _renderer.Append(PdfEncoders.ToString(color, PdfColorMode.Rgb));
                 _renderer.Append(" RG\n");
@@ -204,7 +245,7 @@ internal sealed class PdfGraphicsState : ICloneable
         }
         else
         {
-            if (!ColorSpaceHelper.IsEqualCmyk(_realizedStrokeColor, color))
+            if (_realizedStrokePattern || !ColorSpaceHelper.IsEqualCmyk(_realizedStrokeColor, color))
             {
                 _renderer.Append(PdfEncoders.ToString(color, PdfColorMode.Cmyk));
                 _renderer.Append(" K\n");
@@ -223,7 +264,24 @@ internal sealed class PdfGraphicsState : ICloneable
         }
         _realizedStrokeColor = color;
         _realizedStrokeOverPrint = overPrint;
+        _realizedStrokePattern = penBrush != null;
     }
+
+    /// <summary>
+    /// True when the last pen realized here strokes with a pattern rather than with a colour.
+    /// </summary>
+    /// <remarks>
+    /// A flag rather than an invalidated <see cref="_realizedStrokeColor"/>, for two reasons. The
+    /// colour a gradient pen leaves behind is the black stood in for it, and "no colour realized"
+    /// is <see cref="XColor.Empty"/>, whose Rgb is zero - which is black's as well, so neither
+    /// value distinguishes a pattern from a black stroke. And treating Empty as "re-emit" would
+    /// write an explicit black at the head of every content stream that opens with a black stroke,
+    /// which is a change to every file the library writes for the sake of one that gradients.
+    ///
+    /// Without it, a pattern pen followed by <c>XPens.Black</c> wrote no "RG" - the remembered
+    /// colour matched - and the black line was stroked with the pattern still in the state.
+    /// </remarks>
+    bool _realizedStrokePattern;
 
     #endregion
 
@@ -309,6 +367,12 @@ internal sealed class PdfGraphicsState : ICloneable
                 }
                 // Invalidate fill color.
                 _realizedFillColor = XColor.Empty;
+
+                // "SCN" replaced the *stroking* colour space, which the line above does not record
+                // - so the pen path says so separately. RealizePen reaches this method only for a
+                // pattern pen, and sets the flag back to false for every other kind.
+                if (isForPen)
+                    _realizedStrokePattern = true;
             }
         }
     }

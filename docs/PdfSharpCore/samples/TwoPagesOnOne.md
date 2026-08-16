@@ -1,5 +1,14 @@
 # Two Pages on One
 
+> **Runnable version:** the `Imposition` demo.
+> `dotnet run --project SampleApp -- run -e Imposition`
+>
+> The demos are built on every commit and their page counts are asserted by
+> `DemoSmokeTests`, so one that stops working fails the build. The code on this page is
+> prose and has no such protection. See
+> [Before any of this runs](index.md#before-any-of-this-runs) - this fork needs a backend
+> registered before it will draw anything.
+
 This sample shows how to place two pages of an existing document on one landscape orientated page of a new document.
 
 ## Code
