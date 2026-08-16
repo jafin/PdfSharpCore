@@ -399,7 +399,7 @@ public class DdlReadingTests
     [InlineData("\\document[Info{Title = \"x\"]{\\section{\\paragraph{t}}}")]
     public async Task AWholeFileWithOneThingWrongInItIsNeverFinishedWithEither(string ddl)
     {
-        var reading = Task.Run(() => DdlReader.ObjectFromString(ddl, new DdlReaderErrors()));
+        var reading = ReaderDiagnostics.ReadingOnItsOwnThread(ddl);
 
         var finished = await Task.WhenAny(reading, Task.Delay(TimeSpan.FromSeconds(2)));
 
@@ -436,7 +436,7 @@ public class DdlReadingTests
     [InlineData("\\document{\\section{\\paragraph{never closed")]
     public async Task AFileThatStopsInsideASectionIsNeverFinishedWith(string truncated)
     {
-        var reading = Task.Run(() => DdlReader.ObjectFromString(truncated, new DdlReaderErrors()));
+        var reading = ReaderDiagnostics.ReadingOnItsOwnThread(truncated);
 
         var finished = await Task.WhenAny(reading, Task.Delay(TimeSpan.FromSeconds(2)));
 
@@ -482,7 +482,12 @@ public class DdlReadingTests
             "\\document{\\section[PageSetup{NoSuchThing = 3}]{\\paragraph{t}}}", errors);
 
         read.Should().NotBeNull("the document still reads");
-        errors.ErrorCount.Should().Be(1, "and the name that was dropped is reported");
-        errors[0].ErrorMessage.Should().Contain("NoSuchThing");
+
+        // Selected by level rather than by position: ErrorCount counts only the entries at
+        // DdlErrorLevel.Error, while the indexer answers whatever sits at that raw position, so a
+        // warning arriving first would leave the two assertions talking about different records.
+        var reported = ReaderDiagnostics.ErrorsIn(errors);
+        reported.Should().ContainSingle("the name that was dropped is reported");
+        reported[0].ErrorMessage.Should().Contain("NoSuchThing");
     }
 }

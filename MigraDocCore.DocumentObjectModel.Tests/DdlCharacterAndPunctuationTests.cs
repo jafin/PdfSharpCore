@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.IO;
 using Xunit;
@@ -26,20 +27,8 @@ public class DdlCharacterAndPunctuationTests
         Read("\\document{\\section{\\paragraph{" + paragraphBody + "}}}")
             .LastSection.Elements[0] as Paragraph;
 
-    static IReadOnlyList<string> ComplaintsAbout(string ddl)
-    {
-        var errors = new DdlReaderErrors();
-        try
-        {
-            DdlReader.ObjectFromString(ddl, errors);
-        }
-        catch (Exception fatal)
-        {
-            return errors.Cast<DdlReaderError>().Select(e => e.ErrorMessage)
-                .Append(fatal.Message).ToList();
-        }
-        return errors.Cast<DdlReaderError>().Select(e => e.ErrorMessage).ToList();
-    }
+    static IReadOnlyList<string> ComplaintsAbout(string ddl) =>
+        ReaderDiagnostics.ComplaintsAbout(ddl);
 
     // ----- \chr ---------------------------------------------------------------------------------
 
@@ -210,16 +199,33 @@ public class DdlCharacterAndPunctuationTests
     ///   <c>ScanPunctuator</c> never had the fault: it looks at <c>nextChar</c>, which is null at
     ///   the end of the buffer rather than past it. See the backlog spec's finding F6.
     /// </summary>
-    [Fact]
-    public void ASignAtTheVeryEndOfTheDocumentIsNotReadPastTheEndOfIt()
+    /// <remarks>
+    ///   <para>
+    ///   The lookahead is reached from three places, all of them a keyword asking whether an
+    ///   attribute block or an argument list follows it - so the sign has to arrive there, which
+    ///   means straight after such a keyword and at the very end of the document. A sign after the
+    ///   document's closing brace never gets there: the parser has stopped by then and says "End
+    ///   of file expected".
+    ///   </para>
+    ///   <para>
+    ///   Read on a thread of its own because the fixed reader does not come back from these at
+    ///   all - the truncation hang of finding F3, which is a different defect and separately
+    ///   pinned. Not coming back is therefore an acceptable answer here; reading off the end of
+    ///   the buffer is not.
+    ///   </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("\\document{\\section{\\paragraph{a\\space+")]
+    [InlineData("\\document{\\section{\\paragraph{a\\space-")]
+    [InlineData("\\document{\\section{\\paragraph{a\\field(Page)+")]
+    [InlineData("\\document{\\section{\\paragraph{a\\field(Page)-")]
+    public async Task ASignAtTheVeryEndOfTheDocumentIsNotReadPastTheEndOfIt(string ddl)
     {
-        foreach (var trailing in new[] { "+", "-", "+=", "-=" })
-        {
-            var read = () => ComplaintsAbout("\\document{\\section{\\paragraph{t}}}" + trailing);
+        var fault = await ReaderDiagnostics.FaultReading(ddl, TimeSpan.FromSeconds(2));
 
-            read.Should().NotThrow<IndexOutOfRangeException>(
-                "a document ending in '{0}' is malformed, not a reason to read off the end",
-                trailing);
-        }
+        // By name, because the reader not coming back at all leaves nothing to ask the type of.
+        (fault?.GetType().Name ?? "did not come back")
+            .Should().NotBe(nameof(IndexOutOfRangeException),
+                "a document ending in a sign is malformed, not a reason to read off the end");
     }
 }

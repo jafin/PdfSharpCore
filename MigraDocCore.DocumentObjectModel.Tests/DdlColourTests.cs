@@ -40,27 +40,15 @@ public class DdlColourTests
 
     /// <summary>What the reader had to say about a document, as text an assertion can match.</summary>
     static IReadOnlyList<string> Complaints(DdlReaderErrors errors) =>
-        errors.Cast<DdlReaderError>().Select(error => error.ErrorMessage).ToList();
+        ReaderDiagnostics.Reported(errors);
 
     /// <summary>
     ///   The complaints a colour that cannot be read produces. Reading is deliberately allowed to
     ///   fail in either of the two ways it can: quietly, with the error list the only sign, or
     ///   fatally once the token stream has lost its place.
     /// </summary>
-    static IReadOnlyList<string> ComplaintsAbout(string colourLiteral)
-    {
-        var errors = new DdlReaderErrors();
-        try
-        {
-            DdlReader.ObjectFromString(DocumentWith(colourLiteral), errors);
-        }
-        catch (Exception fatal)
-        {
-            // DdlParserException is internal to the assembly, so it is caught by its base.
-            return Complaints(errors).Append(fatal.Message).ToList();
-        }
-        return Complaints(errors);
-    }
+    static IReadOnlyList<string> ComplaintsAbout(string colourLiteral) =>
+        ReaderDiagnostics.ComplaintsAbout(DocumentWith(colourLiteral));
 
     // ----- RGB ------------------------------------------------------------------------------------
 

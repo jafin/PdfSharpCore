@@ -30,20 +30,8 @@ public class DdlChartAreaTests
     static string TextOf(Paragraph paragraph) =>
         string.Concat(paragraph.Elements.OfType<Text>().Select(text => text.Content));
 
-    static IReadOnlyList<string> ComplaintsAbout(string ddl)
-    {
-        var errors = new DdlReaderErrors();
-        try
-        {
-            DdlReader.ObjectFromString(ddl, errors);
-        }
-        catch (Exception fatal)
-        {
-            return errors.Cast<DdlReaderError>().Select(e => e.ErrorMessage)
-                .Append(fatal.Message).ToList();
-        }
-        return errors.Cast<DdlReaderError>().Select(e => e.ErrorMessage).ToList();
-    }
+    static IReadOnlyList<string> ComplaintsAbout(string ddl) =>
+        ReaderDiagnostics.ComplaintsAbout(ddl);
 
     // ----- an area written as plain content ---------------------------------------------------
 
