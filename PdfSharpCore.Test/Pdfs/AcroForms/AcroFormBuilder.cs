@@ -160,4 +160,45 @@ internal sealed class AcroFormBuilder
 
     internal static void WithFlags(PdfDictionary field, PdfAcroFieldFlags flags) =>
         field.Elements.SetInteger(PdfAcroField.Keys.Ff, (int)flags);
+
+    /// <summary>
+    ///   Adds a field that has both a type of its own and children of its own, describing each
+    ///   child separately. <see cref="WithParent"/> makes a bare grouping node; this makes the
+    ///   shape the check box setter calls "fields that exist twice with the same name", where the
+    ///   parent is the tick box and the children are the two widgets that draw it.
+    /// </summary>
+    /// <remarks>
+    ///   The children carry no <c>/T</c>: a child without a partial name is the same field as its
+    ///   parent rather than a field of its own, which is what makes the pair one tick box in two
+    ///   places rather than two tick boxes.
+    /// </remarks>
+    internal AcroFormBuilder WithTypedParent(string fieldType, string name,
+        params System.Action<PdfDictionary>[] describeKids)
+    {
+        var parent = new PdfDictionary(_document);
+        parent.Elements.SetName(PdfAcroField.Keys.FT, fieldType);
+        parent.Elements.SetString(PdfAcroField.Keys.T, name);
+        parent.Elements.SetString(PdfAcroField.Keys.DA, "/Helv 10 Tf 0 g");
+        // Before the children, so that they have something to point at.
+        _document.Internals.AddObject(parent);
+
+        var children = new PdfArray(_document);
+        for (var idx = 0; idx < describeKids.Length; idx++)
+        {
+            var kid = new PdfDictionary(_document);
+            kid.Elements.SetName("/Type", "/Annot");
+            kid.Elements.SetName("/Subtype", "/Widget");
+            kid.Elements[PdfAcroField.Keys.Parent] = parent.Reference;
+            kid.Elements[PdfAcroField.Keys.Rect] =
+                new PdfRectangle(new XRect(20, 20 + 30 * idx, 200, 20));
+            describeKids[idx]?.Invoke(kid);
+            _document.Internals.AddObject(kid);
+            children.Elements.Add(kid.Reference);
+            _widgets.Add(kid);
+        }
+        parent.Elements[PdfAcroField.Keys.Kids] = children;
+
+        _fields.Add(parent);
+        return this;
+    }
 }

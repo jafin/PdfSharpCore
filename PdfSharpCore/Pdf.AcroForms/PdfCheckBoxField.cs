@@ -128,6 +128,11 @@ public sealed class PdfCheckBoxField : PdfButtonField
                         }
 
                         //Element 1 behandeln -> auf unchecked setzen
+                        // Cleared first: name1 still holds the on state found for element 0, and
+                        // if element 1 offers no /Off state the search below leaves it untouched -
+                        // so without this the second element was set to the first one's on state
+                        // and both were ticked.
+                        name1 = "";
                         o = ((PdfDictionary)(((PdfReference)(Fields.Elements.Items[1])).Value)).Elements["/AP"] as
                             PdfDictionary;
                         if (o != null)
@@ -186,6 +191,8 @@ public sealed class PdfCheckBoxField : PdfButtonField
                         }
 
                         //Element 1 behandeln -> auf checked setzen
+                        // Cleared first, for the same reason as the branch above.
+                        name1 = "";
                         o = ((PdfDictionary)(((PdfReference)(Fields.Elements.Items[0])).Value)).Elements["/AP"] as
                             PdfDictionary;
                         if (o != null)
