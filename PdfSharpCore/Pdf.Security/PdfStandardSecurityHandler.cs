@@ -130,10 +130,6 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
         Debug.Assert(value.Reference != null);
 
         stringEncryptor.CreateHashKey(value.ObjectID);
-#if DEBUG
-        if (value.ObjectID.ObjectNumber == 10)
-            GetType();
-#endif
 
         PdfDictionary dict;
         PdfArray array;
@@ -271,15 +267,6 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
         return stringEncryptor.HaveOwnerPermission
             ? PasswordValidity.OwnerPassword
             : PasswordValidity.UserPassword;
-    }
-
-    [Conditional("DEBUG")]
-    static void DumpBytes(string tag, byte[] bytes)
-    {
-        string dump = tag + ": ";
-        for (int idx = 0; idx < bytes.Length; idx++)
-            dump += String.Format("{0:X2}", bytes[idx]);
-        Debug.WriteLine(dump);
     }
 
     /// <summary>

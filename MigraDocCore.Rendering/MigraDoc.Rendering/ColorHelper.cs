@@ -41,12 +41,7 @@ static class ColorHelper
   public static XColor ToXColor(Color color, bool cmyk)
   {
     if (color.IsEmpty)
-#if DEBUG
-      //return XColor.Empty;
-      return XColors.LightGreen;
-#else
       return XColor.Empty;
-#endif
 
     if (cmyk)
       return XColor.FromCmyk(color.Alpha / 100.0, color.C / 100.0, color.M / 100.0, color.Y / 100.0, color.K / 100.0);

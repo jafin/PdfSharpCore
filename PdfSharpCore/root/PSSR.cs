@@ -28,7 +28,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
 using System.Resources;
 using System.Reflection;
 using PdfSharpCore.Drawing;
@@ -53,9 +52,8 @@ static class PSSR
     // For localization, create an enum value for each function or property with the same name. Then
     // create localized message files with the enum values as messages identifiers. In the properties
     // and functions all text is replaced by Format or GetString functions with the corresponding enum value
-    // as first parameter. The use of enums ensures that typing errors in message resource names are 
-    // simply impossible. Use the TestResourceMessages function to ensure that each enum value has an 
-    // appropriate message text.
+    // as first parameter. The use of enums ensures that typing errors in message resource names are
+    // simply impossible.
 
     #region Helper functions
     /// <summary>
@@ -328,19 +326,6 @@ static class PSSR
         }
     }
     static ResourceManager _resmngr;
-
-    /// <summary>
-    /// Writes all messages defined by PSMsgID.
-    /// </summary>
-    [Conditional("DEBUG")]
-    public static void TestResourceMessages()
-    {
-    }
-
-    static PSSR()
-    {
-        TestResourceMessages();
-    }
 
     #endregion
 }

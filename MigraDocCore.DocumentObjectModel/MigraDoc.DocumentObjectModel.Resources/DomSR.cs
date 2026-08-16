@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
@@ -30,12 +29,6 @@ internal static class DomSR
             message = GetString(id);
             if (message != null)
             {
-#if DEBUG
-                if (Regex.Matches(message, @"\{[0-9]\}").Count > args.Length)
-                {
-                    //TODO too many placeholders or too less args...
-                }
-#endif
                 message = String.Format(message, args);
             }
             else

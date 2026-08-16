@@ -90,10 +90,8 @@ internal static class FontFactory
                     fontResolverInfo = existingFontResolverInfo;
                     // Associate with typeface key.
                     FontResolverInfosByName.Add(typefaceKey, fontResolverInfo);
-#if DEBUG
                     // The font source should exist.
                     Debug.Assert(FontSourcesByName.ContainsKey(fontResolverInfo.FaceName));
-#endif
                 }
                 else
                 {
@@ -213,20 +211,7 @@ internal static class FontFactory
             XFontSource existingFontSource;
             if (FontSourcesByKey.TryGetValue(fontSource.Key, out existingFontSource))
             {
-#if DEBUG
-                // Fonts have same length and check sum. Now check byte by byte identity.
-                int length = fontSource.Bytes.Length;
-                for (int idx = 0; idx < length; idx++)
-                {
-                    if (existingFontSource.Bytes[idx] != fontSource.Bytes[idx])
-                    {
-                        //Debug.Assert(false,"Two fonts with identical checksum found.");
-                        break;
-                        //goto FontsAreNotIdentical;
-                    }
-                }
                 Debug.Assert(existingFontSource.Fontface != null);
-#endif
                 return existingFontSource;
 
                 //FontsAreNotIdentical:

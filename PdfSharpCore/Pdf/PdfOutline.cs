@@ -32,7 +32,6 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Actions;
 using PdfSharpCore.Pdf.Advanced;
@@ -759,9 +758,6 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
 
     internal override void WriteObject(PdfWriter writer)
     {
-#if DEBUG
-        writer.WriteRaw("% Title = " + FilterUnicode(Title) + "\n");
-#endif
         // TODO: Proof that there is nothing to do here.
         bool hasKids = HasChildren;
         if (_parent != null || hasKids)
@@ -778,16 +774,6 @@ public sealed class PdfOutline : PdfDictionary  // Reference: 8.2.2 Document Out
             base.WriteObject(writer);
         }
     }
-
-#if DEBUG
-    private string FilterUnicode(string text)
-    {
-        StringBuilder result = new StringBuilder();
-        foreach (char ch in text)
-            result.Append((uint)ch < 256 ? ch : '?');
-        return result.ToString();
-    }
-#endif
 
     /// <summary>
     /// Predefined keys of this dictionary.

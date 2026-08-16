@@ -48,10 +48,6 @@ internal class PdfWriter
     {
         _stream = pdfStream;
         _securityHandler = securityHandler;
-        //System.Xml.XmlTextWriter
-#if DEBUG
-        _layout = PdfWriterLayout.Verbose;
-#endif
     }
 
     public void Close(bool closeUnderlyingStream)
