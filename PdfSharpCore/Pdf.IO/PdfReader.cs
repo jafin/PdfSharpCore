@@ -571,9 +571,12 @@ public static class PdfReader
             // Fix references of trailer values and then objects and irefs are consistent.
             document._trailer.Finish();
 
-            if (openmode == PdfDocumentOpenMode.Modify)
+            if (openmode == PdfDocumentOpenMode.Modify || openmode == PdfDocumentOpenMode.Append)
             {
-                // Create new or change existing document IDs.
+                // Create new or change existing document IDs. /ID[0] identifies the document across
+                // its whole life and /ID[1] identifies this revision of it, so only the second is
+                // replaced when there already is a pair — which is exactly what an appended
+                // revision needs as well.
                 if (document.Internals.SecondDocumentID == "")
                     document._trailer.CreateNewDocumentIDs();
                 else
@@ -586,21 +589,46 @@ public static class PdfReader
                 // written, in PdfDocument.PrepareForSave, so that opening a document to read its
                 // dates does not change the date it is read for.
 
-                // Remove all unreachable objects
-                int removed = document._irefTable.Compact();
-                if (removed != 0)
-                    Debug.WriteLine("Number of deleted unreachable objects: " + removed);
+                if (openmode == PdfDocumentOpenMode.Append)
+                {
+                    // Neither compacted nor renumbered, and both matter. An incremental update
+                    // shadows an object by writing a new definition under the same number, so
+                    // renumbering would make every appended object overwrite the wrong one. And an
+                    // object unreachable from the catalog is still in the file we are appending to,
+                    // so removing it from the table would not remove it from the document — it
+                    // would only lose track of a number that is already taken.
+                    // Flatten the page tree first and capture afterwards. Flattening mutates the
+                    // page tree, and capturing is what decides which objects count as untouched —
+                    // do it the other way round and every page is reported changed by the act of
+                    // reading it, so an incremental save rewrites the lot.
+                    //
+                    // Assigned to a local first, and that is the whole point: Debug.Assert is
+                    // [Conditional("DEBUG")], so the compiler removes the call *and its argument* in
+                    // a release build. Written as an assertion on document.Pages, the flattening
+                    // this depends on simply would not happen where it matters most.
+                    PdfPages pages = document.Pages;
+                    Debug.Assert(pages != null);
 
-                // Force flattening of page tree
-                PdfPages pages = document.Pages;
-                Debug.Assert(pages != null);
+                    document.CaptureOriginalBytes(stream);
+                }
+                else
+                {
+                    // Remove all unreachable objects
+                    int removed = document._irefTable.Compact();
+                    if (removed != 0)
+                        Debug.WriteLine("Number of deleted unreachable objects: " + removed);
 
-                //bool b = document.irefTable.Contains(new PdfObjectID(1108));
-                //b.GetType();
+                    // Force flattening of page tree
+                    PdfPages pages = document.Pages;
+                    Debug.Assert(pages != null);
 
-                document._irefTable.CheckConsistence();
-                document._irefTable.Renumber();
-                document._irefTable.CheckConsistence();
+                    //bool b = document.irefTable.Contains(new PdfObjectID(1108));
+                    //b.GetType();
+
+                    document._irefTable.CheckConsistence();
+                    document._irefTable.Renumber();
+                    document._irefTable.CheckConsistence();
+                }
             }
         }
         catch (Exception ex)

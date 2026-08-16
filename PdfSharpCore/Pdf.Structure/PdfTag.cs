@@ -1,0 +1,119 @@
+using System;
+
+namespace PdfSharpCore.Pdf.Structure;
+
+/// <summary>
+/// A structure type: what a piece of content <em>is</em>, as opposed to where it sits and what it
+/// looks like. A heading and a caption are both a run of glyphs on the page, and this is the only
+/// thing that tells them apart.
+/// </summary>
+/// <remarks>
+/// A struct rather than an enum so that a caller may use a type this library has never heard of —
+/// the standard set below is what readers understand without a role map, and a document is free to
+/// name its own and map them through <see cref="PdfStructureTreeRoot.RoleMap"/>.
+/// </remarks>
+public readonly struct PdfTag : IEquatable<PdfTag>
+{
+    /// <summary>
+    /// The name as it goes into the file, leading solidus and all.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Names a structure type directly, for one that is not among the standard set below.
+    /// </summary>
+    public PdfTag(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("A structure type has to have a name.", nameof(name));
+
+        Name = name[0] == '/' ? name : "/" + name;
+    }
+
+    /// <summary>The whole document. The usual root of the tree.</summary>
+    public static PdfTag Document => new("/Document");
+
+    /// <summary>A part of a document.</summary>
+    public static PdfTag Part => new("/Part");
+
+    /// <summary>A section.</summary>
+    public static PdfTag Section => new("/Sect");
+
+    /// <summary>A paragraph.</summary>
+    public static PdfTag P => new("/P");
+
+    /// <summary>A first-level heading.</summary>
+    public static PdfTag H1 => new("/H1");
+
+    /// <summary>A second-level heading.</summary>
+    public static PdfTag H2 => new("/H2");
+
+    /// <summary>A third-level heading.</summary>
+    public static PdfTag H3 => new("/H3");
+
+    /// <summary>A fourth-level heading.</summary>
+    public static PdfTag H4 => new("/H4");
+
+    /// <summary>A fifth-level heading.</summary>
+    public static PdfTag H5 => new("/H5");
+
+    /// <summary>A sixth-level heading.</summary>
+    public static PdfTag H6 => new("/H6");
+
+    /// <summary>A list.</summary>
+    public static PdfTag L => new("/L");
+
+    /// <summary>An item of a list.</summary>
+    public static PdfTag LI => new("/LI");
+
+    /// <summary>The label of a list item — its bullet or its number.</summary>
+    public static PdfTag Lbl => new("/Lbl");
+
+    /// <summary>The body of a list item.</summary>
+    public static PdfTag LBody => new("/LBody");
+
+    /// <summary>A table.</summary>
+    public static PdfTag Table => new("/Table");
+
+    /// <summary>A row of a table.</summary>
+    public static PdfTag TR => new("/TR");
+
+    /// <summary>A header cell of a table.</summary>
+    public static PdfTag TH => new("/TH");
+
+    /// <summary>A data cell of a table.</summary>
+    public static PdfTag TD => new("/TD");
+
+    /// <summary>A figure. Needs alternate text, or it says nothing to a reader who cannot see it.</summary>
+    public static PdfTag Figure => new("/Figure");
+
+    /// <summary>A caption.</summary>
+    public static PdfTag Caption => new("/Caption");
+
+    /// <summary>A link. The annotation belongs to the structure as well as to the page.</summary>
+    public static PdfTag Link => new("/Link");
+
+    /// <summary>A note, such as a footnote.</summary>
+    public static PdfTag Note => new("/Note");
+
+    /// <summary>A span of text within a paragraph.</summary>
+    public static PdfTag Span => new("/Span");
+
+    /// <inheritdoc/>
+    public bool Equals(PdfTag other) => Name == other.Name;
+
+    /// <inheritdoc/>
+    public override bool Equals(object obj) => obj is PdfTag other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => Name?.GetHashCode() ?? 0;
+
+    /// <inheritdoc/>
+    public override string ToString() => Name;
+
+    /// <summary>Answers whether two structure types are the same type.</summary>
+    public static bool operator ==(PdfTag left, PdfTag right) => left.Equals(right);
+
+    /// <summary>Answers whether two structure types are different types.</summary>
+    public static bool operator !=(PdfTag left, PdfTag right) => !left.Equals(right);
+}

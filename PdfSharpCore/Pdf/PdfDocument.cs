@@ -316,6 +316,213 @@ public sealed class PdfDocument : PdfObject, IDisposable
     }
 
     /// <summary>
+    /// Appends the changes made to this document to the bytes it was read from, as a new revision,
+    /// rather than writing the whole document afresh.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The original bytes are copied through untouched and only the objects that have changed —
+    /// together with a new cross-reference section and trailer — are appended. A reader starts at
+    /// the last <c>startxref</c> and follows <c>/Prev</c> backwards, so a later definition of an
+    /// object shadows the earlier one.
+    /// </para>
+    /// <para>
+    /// This is not an optimisation. For a signed document it is the only lawful way to change
+    /// anything: a signature covers a byte range of the file, so rewriting the file invalidates it
+    /// and rewriting is what <see cref="Save(Stream)"/> does. It is also what makes a change
+    /// auditable, since every earlier revision is still there to be recovered.
+    /// </para>
+    /// <para>
+    /// The document has to have been opened with <see cref="PdfDocumentOpenMode.Append"/>. Any
+    /// other mode either renumbers the objects or does not keep the bytes, and both make appending
+    /// impossible.
+    /// </para>
+    /// </remarks>
+    public void SaveIncremental(Stream stream)
+    {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+
+        if (_originalBytes == null)
+            throw new InvalidOperationException(
+                "Only a document opened with PdfDocumentOpenMode.Append can be saved incrementally. "
+                + "Modify renumbers every object, which makes the appended definitions shadow the "
+                + "wrong ones, and a document created from scratch has nothing to append to.");
+
+        // The whole file is written, original bytes and all, so the destination has to be empty.
+        // Handing this the file it was read from is the tempting mistake and the damaging one: the
+        // original is rewritten over itself, the revision is appended, and because nothing truncates,
+        // whatever of the old file ran past the new end survives — including its startxref, which a
+        // reader scanning backwards finds first. The appended revision is then ignored in silence,
+        // signature and all.
+        if (stream.CanSeek && stream.Length != 0)
+            throw new ArgumentException(
+                "An incremental save writes the whole file and so needs an empty stream to write it "
+                + "to. In particular it cannot be given the stream the document was read from: that "
+                + "leaves the tail of the old file beyond the new revision, and a reader looking "
+                + "backwards for the last startxref finds the stale one.", nameof(stream));
+
+        PrepareForSave();
+
+        stream.Write(_originalBytes, 0, _originalBytes.Length);
+
+        var writer = new PdfWriter(stream, _securitySettings?.SecurityHandler);
+        try
+        {
+            var changed = new List<PdfReference>();
+            foreach (var iref in _irefTable.AllReferences)
+            {
+                if (iref.Value != null && (iref.Value.IsDirty || !_originalObjectNumbers.Contains(iref.ObjectNumber)))
+                    changed.Add(iref);
+            }
+
+            foreach (var iref in changed)
+            {
+                iref.Position = writer.Position;
+                iref.Value.WriteObject(writer);
+            }
+
+            var startxref = writer.Position;
+            WriteIncrementalCrossReferenceTable(writer, changed);
+
+            writer.WriteRaw("trailer\n");
+            _trailer.Elements.SetInteger("/Size", _irefTable.MaxObjectNumber + 1);
+
+            // Where the previous revision's cross-reference section begins. Without it a reader
+            // sees only the handful of objects in this revision and nothing else in the document.
+            // The cast is safe because CaptureOriginalBytes refuses a document larger than an array
+            // can hold, so this offset lies inside one; checked so that a future change to that
+            // refusal fails here rather than writing a negative /Prev.
+            _trailer.Elements.SetInteger(PdfTrailer.Keys.Prev, checked((int)_originalStartXref));
+            _trailer.WriteObject(writer);
+            writer.WriteEof(this, startxref);
+        }
+        finally
+        {
+            writer.Stream.Flush();
+        }
+    }
+
+    /// <summary>
+    /// Writes a cross-reference section naming only the objects this revision changed, in runs of
+    /// consecutive object numbers.
+    /// </summary>
+    /// <remarks>
+    /// A classic section is a list of subsections, each headed by its first object number and a
+    /// count. A full save writes one subsection covering everything; an incremental one writes as
+    /// many as the changed numbers fall into runs, because the numbers in between belong to objects
+    /// this revision has not touched and whose earlier entries must go on standing.
+    /// </remarks>
+    void WriteIncrementalCrossReferenceTable(PdfWriter writer, List<PdfReference> changed)
+    {
+        writer.WriteRaw("xref\n");
+
+        var ordered = new List<PdfReference>(changed);
+        ordered.Sort(PdfReference.Comparer);
+
+        var at = 0;
+        while (at < ordered.Count)
+        {
+            var runLength = 1;
+            while (at + runLength < ordered.Count
+                   && ordered[at + runLength].ObjectNumber == ordered[at].ObjectNumber + runLength)
+                runLength++;
+
+            writer.WriteRaw(String.Format("{0} {1}\n", ordered[at].ObjectNumber, runLength));
+            for (var index = at; index < at + runLength; index++)
+            {
+                // Exactly 20 bytes per line, as the classic table demands.
+                writer.WriteRaw(String.Format("{0:0000000000} {1:00000} n \n",
+                    ordered[index].Position, ordered[index].GenerationNumber));
+            }
+
+            at += runLength;
+        }
+    }
+
+    /// <summary>
+    /// Keeps the bytes this document was read from, and the object numbers it was read with, so
+    /// that <see cref="SaveIncremental"/> has something to append to and knows which objects are
+    /// new. Called by the reader for <see cref="PdfDocumentOpenMode.Append"/> and nothing else.
+    /// </summary>
+    internal void CaptureOriginalBytes(Stream stream)
+    {
+        // Appending means holding the original, and an array cannot hold more than this. Said here,
+        // where the reason is visible, rather than left to surface as an OutOfMemoryException from
+        // an array length nobody wrote. It also makes the offsets below provably fit an int, which
+        // is what the /Prev entry and the cross-reference table are written as.
+        if (stream.Length > int.MaxValue)
+            throw new InvalidOperationException(
+                "A document of more than 2 GB cannot be opened with PdfDocumentOpenMode.Append, "
+                + "because appending to it means holding the whole of it in a single array. Open it "
+                + "with Modify and save it afresh, accepting that this invalidates any signature.");
+
+        var position = stream.Position;
+        stream.Position = 0;
+        _originalBytes = new byte[stream.Length];
+        PdfSharpCore.Internal.StreamHelper.ReadUpTo(stream, _originalBytes, 0, _originalBytes.Length);
+        stream.Position = position;
+
+        _originalStartXref = FindLastStartXref(_originalBytes);
+
+        _originalObjectNumbers = new HashSet<int>();
+        foreach (var iref in _irefTable.AllReferences)
+        {
+            _originalObjectNumbers.Add(iref.ObjectNumber);
+
+            // Reading a document mutates plenty of it — the trailer's own IDs, the page tree as it
+            // is flattened — so whatever is dirty at this point is dirty from being read rather
+            // than from being changed, and none of it needs writing again.
+            if (iref.Value != null)
+                iref.Value.IsDirty = false;
+        }
+    }
+
+    /// <summary>
+    /// The offset the last <c>startxref</c> of a file names, which is where a reader of the next
+    /// revision has to be told to look for the one before it.
+    /// </summary>
+    static long FindLastStartXref(byte[] bytes)
+    {
+        var marker = "startxref";
+        var text = PdfEncoders.RawEncoding.GetString(bytes, Math.Max(0, bytes.Length - 2048),
+            Math.Min(2048, bytes.Length));
+
+        var at = text.LastIndexOf(marker, StringComparison.Ordinal);
+        if (at < 0)
+            throw new InvalidOperationException(
+                "The document has no startxref, so there is no previous revision to point back at.");
+
+        var digits = new StringBuilder();
+        for (var index = at + marker.Length; index < text.Length; index++)
+        {
+            var ch = text[index];
+            if (ch >= '0' && ch <= '9')
+                digits.Append(ch);
+            else if (digits.Length > 0)
+                break;
+        }
+
+        return long.Parse(digits.ToString());
+    }
+
+    byte[] _originalBytes;
+    long _originalStartXref;
+    HashSet<int> _originalObjectNumbers;
+
+    /// <summary>
+    /// Whether this document has the original bytes <see cref="SaveIncremental"/> needs, which is
+    /// true of a document opened with <see cref="PdfDocumentOpenMode.Append"/> and of nothing else.
+    /// </summary>
+    internal bool CanSaveIncremental => _originalBytes != null;
+
+    /// <summary>
+    /// How many bytes an incremental save copies through before anything of its own — so the offset
+    /// in the written file at which this revision begins.
+    /// </summary>
+    internal int OriginalByteCount => _originalBytes?.Length ?? 0;
+
+    /// <summary>
     /// Implements saving a PDF file.
     /// </summary>
     void DoSave(PdfWriter writer)
@@ -359,21 +566,37 @@ public sealed class PdfDocument : PdfObject, IDisposable
             if (encrypt)
                 _securitySettings.SecurityHandler.PrepareEncryption();
 
-            writer.WriteFileHeader(this);
-            PdfReference[] irefs = _irefTable.AllReferences;
-            int count = irefs.Length;
-            for (int idx = 0; idx < count; idx++)
+            if (Options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
             {
-                PdfReference iref = irefs[idx];
-                iref.Position = writer.Position;
-                iref.Value.WriteObject(writer);
+                // A cross-reference stream is a PDF 1.5 construct, so a file that has one may not
+                // announce itself as anything earlier. Set the field rather than the property: the
+                // property refuses a document that cannot be modified, and by here the decision to
+                // write has already been taken.
+                if (_version < 15)
+                    _version = 15;
+
+                writer.WriteFileHeader(this);
+                var startxref = PdfCrossReferenceStreamWriter.WriteBody(this, writer);
+                writer.WriteEof(this, startxref);
             }
-            var startxref = writer.Position;
-            _irefTable.WriteObject(writer);
-            writer.WriteRaw("trailer\n");
-            _trailer.Elements.SetInteger("/Size", count + 1);
-            _trailer.WriteObject(writer);
-            writer.WriteEof(this, startxref);
+            else
+            {
+                writer.WriteFileHeader(this);
+                PdfReference[] irefs = _irefTable.AllReferences;
+                int count = irefs.Length;
+                for (int idx = 0; idx < count; idx++)
+                {
+                    PdfReference iref = irefs[idx];
+                    iref.Position = writer.Position;
+                    iref.Value.WriteObject(writer);
+                }
+                var startxref = writer.Position;
+                _irefTable.WriteObject(writer);
+                writer.WriteRaw("trailer\n");
+                _trailer.Elements.SetInteger("/Size", count + 1);
+                _trailer.WriteObject(writer);
+                writer.WriteEof(this, startxref);
+            }
 
             //if (encrypt)
             //{
@@ -442,6 +665,24 @@ public sealed class PdfDocument : PdfObject, IDisposable
         // Let catalog do the rest.
         Catalog.PrepareForSave();
 
+        // Before the metadata, because a document that is tagged says so in its XMP as well as in
+        // its catalog, and before Compact, because the tree's objects reach the catalog only once
+        // this has hung them there.
+        if (IsTagged)
+            Structure.PrepareForSave();
+
+        // After the information dictionary is settled and before anything is compacted away: the
+        // XMP packet is built from that dictionary and has to agree with it, and the objects it
+        // adds are reachable from the catalog, so Compact leaves them alone.
+        Metadata.PdfConformanceWriter.PrepareForSave(this);
+
+        // Neither of these may happen on the way to an incremental save. Renumbering would make
+        // every appended definition shadow the wrong object, and compacting would drop objects that
+        // are still in the file being appended to — losing track of numbers that remain taken
+        // rather than freeing them.
+        if (_originalBytes != null)
+            return;
+
         // Remove all unreachable objects (e.g. from deleted pages)
         int removed = _irefTable.Compact();
         if (removed != 0)
@@ -501,6 +742,35 @@ public sealed class PdfDocument : PdfObject, IDisposable
     {
         get { return false; }
     }
+
+    /// <summary>
+    /// Gets or sets a hook called with the XMP metadata packet just before it is written, for
+    /// anything the built-in schemas do not cover.
+    /// </summary>
+    /// <remarks>
+    /// The packet is built from the information dictionary at save time rather than kept beside it,
+    /// so that the two cannot drift apart and have a validator notice. That leaves nowhere for a
+    /// caller to reach it, which is what this is for: a PDF/UA identifier, a ZUGFeRD extension
+    /// schema, or a namespace nobody has thought of, added through
+    /// <see cref="Metadata.XmpMetadata.AdditionalDescriptions"/>.
+    /// </remarks>
+    public Action<Metadata.XmpMetadata> CustomizeMetadata { get; set; }
+
+    /// <summary>
+    /// Gets the structure tree of this document, creating it on first use.
+    /// </summary>
+    /// <remarks>
+    /// Asking for this is what makes a document tagged. A document that never does is written
+    /// exactly as it was before — no structure tree, no <c>/MarkInfo</c>, and not one extra byte.
+    /// </remarks>
+    public Structure.PdfStructureBuilder Structure => _structure ??= new Structure.PdfStructureBuilder(this);
+    Structure.PdfStructureBuilder _structure;
+
+    /// <summary>
+    /// Gets a value indicating whether anything has been tagged, without creating a structure tree
+    /// by asking.
+    /// </summary>
+    internal bool IsTagged => _structure != null;
 
     /// <summary>
     /// Gets or sets the PDF version number. Return value 14 e.g. means PDF 1.4 / Acrobat 5 etc.
@@ -587,7 +857,11 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// </summary>
     public bool IsReadOnly
     {
-        get { return (_openMode != PdfDocumentOpenMode.Modify); }
+        get
+        {
+            return _openMode != PdfDocumentOpenMode.Modify
+                   && _openMode != PdfDocumentOpenMode.Append;
+        }
     }
 
     internal Exception DocumentNotImported()

@@ -12,6 +12,7 @@
   <Project Path="PdfSharpCore.Charting/PdfSharpCore.Charting.csproj" />
   <Project Path="PdfSharpCore.Charting.Tests/PdfSharpCore.Charting.Tests.csproj" />
   <Project Path="PdfSharpCore.ImageSharp/PdfSharpCore.ImageSharp.csproj" />
+  <Project Path="PdfSharpCore.Signing/PdfSharpCore.Signing.csproj" />
   <Project Path="PdfSharpCore.Skia/PdfSharpCore.Skia.csproj" />
   <Project Path="PdfSharpCore.Test/PdfSharpCore.Test.csproj" />
   <Project Path="PdfSharpCore/PdfSharpCore.csproj" />

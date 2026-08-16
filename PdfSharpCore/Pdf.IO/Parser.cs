@@ -1165,6 +1165,12 @@ internal sealed class Parser
         PdfObjectID objectID = new PdfObjectID(objectNumber);
         _lexer.Position = offset;
         PdfObject obj = ReadObject(null, objectID, false, true);
+
+        // Remember where it came from, so that decrypting the document afterwards knows to leave
+        // this object's strings alone: the object stream it was in was decrypted as a whole, and
+        // the strings inside it were never separately encrypted.
+        obj.IsFromObjectStream = true;
+
         return obj.Reference;
     }
 

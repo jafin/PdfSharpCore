@@ -300,7 +300,7 @@ internal class PdfWriter
     public void WriteBeginObject(PdfObject obj)
     {
         bool indirect = obj.IsIndirect;
-        if (indirect)
+        if (indirect && !_omitIndirectFraming)
         {
             WriteObjectAddress(obj);
             if (_securityHandler != null)
@@ -378,7 +378,7 @@ internal class PdfWriter
                 _lastCat = CharCat.NewLine;
             }
         }
-        if (indirect)
+        if (indirect && !_omitIndirectFraming)
         {
             NewLine();
             WriteRaw("endobj\n");
@@ -386,6 +386,30 @@ internal class PdfWriter
                 WriteRaw("%--------------------------------------------------------------------------------------------------\n");
         }
     }
+
+    /// <summary>
+    /// Gets or sets a value indicating that an indirect object is written without the
+    /// "<c>N G obj</c>" and "<c>endobj</c>" that normally frame it — its body alone, and nothing
+    /// saying whose body it is.
+    /// <para>
+    /// That is what an object stream holds: the bodies run together and a table at the front says
+    /// where each one starts, so the framing would be worse than redundant. It is the only reason
+    /// this exists, and a writer in this mode must not be used for anything else, because the
+    /// result is not a PDF file.
+    /// </para>
+    /// <para>
+    /// The address is not all that is skipped. <see cref="WriteBeginObject"/> also sets the
+    /// encryption hash key from the object's ID, and inside an object stream it must not: strings
+    /// there are covered by the encryption of the containing stream and are not encrypted again.
+    /// A writer built for this is given no security handler at all, so this is belt and braces.
+    /// </para>
+    /// </summary>
+    internal bool OmitIndirectFraming
+    {
+        get => _omitIndirectFraming;
+        set => _omitIndirectFraming = value;
+    }
+    bool _omitIndirectFraming;
 
     /// <summary>
     /// Writes the stream of the specified dictionary.
@@ -486,7 +510,14 @@ internal class PdfWriter
         WriteRaw(startxref.ToString(CultureInfo.InvariantCulture));
         WriteRaw("\n%%EOF\n");
         var fileSize = _stream.Position;
-        if (_layout == PdfWriterLayout.Verbose)
+
+        // Only when this writer wrote the header those comments live in. Patching them means
+        // seeking backwards to a position the header recorded, and a writer that never wrote one
+        // has no such position — an incremental save appends to a file it did not write, and
+        // patching there scribbles over the start of somebody else's document. Verbose is the
+        // default in a debug build, so this would only ever have gone wrong where it is hardest to
+        // credit: in development, and never in release.
+        if (_layout == PdfWriterLayout.Verbose && _commentPosition >= 0)
         {
             TimeSpan duration = DateTime.Now - document._creation;
 
@@ -632,5 +663,8 @@ internal class PdfWriter
     }
 
     readonly List<StackItem> _stack = new();
-    int _commentPosition;
+    /// <summary>
+    /// Where the header comments this writer wrote begin, or -1 when it wrote none.
+    /// </summary>
+    int _commentPosition = -1;
 }
