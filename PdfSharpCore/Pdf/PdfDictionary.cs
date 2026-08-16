@@ -194,7 +194,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         if (_stream != null)
             Debug.Assert(Elements.ContainsKey(PdfStream.Keys.Length), "Dictionary has a stream but no length is set.");
 
-        // Sort keys for diffing purposes. Comparing PDF files with for example programms like
+        // Sort keys for diffing purposes. Comparing PDF files with for example programs like
         // Araxis Merge is easier with sorted keys.
         if (writer.Layout == PdfWriterLayout.Verbose)
         {
@@ -1258,12 +1258,16 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
 
-                if (value is PdfDictionary dictionary && dictionary._stream != null)
-                    throw new ArgumentException("A dictionary with stream cannot be a direct value.");
-
+                // An indirect object is stored as its reference and so is never a direct value:
+                // it has to be replaced before asking whether what is left can be one. Asking
+                // first rejected an indirect stream - a content stream, an image - that the
+                // this[string] overload beside this one stores without complaint.
                 PdfObject obj = value as PdfObject;
                 if (obj != null && obj.IsIndirect)
                     value = obj.Reference;
+                else if (value is PdfDictionary dictionary && dictionary._stream != null)
+                    throw new ArgumentException("A dictionary with stream cannot be a direct value.");
+
                 _elements[key.Value] = value;
                 PdfObject.Contain(value, _ownerDictionary);
                 MarkOwnerAsChanged();
