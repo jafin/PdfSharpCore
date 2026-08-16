@@ -11,6 +11,7 @@ Gap **G7** of the competitive gap analysis.
 | 4 | `PdfTextExtractor.ExtractText` — the page as a string | done |
 | 5 | Per-glyph bounding boxes | not done, **deliberately** |
 | 6 | Layout analysis — columns, blocks, reading order | not done, **deliberately** |
+| 7 | `bfrange` in both forms, and multi-unit destinations | done |
 
 Covered by `PdfSharpCore.Test/IO/TextExtractionTests.cs`.
 
@@ -72,6 +73,20 @@ code length as well as the value.
 asking what the page says rarely wants it twice. This is a decision the class makes and does not yet
 expose; the day somebody needs it, it becomes an option.
 
+**A `/ToUnicode` destination is a string, not a scalar.** Reading it as one number and converting
+with `char.ConvertFromUtf32` throws for anything longer than a single code unit — `<00660069>`, the
+ligature "fi", reads as 6684777 — and the exception came out of *extraction* rather than out of the
+map, taking the whole page with it. The destination is kept as text, and the increment across a range
+applies to its last code unit, as the specification says.
+
+**The array form of `bfrange` is read, and it had to be.** `<lo> <hi> [<d1> <d2> …]` gives one
+destination per code rather than an arithmetic run. This note used to say the form was not read and
+that the codes it covered came back unmapped; that was wrong twice over. Collecting every hexadecimal
+string in the block and stepping through them three at a time does not skip an array — it swallows
+the array's elements into the same stream and shifts the stride by as many as it holds, so every
+later entry in the block mapped the wrong codes to the wrong text. Wrong text is worse than absent
+text, which is the argument this note was making in favour of a behaviour it did not have.
+
 **`CSequence` may not be iterated with `foreach`.** It implements `IEnumerable<CObject>` and its
 generic enumerator throws `NotImplementedException`, so a `foreach` over one compiles and fails at
 run time. Index it. The pre-existing `PdfSharpCore.Test/Helpers/TextOperators.cs` had already worked
@@ -86,8 +101,6 @@ around this; the workaround is now explained where the next person will hit it.
 - **`/Encoding` with `/Differences`.** A simple font with no `/ToUnicode` falls back to reading its
   codes as Latin-1, which is right for the standard encodings over the range that matters and wrong
   for a font that remaps its glyphs by name. Doing it properly needs the Adobe glyph list.
-- **The array form of `bfrange`.** `<lo> <hi> [<d1> <d2> …]`, one destination per code rather than an
-  arithmetic run. Codes it covers come back unmapped rather than wrongly mapped.
 - **Extracting from a form XObject.** Only the page's own content stream is walked; text inside a
   `Do`-invoked form is not followed into.
 - **Vertical writing mode.** The advance is applied along X unconditionally.

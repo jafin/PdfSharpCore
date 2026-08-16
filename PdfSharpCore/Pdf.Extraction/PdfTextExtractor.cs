@@ -208,10 +208,13 @@ public static class PdfTextExtractor
 
                 case OpCodeName.QuoteDbl:
                     // " sets word and character spacing before showing, and moves to the next line.
+                    // Its operands are aw ac string, and the string starts at index 2 — showing from
+                    // zero would read the two spacing numbers as though they were the kerning
+                    // adjustments of a TJ array and displace every run after this one.
                     _wordSpacing = Number(op, 0);
                     _charSpacing = Number(op, 1);
                     Displace(0, -_leading);
-                    Show(op.Operands);
+                    Show(op.Operands, 2);
                     break;
             }
         }
@@ -232,7 +235,7 @@ public static class PdfTextExtractor
         /// <summary>
         /// Shows a string, or the mixture of strings and kerning adjustments a <c>TJ</c> array is.
         /// </summary>
-        void Show(CSequence operands)
+        void Show(CSequence operands, int from = 0)
         {
             // Text render mode 3 is invisible — the OCR layer under a scan is drawn that way, and a
             // caller asking what the page says usually does not want it twice. It is skipped rather
@@ -245,7 +248,7 @@ public static class PdfTextExtractor
             var advance = 0.0;
             var origin = OriginOfCurrentPoint();
 
-            for (var index = 0; index < operands.Count; index++)
+            for (var index = from; index < operands.Count; index++)
             {
                 switch (operands[index])
                 {
@@ -265,8 +268,15 @@ public static class PdfTextExtractor
 
             if (text.Length > 0)
             {
-                Runs.Add(new PdfTextRun(text.ToString(), origin, advance * ScaleOf(_textMatrix),
-                    _fontSize * ScaleOf(Multiply(_textMatrix, _ctm)), _fontName));
+                // Both the width and the size are measured through the same matrix, and they have to
+                // be: the run is reported in user space, so leaving the current transformation out
+                // of one of them makes a run under a scaled container report a width in text space
+                // and a size in user space, which disagree with each other and with the documented
+                // contract. A test that only translates cannot see it, because a translation scales
+                // by one.
+                var scale = ScaleOf(Multiply(_textMatrix, _ctm));
+                Runs.Add(new PdfTextRun(text.ToString(), origin, advance * scale,
+                    _fontSize * scale, _fontName));
             }
 
             _textMatrix = Multiply(new XMatrix(1, 0, 0, 1, advance, 0), _textMatrix);

@@ -1,11 +1,13 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Extraction;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 // This namespace has a PdfReader of its own, so the one that opens documents needs saying in full.
@@ -174,6 +176,70 @@ public class TextExtractionTests
     }
 
     [Fact]
+    public void ARunUnderAScaledTransformIsAsWideAsItLooks()
+    {
+        // The width and the size have to be measured through the same matrix. Measuring the width
+        // through the text matrix alone leaves the run reported in text space while its size is
+        // reported in user space, and a test that only translates cannot tell, because translating
+        // scales by one.
+        var page = Reopen(Draw(gfx =>
+        {
+            gfx.ScaleTransform(2);
+            gfx.DrawString("Wide", Font, XBrushes.Black, 20, 50);
+        }));
+
+        var run = PdfTextExtractor.ExtractRuns(page).Single();
+        var unscaled = Measure("Wide");
+
+        run.FontSize.Should().BeApproximately(24, 0.5);
+        run.Width.Should().BeApproximately(unscaled * 2, unscaled * 0.1);
+    }
+
+    [Fact]
+    public void ADestinationOfMoreThanOneCharacterDoesNotAbortExtraction()
+    {
+        // A /ToUnicode destination is a string of UTF-16 code units, not a scalar. Reading it as one
+        // number and converting threw for anything longer than a single unit — a ligature such as
+        // <00660069> for "fi" reads as 6684777 — and the exception came out of extraction rather
+        // than out of the map, taking the whole page with it.
+        var page = Reopen(WithToUnicode(Draw(gfx => gfx.DrawString("Hello", Font, XBrushes.Black, 40, 100)),
+            cmap => cmap + "\n1 beginbfrange\n<F000> <F001> <00660069>\nendbfrange\n"));
+
+        PdfTextExtractor.ExtractText(page).Should().Be("Hello");
+    }
+
+    [Fact]
+    public void AnArrayOfDestinationsDoesNotShiftTheEntriesAfterIt()
+    {
+        // The array form — <lo> <hi> [<d1> <d2> …] — was documented as not read. It was not skipped
+        // either: collecting every hexadecimal string in the block and stepping through them three
+        // at a time swallows the array's elements into the same stream and shifts everything after
+        // it, so the real entries below map the wrong codes to the wrong text.
+        var page = Reopen(WithToUnicode(Draw(gfx => gfx.DrawString("Hello", Font, XBrushes.Black, 40, 100)),
+            // Matched without a line break, because the CMap is written with StreamWriter.WriteLine
+            // and so carries whatever newline the machine that wrote it uses. Matching "\n" made
+            // this pass by doing nothing on Windows.
+            cmap => cmap.Replace("beginbfrange", "beginbfrange\n<F000> <F002> [<0041> <0042> <0043>]")));
+
+        PdfTextExtractor.ExtractText(page).Should().Be("Hello");
+    }
+
+    [Fact]
+    public void TheSpacingOperandsOfAQuotedShowAreNotReadAsKerning()
+    {
+        // " takes aw ac string. Showing from operand zero reads the two spacing numbers as though
+        // they were the kerning adjustments of a TJ array, so they are applied twice — once as the
+        // spacing they are, and once as a displacement they are not.
+        var page = Reopen(WithTwoShows());
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        // The same string, the same spacing, shown two ways. Whatever the number is, it is the same
+        // number.
+        runs[runs.Count - 1].Width.Should().BeApproximately(runs[runs.Count - 2].Width, 0.01);
+    }
+
+    [Fact]
     public void ExtractingFromNothingIsRefusedRatherThanReturningNothing()
     {
         var extracting = () => PdfTextExtractor.ExtractRuns(null);
@@ -210,5 +276,71 @@ public class TextExtractionTests
     {
         var saved = new MemoryStream(bytes);
         return Reader.Open(saved, PdfDocumentOpenMode.Modify).Pages[0];
+    }
+
+    /// <summary>
+    ///   Rewrites the font's <c>/ToUnicode</c> map, so that a CMap this library would never write
+    ///   can still be put in front of the reader that has to cope with one.
+    /// </summary>
+    private static byte[] WithToUnicode(byte[] bytes, Func<string, string> rewrite)
+    {
+        var document = Reader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Modify);
+        var map = FontOf(document.Pages[0]).Elements.GetDictionary("/ToUnicode");
+
+        map.Stream.TryUnfilter();
+        var original = Encoding.Latin1.GetString(map.Stream.Value);
+        var replaced = Encoding.Latin1.GetBytes(rewrite(original));
+
+        // So that a rewrite matching nothing fails here rather than leaving a test that passes
+        // because it tested nothing.
+        Encoding.Latin1.GetString(replaced).Should().NotBe(original,
+            "the rewrite has to have changed the map for the test to be testing anything");
+
+        map.Stream.Value = replaced;
+        map.Elements.Remove("/Filter");
+        map.Elements.SetInteger("/Length", replaced.Length);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        return output.ToArray();
+    }
+
+    /// <summary>
+    ///   A page showing the same string twice with the same spacing, once through <c>Tj</c> with the
+    ///   spacing set by <c>Tw</c> and <c>Tc</c>, and once through <c>"</c>, which carries it.
+    /// </summary>
+    private static byte[] WithTwoShows()
+    {
+        var document = Reader.Open(new MemoryStream(
+            Draw(gfx => gfx.DrawString("Quoted", Font, XBrushes.Black, 40, 100))), PdfDocumentOpenMode.Modify);
+
+        var page = document.Pages[0];
+        var content = Encoding.Latin1.GetString(PageContent.Of(page));
+
+        var font = page.Elements.GetDictionary("/Resources").Elements.GetDictionary("/Font")
+            .Elements.KeyNames[0].Value;
+        var shown = content.Substring(content.IndexOf('<') + 1,
+            content.IndexOf('>') - content.IndexOf('<') - 1);
+
+        // Spacing large enough that reading it twice cannot be mistaken for rounding.
+        var added = content
+            + "\nBT " + font + " 12 Tf 0 Tw -3000 Tc 1 0 0 1 40 700 Tm <" + shown + "> Tj ET\n"
+            + "BT " + font + " 12 Tf 1 0 0 1 40 650 Tm 0 -3000 <" + shown + "> \" ET\n";
+
+        var bytes = Encoding.Latin1.GetBytes(added);
+        var stream = (PdfDictionary)page.Elements.GetValue("/Contents");
+        stream.Stream.Value = bytes;
+        stream.Elements.Remove("/Filter");
+        stream.Elements.SetInteger("/Length", bytes.Length);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        return output.ToArray();
+    }
+
+    private static PdfDictionary FontOf(PdfPage page)
+    {
+        var fonts = page.Elements.GetDictionary("/Resources").Elements.GetDictionary("/Font");
+        return fonts.Elements.GetDictionary(fonts.Elements.KeyNames[0].Value);
     }
 }
