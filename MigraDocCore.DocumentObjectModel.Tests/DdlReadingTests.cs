@@ -363,6 +363,50 @@ public class DdlReadingTests
     }
 
     /// <summary>
+    ///   What a parser error says. Until <c>DomSR.GetString</c> was fixed this read
+    ///   <c>&lt;&lt;&lt;error: message not found&gt;&gt;&gt;</c> - the lookup asked for public
+    ///   instance properties and the generated resources are internal statics, so every message
+    ///   the DOM can raise came back empty. <c>ErrorMessageResourceTests</c> pins the lookup and
+    ///   the formatting; this pins the thing a person reading a broken file is actually shown.
+    /// </summary>
+    [Fact]
+    public void AParserErrorSaysWhatIsWrongRatherThanThatItHasNothingToSay()
+    {
+        var act = () => Read("\\document{\\section{\\cell{stray}}}");
+
+        act.Should().Throw<Exception>().WithMessage("End of file expected.");
+    }
+
+    /// <summary>
+    ///   A known defect, pinned so that fixing it is visible rather than silent, and the same
+    ///   non-return as the truncated files above reached from somewhere much more ordinary.
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///   Neither of these files is truncated. Both are complete, both are balanced, and each has
+    ///   one small thing wrong with it - an enum value that is not one of the enum's, and a
+    ///   missing right bracket on an attribute block. Both hang the reader for good, so a typo in
+    ///   a hand-written .mdddl file costs the calling thread rather than producing an error.
+    ///   </para>
+    ///   <para>
+    ///   Worth separating from the truncation case: that one at least needs a damaged file, and
+    ///   the reader stopping on one is defensible if unhelpful. This one needs only a spelling
+    ///   mistake, and the reader has the whole file in front of it.
+    ///   </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("\\document{\\section[PageSetup{PageFormat = NoSuchFormat}]{\\paragraph{t}}}")]
+    [InlineData("\\document[Info{Title = \"x\"]{\\section{\\paragraph{t}}}")]
+    public async Task AWholeFileWithOneThingWrongInItIsNeverFinishedWithEither(string ddl)
+    {
+        var reading = Task.Run(() => DdlReader.ObjectFromString(ddl, new DdlReaderErrors()));
+
+        var finished = await Task.WhenAny(reading, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        finished.Should().NotBeSameAs(reading, "the reader does not come back from either of these");
+    }
+
+    /// <summary>
     ///   A known defect, pinned so that fixing it is visible rather than silent.
     /// </summary>
     /// <remarks>
@@ -418,14 +462,19 @@ public class DdlReadingTests
     }
 
     /// <summary>
-    ///   An attribute the model has no property for is discarded without a word: no exception, and
-    ///   nothing in the error list either. A misspelt attribute name in a hand-written file is
-    ///   therefore invisible - the document reads, and the setting it was meant to carry is gone.
-    ///   Recorded rather than argued with, because a reader that tolerates what it does not
-    ///   understand is a defensible choice; being silent about it is the part worth knowing.
+    ///   An attribute the model has no property for is discarded, and the reader says so. The
+    ///   document still reads - a reader that tolerates what it does not understand is a
+    ///   defensible choice - but the caller is told which name was dropped, so a misspelt
+    ///   attribute in a hand-written file is findable rather than invisible.
     /// </summary>
+    /// <remarks>
+    ///   This test used to assert the opposite, and was right about what it saw. The parser
+    ///   reported the dropped attribute all along; <c>DdlReader.ObjectFromString(string,
+    ///   DdlReaderErrors)</c> built its reader without the error list it had been handed, so
+    ///   nothing the parser wrote there could reach the caller. See the backlog spec's finding F7.
+    /// </remarks>
     [Fact]
-    public void AnAttributeThatNamesNothingIsDiscardedWithoutAWord()
+    public void AnAttributeThatNamesNothingIsDiscardedAndTheReaderSaysSo()
     {
         var errors = new DdlReaderErrors();
 
@@ -433,6 +482,7 @@ public class DdlReadingTests
             "\\document{\\section[PageSetup{NoSuchThing = 3}]{\\paragraph{t}}}", errors);
 
         read.Should().NotBeNull("the document still reads");
-        errors.ErrorCount.Should().Be(0, "and nothing says the setting was dropped");
+        errors.ErrorCount.Should().Be(1, "and the name that was dropped is reported");
+        errors[0].ErrorMessage.Should().Contain("NoSuchThing");
     }
 }
