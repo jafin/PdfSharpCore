@@ -108,7 +108,9 @@ public class ImageHelper
       length--;
       if (Char.IsDigit(path, length))
       {
-        while (Char.IsDigit(path, length) && length >= 0)
+        // Bound first: the old order asked whether path[-1] was a digit when every character
+        // was one, and Char.IsDigit threw rather than the loop ending. Duplicated in XPdfForm.
+        while (length >= 0 && Char.IsDigit(path, length))
           length--;
         if (length > 0 && path[length] == '#')
         {
