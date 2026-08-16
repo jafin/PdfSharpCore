@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -240,7 +241,8 @@ public class AcroFormFieldKindTests
         field.SelectedIndex = 1;
 
         field.SelectedIndex.Should().Be(1);
-        field.Elements.GetInteger("/I").Should().Be(1, "a viewer reads /I rather than searching /Opt");
+        SelectedIndicesOf(field).Should().Equal(new[] { 1 },
+            "a viewer reads /I rather than searching /Opt");
     }
 
     [Fact]
@@ -254,6 +256,74 @@ public class AcroFormFieldKindTests
 
         tooHigh.Should().Throw<ArgumentOutOfRangeException>();
         negative.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>
+    ///   <c>/I</c> was written as a bare integer, which the specification does not allow and which
+    ///   <see cref="PdfChoiceField.Keys.I"/> does not claim either - its key metadata declares
+    ///   <c>KeyType.Array</c>, so the code and the declaration beside it disagreed. A reader that
+    ///   takes the key at its word gets an array and finds a number.
+    /// </summary>
+    [Fact]
+    public void TheIndexOfTheChosenOptionIsWrittenAsAnArray()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndex = 2;
+
+        field.Elements[PdfChoiceField.Keys.I].Should().BeOfType<PdfArray>()
+            .Which.Elements.Count.Should().Be(1, "a combo box offers a single choice");
+        SelectedIndicesOf(field).Should().Equal(new[] { 2 });
+    }
+
+    /// <summary>
+    ///   The shape in the file is what matters, an integer and an array of one being different
+    ///   bytes, so this one goes all the way out to a document and back rather than reading the
+    ///   dictionary it was just written into.
+    /// </summary>
+    [Fact]
+    public void TheIndexIsStillAnArrayAfterARoundTrip()
+    {
+        var document = FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+        });
+        ((PdfComboBoxField)document.AcroForm.Fields["county"]).SelectedIndex = 2;
+
+        using var written = new MemoryStream();
+        document.Save(written, false);
+        written.Position = 0;
+        // Fully qualified: this test assembly has a PdfReader of its own.
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(written, PdfSharpCore.Pdf.IO.PdfDocumentOpenMode.Modify);
+
+        var field = (PdfComboBoxField)reopened.AcroForm.Fields["county"];
+        field.Elements[PdfChoiceField.Keys.I].Should().BeOfType<PdfArray>();
+        SelectedIndicesOf(field).Should().Equal(new[] { 2 });
+        field.SelectedIndex.Should().Be(2, "/V and /I still agree");
+    }
+
+    /// <summary>
+    ///   Choosing twice replaces the entry rather than growing it, so a field cannot end up
+    ///   claiming two options are chosen at once.
+    /// </summary>
+    [Fact]
+    public void ChoosingASecondOptionReplacesTheIndexRatherThanAddingToIt()
+    {
+        var field = (PdfComboBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.Combo);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndex = 0;
+        field.SelectedIndex = 2;
+
+        SelectedIndicesOf(field).Should().Equal(new[] { 2 });
     }
 
     [Fact]
@@ -301,7 +371,8 @@ public class AcroFormFieldKindTests
 
         OptionsOf(field).Should().Equal("Kent", "Sussex", "Middlesex");
         field.SelectedIndex.Should().Be(2);
-        field.Elements.GetInteger("/I").Should().Be(2, "a viewer reads /I rather than searching /Opt");
+        SelectedIndicesOf(field).Should().Equal(new[] { 2 },
+            "a viewer reads /I rather than searching /Opt");
     }
 
     [Fact]
@@ -358,7 +429,7 @@ public class AcroFormFieldKindTests
         OptionsOf(field).Should().Equal(new[] { "Kent", "Sussex", "Middlesex" });
         field.Value.Should().BeOfType<PdfString>().Which.Value.Should().Be("Middlesex");
         field.SelectedIndex.Should().Be(2);
-        field.Elements.GetInteger("/I").Should().Be(2);
+        SelectedIndicesOf(field).Should().Equal(new[] { 2 });
     }
 
     [Fact]
@@ -387,6 +458,21 @@ public class AcroFormFieldKindTests
         var act = () => field.Value = new PdfSharpCore.Pdf.PdfInteger(3);
 
         act.Should().Throw<NotImplementedException>();
+    }
+
+    /// <summary>
+    ///   The indices in <c>/I</c>. It is an array - of the options selected, sorted ascending -
+    ///   which is what both the specification and this field's own key metadata say, so reading it
+    ///   as one is what says it was written as one.
+    /// </summary>
+    static List<int> SelectedIndicesOf(PdfAcroField field)
+    {
+        var indices = new List<int>();
+        var entry = field.Elements.GetArray(PdfChoiceField.Keys.I);
+        if (entry != null)
+            foreach (var item in entry.Elements)
+                indices.Add(((PdfSharpCore.Pdf.PdfInteger)item).Value);
+        return indices;
     }
 
     static List<string> OptionsOf(PdfAcroField field)
