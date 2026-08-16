@@ -136,15 +136,24 @@ public class ChartCloneAndLineFormatTests
             .Should().Contain("1,0,0");
     }
 
+    /// <summary>
+    ///   Asking for gridlines is what draws them; the format only says how. A format that states
+    ///   nothing still gets a line, at the renderer's own default width rather than at nothing and
+    ///   rather than at a width it was never given.
+    /// </summary>
     [Fact]
-    public void AGridlineFormatThatStatesNothingAtAllDrawsNoGridline()
+    public void AGridlineFormatThatStatesNothingIsDrawnAtADefaultWidthRatherThanAStatedOne()
     {
         var stated = AChartWithGridlines(4);
         var silent = Charts.Of(ChartType.Column2D, 1.0, 2.0, 3.0);
         silent.YAxis.HasMajorGridlines = true;
+        var none = Charts.Of(ChartType.Column2D, 1.0, 2.0, 3.0);
 
         StrokeWidthsOf(stated).Should().Contain(width => System.Math.Abs(width - 4) < 1e-4);
-        StrokeWidthsOf(silent).Should().NotContain(width => System.Math.Abs(width - 4) < 1e-4);
+        StrokeWidthsOf(silent).Should().NotContain(width => System.Math.Abs(width - 4) < 1e-4,
+            "the width belongs to the chart that stated it and to no other");
+        StrokeWidthsOf(silent).Length.Should().BeGreaterThan(StrokeWidthsOf(none).Length,
+            "a silent format is still a gridline - it is HasMajorGridlines that decides");
     }
 
     [Fact]

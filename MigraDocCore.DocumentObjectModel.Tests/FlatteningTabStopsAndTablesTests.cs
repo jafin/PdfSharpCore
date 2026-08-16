@@ -45,7 +45,7 @@ public class FlatteningTabStopsAndTablesTests
 
         Flattened(document);
 
-        PositionsOf(paragraph.Format.TabStops).Should().BeEquivalentTo(new[] { 2.0, 4.0 });
+        PositionsOf(paragraph.Format.TabStops).Should().Equal(2.0, 4.0);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class FlatteningTabStopsAndTablesTests
 
         Flattened(document);
 
-        PositionsOf(paragraph.Format.TabStops).Should().BeEquivalentTo(new[] { 2.0, 4.0, 6.0 });
+        PositionsOf(paragraph.Format.TabStops).Should().Equal(2.0, 4.0, 6.0);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class FlatteningTabStopsAndTablesTests
 
         Flattened(document);
 
-        PositionsOf(paragraph.Format.TabStops).Should().BeEquivalentTo(new[] { 4.0 }, "the cancelled one is gone, not merely marked");
+        PositionsOf(paragraph.Format.TabStops).Should().Equal(new[] { 4.0 }, "the cancelled one is gone, not merely marked");
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class FlatteningTabStopsAndTablesTests
 
         Flattened(document);
 
-        PositionsOf(paragraph.Format.TabStops).Should().BeEquivalentTo(new[] { 9.0 });
+        PositionsOf(paragraph.Format.TabStops).Should().Equal(9.0);
     }
 
     [Fact]
@@ -298,8 +298,16 @@ public class FlatteningTabStopsAndTablesTests
         var flatten = () => RtfFlattened(document);
 
         flatten.Should().NotThrow();
-        FormattedTextOf(document.LastSection.Elements[0] as Paragraph)
-            .Font.Should().NotBeNull();
+
+        // Not merely that there is a font: FormattedText.Font makes one on being asked, so a
+        // fallback that did nothing at all would still leave a font there. InvalidStyleName is
+        // bold, dash-underlined and bright green precisely so that it cannot be mistaken for
+        // anything a document meant, and that is what has to have arrived.
+        var invalid = document.Styles[StyleNames.InvalidStyleName].Font;
+        var font = FormattedTextOf(document.LastSection.Elements[0] as Paragraph).Font;
+        font.Bold.Should().Be(invalid.Bold).And.Be(true);
+        font.Underline.Should().Be(invalid.Underline);
+        font.Color.Should().Be(invalid.Color);
     }
 
     [Fact]

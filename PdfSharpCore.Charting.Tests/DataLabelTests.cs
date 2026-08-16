@@ -335,8 +335,13 @@ public class DataLabelTests
         chart.SeriesCollection[0].AddBlank();
         chart.HasDataLabel = true;
 
-        var draw = () => Drawn.Page(chart);
+        var draw = () => ShownText.RunsOn(Drawn.Page(chart));
 
-        draw.Should().NotThrow();
+        // Drawing without throwing is half of it. The other half is that the points either side
+        // of the blank are still labelled: a renderer that gave up at the blank would also not
+        // throw, and would leave the chart with fewer labels than it has values.
+        var labels = draw.Should().NotThrow().Subject;
+        labels.Select(run => run.Text).Should().Contain(new[] { "10", "20", "30" },
+            "the blank is skipped, not the points around it");
     }
 }

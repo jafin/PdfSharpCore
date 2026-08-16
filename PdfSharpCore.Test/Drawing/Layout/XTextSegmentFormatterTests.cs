@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
@@ -221,22 +222,28 @@ public class XTextSegmentFormatterTests
         counts.Distinct().Should().ContainSingle();
     }
 
-    [Fact]
-    public void ASingleWordTooLongForTheLineIsStillDrawn()
+    /// <summary>
+    ///   Both of these say the layout does not loop, and a layout that looped would hang the test
+    ///   host rather than fail a test. xUnit honours Timeout only on an async test, which is why
+    ///   they are written this way - the same shape <c>CLexerTests</c> uses for its malformed
+    ///   input, and for the same reason.
+    /// </summary>
+    [Fact(Timeout = 30000)]
+    public async Task ASingleWordTooLongForTheLineIsStillDrawn()
     {
         // A block that cannot be broken and does not fit is the case the layout has to place
         // somewhere rather than loop over.
-        var page = PageShowing(XParagraphAlignment.Justify,
-            Segment(new string('W', 80), Plain, XBrushes.Black));
+        var page = await Task.Run(() => PageShowing(XParagraphAlignment.Justify,
+            Segment(new string('W', 80), Plain, XBrushes.Black)));
 
         TextBaselines.PositionsOf(page).Should().NotBeEmpty();
     }
 
-    [Fact]
-    public void TextThatRunsPastTheBottomOfTheRectangleDoesNotLoop()
+    [Fact(Timeout = 30000)]
+    public async Task TextThatRunsPastTheBottomOfTheRectangleDoesNotLoop()
     {
-        var page = PageShowing(XParagraphAlignment.Justify,
-            Segment(string.Join(" ", Enumerable.Repeat(TwoLinesOfWords, 20)), Plain, XBrushes.Black));
+        var page = await Task.Run(() => PageShowing(XParagraphAlignment.Justify,
+            Segment(string.Join(" ", Enumerable.Repeat(TwoLinesOfWords, 20)), Plain, XBrushes.Black)));
 
         TextBaselines.PositionsOf(page).Should().NotBeEmpty();
     }
