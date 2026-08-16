@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -95,5 +96,156 @@ public class XTextSegmentFormatterTests
         var page = PageShowing(Segment("The quick brown fox jumps over the lazy dog", Plain, XBrushes.Black));
 
         TextBaselines.PositionsOf(page).Should().NotBeEmpty();
+    }
+
+    // ----- alignment ------------------------------------------------------------------------------
+
+    const double LayoutLeft = 20;
+    const double LayoutWidth = 220;
+
+    /// <summary>
+    ///   The same text laid out under a given alignment, in a rectangle whose left edge is at
+    ///   <see cref="LayoutLeft"/>. Alignment is a property of the formatter rather than an
+    ///   argument, which is why this cannot go through <see cref="PageShowing"/>.
+    /// </summary>
+    static PdfPage PageShowing(XParagraphAlignment alignment, params TextSegment[] segments)
+    {
+        var document = new PdfDocument();
+        var page = document.AddPage();
+        using (var gfx = XGraphics.FromPdfPage(page))
+            new XTextSegmentFormatter(gfx) { Alignment = alignment }
+                .DrawString(segments, new XRect(LayoutLeft, 20, LayoutWidth, 200));
+        return page;
+    }
+
+    /// <summary>Where each line of the page begins, topmost first.</summary>
+    static double[] LineStartsOf(PdfPage page)
+    {
+        return TextBaselines.PositionsOf(page)
+            .GroupBy(run => Math.Round(run.Y, 3))
+            .OrderByDescending(line => line.Key)
+            .Select(line => line.Min(run => run.X))
+            .ToArray();
+    }
+
+    /// <summary>Where the last run of each line begins, topmost first.</summary>
+    static double[] LineEndsOf(PdfPage page)
+    {
+        return TextBaselines.PositionsOf(page)
+            .GroupBy(run => Math.Round(run.Y, 3))
+            .OrderByDescending(line => line.Key)
+            .Select(line => line.Max(run => run.X))
+            .ToArray();
+    }
+
+    const string TwoLinesOfWords =
+        "The quick brown fox jumps over the lazy dog and then it keeps on running";
+
+    [Fact]
+    public void LeftAlignedTextStartsAtTheLeftEdgeOfTheRectangle()
+    {
+        var page = PageShowing(XParagraphAlignment.Left,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black));
+
+        LineStartsOf(page).Should().AllSatisfy(start =>
+            start.Should().BeApproximately(LayoutLeft, 0.5));
+    }
+
+    [Fact]
+    public void RightAlignedTextIsPushedAwayFromTheLeftEdge()
+    {
+        var page = PageShowing(XParagraphAlignment.Right,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black));
+
+        // Every line ends flush right instead, so every line starts somewhere different and none
+        // of them starts where a left aligned one would.
+        LineStartsOf(page).Should().AllSatisfy(start =>
+            start.Should().BeGreaterThan(LayoutLeft + 0.5));
+    }
+
+    [Fact]
+    public void CentredTextSitsBetweenTheTwoEdges()
+    {
+        var page = PageShowing(XParagraphAlignment.Center,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black));
+
+        var centred = LineStartsOf(page);
+        var left = LineStartsOf(PageShowing(XParagraphAlignment.Left,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black)));
+        var right = LineStartsOf(PageShowing(XParagraphAlignment.Right,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black)));
+
+        centred.Should().HaveSameCount(left);
+        for (var line = 0; line < centred.Length; line++)
+        {
+            centred[line].Should().BeGreaterThan(left[line] - 0.5);
+            centred[line].Should().BeLessThan(right[line] + 0.5);
+        }
+    }
+
+    /// <summary>
+    ///   Justified text is spread to both edges by widening the spaces between its words, so the
+    ///   words of a full line no longer sit where they would if they simply followed one another.
+    ///   The last line of a paragraph is left alone, which is what stops the final few words of a
+    ///   paragraph being stretched across the page.
+    /// </summary>
+    [Fact]
+    public void JustifiedTextSpreadsEveryLineButTheLast()
+    {
+        var justified = LineEndsOf(PageShowing(XParagraphAlignment.Justify,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black)));
+        var ragged = LineEndsOf(PageShowing(XParagraphAlignment.Left,
+            Segment(TwoLinesOfWords, Plain, XBrushes.Black)));
+
+        justified.Should().HaveSameCount(ragged);
+        justified.Length.Should().BeGreaterThan(1, "there has to be a last line to leave alone");
+
+        justified[0].Should().BeGreaterThan(ragged[0] + 0.5,
+            "the first line is stretched towards the right edge");
+        justified[^1].Should().BeApproximately(ragged[^1], 0.5,
+            "and the last line is left as it fell");
+    }
+
+    [Fact]
+    public void AlignmentDoesNotChangeWhichWordsAreOnWhichLine()
+    {
+        // Alignment moves a line, it does not re-wrap it. The count of runs and of lines has to
+        // come out the same whichever way the text is aligned.
+        var counts = new[]
+        {
+            XParagraphAlignment.Left, XParagraphAlignment.Right,
+            XParagraphAlignment.Center, XParagraphAlignment.Justify,
+        }.Select(alignment => LineStartsOf(
+            PageShowing(alignment, Segment(TwoLinesOfWords, Plain, XBrushes.Black))).Length);
+
+        counts.Distinct().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ASingleWordTooLongForTheLineIsStillDrawn()
+    {
+        // A block that cannot be broken and does not fit is the case the layout has to place
+        // somewhere rather than loop over.
+        var page = PageShowing(XParagraphAlignment.Justify,
+            Segment(new string('W', 80), Plain, XBrushes.Black));
+
+        TextBaselines.PositionsOf(page).Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void TextThatRunsPastTheBottomOfTheRectangleDoesNotLoop()
+    {
+        var page = PageShowing(XParagraphAlignment.Justify,
+            Segment(string.Join(" ", Enumerable.Repeat(TwoLinesOfWords, 20)), Plain, XBrushes.Black));
+
+        TextBaselines.PositionsOf(page).Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void AnEmptySegmentDrawsNothingAndDoesNotThrow()
+    {
+        var draw = () => PageShowing(XParagraphAlignment.Justify, Segment("", Plain, XBrushes.Black));
+
+        draw.Should().NotThrow();
     }
 }
