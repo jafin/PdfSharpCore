@@ -459,7 +459,10 @@ internal class DdlParser
                     break;
 
                 case Symbol.Image:
-                    ParseImage(elements.AddImage(ImageSource.FromFile("")), false);
+                    // No source yet: ParseImage reads the path and sets it. Asking the
+                    // backend for an image at "" threw before the path was ever read, so
+                    // no \image in any .mdddl file could be read at all.
+                    ParseImage(elements.AddImage(null), false);
                     break;
 
                 case Symbol.Chart:
@@ -628,7 +631,7 @@ internal class DdlParser
                     break;
 
                 case Symbol.Image:
-                    ParseImage(elements.AddImage(ImageSource.FromFile("")), true);
+                    ParseImage(elements.AddImage(null), true);
                     ReadText(rootLevel);
                     break;
 
