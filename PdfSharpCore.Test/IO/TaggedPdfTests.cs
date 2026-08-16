@@ -7,6 +7,7 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;  // PdfArray lives here for the tree assertions
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Structure;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 // This namespace has a PdfReader of its own, so the one that opens documents needs saying in full.
@@ -34,10 +35,12 @@ public class TaggedPdfTests
     {
         var bytes = Save((gfx, document) => gfx.DrawString("Plain", Font, XBrushes.Black, 40, 60));
 
-        var text = Latin1(bytes);
-        text.Should().NotContain("/StructTreeRoot");
-        text.Should().NotContain("/MarkInfo");
-        text.Should().NotContain("BDC", "not one extra byte for a document that wants none of this");
+        var catalog = Catalog(bytes);
+        catalog.Elements.ContainsKey("/StructTreeRoot").Should().BeFalse();
+        catalog.Elements.ContainsKey("/MarkInfo").Should().BeFalse();
+
+        ContentOf(bytes).Should().NotContain("BDC",
+            "not one extra byte for a document that wants none of this");
     }
 
     [Fact]
@@ -49,9 +52,9 @@ public class TaggedPdfTests
                 gfx.DrawString("Invoice", Font, XBrushes.Black, 40, 60);
         });
 
-        var text = Latin1(bytes);
-        text.Should().Contain("/H1 <</MCID 0>> BDC");
-        text.Should().Contain("EMC");
+        var content = ContentOf(bytes);
+        content.Should().Contain("/H1 <</MCID 0>> BDC");
+        content.Should().Contain("EMC");
     }
 
     [Fact]
@@ -128,7 +131,7 @@ public class TaggedPdfTests
                 gfx.DrawString("Page 1 of 1", Font, XBrushes.Gray, 500, 800);
         });
 
-        Latin1(bytes).Should().Contain("/Artifact BMC");
+        ContentOf(bytes).Should().Contain("/Artifact BMC");
         TreeRoot(bytes).Elements.GetArray("/K").Elements.Count
             .Should().Be(1, "the folio is on the page and is not part of what the page says");
     }
@@ -153,9 +156,10 @@ public class TaggedPdfTests
     {
         // The identifier is an index into that page's run of the parent tree, so it restarts on
         // every page rather than counting across the document.
-        var text = Latin1(SaveTwoPages());
+        var bytes = SaveTwoPages();
 
-        Occurrences(text, "<</MCID 0>>").Should().Be(2);
+        Occurrences(ContentOf(bytes, 0), "<</MCID 0>>").Should().Be(1);
+        Occurrences(ContentOf(bytes, 1), "<</MCID 0>>").Should().Be(1);
     }
 
     [Fact]
@@ -238,8 +242,12 @@ public class TaggedPdfTests
         using var output = new MemoryStream();
         document.Save(output, false);
 
-        var text = Latin1(output.ToArray());
-        Occurrences(text, "BDC").Should().Be(Occurrences(text, "EMC"));
+        // Counted against one rather than against each other: a scope that was never opened would
+        // satisfy "as many EMC as BDC" with none of either, and that is exactly the failure a
+        // release build produces when this reads the file instead of the stream.
+        var content = ContentOf(output.ToArray());
+        Occurrences(content, "BDC").Should().Be(1);
+        Occurrences(content, "EMC").Should().Be(1);
     }
 
     [Fact]
@@ -289,11 +297,31 @@ public class TaggedPdfTests
     private static string TypeOf(PdfArray kids, int index) =>
         kids.Elements.GetDictionary(index).Elements.GetName("/S");
 
-    private static PdfDictionary TreeRoot(byte[] bytes)
+    private static PdfDictionary TreeRoot(byte[] bytes) =>
+        Catalog(bytes).Elements.GetDictionary("/StructTreeRoot");
+
+    private static PdfCatalog Catalog(byte[] bytes)
+    {
+        using var saved = new MemoryStream(bytes);
+        return Reader.Open(saved, PdfDocumentOpenMode.Modify).Internals.Catalog;
+    }
+
+    /// <summary>
+    ///   The operators of a page's content stream, as text.
+    /// </summary>
+    /// <remarks>
+    ///   Read back through the page rather than out of the file's bytes, because a content stream is
+    ///   compressed or not depending on <c>CompressContentStreams</c> — which defaults to false in a
+    ///   debug build and true in a release one. Searching the raw file for <c>BDC</c> therefore
+    ///   passes locally and fails in CI, and the two tests here that assert something is *absent*
+    ///   fail the other way round: they pass against a release build for the wrong reason, because
+    ///   nothing at all is legible in a deflated stream.
+    /// </remarks>
+    private static string ContentOf(byte[] bytes, int pageIndex = 0)
     {
         using var saved = new MemoryStream(bytes);
         var document = Reader.Open(saved, PdfDocumentOpenMode.Modify);
-        return document.Internals.Catalog.Elements.GetDictionary("/StructTreeRoot");
+        return Encoding.Latin1.GetString(PageContent.Of(document.Pages[pageIndex]));
     }
 
     private static byte[] SaveTwoPages()
@@ -325,8 +353,6 @@ public class TaggedPdfTests
         document.Save(output, false);
         return output.ToArray();
     }
-
-    private static string Latin1(byte[] bytes) => Encoding.Latin1.GetString(bytes);
 
     private static int Occurrences(string text, string value)
     {
