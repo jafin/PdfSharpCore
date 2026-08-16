@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Charting.Tests.Helpers;
@@ -255,5 +256,87 @@ public class DataLabelTests
         var labels = ShownText.RunsOn(Drawn.Page(chart)).ToList();
 
         return labels.Max(label => label.X) - labels.Min(label => label.X);
+    }
+    // ----- a bar chart's labels ---------------------------------------------------------------
+
+    /// <summary>
+    ///   A bar chart's labels are laid out by <c>BarDataLabelRenderer</c>, which is the pie
+    ///   renderer's opposite number and the column renderer's mirror image: a bar runs across the
+    ///   page, so the position chooses an x within the bar and the y is always its middle.
+    /// </summary>
+    /// <remarks>
+    ///   Read a blank point's value through <c>PointRendererInfo.Value</c>, which answers NaN,
+    ///   rather than through <c>point.value</c>, which throws - the shape
+    ///   <c>charting-renderer-findings.md</c> records as C7 on the pie.
+    /// </remarks>
+    static IReadOnlyList<ShownText.Run> BarLabelsAt(DataLabelPosition position)
+    {
+        var chart = Charts.Of(ChartType.Bar2D, 10.0, 20.0, 30.0);
+        chart.HasDataLabel = true;
+        chart.DataLabel.Position = position;
+
+        return ShownText.RunsOn(Drawn.Page(chart));
+    }
+
+    static IReadOnlyList<ShownText.Run> ValueLabelsOf(IReadOnlyList<ShownText.Run> runs) =>
+        runs.Where(run => run.Text is "10" or "20" or "30").ToList();
+
+    [Fact]
+    public void EveryBarIsLabelledWithItsValue()
+    {
+        var labels = ValueLabelsOf(BarLabelsAt(DataLabelPosition.Center));
+
+        labels.Select(label => label.Text).Should().BeEquivalentTo(new[] { "10", "20", "30" });
+    }
+
+    [Theory]
+    [InlineData(DataLabelPosition.Center)]
+    [InlineData(DataLabelPosition.InsideBase)]
+    [InlineData(DataLabelPosition.InsideEnd)]
+    [InlineData(DataLabelPosition.OutsideEnd)]
+    public void EveryLabelPositionPutsALabelOnEveryBar(DataLabelPosition position)
+    {
+        ValueLabelsOf(BarLabelsAt(position)).Should().HaveCount(3);
+    }
+
+    [Fact]
+    public void EachLabelPositionPutsTheLabelSomewhereDifferentAlongTheBar()
+    {
+        // The four arms of the switch differ only in the x they choose, so the y is expected to
+        // be the same and the x is expected not to be.
+        var atBase = ValueLabelsOf(BarLabelsAt(DataLabelPosition.InsideBase));
+        var atEnd = ValueLabelsOf(BarLabelsAt(DataLabelPosition.InsideEnd));
+        var outside = ValueLabelsOf(BarLabelsAt(DataLabelPosition.OutsideEnd));
+
+        atBase[0].X.Should().BeLessThan(atEnd[0].X, "the base of a bar is to the left of its end");
+        atEnd[0].X.Should().BeLessThan(outside[0].X, "and outside the end is further right still");
+        atEnd[0].Y.Should().BeApproximately(atBase[0].Y, 0.01, "every position sits mid-bar");
+    }
+
+    [Fact]
+    public void ALongerBarIsLabelledFurtherAlongThanAShorterOne()
+    {
+        // The position is worked out from the bar's own rectangle, so the three labels of three
+        // different values cannot all land in the same place.
+        var labels = ValueLabelsOf(BarLabelsAt(DataLabelPosition.InsideEnd));
+
+        var byValue = labels.OrderBy(label => int.Parse(label.Text)).ToList();
+        byValue[0].X.Should().BeLessThan(byValue[1].X);
+        byValue[1].X.Should().BeLessThan(byValue[2].X);
+    }
+
+    [Fact]
+    public void ABarChartWithABlankInItIsStillLabelled()
+    {
+        // A blank is a null, and reading it as a number is what throws. The renderer has to reach
+        // the value through PointRendererInfo.Value, which answers NaN for one.
+        var chart = Charts.Of(ChartType.Bar2D, 10.0, 20.0);
+        chart.SeriesCollection[0].Add(30.0);
+        chart.SeriesCollection[0].AddBlank();
+        chart.HasDataLabel = true;
+
+        var draw = () => Drawn.Page(chart);
+
+        draw.Should().NotThrow();
     }
 }
