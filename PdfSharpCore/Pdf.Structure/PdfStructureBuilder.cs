@@ -22,6 +22,19 @@ public sealed class PdfStructureBuilder
 {
     readonly PdfDocument _document;
     readonly Dictionary<PdfPage, PageMarks> _pages = new();
+    readonly List<KeyValuePair<int, PdfStructureElement>> _annotations = new();
+
+    /// <summary>
+    /// The next key to hand out in the parent tree.
+    /// </summary>
+    /// <remarks>
+    /// One counter for pages and annotations both, because they share the tree and their keys have
+    /// to be distinct: a page's key resolves to the array of elements its marks belong to, while an
+    /// annotation's resolves straight to its own element. Handing an annotation the page's key —
+    /// which is what deriving keys from the page count did — points a reader at an array where it
+    /// expects an element, so the annotation's place in the structure cannot be found at all.
+    /// </remarks>
+    int _nextParentKey;
 
     internal PdfStructureBuilder(PdfDocument document)
     {
@@ -79,10 +92,11 @@ public sealed class PdfStructureBuilder
     {
         element.AddObjectReference(page, annotation);
 
-        // An annotation is indexed by the parent tree too, through its own /StructParent — a single
-        // integer rather than a run, because an annotation is one thing.
-        var marks = MarksOf(page);
-        annotation.Elements.SetInteger("/StructParent", marks.StructParents);
+        // An annotation is indexed by the parent tree through its own /StructParent — a key of its
+        // own, resolving to a single element rather than to the array a page's key resolves to.
+        var key = _nextParentKey++;
+        annotation.Elements.SetInteger("/StructParent", key);
+        _annotations.Add(new KeyValuePair<int, PdfStructureElement>(key, element));
     }
 
     PageMarks MarksOf(PdfPage page)
@@ -90,7 +104,7 @@ public sealed class PdfStructureBuilder
         if (_pages.TryGetValue(page, out var marks))
             return marks;
 
-        marks = new PageMarks(_pages.Count);
+        marks = new PageMarks(_nextParentKey++);
         _pages[page] = marks;
         page.Elements.SetInteger("/StructParents", marks.StructParents);
         return marks;
@@ -112,7 +126,13 @@ public sealed class PdfStructureBuilder
             Root.ParentTree.SetValue(pair.Value.StructParents, elements.Reference);
         }
 
-        Root.Elements.SetInteger(PdfStructureTreeRoot.Keys.ParentTreeNextKey, _pages.Count);
+        foreach (var pair in _annotations)
+            Root.ParentTree.SetValue(pair.Key, pair.Value.Reference);
+
+        // Greater than every key handed out, pages and annotations alike, because it is what a later
+        // revision adding to the tree starts counting from. Derived from the page count it could
+        // name a key that is already in use.
+        Root.Elements.SetInteger(PdfStructureTreeRoot.Keys.ParentTreeNextKey, _nextParentKey);
         Root.PrepareForSave();
 
         var catalog = _document.Catalog;

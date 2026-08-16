@@ -120,6 +120,70 @@ public class TaggedPdfTests
     }
 
     [Fact]
+    public void AScopeOpenedBeforeAnythingIsDrawnStillNestsInsideThePage()
+    {
+        // BeginPage writes the opening q and the view matrix, and it runs on the first thing that
+        // draws. A scope opened before that would have the q land inside it while the matching Q,
+        // written when the page closes, lands after the EMC — the two pairs crossing rather than
+        // nesting, which is not allowed.
+        var bytes = Save((gfx, document) =>
+        {
+            using (gfx.BeginMarkedContent(PdfTag.P))
+                gfx.DrawString("First thing drawn", Font, XBrushes.Black, 40, 60);
+        });
+
+        var content = ContentOf(bytes);
+
+        content.IndexOf("q", StringComparison.Ordinal)
+            .Should().BeLessThan(content.IndexOf("BDC", StringComparison.Ordinal),
+                "the page's own q has to open before the marked-content sequence does");
+    }
+
+    [Fact]
+    public void AnAnnotationIsFiledUnderAKeyOfItsOwn()
+    {
+        // A page's key resolves to the array of elements its marks belong to; an annotation's has to
+        // resolve straight to its element. Handing the annotation the page's key points a reader at
+        // an array where it expects an element, so the annotation's place in the structure cannot be
+        // found at all.
+        var document = new PdfDocument();
+        var page = document.AddPage();
+        var gfx = XGraphics.FromPdfPage(page);
+        using (gfx.BeginMarkedContent(PdfTag.P))
+            gfx.DrawString("Body", Font, XBrushes.Black, 40, 60);
+        gfx.Dispose();
+
+        var link = new PdfDictionary(document);
+        link.Elements.SetName("/Subtype", "/Link");
+        document.Internals.AddObject(link);
+
+        var annotations = new PdfArray(document);
+        annotations.Elements.Add(link.Reference);
+        page.Elements["/Annots"] = annotations;
+
+        var element = document.Structure.CreateElement(PdfTag.Link);
+        document.Structure.AddAnnotation(element, page, link);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        var bytes = output.ToArray();
+
+        var saved = Reader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Modify);
+        var savedPage = saved.Pages[0];
+        var annotation = savedPage.Elements.GetArray("/Annots").Elements.GetDictionary(0);
+
+        var pageKey = savedPage.Elements.GetInteger("/StructParents");
+        var annotationKey = annotation.Elements.GetInteger("/StructParent");
+
+        annotationKey.Should().NotBe(pageKey, "the two resolve to different kinds of thing");
+
+        var root = TreeRoot(bytes);
+        root.Elements.GetInteger(PdfStructureTreeRoot.Keys.ParentTreeNextKey)
+            .Should().BeGreaterThan(Math.Max(pageKey, annotationKey),
+                "the next key must not be one already handed out");
+    }
+
+    [Fact]
     public void AnArtifactJoinsNoStructureElement()
     {
         // A page number read out between every paragraph is worse than no page number.

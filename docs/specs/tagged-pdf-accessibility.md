@@ -77,11 +77,20 @@ codebase knows tagged PDFs exist and treats them as something other people make.
 
 Two reasons, and only one of them is competitive.
 
-**It is a legal requirement now.** The European Accessibility Act took effect on 28 June 2025, with the
-transition window for existing products closing 28 June 2030. It is harmonised through EN 301 549,
-which incorporates WCAG 2.1 AA; for documents that means tagged PDFs. It applies to exactly the output
-this library exists to produce — invoices, statements, contracts, reports, manuals. A .NET PDF library
-that cannot emit a tagged PDF is disqualified from EU public-sector and regulated procurement.
+**Regulation is pulling in one direction, and it is worth being exact about how far.** The European
+Accessibility Act (Directive (EU) 2019/882) took effect on 28 June 2025, with the transition window
+for existing products closing 28 June 2030. It is harmonised through EN 301 549, which incorporates
+WCAG 2.1 AA; for documents that means tagged PDFs.
+
+It does **not** follow that every PDF anyone generates is now covered. The EAA applies to the
+products and services it lists — among them e-commerce, e-books, banking and transport services — and
+to the documentation that goes with them, rather than to invoices, contracts and reports at large.
+The broader driver for those is public-sector procurement: EN 301 549 is what EU public bodies buy
+against under Directive (EU) 2016/2102, and national implementations are what decide any given case.
+
+The conclusion for this library is the same either way and needs no exaggeration to stand up: a .NET
+PDF library that cannot emit a tagged PDF is unusable for a customer whose own obligation is any of
+the above, and cannot be adopted by anyone who might later acquire one.
 
 **Everyone else already ships it.** Not just the paid libraries — *PDFKit*, a free JavaScript library,
 advertises "marked content, logical structure, Tagged PDF, PDF/UA". QuestPDF ships it. This is table

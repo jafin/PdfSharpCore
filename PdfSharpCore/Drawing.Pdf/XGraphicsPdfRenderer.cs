@@ -1627,19 +1627,26 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     }
 
     /// <summary>
-    /// Begins the graphic mode (i.e. ends the text mode).
-    /// </summary>
-    /// <summary>
     /// Opens a marked-content sequence carrying the identifier that ties these marks to a structure
     /// element.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// In graphic mode, always. A <c>BDC</c> between <c>BT</c> and <c>ET</c> would nest a
     /// marked-content sequence inside a text object, which is legal in the grammar and wrong here:
     /// the sequence has to be able to contain the whole text object, not sit inside it.
+    /// </para>
+    /// <para>
+    /// And the page has to have been begun first. <c>BeginPage</c> writes the opening <c>q</c> and
+    /// the view matrix, and it runs on the first thing that draws — so a scope opened before
+    /// anything had been drawn would have that <c>q</c> land inside it, while the matching <c>Q</c>
+    /// is written by <c>EndPage</c> after the <c>EMC</c>. The two pairs would cross rather than
+    /// nest, which is not allowed. Every <c>Realize</c> overload orders it this way already.
+    /// </para>
     /// </remarks>
     internal void BeginMarkedContent(string tag, int mcid)
     {
+        BeginPage();
         BeginGraphicMode();
         _content.Append(tag).Append(" <</MCID ").Append(mcid).Append(">> BDC\n");
     }
@@ -1655,6 +1662,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// </remarks>
     internal void BeginArtifact()
     {
+        BeginPage();
         BeginGraphicMode();
         _content.Append("/Artifact BMC\n");
     }
@@ -1664,6 +1672,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// </summary>
     internal void EndMarkedContent()
     {
+        BeginPage();
         BeginGraphicMode();
         _content.Append("EMC\n");
     }
