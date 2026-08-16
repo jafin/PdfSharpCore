@@ -35,7 +35,6 @@ using PdfSharpCore.Drawing.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Annotations;
 
-#pragma warning disable 1587
 // ReSharper disable UseNullPropagation
 // ReSharper disable RedundantNameQualifier
 // ReSharper disable UseNameofExpression
@@ -228,6 +227,7 @@ public sealed class XGraphics : IDisposable
         return new XGraphics(size, pageUnit, pageDirection);
     }
 
+    /// <summary>Creates a drawing surface that emits to the given renderer.</summary>
     public static XGraphics FromRenderer(IXGraphicsRenderer renderer, XSize size, XGraphicsUnit pageUnit, XPageDirection pageDirection)
     {
         return new XGraphics(renderer, size, pageUnit, pageDirection);
