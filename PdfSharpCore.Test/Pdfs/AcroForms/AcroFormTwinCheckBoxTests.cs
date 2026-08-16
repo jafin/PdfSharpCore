@@ -122,30 +122,62 @@ public class AcroFormTwinCheckBoxTests
         ChildState(field, 1).Should().Be(("/Off", "/Off"));
     }
 
-    /// <summary>
-    ///   A field with children but not exactly two of them is left alone entirely - the setter
-    ///   does nothing and the getter answers false whatever the children say. Recorded rather
-    ///   than argued with: three widgets drawing one tick box is unusual, and doing nothing is at
-    ///   least not doing the wrong thing.
-    /// </summary>
-    [Theory]
-    [InlineData(1)]
-    [InlineData(3)]
-    public void AFieldWithAnyNumberOfChildrenButTwoIsLeftAlone(int childCount)
+    /// <summary>A tick box with the given number of children, each offering /Yes and /Off.</summary>
+    static PdfCheckBoxField ATickBoxWith(int childCount)
     {
-        var builder = new AcroFormBuilder();
         var describers = Enumerable.Range(0, childCount)
             .Select(_ => new System.Action<PdfDictionary>(
                 kid => AcroFormBuilder.WithOnAndOffAppearances(kid)))
             .ToArray();
-        var field = (PdfCheckBoxField)builder
+        return (PdfCheckBoxField)new AcroFormBuilder()
             .WithTypedParent("/Btn", "agree", describers).Build()
             .AcroForm.Fields["agree"];
+    }
+
+    /// <summary>
+    ///   One widget of its own is the ordinary tick box whose annotation was not merged into the
+    ///   field, and it is not half of a pair: the state asked for is the state it takes. This
+    ///   used to be left alone with the rest of the counts that are not two, so asking for a tick
+    ///   did nothing and the getter then said the box was clear.
+    /// </summary>
+    [Fact]
+    public void AFieldWithOneChildTakesTheStateItIsAskedFor()
+    {
+        var field = ATickBoxWith(1);
 
         field.Checked = true;
 
-        field.Checked.Should().BeFalse("only a pair is handled");
-        for (var index = 0; index < childCount; index++)
+        field.Checked.Should().BeTrue();
+        ChildState(field, 0).Should().Be(("/Yes", "/Yes"));
+    }
+
+    [Fact]
+    public void AFieldWithOneChildCanBeClearedAgain()
+    {
+        var field = ATickBoxWith(1);
+        field.Checked = true;
+
+        field.Checked = false;
+
+        field.Checked.Should().BeFalse();
+        ChildState(field, 0).Should().Be(("/Off", "/Off"));
+    }
+
+    /// <summary>
+    ///   Three widgets is neither the pair the setter was written for nor the single box above,
+    ///   and it is still left alone. Recorded rather than argued with: the pair scheme means one
+    ///   widget on and the other off, which says nothing about what a third should be, and
+    ///   inventing an answer would change what real forms are written with.
+    /// </summary>
+    [Fact]
+    public void AFieldWithThreeChildrenIsStillLeftAlone()
+    {
+        var field = ATickBoxWith(3);
+
+        field.Checked = true;
+
+        field.Checked.Should().BeFalse("only one widget and the pair are handled");
+        for (var index = 0; index < 3; index++)
             ChildState(field, index).Should().Be(("", ""), "child {0} was not touched", index);
     }
 

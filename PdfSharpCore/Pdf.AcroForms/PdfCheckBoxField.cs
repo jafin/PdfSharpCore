@@ -67,17 +67,17 @@ public sealed class PdfCheckBoxField : PdfButtonField
             }
             else //R080317
             {
-                if (Fields.Elements.Items.Length == 2)
-                {
-                    string value = ((PdfDictionary)(((PdfReference)(Fields.Elements.Items[0])).Value)).Elements
-                        .GetString(Keys.V);
-                    bool bReturn =
-                        value.Length != 0 && value != "/Off" &&
-                        value != "/Nein"; //R081114 (3Std.!!) auch auf Nein prüfen; //TODO woher kommt der Wert?
-                    return bReturn;
-                }
-                else
+                // The answer lives in the first child rather than in the field, whatever the
+                // number of children: a field with one widget is as much a tick box as a field
+                // with the twin widgets the setter below was written for.
+                PdfDictionary child = ChildAt(0);
+                if (child == null)
                     return false;
+
+                string value = child.Elements.GetString(Keys.V);
+                return
+                    value.Length != 0 && value != "/Off" &&
+                    value != "/Nein"; //R081114 (3Std.!!) auch auf Nein prüfen; //TODO woher kommt der Wert?
             }
         }
         set
@@ -87,6 +87,21 @@ public sealed class PdfCheckBoxField : PdfButtonField
                 string name = value ? GetNonOffValue() : "/Off";
                 Elements.SetName(Keys.V, name);
                 Elements.SetName(PdfAnnotation.Keys.AS, name);
+            }
+            else if (Fields.Elements.Items.Length == 1)
+            {
+                // One widget of its own is the ordinary shape of a tick box whose annotation was
+                // not merged into the field, and it is a tick box rather than half of a pair: the
+                // state asked for is the state it takes. The names come from the child, because
+                // the child is what carries the appearances.
+                PdfDictionary child = ChildAt(0);
+                string name = value ? OnStateOf(child) : OffStateOf(child);
+                if (child != null && name.Length != 0)
+                {
+                    child.Elements.SetName(Keys.V, name);
+                    child.Elements.SetName(PdfAnnotation.Keys.AS, name);
+                    Elements.SetName(Keys.V, name);
+                }
             }
             else
             {
@@ -222,6 +237,48 @@ public sealed class PdfCheckBoxField : PdfButtonField
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the child field at the given position, or null when there is no such child or it is
+    /// not a dictionary.
+    /// </summary>
+    PdfDictionary ChildAt(int index)
+    {
+        PdfItem[] kids = Fields.Elements.Items;
+        if (index < 0 || index >= kids.Length)
+            return null;
+
+        PdfItem kid = kids[index];
+        if (kid is PdfReference reference)
+            kid = reference.Value;
+        return kid as PdfDictionary;
+    }
+
+    /// <summary>
+    /// The name of the first appearance state of the child that is not "/Off", or "" when it
+    /// names none - which is how a child with no appearances at all is left as it was.
+    /// </summary>
+    static string OnStateOf(PdfDictionary child) => StateOf(child, wanted: false);
+
+    /// <summary>
+    /// The name of the child's "/Off" appearance state, or "" when it has not got one.
+    /// </summary>
+    static string OffStateOf(PdfDictionary child) => StateOf(child, wanted: true);
+
+    static string StateOf(PdfDictionary child, bool wanted)
+    {
+        PdfDictionary appearances = child?.Elements["/AP"] as PdfDictionary;
+        PdfDictionary normal = appearances?.Elements["/N"] as PdfDictionary;
+        if (normal == null)
+            return "";
+
+        foreach (string name in normal.Elements.Keys)
+        {
+            if (name == "/Off" == wanted)
+                return name;
+        }
+        return "";
     }
 
     /// <summary>
