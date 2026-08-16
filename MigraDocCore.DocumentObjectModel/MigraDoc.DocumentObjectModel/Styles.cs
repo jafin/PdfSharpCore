@@ -133,7 +133,12 @@ public partial class Styles : DocumentObjectCollection, IVisitable
         style.name = name;
         style.baseStyle = baseStyleName;
         Add(style);
-        return style;
+
+        // Not the style just built: Add replaces an existing style of the same name with a clone
+        // of the one handed to it, so redefining a style used to return an object the collection
+        // was not holding. Writing to it reached nothing. Reading the name back gets whichever of
+        // the two the document ended up with, and is the same object on the ordinary path.
+        return this[name];
     }
 
     /// <summary>
