@@ -1218,6 +1218,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 if (obj != null && obj.IsIndirect)
                     value = obj.Reference;
                 _elements[key] = value;
+                MarkOwnerAsChanged();
             }
         }
 
@@ -1254,7 +1255,21 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         /// </summary>
         public bool Remove(string key)
         {
-            return _elements.Remove(key);
+            var removed = _elements.Remove(key);
+            if (removed)
+                MarkOwnerAsChanged();
+            return removed;
+        }
+
+
+        /// <summary>
+        /// Records that the object owning these elements has changed, so that an incremental save
+        /// knows to write it out again. Every path that mutates the collection goes through here.
+        /// </summary>
+        void MarkOwnerAsChanged()
+        {
+            if (_ownerDictionary != null)
+                _ownerDictionary.IsDirty = true;
         }
 
         /// <summary>
@@ -1296,6 +1311,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
         public void Clear()
         {
             _elements.Clear();
+            MarkOwnerAsChanged();
         }
 
         /// <summary>
@@ -1315,6 +1331,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 value = obj.Reference;
 
             _elements.Add(key, value);
+            MarkOwnerAsChanged();
         }
 
         /// <summary>

@@ -42,6 +42,26 @@ public enum PdfDocumentOpenMode
     Modify,
 
     /// <summary>
+    /// As <see cref="Modify"/>, but the document keeps the bytes it was read from and the object
+    /// numbers it was read with, so that <see cref="PdfDocument.SaveIncremental(System.IO.Stream)"/>
+    /// can append a new revision to it rather than rewrite it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Modify"/> cannot be used for this, and the reason is easy to miss: opening in that
+    /// mode compacts the cross-reference table and <em>renumbers every object from one</em>. An
+    /// incremental update shadows an object by writing a new definition under the same number, so a
+    /// document whose numbers have been reassigned can no longer be appended to at all.
+    /// </para>
+    /// <para>
+    /// The cost is memory. The original bytes are held for the lifetime of the document, so opening
+    /// a 200 MB file this way holds 200 MB — which is exactly the case incremental update exists to
+    /// help with, and still worth knowing before choosing this mode by default.
+    /// </para>
+    /// </remarks>
+    Append,
+
+    /// <summary>
     /// The PDF stream is opened for importing pages from it. A document opened in this mode cannot
     /// be modified.
     /// </summary>

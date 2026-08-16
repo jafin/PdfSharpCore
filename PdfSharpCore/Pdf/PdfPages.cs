@@ -863,7 +863,10 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
         // Arrays have a limit of 8192 entries, but I successfully tested documents
         // with 50000 pages and no page tree.
         // ==> wait for bug report.
-        int count = _pagesArray.Elements.Count;
+        // Through the property, not the field. The field is filled in lazily, and reading it here
+        // only worked because every path that reached this point happened to have touched the
+        // property first — an incremental save does not, and got a null reference for it.
+        int count = PagesArray.Elements.Count;
         for (int idx = 0; idx < count; idx++)
         {
             PdfPage page = this[idx];

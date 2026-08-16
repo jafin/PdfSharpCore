@@ -510,7 +510,14 @@ internal class PdfWriter
         WriteRaw(startxref.ToString(CultureInfo.InvariantCulture));
         WriteRaw("\n%%EOF\n");
         var fileSize = _stream.Position;
-        if (_layout == PdfWriterLayout.Verbose)
+
+        // Only when this writer wrote the header those comments live in. Patching them means
+        // seeking backwards to a position the header recorded, and a writer that never wrote one
+        // has no such position — an incremental save appends to a file it did not write, and
+        // patching there scribbles over the start of somebody else's document. Verbose is the
+        // default in a debug build, so this would only ever have gone wrong where it is hardest to
+        // credit: in development, and never in release.
+        if (_layout == PdfWriterLayout.Verbose && _commentPosition >= 0)
         {
             TimeSpan duration = DateTime.Now - document._creation;
 
@@ -656,5 +663,8 @@ internal class PdfWriter
     }
 
     readonly List<StackItem> _stack = new();
-    int _commentPosition;
+    /// <summary>
+    /// Where the header comments this writer wrote begin, or -1 when it wrote none.
+    /// </summary>
+    int _commentPosition = -1;
 }

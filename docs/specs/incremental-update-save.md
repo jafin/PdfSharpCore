@@ -1,17 +1,72 @@
 # Proposal — saving a document as an incremental update
 
-What appending to a PDF instead of rewriting it would cover, and what it would deliberately leave out.
-Gap **G6** of `autoresearch/improve-260816-1032/improvement-plan.md`. Nothing here is built.
+What appending to a PDF instead of rewriting it covers, and what it deliberately leaves out.
+Gap **G6** of the competitive gap analysis.
 
 | item | what | status |
 |---|---|---|
-| 1 | `PdfDocument.SaveIncremental(Stream)` | proposed |
-| 2 | Dirty tracking on `PdfObject` | proposed |
-| 3 | `PdfReader.Open` retains the source bytes in `Modify` mode | proposed, **breaking behaviour** |
-| 4 | A new xref section with `/Prev`, and a trailer keeping `/ID[0]` | proposed |
+| 1 | `PdfDocument.SaveIncremental(Stream)` | done |
+| 2 | Dirty tracking on `PdfObject` | done |
+| 3 | ~~`PdfReader.Open` retains the source bytes in `Modify` mode~~ — a new `Append` mode | done |
+| 4 | A new xref section with `/Prev`, and a trailer keeping `/ID[0]` | done |
 
-Estimated effort: **2 engineer-weeks.** Small, and `docs/specs/pdf-signatures.md` cannot exist
-without it.
+Covered by `PdfSharpCore.Test/IO/IncrementalUpdateTests.cs`.
+
+## The proposal was wrong about the open mode, and it matters
+
+It said the document "must have been opened `PdfDocumentOpenMode.Modify`". **`Modify` is precisely
+the mode that cannot work.** Opening that way ends with
+
+```csharp
+document._irefTable.Compact();
+document._irefTable.Renumber();     // ← every object renumbered from 1
+```
+
+and an incremental update shadows an object by writing a new definition *under the same number*. A
+document whose numbers have been reassigned can no longer be appended to at all — every appended
+definition would shadow the wrong object, and the result opens and is quietly, thoroughly wrong.
+
+Hence `PdfDocumentOpenMode.Append`: reads like `Modify`, but neither compacts nor renumbers, and
+keeps the bytes. `PdfDocument.PrepareForSave` renumbers too, and is guarded the same way.
+
+Compacting is skipped for its own reason, not merely as a bystander: an object unreachable from the
+catalog is still *in the file being appended to*, so dropping it from the table would not remove it
+from the document — it would only lose track of a number that remains taken.
+
+## Two latent defects this surfaced
+
+Both were pre-existing, and both were reachable only because nothing had ever written a PDF without
+first writing its header.
+
+**`PdfPages.PrepareForSave` read the `_pagesArray` field instead of the `PagesArray` property.** The
+field is filled in lazily by the property, and every existing path happened to touch the property
+first. An incremental save does not, and got a `NullReferenceException`.
+
+**`PdfWriter.WriteEof` seeks backwards to patch its header comments.** In verbose layout — *the
+default in a debug build* — it rewinds to `_commentPosition` and overwrites the creation date, the
+elapsed time and the file size in place. A writer that never wrote a header has no such position,
+and `_commentPosition` defaulted to 0, so an incremental save scribbled the comment block over the
+first two hundred bytes of somebody else's document. It now defaults to -1 and the patching is
+skipped. Note where this would have been found and where it would not: broken in development, fine
+in release.
+
+## What it costs, honestly
+
+The dirty set is **conservative**. After appending a change to nothing but a document property, the
+information dictionary and one page object are rewritten — the page because reading and preparing it
+mutates it in ways not worth unpicking. The font, the font descriptor, the content streams and the
+catalog are not. That is the property the tests assert, and they assert it by looking at what the
+appended bytes *contain* rather than by counting them: a byte count is a poor proxy in a debug build,
+where a hundred-character rule sits between every object.
+
+Erring towards rewriting is the safe direction. An object wrongly reported clean is silently left at
+its old value, which is the worst shape a defect can take, because the file opens and looks right.
+
+## Ordering that is not arbitrary
+
+`PdfReader.Open` flattens the page tree **before** capturing, not after. Flattening mutates the page
+tree, and capturing is what decides which objects count as untouched — the other way round, every
+page is reported changed by the act of reading it and the saving evaporates.
 
 ---
 

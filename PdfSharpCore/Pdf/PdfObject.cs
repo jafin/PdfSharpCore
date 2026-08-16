@@ -514,4 +514,22 @@ public abstract class PdfObject : PdfItem
     /// from, and nothing else should.
     /// </remarks>
     internal bool IsFromObjectStream { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating that this object has been changed since the document was read.
+    /// </summary>
+    /// <remarks>
+    /// Read by <see cref="PdfDocument.SaveIncremental(System.IO.Stream)"/> and by nothing else. An
+    /// incremental update appends only what has changed, so an object wrongly reported clean is
+    /// silently left at its old value — the worst shape a defect can take, because the file opens
+    /// and looks right. When in doubt this says dirty; a needlessly rewritten object costs bytes
+    /// and nothing else.
+    /// </remarks>
+    public bool IsDirty { get; internal set; }
+
+    /// <summary>
+    /// Marks this object as changed, for a caller that has reached past the usual API — through
+    /// <see cref="Advanced.PdfInternals"/>, say — and knows the change would otherwise go unnoticed.
+    /// </summary>
+    public void MarkAsChanged() => IsDirty = true;
 }
