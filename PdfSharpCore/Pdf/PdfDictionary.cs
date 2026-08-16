@@ -709,7 +709,7 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             if (obj == null)
             {
                 if (create)
-                    this[key] = new PdfLiteral("[1 0 0 1 0 0]");  // cannot be parsed, implement a PdfMatrix...
+                    this[key] = PdfLiteral.FromMatrix(value);
                 return value;
             }
             PdfReference reference = obj as PdfReference;
@@ -722,13 +722,38 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
                 value = new XMatrix(array.Elements.GetReal(0), array.Elements.GetReal(1), array.Elements.GetReal(2),
                     array.Elements.GetReal(3), array.Elements.GetReal(4), array.Elements.GetReal(5));
             }
-            else if (obj is PdfLiteral)
+            else if (obj is PdfLiteral literal)
             {
-                throw new NotImplementedException("Parsing matrix from literal.");
+                // A matrix is written as a literal, by SetMatrix and by the create branch above,
+                // so this is the shape this method most often meets - including every /Matrix
+                // PdfFormXObject, PdfShadingPattern and PdfGradientSoftMask write.
+                value = MatrixFromLiteral(literal);
             }
             else
                 throw new InvalidCastException("Element is not an array with 6 values.");
             return value;
+        }
+
+        /// <summary>
+        /// Reads the six numbers of a matrix written as the literal "[a b c d e f]".
+        /// </summary>
+        static XMatrix MatrixFromLiteral(PdfLiteral literal)
+        {
+            string text = (literal.Value ?? "").Trim();
+            if (text.StartsWith("[", StringComparison.Ordinal) && text.EndsWith("]", StringComparison.Ordinal))
+                text = text.Substring(1, text.Length - 2);
+
+            string[] parts = text.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 6)
+                throw new InvalidCastException("Element is not an array with 6 values.");
+
+            double[] numbers = new double[6];
+            for (int index = 0; index < 6; index++)
+            {
+                if (!Double.TryParse(parts[index], NumberStyles.Float, CultureInfo.InvariantCulture, out numbers[index]))
+                    throw new InvalidCastException("Element is not an array with 6 values.");
+            }
+            return new XMatrix(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]);
         }
 
         /// Converts the specified value to XMatrix.

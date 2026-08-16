@@ -253,18 +253,43 @@ public class TypedElementAccessorTests
     }
 
     /// <summary>
-    ///   A matrix written as a literal is refused with NotImplementedException rather than parsed,
-    ///   and the create overload writes exactly such a literal. So a matrix this method created
-    ///   cannot be read back by the method that created it.
+    ///   A matrix is written as a literal - by <c>SetMatrix</c>, and by the create overload - so
+    ///   the literal is the shape this method most often meets. It used to refuse one with
+    ///   NotImplementedException, which meant a matrix the method wrote could not be read back by
+    ///   the method that wrote it. See the backlog spec's finding F19.
     /// </summary>
     [Fact]
-    public void AMatrixTheCreateOverloadWroteCannotBeReadBack()
+    public void AMatrixTheCreateOverloadWroteIsReadBackAsTheIdentity()
     {
         var dictionary = new PdfDictionary(ADocument());
         dictionary.Elements.GetMatrix("/M", true);
 
-        var readAgain = () => dictionary.Elements.GetMatrix("/M", false);
+        dictionary.Elements.GetMatrix("/M", false).Should().Be(new XMatrix());
+    }
 
-        readAgain.Should().Throw<NotImplementedException>();
+    [Fact]
+    public void AMatrixSetAsALiteralComesBackWithTheNumbersItWasGiven()
+    {
+        var dictionary = new PdfDictionary(ADocument());
+        var written = new XMatrix(2, 0, 0, 3, 17, 29);
+        dictionary.Elements.SetMatrix("/M", written);
+
+        var read = dictionary.Elements.GetMatrix("/M", false);
+
+        read.M11.Should().BeApproximately(2, 1e-4);
+        read.M22.Should().BeApproximately(3, 1e-4);
+        read.OffsetX.Should().BeApproximately(17, 1e-4);
+        read.OffsetY.Should().BeApproximately(29, 1e-4);
+    }
+
+    [Fact]
+    public void ALiteralThatIsNotSixNumbersIsNotAMatrix()
+    {
+        var dictionary = new PdfDictionary(ADocument());
+        dictionary.Elements["/M"] = new PdfLiteral("[1 0 0 1]");
+
+        var read = () => dictionary.Elements.GetMatrix("/M", false);
+
+        read.Should().Throw<InvalidCastException>("four numbers are not a matrix");
     }
 }
