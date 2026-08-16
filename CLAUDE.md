@@ -38,8 +38,8 @@ input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests �
 
 ```
 PdfSharpCore ─────────────┬── PdfSharpCore.Skia        (SkiaSharp; the default backend)
-   (no imaging or font    └── PdfSharpCore.ImageSharp   (ImageSharp 2.1.x, Fonts 1.0.1)
-    dependency of its own)
+   (no imaging or font    ├── PdfSharpCore.ImageSharp   (ImageSharp 2.1.x, Fonts 1.0.1)
+    dependency of its own)└── PdfSharpCore.Signing      (CMS signing; net8.0;net10.0 only)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
    │              ▲                                                              ▲
@@ -115,6 +115,13 @@ each throws a descriptive `InvalidOperationException` when read unset:
   and nothing else, so it can be set, replaced or cleared at any time. A provider takes its font
   bytes **through** `FontResolver` rather than resolving a family itself, or the two seams will
   disagree about which face a family means.
+
+`PdfSharpCore.Signing` is the one package that does **not** multi-target `netstandard2.1`, and the
+one that carries a dependency the core deliberately refuses: `System.Security.Cryptography.Pkcs`,
+which ships in the runtime but not in the reference pack and so needs a version-matched
+`PackageReference` per leg. The core's own `Pdf.Signatures` namespace holds all the PDF machinery —
+the placeholder, the byte range, the patching — and no cryptography at all, behind the `IPdfSigner`
+seam. `docs/specs/digital-signatures.md` says why that split is where it is.
 
 `ImageSource` is a trap for the eye: the file is `PdfSharpCore/Drawing/ImageSource.cs` and it ships
 in the **PdfSharpCore** assembly, but its namespace is

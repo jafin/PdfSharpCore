@@ -33,6 +33,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
+    <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
     <ProjectReference Include="..\PdfSharpCore.ImageSharp\PdfSharpCore.ImageSharp.csproj" />
     <!--

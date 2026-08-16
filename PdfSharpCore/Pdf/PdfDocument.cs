@@ -485,6 +485,18 @@ public sealed class PdfDocument : PdfObject, IDisposable
     HashSet<int> _originalObjectNumbers;
 
     /// <summary>
+    /// Whether this document has the original bytes <see cref="SaveIncremental"/> needs, which is
+    /// true of a document opened with <see cref="PdfDocumentOpenMode.Append"/> and of nothing else.
+    /// </summary>
+    internal bool CanSaveIncremental => _originalBytes != null;
+
+    /// <summary>
+    /// How many bytes an incremental save copies through before anything of its own — so the offset
+    /// in the written file at which this revision begins.
+    /// </summary>
+    internal int OriginalByteCount => _originalBytes?.Length ?? 0;
+
+    /// <summary>
     /// Implements saving a PDF file.
     /// </summary>
     void DoSave(PdfWriter writer)

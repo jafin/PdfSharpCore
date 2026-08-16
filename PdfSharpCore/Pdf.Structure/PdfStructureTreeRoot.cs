@@ -44,7 +44,7 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
     /// Writes out the role map, if there is one. Left to save time because entries may be added at
     /// any point before then.
     /// </summary>
-    internal void PrepareForSave()
+    internal override void PrepareForSave()
     {
         if (RoleMap.Count == 0)
             return;
