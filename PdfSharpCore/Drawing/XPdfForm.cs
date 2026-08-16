@@ -401,7 +401,10 @@ public class XPdfForm : XForm
             length--;
             if (char.IsDigit(path, length))
             {
-                while (char.IsDigit(path, length) && length >= 0)
+                // Bound first: the old order asked whether path[-1] was a digit when every
+                // character was one, and char.IsDigit threw rather than the loop ending.
+                // Duplicated in MigraDoc's ImageHelper.
+                while (length >= 0 && char.IsDigit(path, length))
                     length--;
                 if (length > 0 && path[length] == '#')
                 {
