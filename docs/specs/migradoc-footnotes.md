@@ -343,6 +343,35 @@ that subject already and covers it better.
   caller did not ask for and cannot see in their own styles is a surprise; `SpaceAfter` on that
   style is where it belongs.
 
+## Known limitations — reservation is per element, not per fragment
+
+Raised in review of the pull request that built this, verified against the code, and left standing
+because both are the same missing capability rather than a defect in what is here.
+
+`TopDownFormatter` reserves before formatting an element, and identifies the notes to reserve for by
+walking that element's own children — `ReserveFootnotes(docObj, area)`, keyed on `docObj`. An
+element is the smallest unit it can ask about. Two consequences follow, and neither has a fix that
+is not a feature:
+
+- **A paragraph that splits across a page break moves all of its notes to the later page.** When an
+  element does not finish on a page, the loop keeps the same `docObj` and formats the remainder on
+  the next one, which reserves for it again — and `FootnoteRegistry.Place` moves every note it is
+  given to the page currently being filled. A mark that stayed behind in the first fragment
+  therefore ends up on one page with its note on the next. Deciding otherwise means knowing which
+  marks fall in the fragment just laid out, which is a range `ParagraphFormatInfo` holds and the
+  reservation protocol does not currently ask for.
+
+- **`KeepWithNext` probes do not see the following element's notes.** `NextElementsDontFit` formats
+  the elements after this one to decide whether they fit, and does that without the footnote-aware
+  area, because reservation is a side effect on the registry and a probe must not leave one. So a
+  probe can keep a paragraph on a page that the real pass then has to move. Fixing it means
+  separating a speculative reservation from a placed one.
+
+Both want the same thing: a reservation that can be asked for a fragment and taken back. Building
+that is a spec of its own, and it should be one piece of work rather than two, because the second
+falls out of the first almost for free. Neither affects a document whose footnoted paragraphs fit
+on the page they start on, which is what the tests in item 9 cover.
+
 ## What building it changed outside the footnote files
 
 Small, and worth knowing about:
