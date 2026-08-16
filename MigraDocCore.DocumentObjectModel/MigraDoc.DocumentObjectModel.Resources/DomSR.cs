@@ -1,14 +1,25 @@
 ﻿using System;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
 
 internal static class DomSR
 {
+    /// <summary>
+    /// The generated resource properties are internal statics, so the lookup has to ask for
+    /// non-public members: GetProperties() without flags looks for public instance members and
+    /// finds none of them, which reported every message in the assembly as missing.
+    /// </summary>
+    const BindingFlags ResourceProperties =
+        BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+
     internal static string GetString(DomMsgID id)
     {
-        return (string)typeof(AppResources).GetProperties().Where(x => x.Name == id.ToString() && x.PropertyType == typeof(string)).FirstOrDefault()?.GetValue(null); 
+        return (string)typeof(AppResources).GetProperties(ResourceProperties)
+            .FirstOrDefault(x => x.Name == id.ToString() && x.PropertyType == typeof(string))
+            ?.GetValue(null);
     }
 
     internal static string FormatMessage(DomMsgID id, params object[] args)

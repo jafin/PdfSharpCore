@@ -983,12 +983,10 @@ internal class ParagraphRenderer : Renderer
 
     void RenderSymbol(Character character)
     {
-        string sym = GetSymbol(character);
-        string completeWord = sym;
-        for (int idx = 1; idx < character.Count; ++idx)
-            completeWord += sym;
-
-        RenderWord(completeWord);
+        // GetSymbol already answers the character as many times as it repeats, and that is what
+        // FormatSymbol measures. Repeating it a second time here drew Count squared of them -
+        // four for a count of two, nine for three - into the width reserved for Count.
+        RenderWord(GetSymbol(character));
     }
 
     void RenderTab()

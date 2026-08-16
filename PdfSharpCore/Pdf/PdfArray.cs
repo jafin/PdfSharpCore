@@ -213,6 +213,12 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
             if (obj == null || obj is PdfNull)
                 return false;
 
+            // Follow an indirect reference the way DictionaryElements does for the same five
+            // accessors. Without this an array holding "3 0 R" threw InvalidCastException where
+            // the identical entry in a dictionary read back its value.
+            if (obj is PdfReference reference)
+                obj = reference.Value;
+
             PdfBoolean boolean = obj as PdfBoolean;
             if (boolean != null)
                 return boolean.Value;
@@ -239,6 +245,12 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
             if (obj == null || obj is PdfNull)
                 return 0;
 
+            // Follow an indirect reference the way DictionaryElements does for the same five
+            // accessors. Without this an array holding "3 0 R" threw InvalidCastException where
+            // the identical entry in a dictionary read back its value.
+            if (obj is PdfReference reference)
+                obj = reference.Value;
+
             PdfInteger integer = obj as PdfInteger;
             if (integer != null)
                 return integer.Value;
@@ -264,6 +276,12 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
             object obj = this[index];
             if (obj == null || obj is PdfNull)
                 return 0;
+
+            // Follow an indirect reference the way DictionaryElements does for the same five
+            // accessors. Without this an array holding "3 0 R" threw InvalidCastException where
+            // the identical entry in a dictionary read back its value.
+            if (obj is PdfReference reference)
+                obj = reference.Value;
 
             PdfReal real = obj as PdfReal;
             if (real != null)
@@ -299,6 +317,12 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
             if (obj == null || obj is PdfNull)
                 return String.Empty;
 
+            // Follow an indirect reference the way DictionaryElements does for the same five
+            // accessors. Without this an array holding "3 0 R" threw InvalidCastException where
+            // the identical entry in a dictionary read back its value.
+            if (obj is PdfReference reference)
+                obj = reference.Value;
+
             PdfString str = obj as PdfString;
             if (str != null)
                 return str.Value;
@@ -324,6 +348,12 @@ public class PdfArray : PdfObject, IEnumerable<PdfItem>
             object obj = this[index];
             if (obj == null || obj is PdfNull)
                 return String.Empty;
+
+            // Follow an indirect reference the way DictionaryElements does for the same five
+            // accessors. Without this an array holding "3 0 R" threw InvalidCastException where
+            // the identical entry in a dictionary read back its value.
+            if (obj is PdfReference reference)
+                obj = reference.Value;
 
             PdfName name = obj as PdfName;
             if (name != null)

@@ -168,7 +168,11 @@ public partial class AxisTitle : ChartObject
     if (!this.IsNull("Font"))
       this.font.Serialize(serializer);
 
-    if (this.orientation != null)
+    // IsNull rather than != null: Unit is a value type, so "!= null" compiles only by way of the
+    // implicit string conversion, which converts the null literal and throws. Every other Unit in
+    // the charting DOM is tested this way; this one was the exception, and it made an axis title
+    // impossible to write.
+    if (!this.orientation.IsNull)
       serializer.WriteSimpleAttribute("Orientation", this.Orientation);
 
     if (this.alignment != null)
