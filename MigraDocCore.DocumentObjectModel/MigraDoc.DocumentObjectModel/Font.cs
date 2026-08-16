@@ -79,41 +79,6 @@ public sealed partial class Font : DocumentObject
     }
 
     /// <summary>
-    /// Applies all non-null properties of a font to this font if the given font's property is different from the given refFont's property.
-    /// </summary>
-    internal void ApplyFont(Font font, Font refFont)
-    {
-        if (font == null)
-            throw new ArgumentNullException("font");
-
-        if (!string.IsNullOrEmpty(font.name) && (refFont == null || font.Name != refFont.Name))
-            Name = font.Name;
-
-        if (!font.size.IsNull && (refFont == null || font.Size != refFont.Size))
-            Size = font.Size;
-
-        if (font.bold != null && (refFont == null || font.Bold != refFont.Bold))
-            Bold = font.Bold;
-
-        if (font.italic != null && (refFont == null || font.Italic != refFont.Italic))
-            Italic = font.Italic;
-
-        if (font.subscript != null && (refFont == null || font.Subscript != refFont.Subscript))
-            Subscript = font.Subscript;
-        else if (font.superscript != null && (refFont == null || font.Superscript != refFont.Superscript))
-            Superscript = font.Superscript;
-
-        if (font.underline != null && (refFont == null || font.Underline != refFont.Underline))
-            Underline = font.Underline;
-
-        if (font.strikethrough != null && (refFont == null || font.Strikethrough != refFont.Strikethrough))
-            Strikethrough = font.Strikethrough;
-
-        if (!font.color.IsNull && (refFont == null || font.Color.Argb != refFont.Color.Argb))
-            Color = font.Color;
-    }
-
-    /// <summary>
     /// Applies all non-null properties of a font to this font.
     /// </summary>
     public void ApplyFont(Font font)
