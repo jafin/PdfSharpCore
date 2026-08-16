@@ -237,7 +237,7 @@ internal sealed class PdfGraphicsState : ICloneable
         }
         else if (colorMode != PdfColorMode.Cmyk)
         {
-            if (_realizedStrokeColor.Rgb != color.Rgb)
+            if (_realizedStrokePattern || _realizedStrokeColor.Rgb != color.Rgb)
             {
                 _renderer.Append(PdfEncoders.ToString(color, PdfColorMode.Rgb));
                 _renderer.Append(" RG\n");
@@ -245,7 +245,7 @@ internal sealed class PdfGraphicsState : ICloneable
         }
         else
         {
-            if (!ColorSpaceHelper.IsEqualCmyk(_realizedStrokeColor, color))
+            if (_realizedStrokePattern || !ColorSpaceHelper.IsEqualCmyk(_realizedStrokeColor, color))
             {
                 _renderer.Append(PdfEncoders.ToString(color, PdfColorMode.Cmyk));
                 _renderer.Append(" K\n");
@@ -264,7 +264,24 @@ internal sealed class PdfGraphicsState : ICloneable
         }
         _realizedStrokeColor = color;
         _realizedStrokeOverPrint = overPrint;
+        _realizedStrokePattern = penBrush != null;
     }
+
+    /// <summary>
+    /// True when the last pen realized here strokes with a pattern rather than with a colour.
+    /// </summary>
+    /// <remarks>
+    /// A flag rather than an invalidated <see cref="_realizedStrokeColor"/>, for two reasons. The
+    /// colour a gradient pen leaves behind is the black stood in for it, and "no colour realized"
+    /// is <see cref="XColor.Empty"/>, whose Rgb is zero - which is black's as well, so neither
+    /// value distinguishes a pattern from a black stroke. And treating Empty as "re-emit" would
+    /// write an explicit black at the head of every content stream that opens with a black stroke,
+    /// which is a change to every file the library writes for the sake of one that gradients.
+    ///
+    /// Without it, a pattern pen followed by <c>XPens.Black</c> wrote no "RG" - the remembered
+    /// colour matched - and the black line was stroked with the pattern still in the state.
+    /// </remarks>
+    bool _realizedStrokePattern;
 
     #endregion
 
@@ -350,6 +367,12 @@ internal sealed class PdfGraphicsState : ICloneable
                 }
                 // Invalidate fill color.
                 _realizedFillColor = XColor.Empty;
+
+                // "SCN" replaced the *stroking* colour space, which the line above does not record
+                // - so the pen path says so separately. RealizePen reaches this method only for a
+                // pattern pen, and sets the flag back to false for every other kind.
+                if (isForPen)
+                    _realizedStrokePattern = true;
             }
         }
     }

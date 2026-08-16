@@ -122,6 +122,33 @@ public class PenRenderingTests
         StrokeAlphasOn(page).Should().NotContain(0);
     }
 
+    [Fact]
+    public void ASolidPenAfterAGradientPenNamesItsColourAgain()
+    {
+        // A gradient pen writes "/Pattern CS" and an "SCN", which replaces the stroking colour
+        // space. The colour remembered for the stroke was the black stood in for the pattern, so
+        // the next XPens.Black stroke found its colour already realized, wrote no "RG", and drew
+        // in the pattern the gradient had left behind - a black line coming out as a gradient.
+        var brush = new XLinearGradientBrush(
+            new XRect(100, 100, 200, 200), XColors.Red, XColors.Blue, XLinearGradientMode.Horizontal);
+
+        var document = new PdfDocument();
+        var page = document.AddPage();
+
+        using (var gfx = XGraphics.FromPdfPage(page))
+        {
+            gfx.DrawLine(new XPen(brush, 6), 100, 100, 300, 100);
+            gfx.DrawLine(new XPen(XColors.Black, 6), 100, 200, 300, 200);
+        }
+
+        var content = ContentOf(page);
+        content.Should().Contain("/Pattern CS", "the gradient pen still strokes with a pattern");
+
+        var pattern = content.IndexOf("/Pattern CS", System.StringComparison.Ordinal);
+        content.IndexOf(" RG", pattern, System.StringComparison.Ordinal)
+            .Should().BeGreaterThan(-1, "the solid pen after it has to name its colour again");
+    }
+
     // ----- the miter limit -----
 
     [Fact]
