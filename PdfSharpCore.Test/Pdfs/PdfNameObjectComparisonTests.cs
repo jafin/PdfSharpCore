@@ -54,6 +54,21 @@ public class PdfNameObjectComparisonTests
     }
 
     /// <summary>
+    ///   <see cref="PdfNameObject.Value"/> is settable and may be set to null. That must not make
+    ///   the object holding it look like a null object: only the reference answers that.
+    /// </summary>
+    [Fact]
+    public void ANameWhoseValueIsNullIsStillNotANullName()
+    {
+        var name = new PdfNameObject(new PdfDocument(), "/Kent");
+        name.Value = null;
+
+        (name == null).Should().BeFalse("the name is there, whatever it holds");
+        (name != null).Should().BeTrue();
+        (name == "/Kent").Should().BeFalse();
+    }
+
+    /// <summary>
     ///   The behaviour the guard restores at the call sites: a dictionary entry that is neither a
     ///   string nor a name reports itself as one, rather than falling over on the way to saying so.
     /// </summary>

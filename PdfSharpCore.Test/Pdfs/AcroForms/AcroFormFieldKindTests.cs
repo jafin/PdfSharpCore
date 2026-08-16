@@ -362,6 +362,73 @@ public class AcroFormFieldKindTests
         field.SelectedIndices.Should().Equal(new[] { 0 });
     }
 
+    /// <summary>
+    ///   Two options may display differently and export the same text, which is one of the two
+    ///   cases the specification says <c>/I</c> shall be used for: searching <c>/Opt</c> for the
+    ///   text in <c>/V</c> finds the first of them and cannot do better. Without reading <c>/I</c>
+    ///   the round trip lost the selection - both chosen options collapsed onto the first.
+    /// </summary>
+    [Fact]
+    public void TwoOptionsExportingTheSameTextAreToldApartByTheIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices = new[] { 0, 1 };
+
+        field.SelectedIndices.Should().Equal(new[] { 0, 1 },
+            "/I says which two, where /V says only that both are Kent");
+    }
+
+    [Fact]
+    public void OneOfTwoOptionsExportingTheSameTextIsToldApartByTheIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey");
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices = new[] { 1 };
+
+        field.SelectedIndices.Should().Equal(new[] { 1 }, "the second Kent, not the first");
+    }
+
+    /// <summary>
+    ///   Where the two entries disagree the specification gives <c>/V</c> precedence, so an
+    ///   <c>/I</c> naming options <c>/V</c> does not is passed over rather than believed.
+    /// </summary>
+    [Fact]
+    public void AnIndexEntryThatContradictsTheValueIsIgnored()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+            f.Elements["/V"] = new PdfString("Surrey");
+            var stale = new PdfArray(f.Owner);
+            stale.Elements.Add(new PdfSharpCore.Pdf.PdfInteger(0));
+            f.Elements["/I"] = stale;
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices.Should().Equal(new[] { 2 }, "/V names Surrey, whatever /I says");
+    }
+
+    [Fact]
+    public void AListWithNoOptionsRefusesToSelectOne()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county").AcroForm.Fields["county"];
+
+        var act = () => ((PdfListBoxField)field).SelectedIndices = new[] { 0 };
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+        field.Elements.ContainsKey("/V").Should().BeFalse("nothing was written");
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeFalse();
+    }
+
     [Fact]
     public void SeveralSelectedOptionsSurviveARoundTrip()
     {

@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -130,21 +131,66 @@ public abstract class PdfChoiceField : PdfAcroField
         if (value == null || value is PdfNull)
             return new int[0];
 
-        var indices = new System.Collections.Generic.List<int>();
+        // The export values /V names, in the order it names them.
+        var chosenTexts = new List<string>();
         if (value is PdfArray chosen)
-        {
             foreach (PdfItem item in chosen.Elements)
-            {
-                int index = IndexInOptArray(TextOfOption(item));
-                if (index != -1 && !indices.Contains(index))
-                    indices.Add(index);
-            }
-        }
+                chosenTexts.Add(TextOfOption(item));
         else
+            chosenTexts.Add(TextOfOption(value));
+
+        int[] disambiguated = SelectedIndicesFromIndexEntry(chosenTexts);
+        if (disambiguated != null)
+            return disambiguated;
+
+        var indices = new List<int>();
+        foreach (string text in chosenTexts)
         {
-            int index = IndexInOptArray(TextOfOption(value));
-            if (index != -1)
+            int index = IndexInOptArray(text);
+            if (index != -1 && !indices.Contains(index))
                 indices.Add(index);
+        }
+
+        indices.Sort();
+        return indices.ToArray();
+    }
+
+    /// <summary>
+    /// The options <c>/I</c> names, when what it names is the same set of export values that
+    /// <c>/V</c> does; null when there is no usable <c>/I</c>, or when it names something else.
+    /// </summary>
+    /// <remarks>
+    /// Two options may display differently and export the same text, and the specification says
+    /// <c>/I</c> shall be used to tell them apart - searching <c>/Opt</c> for the text in <c>/V</c>
+    /// finds the first of them and cannot do better. So <c>/I</c> is believed where it agrees with
+    /// <c>/V</c> about which values are chosen, and disbelieved where it does not, <c>/V</c> being
+    /// the entry the specification gives precedence to.
+    /// </remarks>
+    int[] SelectedIndicesFromIndexEntry(List<string> chosenTexts)
+    {
+        PdfArray entry = Elements.GetArray(Keys.I);
+        PdfArray opt = Elements.GetArray(Keys.Opt);
+        if (entry == null || opt == null || entry.Elements.Count != chosenTexts.Count)
+            return null;
+
+        var indices = new List<int>();
+        var unaccountedFor = new List<string>(chosenTexts);
+        foreach (PdfItem item in entry.Elements)
+        {
+            PdfItem resolved = item is Advanced.PdfReference reference ? reference.Value : item;
+            if (!(resolved is PdfInteger number))
+                return null;
+
+            int index = number.Value;
+            if (index < 0 || index >= opt.Elements.Count || indices.Contains(index))
+                return null;
+
+            // Removing rather than searching, so that two options exporting the same text account
+            // for two entries in /V rather than both matching the one.
+            if (!unaccountedFor.Remove(ValueInOptArray(index)))
+                return null;
+
+            indices.Add(index);
         }
 
         indices.Sort();
@@ -164,8 +210,10 @@ public abstract class PdfChoiceField : PdfAcroField
             return;
         }
 
+        // Sorted here rather than trusted from the caller, so that the entry is in the order the
+        // specification gives for it however this is reached.
         PdfArray entry = new PdfArray(Owner);
-        foreach (int index in indices)
+        foreach (int index in Ordered(indices))
             entry.Elements.Add(new PdfInteger(index));
         Elements[Keys.I] = entry;
     }
@@ -176,7 +224,7 @@ public abstract class PdfChoiceField : PdfAcroField
     /// </summary>
     internal static int[] Ordered(int[] indices)
     {
-        var ordered = new System.Collections.Generic.List<int>();
+        var ordered = new List<int>();
         foreach (int index in indices ?? new int[0])
             if (!ordered.Contains(index))
                 ordered.Add(index);

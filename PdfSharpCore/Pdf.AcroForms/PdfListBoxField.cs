@@ -54,10 +54,18 @@ public sealed class PdfListBoxField : PdfChoiceField
     public bool AllowsMultipleSelection => (Flags & PdfAcroFieldFlags.MultiSelect) != 0;
 
     /// <summary>
-    /// Gets or sets the index of the selected item, or -1 when nothing is selected. Where several
-    /// options are selected this is the first of them; <see cref="SelectedIndices"/> gives them
-    /// all. Setting it selects that one option and deselects the rest.
+    /// Gets the index of the selected item, answering -1 when nothing is selected, and sets which
+    /// one option is selected. Where several are selected this reads the first of them;
+    /// <see cref="SelectedIndices"/> gives them all.
     /// </summary>
+    /// <remarks>
+    /// -1 is an answer, not something to set: it is what the getter says when nothing is chosen,
+    /// while the setter takes an index the list has an option for and refuses anything else. To
+    /// select nothing, set <see cref="SelectedIndices"/> to an empty array.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The index names no option the list offers.
+    /// </exception>
     public int SelectedIndex
     {
         get
@@ -99,6 +107,14 @@ public sealed class PdfListBoxField : PdfChoiceField
                 throw new InvalidOperationException(
                     "The list allows one option to be selected at a time. Set the MultiSelect flag "
                     + "on the field before selecting " + indices.Length + " of them.");
+
+            // A list with no /Opt at all offers nothing, so no index names an option. Checked
+            // here because ValueInOptArray answers "" for that case rather than refusing, which
+            // would otherwise write an empty /V and an /I pointing into an array that is not
+            // there, and the getter would then report nothing selected.
+            if (indices.Length != 0 && Elements.GetArray(PdfChoiceField.Keys.Opt) == null)
+                throw new ArgumentOutOfRangeException(nameof(value),
+                    "The list has no options, so there is no option at any index to select.");
 
             // Mapped before anything is written, so an index the list has no option for leaves the
             // field as it was rather than half changed.

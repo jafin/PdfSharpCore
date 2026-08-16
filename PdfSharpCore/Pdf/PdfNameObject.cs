@@ -116,7 +116,9 @@ public sealed class PdfNameObject : PdfObject
         if (ReferenceEquals(name, null))
             return str == null;
 
-        return name._value == str;
+        // Value is settable and may itself be null, which must not make the object that holds it
+        // look like a null object: only the reference check above answers that question.
+        return str != null && name._value == str;
     }
 
     /// <summary>
@@ -125,10 +127,7 @@ public sealed class PdfNameObject : PdfObject
     /// </summary>
     public static bool operator !=(PdfNameObject name, string str)
     {
-        if (ReferenceEquals(name, null))
-            return str != null;
-
-        return name._value != str;
+        return !(name == str);
     }
 
     /// <summary>
