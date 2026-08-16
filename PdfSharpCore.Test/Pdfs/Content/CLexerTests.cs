@@ -334,6 +334,23 @@ public class CLexerTests
         TokensOf(tokens, CSymbol.String).Should().Equal(expected);
     }
 
+    /// <summary>
+    ///   A literal string that opens with the UTF-16 byte order mark is read two bytes at a time,
+    ///   by a branch that is a near-copy of the 8-bit one beside it. The copy had the same fault
+    ///   and did not get the same fix: content ending in a backslash put the end-of-file marker
+    ///   into the text. See the backlog spec's finding F18.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_endsAUnicodeStringAtTheEndOfTheContentWithoutInventingCharacters()
+    {
+        // "(" BOM "A" then a lone backslash and nothing after it.
+        var content = new byte[] { (byte)'(', 0xFE, 0xFF, 0x00, (byte)'A', 0x00, (byte)'\\' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("A");
+    }
+
     [Fact(Timeout = 5000)]
     public async Task ScanLiteralString_readsAStringThatIsNothingButEscapes()
     {

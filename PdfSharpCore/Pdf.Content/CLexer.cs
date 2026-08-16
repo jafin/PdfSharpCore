@@ -449,6 +449,12 @@ public class CLexer
                         // Every other char is appended to the token.
                         break;
                 }
+
+                // As in the 8-bit branch below: the end-of-file marker is not a character of the
+                // string. It reaches here when the content ends immediately after a backslash.
+                if (ch == Chars.EOF)
+                    return _symbol = CSymbol.String;
+
                 _token.Append(ch);
                 chHi = ScanNextChar();
                 if (chHi == ')')
