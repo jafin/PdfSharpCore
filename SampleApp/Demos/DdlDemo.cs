@@ -187,7 +187,10 @@ internal sealed class DdlDemo : PdfDemo
             ("Elements in the first section", firstAgain.Elements.Count.ToString()),
             ("Styles defined", reread.Styles.Count.ToString()),
             ("Does the Listing style survive", reread.Styles["Listing"] != null ? "yes" : "no"),
-            ("Its font", reread.Styles["Listing"].Font.Name),
+            // Read through the same lookup the question above asks, and tolerant of the answer
+            // being "no": a page whose job is to report what the round trip lost cannot throw on
+            // the way to saying something was lost.
+            ("Its font", reread.Styles["Listing"]?.Font.Name ?? "-"),
             ("Table columns", tableAgain.Columns.Count.ToString()),
             ("Table rows", tableAgain.Rows.Count.ToString()),
             ("Is the first row still a heading", tableAgain.Rows[0].HeadingFormat ? "yes" : "no"),

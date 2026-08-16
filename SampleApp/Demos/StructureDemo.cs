@@ -112,6 +112,14 @@ internal sealed class StructureDemo : PdfDemo
         runningHead.Format.Font.Color = Colors.DimGray;
         runningHead.Format.Alignment = ParagraphAlignment.Right;
 
+        // Filled because DifferentFirstPageHeaderFooter is set above. Leaving it empty does not
+        // fall back to Primary - it means the first page of the section has no header at all,
+        // which on a section this short is every page a reader would look at for one.
+        Paragraph firstHead = contents.Headers.FirstPage.AddParagraph("First page of the section gets this one");
+        firstHead.Format.Font.Size = 8;
+        firstHead.Format.Font.Color = Colors.DimGray;
+        firstHead.Format.Alignment = ParagraphAlignment.Right;
+
         Paragraph evenHead = contents.Headers.EvenPage.AddParagraph("Even pages get this one");
         evenHead.Format.Font.Size = 8;
         evenHead.Format.Font.Color = Colors.DimGray;

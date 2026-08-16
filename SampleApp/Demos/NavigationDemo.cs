@@ -101,8 +101,8 @@ internal sealed class NavigationDemo : PdfDemo
         // Anything the producer wants to carry that is not part of the page. It lives in the
         // catalog under a key of the caller's choosing, no reader displays it, and it survives a
         // round trip - which is exactly what a pipeline needs to recognise its own output later.
-        document.CustomValues["/Pipeline"] = new PdfCustomValue(
-            Encoding.UTF8.GetBytes("{\"stage\":\"demonstration\",\"run\":42}"));
+        byte[] pipeline = Encoding.UTF8.GetBytes("{\"stage\":\"demonstration\",\"run\":42}");
+        document.CustomValues["/Pipeline"] = new PdfCustomValue(pipeline);
 
         // A destination named rather than numbered, so a link can point at "chapter-two" and go on
         // pointing at it after pages are inserted in front of it. The table is the document-wide
@@ -142,7 +142,7 @@ internal sealed class NavigationDemo : PdfDemo
                 ("FitWindow", "true", "The window is sized to the first page"),
                 ("DisplayDocTitle", "true", "The title bar shows Info.Title, not the file name"),
                 ("Language", "en-GB", "What a screen reader announces it in"),
-                ("CustomValues[\"/Pipeline\"]", "33 bytes of JSON", "Private data; no reader shows it"),
+                ("CustomValues[\"/Pipeline\"]", $"{pipeline.Length} bytes of JSON", "Private data; no reader shows it"),
                 ("NamedDestinations", "4 names", "Links that survive pages being inserted"),
             };
 
