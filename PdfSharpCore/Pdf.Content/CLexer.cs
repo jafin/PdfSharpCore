@@ -322,6 +322,15 @@ public class CLexer
         while (IsOperatorChar(ch))
             ch = AppendAndScanNextChar();
 
+        // d0 and d1 are the only content operators with a digit in them, and a Type 3 glyph
+        // description has to begin with one of the two. IsOperatorChar cannot take digits in
+        // general - an operator written hard against its successor's operand would swallow it -
+        // so the pair is spelled out here. Without this, "1000 0 0 0 200 200 d1 /Im1 Do" read as
+        // the setdash operator with six operands followed by Do with two, and every operator
+        // after the glyph's first was handed one operand too many.
+        if (_token.Length == 1 && _token[0] == 'd' && (ch == '0' || ch == '1'))
+            AppendAndScanNextChar();
+
         return _symbol = CSymbol.Operator;
     }
 
@@ -544,6 +553,14 @@ public class CLexer
                         // Every other char is appended to the token.
                         break;
                 }
+
+                // The end-of-file marker is not a character of the string. It reaches here when
+                // the content ends immediately after a backslash: the escape read the next
+                // character, which was the end, and the guard at the top of the loop had already
+                // been passed. Appending it put U+FFFF in the middle of the text.
+                if (ch == Chars.EOF)
+                    return _symbol = CSymbol.String;
+
                 _token.Append(ch);
                 //token.Append(Encoding.GetEncoding(1252).GetString(new byte[] { (byte)ch }));
                 ch = ScanNextChar();

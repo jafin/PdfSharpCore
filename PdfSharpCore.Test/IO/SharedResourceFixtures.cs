@@ -177,6 +177,69 @@ internal static class SharedResourceFixtures
         return RawPdf.Build(objects);
     }
 
+    /// <summary>
+    ///   One page naming two images and a Type 3 font, and drawing a character of that font. A
+    ///   Type 3 glyph is a content stream of its own, held in the font's /CharProcs, so Im1 is
+    ///   drawn only by the glyph and Im2 by nobody at all.
+    /// </summary>
+    internal static byte[] PageDrawingAGlyphThatDrawsAnImage()
+    {
+        return OnePageDocument(
+            "/Font<</T3 5 0 R>>/XObject<</Im1 8 0 R/Im2 9 0 R>>",
+            "BT /T3 12 Tf (a) Tj ET",
+            "<</Type/Font/Subtype/Type3/FontBBox[0 0 200 200]/FontMatrix[0.001 0 0 0.001 0 0]"
+            + "/CharProcs 6 0 R/Encoding<</Differences[97/a]>>/FirstChar 97/LastChar 97"
+            + "/Widths[1000]>>",
+            "<</a 7 0 R>>",
+            RawPdf.Stream("", "1000 0 0 0 200 200 d1 /Im1 Do"),
+            Image(),
+            Image());
+    }
+
+    /// <summary>
+    ///   One page whose annotation has a normal appearance stream drawing Im1, with Im2 named by
+    ///   the page and drawn by nobody. The page's own content draws nothing.
+    /// </summary>
+    internal static byte[] PageWithAnAnnotationAppearance()
+    {
+        return RawPdf.Build(new List<string>
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            Page("/Resources<</XObject<</Im1 6 0 R/Im2 7 0 R>>>>/Contents 4 0 R/Annots[5 0 R]"),
+            Draw(""),
+            "<</Type/Annot/Subtype/Widget/Rect[0 0 100 100]/AP<</N 8 0 R>>>>",
+            Image(),
+            Image(),
+            // No resources of its own, so what it draws it draws with the page's.
+            Form("", "/Im1 Do"),
+        });
+    }
+
+    /// <summary>
+    ///   The same, with an appearance that varies by state: /AP /N is a dictionary of one stream
+    ///   per state rather than a stream, which is what a tickable field carries. Im1 is drawn by
+    ///   the on state and Im2 by the off state, so both survive; Im3 is drawn by nobody.
+    /// </summary>
+    internal static byte[] PageWithAnAnnotationAppearancePerState()
+    {
+        return RawPdf.Build(new List<string>
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            Page("/Resources<</XObject<</Im1 6 0 R/Im2 7 0 R/Im3 8 0 R>>>>"
+                 + "/Contents 4 0 R/Annots[5 0 R]"),
+            Draw(""),
+            "<</Type/Annot/Subtype/Widget/Rect[0 0 100 100]/AP<</N 9 0 R>>>>",
+            Image(),
+            Image(),
+            Image(),
+            "<</Yes 10 0 R/Off 11 0 R>>",
+            Form("", "/Im1 Do"),
+            Form("", "/Im2 Do"),
+        });
+    }
+
     private static string Page(string entries)
     {
         return "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]" + entries + ">>";
