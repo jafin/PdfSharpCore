@@ -65,9 +65,16 @@ public sealed class PdfComboBoxField : PdfChoiceField
             {
                 string key = ValueInOptArray(value);
                 Elements.SetString(Keys.V, key);
-                // A viewer reads /I to decide which option is highlighted and ignores /V for
-                // that, so writing /V alone leaves the combo box looking unchanged.
-                Elements.SetInteger("/I", value);
+                // /I is an array of the indices selected, sorted ascending - one of them here,
+                // a combo box offering a single choice. It was written as a bare integer, which
+                // is not what the specification says and not what this field's own key metadata
+                // says either: PdfChoiceField.Keys.I is declared KeyType.Array.
+                //
+                // The entry is kept rather than dropped, though the specification says it should
+                // not be used by a field that does not allow multiple selection. It is here
+                // because a viewer was once found that would not follow /V without it, and that
+                // is a recommendation rather than a requirement, whereas the array is required.
+                Elements[PdfChoiceField.Keys.I] = new PdfArray(Owner, new PdfInteger(value));
             }
         }
     }
