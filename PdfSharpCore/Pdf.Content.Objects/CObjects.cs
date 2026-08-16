@@ -159,6 +159,17 @@ public class CSequence : CObject, IList<CObject> // , ICollection<CObject>, IEnu
     /// Adds the specified sequence.
     /// </summary>
     /// <param name="sequence">The sequence.</param>
+    /// <summary>
+    /// Appends the <em>contents</em> of another sequence, not the sequence itself.
+    /// </summary>
+    /// <remarks>
+    /// Worth knowing before reaching for it, because the overload below and the
+    /// <c>IList&lt;CObject&gt;</c> one both add what they are handed as a single item, and
+    /// <see cref="CArray"/> derives from this class - so adding an array through this overload
+    /// spreads its items into the sequence and the brackets do not survive to be written. Kept as
+    /// it is, spelling and all, because it is the shape upstream ships and a caller compiled
+    /// against that is entitled to go on binding to it.
+    /// </remarks>
     public void Add(CSequence sequence)
     {
         int count = sequence.Count;

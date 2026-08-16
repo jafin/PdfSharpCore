@@ -163,7 +163,7 @@ internal class ImageRenderer : ShapeRenderer
 
     /// <summary>
     /// The largest of the usual sizes at which the placeholder's message fits the box it belongs
-    /// to, or the smallest of them if none does.
+    /// to, or 4 point - below the smallest of them - where none of them fits.
     /// </summary>
     /// <remarks>
     /// The size used to be a fixed 8 point whatever the box measured, so a placeholder narrower
@@ -348,10 +348,6 @@ internal class ImageRenderer : ShapeRenderer
     }
 
     /// <summary>
-    ///   Sizes the placeholder that stands in for an image that could not be drawn: what the
-    ///   document asked for where it asked for anything, and a square inch or so where it did not.
-    /// </summary>
-    /// <summary>
     /// Whether a measured extent is one an image can actually be laid out at.
     /// </summary>
     /// <remarks>
@@ -365,6 +361,10 @@ internal class ImageRenderer : ShapeRenderer
         return points > 0 && !double.IsInfinity(points);
     }
 
+    /// <summary>
+    ///   Sizes the placeholder that stands in for an image that could not be drawn: what the
+    ///   document asked for where it asked for anything, and a square inch or so where it did not.
+    /// </summary>
     private void SetFallbackDimensions(ImageFormatInfo formatInfo)
     {
         // A size of nothing would hide the placeholder, which defeats the point of drawing one,
