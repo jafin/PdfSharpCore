@@ -31,6 +31,7 @@
 #endregion
 
 using MigraDocCore.DocumentObjectModel.Internals;
+using PdfSharpCore.Text;
 
 namespace MigraDocCore.DocumentObjectModel;
 
@@ -402,6 +403,30 @@ public partial class ParagraphFormat : DocumentObject
   internal TabStops tabStops;
 
   /// <summary>
+  /// Gets or sets which way the paragraph runs. The default is
+  /// <see cref="BidiParagraphDirection.Automatic"/>, which reads it off the text itself.
+  /// </summary>
+  /// <remarks>
+  /// The Unicode Bidirectional Algorithm takes the direction from the first strong character it
+  /// finds, which is right far more often than not and wrong in the cases that matter: a paragraph
+  /// of Hebrew opening with a Latin brand name, a date, or a quotation mark. This says what the
+  /// paragraph is rather than leaving it to be guessed - and it is one answer for the whole
+  /// paragraph, where the guess is made afresh for every line of it.
+  /// <para>
+  /// A line whose words have to change places to be read is laid out in that order. A line
+  /// containing a tab is not: where a tabbed line's columns should sit in a right-to-left paragraph
+  /// is a question this does not answer, so such a line keeps the order it was written in.
+  /// </para>
+  /// </remarks>
+  public BidiParagraphDirection TextDirection
+  {
+    get => textDirection ?? BidiParagraphDirection.Automatic;
+    set { ThrowIfReadOnly(); textDirection = EnumGuard.Checked(value); }
+  }
+  [DV]
+  internal BidiParagraphDirection? textDirection;
+
+  /// <summary>
   /// Gets or sets a value indicating whether a line from the paragraph stays alone in a page.
   /// </summary>
   public bool WidowControl
@@ -469,6 +494,9 @@ public partial class ParagraphFormat : DocumentObject
 
     if (keepWithNext != null && (refFormat == null || keepWithNext != refFormat.keepWithNext))
       serializer.WriteSimpleAttribute("KeepWithNext", KeepWithNext);
+
+    if (textDirection != null && (refFormat == null || textDirection != refFormat.textDirection))
+      serializer.WriteSimpleAttribute("TextDirection", TextDirection);
 
     if (widowControl != null && (refFormat == null || widowControl != refFormat.widowControl))
       serializer.WriteSimpleAttribute("WidowControl", WidowControl);

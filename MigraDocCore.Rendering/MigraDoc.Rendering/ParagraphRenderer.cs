@@ -36,6 +36,8 @@ using System.Text;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
+using System.Linq;
+using PdfSharpCore.Text;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
@@ -828,8 +830,15 @@ internal class ParagraphRenderer : Renderer
                 RenderListSymbol();
         }
 
+        // Where each leaf goes, when that is not where it was written. Worked out before anything
+        // is drawn, because the answer depends on how wide every part of the line is and the parts
+        // are only measured by walking them.
+        XUnit[] placed = PlacedInVisualOrder(lineInfo);
+        reordering = placed != null;
+
         try
         {
+            int at = 0;
             while (!ready)
             {
                 if (currentLeaf.Current == lineInfo.endIter.Current)
@@ -838,13 +847,21 @@ internal class ParagraphRenderer : Renderer
                 if (currentLeaf.Current == lineInfo.lastTab)
                     lastTabPassed = true;
 
+                // The leaves are still walked in the order they were written - only where they land
+                // changes. That keeps the marked content in reading order, which is what a
+                // structure tree is for, and keeps every scope nesting the way it did.
+                if (placed != null)
+                    currentXPosition = placed[at];
+
                 OpenInlineScopes();
                 RenderElement(currentLeaf.Current);
                 currentLeaf = currentLeaf.GetNextLeaf();
+                at++;
             }
         }
         finally
         {
+            reordering = false;
             // Never allowed to straddle a line. The annotation is made per line anyway, and a scope
             // left open by a line that ends inside a hyperlink would swallow everything after it.
             // The broken word does straddle one, but as two runs of marks on the same element rather
@@ -855,6 +872,184 @@ internal class ParagraphRenderer : Renderer
 
         currentYPosition += lineInfo.vertical.height;
         isFirstLine = false;
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // Laying a line out in the order it is read
+    //
+    // XGraphics.DrawString turns a right-to-left string round on its own, so every word of a
+    // Hebrew or Arabic paragraph has always come out correctly. The words themselves did not: this
+    // renderer draws one show-text operator per leaf and advances the pen by its width, so the
+    // words stayed in the order they were written and the sentence read inside out.
+    //
+    // Reordering them needs every leaf's width before any of them is placed, and the only thing
+    // that knows a leaf's width is the code that draws it. So the line is walked twice: once with
+    // "probing" set, which advances the pen and puts nothing on the page, and then again for real
+    // with each leaf placed where the first walk and the bidirectional algorithm say it belongs.
+    //
+    // The second walk is still in the order the leaves were written. Only the x changes. That is
+    // what keeps the marked content in reading order - which is what a structure tree is for - and
+    // what keeps the hyperlink and broken-word scopes nesting as they did.
+    // ----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// True while the line is being walked to find out how wide its parts are. Everything that puts
+    /// marks on the page is skipped; everything that moves the pen still runs.
+    /// </summary>
+    bool probing;
+
+    /// <summary>
+    /// True while a line is being drawn whose leaves are not in the order they were written.
+    /// </summary>
+    /// <remarks>
+    /// Read by the underline, strikethrough and hyperlink rules, which otherwise run from the first
+    /// leaf of a stretch to the last and would draw one rule across the whole line - backwards, and
+    /// over the words in between. Each leaf gets a rule of its own instead. For a stretch that is
+    /// still contiguous the pieces abut and the result is the same line.
+    /// </remarks>
+    bool reordering;
+
+    /// <summary>The line's text, as the leaves contribute it during a probing walk.</summary>
+    StringBuilder probedText;
+
+    /// <summary>
+    /// Where each leaf of the line should be drawn, or null when the line reads the way it was
+    /// written and nothing needs moving.
+    /// </summary>
+    XUnit[] PlacedInVisualOrder(LineInfo lineInfo)
+    {
+        if (!MayNeedReordering(lineInfo))
+            return null;
+
+        var widths = new List<XUnit>();
+        var spans = new List<(int Start, int Length)>();
+        string text = Probe(lineInfo, widths, spans);
+
+        var bidi = BidiAlgorithm.Resolve(text, ParagraphDirection);
+        bool anyRightToLeft = false;
+        foreach (var run in bidi.Runs())
+            anyRightToLeft |= run.Direction == XTextDirection.RightToLeft;
+
+        if (!anyRightToLeft)
+            return null;
+
+        // Where each character ended up, which is the inverse of the order the algorithm answers.
+        var at = new int[text.Length];
+        for (int idx = 0; idx < at.Length; idx++)
+            at[idx] = int.MaxValue;
+        for (int position = 0; position < bidi.VisualOrder.Count; position++)
+            at[bidi.VisualOrder[position]] = position;
+
+        // A leaf is ordered by the leftmost position any of its characters ends up at, not by the
+        // position of its first character - the first character of a right-to-left word is its
+        // rightmost. Ordering by leftmost is also what keeps an English phrase inside a Hebrew
+        // sentence in its own order, where reversing the line would turn it round.
+        var keys = new int[widths.Count];
+        for (int leaf = 0; leaf < keys.Length; leaf++)
+        {
+            int leftmost = int.MaxValue;
+            for (int idx = spans[leaf].Start; idx < spans[leaf].Start + spans[leaf].Length; idx++)
+                leftmost = Math.Min(leftmost, at[idx]);
+
+            // A leaf that contributed no text - a bookmark, a line break - has no position of its
+            // own and stays beside whatever it followed.
+            keys[leaf] = leftmost == int.MaxValue && leaf > 0 ? keys[leaf - 1] : leftmost;
+        }
+
+        var order = Enumerable.Range(0, keys.Length).OrderBy(leaf => keys[leaf]).ToArray();
+        var placed = new XUnit[keys.Length];
+        XUnit x = StartXPosition;
+        foreach (int leaf in order)
+        {
+            placed[leaf] = x;
+            x += widths[leaf];
+        }
+
+        return placed;
+    }
+
+    /// <summary>
+    /// Walks the line without drawing it, collecting what each leaf says and how wide it is.
+    /// </summary>
+    string Probe(LineInfo lineInfo, List<XUnit> widths, List<(int Start, int Length)> spans)
+    {
+        var savedLeaf = currentLeaf;
+        var savedPosition = currentXPosition;
+
+        probedText = new StringBuilder();
+        probing = true;
+        try
+        {
+            bool ready = currentLeaf == null;
+            while (!ready)
+            {
+                if (currentLeaf.Current == lineInfo.endIter.Current)
+                    ready = true;
+
+                int start = probedText.Length;
+                XUnit before = currentXPosition;
+
+                RenderElement(currentLeaf.Current);
+
+                widths.Add(currentXPosition - before);
+                spans.Add((start, probedText.Length - start));
+                currentLeaf = currentLeaf.GetNextLeaf();
+            }
+
+            return probedText.ToString();
+        }
+        finally
+        {
+            probing = false;
+            probedText = null;
+            currentLeaf = savedLeaf;
+            currentXPosition = savedPosition;
+        }
+    }
+
+    /// <summary>
+    /// Whether the line could possibly want reordering, asked before anything is measured.
+    /// </summary>
+    /// <remarks>
+    /// Two answers matter here. A line with nothing right to left in it and no direction declared
+    /// cannot need moving, and this is what keeps every left-to-right document paying one cheap
+    /// scan rather than an extra walk of every line. And <b>a line with a tab in it is left
+    /// alone</b>: a tab's width is taken from a list built during formatting and consumed in order,
+    /// so walking the line twice would consume it twice - and where a tabbed line's columns belong
+    /// in a right-to-left paragraph is a question nothing here answers.
+    /// </remarks>
+    bool MayNeedReordering(LineInfo lineInfo)
+    {
+        bool declared = ParagraphDirection == BidiParagraphDirection.RightToLeft;
+        bool found = declared;
+
+        var leaf = lineInfo.startIter;
+        while (leaf != null)
+        {
+            if (leaf.Current is Character character && character.SymbolName == SymbolName.Tab)
+                return false;
+
+            if (!found && leaf.Current is Text text && text.Content != null)
+            {
+                foreach (char ch in text.Content)
+                {
+                    // Nothing below the Hebrew block is written right to left, so a string made
+                    // only of characters below it can only be read the way it was written.
+                    if (ch >= '\u0590')
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (leaf.Current == lineInfo.endIter.Current)
+                break;
+
+            leaf = leaf.GetNextLeaf();
+        }
+
+        return found;
     }
 
     /// <summary>
@@ -1252,6 +1447,16 @@ internal class ParagraphRenderer : Renderer
         XUnit top = CurrentBaselinePosition;
         Area contentArea = renderInfo.LayoutInfo.ContentArea;
         top -= contentArea.Height;
+
+        if (probing)
+        {
+            // An object replacement character: neutral, so it takes the direction of whatever
+            // it sits between, which is the right answer for a picture in a line of text.
+            probedText.Append('￼');
+            currentXPosition += contentArea.Width;
+            return;
+        }
+
         RenderByInfos(currentXPosition, top, new RenderInfo[] { renderInfo });
 
         RenderUnderline(contentArea.Width, true);
@@ -1293,6 +1498,9 @@ internal class ParagraphRenderer : Renderer
 
     void RenderBookmarkField()
     {
+        if (probing)
+            return;
+
         RenderUnderline(0, false);
         RenderStrikethrough(0, false);
     }
@@ -1328,11 +1536,17 @@ internal class ParagraphRenderer : Renderer
 
     void RenderSpace(Character character)
     {
+        if (probing)
+            probedText.Append(' ', character.Count);
+
         currentXPosition += GetSpaceWidth(character);
     }
 
     void RenderLinebreak()
     {
+        if (probing)
+            return;
+
         RenderUnderline(0, false);
         RenderStrikethrough(0, false);
         RealizeHyperlink(0);
@@ -1449,6 +1663,17 @@ internal class ParagraphRenderer : Renderer
 
     void RenderBlank()
     {
+        if (probing)
+        {
+            if (!IgnoreBlank())
+            {
+                probedText.Append(' ');
+                currentXPosition += CurrentWordDistance;
+            }
+
+            return;
+        }
+
         if (!IgnoreBlank())
         {
             XUnit wordDistance = CurrentWordDistance;
@@ -1478,13 +1703,21 @@ internal class ParagraphRenderer : Renderer
 
     void RenderWord(string word)
     {
+        XUnit wordWidth = MeasureString(word);
+
+        if (probing)
+        {
+            probedText.Append(word);
+            currentXPosition += wordWidth;
+            return;
+        }
+
         Font font = CurrentDomFont;
         XFont xFont = CurrentFont;
         if (font.Subscript || font.Superscript)
             xFont = FontHandler.ToSubSuperFont(xFont);
 
         gfx.DrawString(word, xFont, CurrentBrush, currentXPosition, CurrentBaselinePosition);
-        XUnit wordWidth = MeasureString(word);
         RenderUnderline(wordWidth, true);
         RenderStrikethrough(wordWidth, true);
         RealizeHyperlink(wordWidth);
@@ -1577,7 +1810,7 @@ internal class ParagraphRenderer : Renderer
             currentHyperlink = hyperlink;
         }
 
-        if (currentLeaf.Current == endLeaf.Current)
+        if (reordering || currentLeaf.Current == endLeaf.Current)
         {
             if (currentHyperlink != null)
                 EndHyperlink(currentHyperlink, right, bottom);
@@ -2873,7 +3106,7 @@ internal class ParagraphRenderer : Renderer
             currentUnderlinePen = pen;
         }
 
-        if (currentLeaf.Current == endLeaf.Current)
+        if (reordering || currentLeaf.Current == endLeaf.Current)
         {
             if (currentUnderlinePen != null)
                 EndUnderline(currentUnderlinePen, currentXPosition + width);
@@ -2936,7 +3169,7 @@ internal class ParagraphRenderer : Renderer
             currentStrikethroughPen = pen;
         }
 
-        if (currentLeaf.Current == endLeaf.Current)
+        if (reordering || currentLeaf.Current == endLeaf.Current)
         {
             if (currentStrikethroughPen != null)
                 EndStrikethrough(currentStrikethroughPen, currentXPosition + width);
@@ -3076,17 +3309,43 @@ internal class ParagraphRenderer : Renderer
         return pen;
     }
 
-    private static XStringFormat StringFormat
+    /// <summary>
+    /// The format every string of this paragraph is measured and drawn with.
+    /// </summary>
+    /// <remarks>
+    /// One instance per direction rather than the single shared one there used to be, because the
+    /// direction is a property of the paragraph and the shared instance is reached by every
+    /// paragraph in the process at once. They are built once and never written to afterwards, so
+    /// sharing them is safe in the way sharing one mutable format would not have been.
+    /// </remarks>
+    private XStringFormat StringFormat => FormatFor(ParagraphDirection);
+
+    /// <summary>Which way the paragraph says it runs.</summary>
+    BidiParagraphDirection ParagraphDirection => paragraph.Format.TextDirection;
+
+    static XStringFormat FormatFor(BidiParagraphDirection direction)
     {
-        get
+        switch (direction)
         {
-            if (stringFormat == null)
-            {
-                stringFormat = XStringFormats.Default;
-            }
-            return stringFormat;
+            case BidiParagraphDirection.LeftToRight:
+                return leftToRightFormat;
+            case BidiParagraphDirection.RightToLeft:
+                return rightToLeftFormat;
+            default:
+                return automaticFormat;
         }
     }
+
+    static XStringFormat Built(BidiParagraphDirection direction)
+    {
+        var format = XStringFormats.Default;
+        format.TextDirection = direction;
+        return format;
+    }
+
+    static readonly XStringFormat automaticFormat = Built(BidiParagraphDirection.Automatic);
+    static readonly XStringFormat leftToRightFormat = Built(BidiParagraphDirection.LeftToRight);
+    static readonly XStringFormat rightToLeftFormat = Built(BidiParagraphDirection.RightToLeft);
 
     /// <summary>
     /// The paragraph to format or render.
@@ -3130,7 +3389,6 @@ internal class ParagraphRenderer : Renderer
     private ParagraphIterator currentLeaf;
     private ParagraphIterator startLeaf;
     private ParagraphIterator endLeaf;
-    private static XStringFormat stringFormat;
     private bool reMeasureLine;
     private XUnit minWidth = 0;
     private Hashtable imageRenderInfos;

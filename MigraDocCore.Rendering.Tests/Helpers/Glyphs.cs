@@ -58,6 +58,29 @@ internal static class Glyphs
     }
 
     /// <summary>
+    ///   The glyphs the page draws, in the order a reader sees them rather than the order they
+    ///   were written.
+    /// </summary>
+    /// <remarks>
+    ///   The two differ for a right-to-left paragraph, whose words are drawn in the order they
+    ///   are written and placed in the order they are read. Which of the two a test wants depends
+    ///   on what it is asking: <see cref="On"/> for the reading order a structure tree records,
+    ///   this for what the page looks like.
+    /// </remarks>
+    internal static IReadOnlyList<int> AcrossThePage(PdfPage page)
+    {
+        var glyphs = new List<int>();
+
+        foreach (var run in TextOperators.ShownAcrossThePage(page))
+        {
+            for (var idx = 0; idx + 1 < run.Length; idx += 2)
+                glyphs.Add((run[idx] << 8) | run[idx + 1]);
+        }
+
+        return glyphs;
+    }
+
+    /// <summary>
     ///   The glyphs that text draws when it is laid out as plain paragraphs, one per line given.
     ///   Nothing separates the lines in the result: MigraDoc draws one run per word and puts the
     ///   spaces between them in the positioning, so no whitespace glyph is ever shown.

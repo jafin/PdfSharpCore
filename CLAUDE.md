@@ -182,16 +182,28 @@ right-to-left run, because `ShapedRun` promises visual order and the renderer re
 consumer who takes no HarfBuzz dependency still gets Hebrew and Arabic the right way round, unjoined.
 That is the older half of the complaint in `empira/PDFsharp-1.5#144` and it is fixed in the core.
 
-Where it stops: **`MigraDocCore.Rendering/ParagraphRenderer.cs` draws one show-text operator per
-word**, so a MigraDoc paragraph has each word turned round correctly and the words themselves left in
-the order they were written. `ParagraphFormat.TextDirection` is deliberately *not* on the DOM until
-that is fixed — it was built, measured to change nothing, and taken out again.
+A layout engine that places each word itself has to order them, and two do. `XTextFormatter` hands
+whole lines to `DrawString` for every alignment but one, so only justifying needed changing.
+`MigraDocCore.Rendering/ParagraphRenderer.cs` draws one show-text operator per leaf and needed the
+most: **it walks each line twice**, once with `probing` set to learn how wide every leaf is without
+drawing anything, then again for real with each leaf placed where the bidirectional algorithm says.
 
-`XTextFormatter` does handle it. Every alignment but one hands a whole line to `DrawString` and so
-needed no change; justifying places each word itself and now orders them by the leftmost position
-any of the word's characters ends up at. Ordering by *leftmost* rather than by the first character
-is what keeps an English phrase inside a right-to-left line in its own order.
-`Drawing/Layout/BidirectionalLayoutTests.cs` pins all of it.
+Both order a word by **the leftmost position any of its characters ends up at**, not by its first
+character — a right-to-left word's first character is its rightmost. That is also what keeps an
+English phrase inside a Hebrew sentence in its own order, where reversing the line turns it round.
+
+Two things about the MigraDoc pass are load-bearing. **The second walk is still in the order the
+leaves were written** — only the x changes — so the marked content stays in reading order, which
+is what a structure tree is for; `TheMarksStayInTheOrderTheTextIsRead` asserts both orders at once.
+And **a line with a tab in it is left alone**, because a tab's width is consumed from a list built
+during formatting and cannot be walked twice. While reordering, the underline, strikethrough and
+hyperlink rules are drawn per leaf rather than per stretch, or one rectangle would run backwards
+across the line.
+
+`ParagraphFormat.TextDirection`, `XTextFormatter.TextDirection` and `XStringFormat.TextDirection`
+all take `BidiParagraphDirection` — one type, not three saying the same thing.
+`Drawing/Layout/BidirectionalLayoutTests.cs` and `MigraDocCore.Rendering.Tests/BidirectionalParagraphTests.cs`
+pin the two engines.
 
 The character property tables are **generated and checked in** — `tools/UnicodeTableGenerator`,
 deliberately outside `PdfSharpCore.slnx` so the build and CI never see it, run by hand on a Unicode

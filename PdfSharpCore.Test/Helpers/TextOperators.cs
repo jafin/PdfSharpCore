@@ -125,6 +125,68 @@ internal static class TextOperators
             .ToList();
     }
 
+    /// <summary>
+    ///   The strings shown on the page, in the order a reader sees them: down the page, and left to
+    ///   right along a line.
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///     Not the same list as <see cref="ShownStrings"/>, which is in the order the renderer wrote
+    ///     them. The two differ exactly when something is drawn somewhere other than after the thing
+    ///     before it - which is what laying a right-to-left line out in the order it is read amounts
+    ///     to, and is the whole of what a test of that wants to see.
+    ///   </para>
+    ///   <para>
+    ///     The position is accumulated from the text-positioning operators: <c>Tm</c> sets it
+    ///     outright and <c>Td</c> moves it, both relative to the start of the text object, which is
+    ///     enough to order what is on one page against itself.
+    ///   </para>
+    /// </remarks>
+    internal static IReadOnlyList<string> ShownAcrossThePage(PdfPage page)
+    {
+        var shown = new List<(double X, double Y, int Written, string Text)>();
+        double x = 0, y = 0;
+
+        foreach (var op in Operators(page))
+        {
+            var operands = ItemsOf(op.Operands);
+            switch (op.OpCode.OpCodeName)
+            {
+                case OpCodeName.BT:
+                    x = y = 0;
+                    break;
+
+                case OpCodeName.Tm when operands.Count == 6:
+                    x = Number(operands[4]);
+                    y = Number(operands[5]);
+                    break;
+
+                case OpCodeName.Td when operands.Count == 2:
+                case OpCodeName.TD when operands.Count == 2:
+                    x += Number(operands[0]);
+                    y += Number(operands[1]);
+                    break;
+
+                case OpCodeName.Tj:
+                case OpCodeName.TJ:
+                    foreach (var text in operands
+                                 .SelectMany(o => o is CArray array ? ItemsOf(array) : new[] { o })
+                                 .OfType<CString>())
+                    {
+                        shown.Add((x, y, shown.Count, text.Value));
+                    }
+                    break;
+            }
+        }
+
+        return shown
+            .OrderByDescending(run => run.Y)
+            .ThenBy(run => run.X)
+            .ThenBy(run => run.Written)
+            .Select(run => run.Text)
+            .ToList();
+    }
+
     static IEnumerable<CArray> TJArrays(PdfPage page)
     {
         return Operators(page)

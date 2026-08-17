@@ -20,10 +20,10 @@ line gets it for free, and one that places each word itself does not.
 A face with no Arabic in it no longer draws four empty boxes either: naming a family to fall back
 to is enough, and the run is cut at the coverage boundary and drawn by the face that has the glyphs.
 
-What is **not** built is MigraDoc's paragraph renderer, which places each word itself and so leaves
-the words of a right-to-left line in the order they were written — and with it
-`ParagraphFormat.TextDirection`, which was written and then taken out again because measuring showed
-it changed nothing until that lands.
+**Every item of this gap is now built.** A paragraph of Hebrew or Arabic laid out by MigraDoc has
+its words in the order they are read as well as its letters, and `ParagraphFormat.TextDirection`
+says which way a paragraph runs rather than leaving it to be guessed from the first strong
+character it happens to start with.
 
 | item | what | status |
 |---|---|---|
@@ -37,8 +37,8 @@ it changed nothing until that lands.
 | 6 | The write path honours offsets, and `/ToUnicode` is built from clusters | **built** |
 | 6b | Measuring and drawing itemise and reorder | **built** |
 | 6c | Word order in a justified line | **built** |
-| 6d | Word order in MigraDoc | proposed |
-| 7 | Saying which way a paragraph runs | **built** for `XTextFormatter`, blocked on 6d for the DOM |
+| 6d | Word order in MigraDoc | **built** |
+| 7 | Saying which way a paragraph runs | **built** |
 
 Estimated effort was **9–13 engineer-weeks**: shaping seam 3 · bidi and itemisation 3 · fallback 2 ·
 measurement rework 3–4 · golden-image churn 1. Stage 1 spent well under the first three, because
@@ -557,34 +557,58 @@ right-to-left text, because the guess is made per *line*: a paragraph of Arabic 
 happens to begin with a Latin word or a number would have that line laid out the other way round
 from the rest of it.
 
-### MigraDoc — **not built, and `ParagraphFormat.TextDirection` is not shipped either**
+### MigraDoc — **built**
 
-`ParagraphFormat.TextDirection` was written, plumbed through to the renderer's `XStringFormat`,
-round-tripped through MDDDL, and then **taken out again**, because measuring what it did showed it
-did nothing.
+MigraDoc renders **one show-text operator per leaf**: `RenderLine` walks the line's leaves and
+`RenderElement` draws each at `currentXPosition` and advances it. So the words stayed where they
+were written and a Hebrew sentence read inside out, even though each of its words was individually
+correct.
 
-MigraDoc renders **one show-text operator per word**: `RenderLine` walks the line's leaves and
-`RenderElement` draws each at `currentXPosition` and advances it. So every string that reaches
-`DrawString` is a single word, a declared paragraph direction has nothing in it to act on, and a
-page of Hebrew comes out with each word individually turned round and the words themselves in the
-order they were written. The rendered output is byte for byte the same with the property set as
-without it. Shipping an API that does nothing is worse than shipping none.
+Reordering them needs every leaf's width before any leaf is placed, and the only thing that knows a
+leaf's width is the code that draws it. So the line is walked **twice**: once with `probing` set,
+which advances the pen and puts nothing on the page, and then again for real with each leaf placed
+where the first walk and the bidirectional algorithm say it belongs.
 
-What it needs, now that the shape of the renderer is known:
+**The second walk is still in the order the leaves were written. Only the x changes.** That is the
+decision the rest of it hangs on. Walking in visual order would have meant reordering the marked
+content too - and a structure tree is meant to be in *reading* order, so it would have broken
+exactly the thing tagged output exists for. It also keeps the hyperlink and broken-word scopes
+nesting as they did, and keeps every stateful thing in the renderer seeing its leaves in the order
+it always has. `TheMarksStayInTheOrderTheTextIsRead` asserts both orders at once, and they now
+genuinely differ.
 
-1. A **probing pass** over the line's leaves that advances `currentXPosition` without drawing, so
-   that each leaf's width and start are known before any of them is placed. Five `gfx.Draw` calls,
-   the tagging scopes, the hyperlink annotations and `documentRenderer.NextListNumber` all have to
-   be suppressed during it — the last of those is a counter, and probing would number
-   every list item twice.
-2. The line's **logical text**, built from the leaves, with a placeholder of class ON for the leaves
-   that have no text of their own (images, fields before they resolve).
-3. The same ordering rule the formatter now uses, applied to leaves rather than to blocks.
-4. A decision about **tabs**, whose offsets are computed from `currentXPosition` deltas during
-   formatting and stored on the line. A tabbed line in a right-to-left paragraph is its own design
-   question and the safe answer is to leave such lines in logical order.
+The probing walk had to be made harmless rather than merely quiet. Five `gfx.Draw` calls, the
+image render, the tagging scopes and the hyperlink annotations are all skipped; the leaf's text is
+collected on the way past, from inside `RenderWord` and its two siblings rather than by a second
+dispatch that could drift from the first. An image contributes `U+FFFC`, which is neutral, so a
+picture in a line takes the direction of the words around it.
 
-Only then is the DOM property worth having, and the two should land together.
+Three things needed care:
+
+- **`documentRenderer.NextListNumber` is a counter**, so probing a line that draws a list symbol
+  would number every item twice. The symbol is drawn outside the leaf loop, so the probe never
+  reaches it.
+- **Underline, strikethrough and the hyperlink rectangle run from the first leaf of a stretch to
+  the last**, which is one rectangle across a line that is no longer contiguous - backwards, and
+  over the words between. While reordering, each leaf gets its own; where a stretch is still
+  contiguous the pieces abut and the result is the same line.
+- **A line with a tab in it is left alone.** A tab's width comes from a list built during
+  formatting and consumed in order, so the line cannot be walked twice - and where a tabbed line's
+  columns belong in a right-to-left paragraph is a question this does not answer. Guessing would be
+  worse than leaving it, and `ALineWithATabInItKeepsTheOrderItWasWritten` pins that it is left.
+
+A left-to-right paragraph is not measured twice at all: the scan that decides answers from the
+characters alone, and nothing below `U+0590` is written right to left.
+
+### Item 7 — `ParagraphFormat.TextDirection` · **built**
+
+Now that the words move, saying which way they run means something. `ParagraphFormat.TextDirection`
+carries `BidiParagraphDirection` - the same type `XStringFormat` and `XTextFormatter` take, rather
+than a third enum saying the same thing - and it round-trips through MDDDL like any other property.
+
+It was written once before this and **taken out again**, because measuring showed it changed
+nothing while every string reaching `DrawString` was a single word. That is worth recording: the
+property and the reordering are one feature, and either alone is inert.
 
 ## What this deliberately does not cover
 
@@ -734,19 +758,17 @@ running beside it — which is how the Arabic end-to-end test reaches the face.
 
 ## Where this goes next
 
-Shaping, reordering, fallback and the plumbing between them are all there, and a page of Arabic
-drawn through `XGraphics` or `XTextFormatter` is now right even when the face it was asked for has
-no Arabic in it. What is left is the one place a layout engine still puts the words in the
-wrong order, and three smaller gaps of their own.
+Shaping, reordering, fallback and the plumbing between them are all there, through `XGraphics`,
+`XTextFormatter` and MigraDoc alike, and a page of Arabic is right even when the face it was asked
+for has no Arabic in it. What is left are four smaller gaps of their own.
 
-1. **Item 6d, word order in MigraDoc**, and with it the DOM property that says which way a
-   paragraph runs. The section on item 6c above sets out what it takes, which is now known rather
-   than guessed: a probing pass over a line's leaves, a placeholder for the leaves that carry no
-   text, and a decision about tabs.
-2. **A Devanagari face in the test assets**, for the reordering and split vowels Arabic does not
+1. **A Devanagari face in the test assets**, for the reordering and split vowels Arabic does not
    exercise. Devanagari is also the case that would test something itemisation gets no exercise of
    — a line may only be broken at a cluster boundary, and nothing in the line breaker knows that
    yet. Arabic hides it because its clusters are one character each; a Devanagari conjunct is not.
+2. **A tabbed line in a right-to-left paragraph**, which is left in the order it was written. Where
+   a tab stop belongs when the text runs the other way is a design question before it is an
+   implementation one.
 3. **A `cmap` format 12 reader.** Three separate things want it and all three are stuck behind the
    format 4 subtable this library has always read: the unshaped path draws two `.notdef` for a
    surrogate pair, coverage cannot answer for an astral character, and so `IFontFallback` cannot be
