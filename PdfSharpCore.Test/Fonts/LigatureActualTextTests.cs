@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -114,18 +115,105 @@ public class LigatureActualTextTests
     }
 
     [Fact]
-    public void AMarkAttachedToALetterIsNotALigature()
+    public void OnlyTheLigatureInTheSentinelIsWrapped()
     {
-        // Two glyphs for one character is the other way round, and needs nothing: /ToUnicode maps
-        // both of them to the same character and a reader assembling them gets it once. Saying it
-        // again here would claim the pair spells more than it does.
+        // The composed glyph is the only thing in the sentinel that swallowed a character, so
+        // exactly one span - the rest of the run is ordinary text and says nothing about itself.
         var content = Latin1(Draw(Sentinel));
 
-        // The composed glyph is the only many-to-one thing in the sentinel, so exactly one span.
         Occurrences(content, "/ActualText").Should().Be(1);
     }
 
+    [Fact]
+    public void AMarkAttachedToALetterIsNotALigature()
+    {
+        // A base and the mark riding on it: two characters in one cluster, drawn with two glyphs.
+        // That is how every shaper reports Devanagari and an Arabic letter carrying a vowel sign, so
+        // it is not a curiosity - it is most of the text on those pages. Nothing swallowed anything,
+        // /ToUnicode already says what each glyph stands for, and a span here would announce a
+        // ligature that is not there, once per syllable, cutting a run that used to be a single Tj
+        // into one operator per cluster.
+        var glyphs = OneGlyphEach(Clustered);
+        glyphs[9] = new ShapedGlyph(glyphs[9].GlyphId, glyphs[8].Cluster, 0);
+
+        var page = Fixed(glyphs);
+
+        Latin1(PageContent.Of(page)).Should().NotContain("/ActualText",
+            "no glyph stands for more characters than it was drawn with");
+        TextOperators.ShowTextOperators(page).Should().HaveCount(1,
+            "and so the run is shown in one operator, as it was before there was a shaper");
+    }
+
+    [Fact]
+    public void FewerGlyphsThanCharactersInTheSameClusterStillIs()
+    {
+        // The other side of the same fixture, so that neither test passes because the assertion was
+        // unreachable. The same cluster over the same two characters, and this time one glyph drawn
+        // for them - which is the only difference between a ligature and a mark on a letter.
+        var glyphs = OneGlyphEach(Clustered);
+        glyphs.RemoveAt(9);
+
+        var page = Fixed(glyphs);
+
+        Latin1(PageContent.Of(page)).Should().Contain("/ActualText");
+        ActualTextIn(Latin1(PageContent.Of(page))).Should().Be(Clustered.Substring(8, 2),
+            "the two characters the surviving glyph was left standing for");
+    }
+
     // ── Arranging ───────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    ///   The sentinel for the two tests that state the shape of a cluster rather than shape text.
+    /// </summary>
+    /// <remarks>
+    ///   Character 8 is the <c>m</c> and character 9 the <c>a</c>, which is the pair those two
+    ///   fixtures merge into one cluster.
+    /// </remarks>
+    const string Clustered = "cluster mark";
+
+    /// <summary>
+    ///   One glyph per character, each in a cluster of its own — a run in which nothing was shaped.
+    /// </summary>
+    /// <remarks>
+    ///   What the two cluster tests start from and each change in one line, so that the difference
+    ///   between them is the only thing either is testing. Handing the glyphs over rather than
+    ///   shaping text keeps the subject the shape of the cluster instead of what one particular face
+    ///   does with one particular string: two glyphs against two characters is the case, and a
+    ///   fixture states it exactly where a face only demonstrates it.
+    /// </remarks>
+    static List<ShapedGlyph> OneGlyphEach(string text)
+    {
+        var glyphs = new List<ShapedGlyph>(text.Length);
+        for (int idx = 0; idx < text.Length; idx++)
+            glyphs.Add(new ShapedGlyph((ushort)(40 + idx), idx, 500));
+
+        return glyphs;
+    }
+
+    /// <summary>
+    ///   <see cref="Clustered"/> drawn with exactly the glyphs given.
+    /// </summary>
+    static PdfPage Fixed(IReadOnlyList<ShapedGlyph> glyphs)
+    {
+        var document = new PdfDocument();
+        document.Options.CompressContentStreams = false;
+
+        var page = document.AddPage();
+        using (var gfx = XGraphics.FromPdfPage(page))
+        {
+            GlobalFontSettings.TextShaper = new Handed(Clustered, glyphs);
+            try
+            {
+                gfx.DrawString(Clustered, new XFont("Arial", 20), XBrushes.Black, 20, 40);
+            }
+            finally
+            {
+                GlobalFontSettings.TextShaper = null;
+            }
+        }
+
+        return page;
+    }
 
     static byte[] Draw(string sentinel, string text = null)
     {
@@ -226,6 +314,27 @@ public class LigatureActualTextTests
     ///   HarfBuzz, but only for one string, so that registering it cannot change what any other test
     ///   running beside it measures or draws.
     /// </summary>
+    /// <summary>
+    ///   A shaper that answers one string with glyphs it was handed, and declines everything else.
+    /// </summary>
+    sealed class Handed : ITextShaper
+    {
+        readonly string _mine;
+        readonly IReadOnlyList<ShapedGlyph> _glyphs;
+
+        internal Handed(string mine, IReadOnlyList<ShapedGlyph> glyphs)
+        {
+            _mine = mine;
+            _glyphs = glyphs;
+        }
+
+        public ShapedRun Shape(ReadOnlySpan<char> text, ShapingFont font, XTextDirection direction,
+            string script, string language)
+            => text.SequenceEqual(_mine.AsSpan())
+                ? new ShapedRun(_glyphs, font.UnitsPerEm, XTextDirection.LeftToRight)
+                : null;
+    }
+
     sealed class OnlyFor : ITextShaper, IDisposable
     {
         readonly string _mine;

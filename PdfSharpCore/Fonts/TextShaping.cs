@@ -312,11 +312,20 @@ static class TextShaping
     /// source is found by looking back down the glyphs rather than forward. Several glyphs sharing a
     /// cluster all answer the same characters, which between them is what they drew.
     /// <para>
-    /// Two callers, and they must agree. <see cref="CMapInfo.AddShapedRun"/> spends this on
-    /// <c>/ToUnicode</c>, so that a ligature extracts as the characters it swallowed, and
-    /// <c>XGraphicsPdfRenderer</c> spends it on <c>/ActualText</c>, so that a reader walking the
-    /// marked content is told the same thing. Two implementations would eventually disagree, and the
-    /// document would then say one thing to a text extractor and another to a screen reader.
+    /// Two callers, and they must agree about which characters those are.
+    /// <see cref="CMapInfo.AddShapedRun"/> spends this on <c>/ToUnicode</c>, so that a ligature
+    /// extracts as the characters it swallowed, and <c>XGraphicsPdfRenderer</c> spends it on
+    /// <c>/ActualText</c>, so that a reader walking the marked content is told the same thing. Two
+    /// implementations would eventually disagree, and the document would then say one thing to a text
+    /// extractor and another to a screen reader.
+    /// </para>
+    /// <para>
+    /// They part company over the joining controls U+200C and U+200D, and deliberately.
+    /// <c>/ToUnicode</c> keeps them, because extracting the text should hand back what was written and
+    /// a joiner that was in the source belongs in the copy. <c>/ActualText</c> drops them, because it
+    /// describes what is on the page and nothing on the page stands for a character that is zero width
+    /// by definition. So a glyph may extract as two characters and be spoken as one — which is the two
+    /// answers being right about different questions, not the two callers drifting apart.
     /// </para>
     /// </remarks>
     internal static string CharactersOf(ShapedRun run, int index, string text)

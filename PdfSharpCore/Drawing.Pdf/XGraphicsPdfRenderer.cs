@@ -2073,9 +2073,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
                 parts.Append('\n');
             }
 
-            int end = ligature + 1;
-            while (end < shaped.Count && shaped[end].Cluster == shaped[ligature].Cluster)
-                end++;
+            int end = ClusterEnd(run, ligature);
 
             // Null for the security handler: a string inside a content stream is not encrypted on its
             // own, because the stream around it already is.
@@ -2096,25 +2094,56 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     }
 
     /// <summary>
-    /// The first glyph at or after <paramref name="from"/> that stands for more than one character, or
-    /// -1 if there is none.
+    /// The first glyph at or after <paramref name="from"/> that swallowed a character — that is, whose
+    /// cluster is drawn with fewer glyphs than it has characters — or -1 if there is none.
     /// </summary>
     /// <remarks>
-    /// Asked of the characters rather than of the glyph count, because one glyph drawn for one
-    /// character is the ordinary case and two glyphs drawn for one character — a letter and the mark
-    /// attached to it — is not a ligature and needs no <c>/ActualText</c>: <c>/ToUnicode</c> maps each
-    /// of them to the same character and a reader assembling them gets the character once.
+    /// <para>
+    /// <b>Fewer glyphs than characters is the whole test</b>, and neither half of it alone will do.
+    /// Counting only the characters calls every cluster of more than one character a ligature, and the
+    /// commonest such cluster is a base and the marks attached to it: Devanagari <c>कि</c> and an
+    /// Arabic letter carrying a vowel sign are each two characters drawn with two glyphs, nothing
+    /// swallowed anything, and <c>/ToUnicode</c> already says what each glyph stands for. Wrapping
+    /// those would put a marked-content sequence and its own show-text operator around every syllable
+    /// of a page of Hindi, where the run used to be a single <c>Tj</c>.
+    /// </para>
+    /// <para>
+    /// Whole clusters are stepped over rather than single glyphs, so that what comes back is always
+    /// the first glyph of its cluster. Reported from the middle of one, the span that follows would
+    /// cover the tail of a ligature and leave its head outside — saying of some of the glyphs what is
+    /// only true of all of them together.
+    /// </para>
     /// </remarks>
     static int FirstLigature(string text, ShapedRun run, int from)
     {
         var shaped = run.Glyphs;
-        for (int idx = from; idx < shaped.Count; idx++)
+        for (int idx = from; idx < shaped.Count;)
         {
-            if (LigatureTextOf(run, idx, text).Length > 1)
+            int end = ClusterEnd(run, idx);
+            if (LigatureTextOf(run, idx, text).Length > end - idx)
                 return idx;
+
+            idx = end;
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// One past the last glyph sharing the cluster of the glyph at <paramref name="from"/>.
+    /// </summary>
+    /// <remarks>
+    /// Equality rather than an ordering, so that it holds for a right-to-left run too: those glyphs
+    /// come back in visual order and their clusters descend.
+    /// </remarks>
+    static int ClusterEnd(ShapedRun run, int from)
+    {
+        var shaped = run.Glyphs;
+        int end = from + 1;
+        while (end < shaped.Count && shaped[end].Cluster == shaped[from].Cluster)
+            end++;
+
+        return end;
     }
 
     /// <summary>
@@ -2124,7 +2153,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <remarks>
     /// <para>
     /// The controls come out for two reasons that point the same way. U+200C and U+200D are zero width
-    /// by definition and <see cref="TextShaping.Unshaped"/> already draws no glyph for either, so a
+    /// by definition and <c>TextShaping.Unshaped</c> already draws no glyph for either, so a
     /// reader told that a glyph spells "letter, zero-width joiner" is being told about a character
     /// nothing on the page stands for.
     /// </para>

@@ -212,6 +212,17 @@ tagging path already documents.
 document produced before there was a shaper and nearly every run since. That guard is what kept the
 existing goldens and the untagged layout pin where they were.
 
+**Fewer glyphs than characters is what makes a ligature**, and counting only the characters is not the
+same test. The commonest cluster of more than one character is a base and the marks attached to it:
+Devanagari `कि` and an Arabic letter carrying a vowel sign are each two characters drawn with two
+glyphs, nothing swallowed anything, and `/ToUnicode` already says what each glyph stands for. Asked of
+the characters alone, every syllable of a page of Hindi is a ligature — a marked-content sequence and
+its own show-text operator each, where the run used to be a single `Tj`. So the cluster's glyphs are
+counted against its characters, and whole clusters are stepped over rather than single glyphs, so that
+what comes back is always a cluster's first glyph: reported from the middle of one, the span would
+cover a ligature's tail and leave its head outside, saying of some of the glyphs what is only true of
+all of them together.
+
 **A joining control is not a ligature**, and this is the case that bites. U+200C and U+200D are zero
 width by definition and `TextShaping.Unshaped` draws no glyph for either, so a cluster spanning a
 letter and a joining control is one letter that was told how to join — not a pair that became one
@@ -219,15 +230,19 @@ glyph. Counting it wrapped most of a word of Arabic in a sequence claiming a lig
 there, and cut a run that had been one show-text operator since before there was a shaper. So the
 controls are removed before the count is taken and before the text is written: a reader told that a
 glyph spells "letter, zero-width joiner" is being told about a character nothing on the page stands
-for.
+for. It is also the one place `/ActualText` and `/ToUnicode` part company on purpose: extraction keeps
+the joiner, because a joiner that was in the source belongs in the copy, and `/ActualText` drops it,
+because it describes what is on the page. Two answers to different questions, not two implementations
+drifting apart — `TextShaping.CharactersOf` still answers both and the divergence is recorded on it.
 
 **A defect fell out of this.** `CLexer.ScanDictionary` ended a dictionary at the first `>` it saw,
 assuming the next character was the second of a `>>`. That holds for `<</MCID 0>>` and fails for
 `<</ActualText <FEFF0066>>>`, where the hex string's own `>` comes first — so the rest of the
 dictionary was read as operators and the stray `>` stopped the whole content stream. This library
-could not read the content it had just written. It now balances the nesting and steps over the hex and
-literal strings a dictionary may hold, and `CLexerTests` pins both that and the plain case, which every
-tagged page is full of.
+could not read the content it had just written. It now balances the nesting and steps over the hex
+strings, literal strings and comments a dictionary may hold — a comment is legal wherever whitespace
+is, and a `>>` inside one closes nothing — and `CLexerTests` pins each of those and the plain case,
+which every tagged page is full of.
 
 **`AlternativeText` went on `Shape`, not on `Image`.** A chart needs one for the same reason and to the
 same effect: to a reader who cannot see it, axis labels read out in drawing order say nothing about the
@@ -382,7 +397,7 @@ The mapping, as built:
 | `HeaderFooter` | **artifact** | never content, and nothing inside one is tagged either |
 | Cell borders and shading, paragraph borders and shading, shape fills and outlines | **artifact** | decoration |
 | `Footnote` | `/Reference` + `/Note` → `/Lbl` + `/P` | both inside the paragraph that cited it, so the note reads where it is cited rather than where it is drawn; the `/Note` carries the `/ID` PDF/UA requires, and the separator rule above the block is an artifact |
-| a glyph standing for several characters | `/Span` with `/ActualText`, in the content stream | a marked-content sequence inside the text object rather than a structure element, because it is true of one glyph; joining controls are not counted and not written |
+| a glyph standing for several characters | `/Span` with `/ActualText`, in the content stream | a marked-content sequence inside the text object rather than a structure element, because it is true of one glyph; written only where a cluster's glyphs are fewer than its characters, so a base and the marks on it are left alone; joining controls are not counted and not written |
 
 `Row.HeadingFormat` means the header/body distinction was already modelled, which is lucky — table
 tagging is otherwise the hardest part, because `/TH` scope and the header/data association is what
@@ -422,6 +437,7 @@ Everything else `PdfUaValidator` throws over, naming the rule, before a byte is 
 | `/Tabs /S` on every page | yes — and set, as above |
 | Every `/Figure` has `/Alt` or `/ActualText` | yes |
 | Every `/Note` has an `/ID` | yes |
+| No two elements share an `/ID` | yes — the builder refuses it too, while assembling the `/IDTree`, and runs first; this is so a caller can find out by asking rather than by saving |
 | Every link annotation has `/Contents` | yes |
 | Every link annotation reachable from the tree | yes |
 | No content outside the structure tree | **no** — needs a content-stream pass |
