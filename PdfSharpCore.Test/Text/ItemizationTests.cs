@@ -148,8 +148,39 @@ public class ItemizationTests
         var runs = TextItemizer.Itemize(Hebrew + Arabic, BidiParagraphDirection.RightToLeft);
 
         runs.Should().HaveCount(2);
+        // BeEquivalentTo rather than Equal, because what order they come back in is the next
+        // test's question and this one is only about there being two of them. That was once the
+        // only assertion here, and it is why the order being wrong went unnoticed.
         runs.Select(run => run.ScriptCode).Should().BeEquivalentTo(new[] { "hebr", "arab" });
         runs.Should().OnlyContain(run => run.Direction == XTextDirection.RightToLeft);
+    }
+
+    [Fact]
+    public void TwoRightToLeftScriptsComeBackInTheOrderTheyAreDrawn()
+    {
+        // Not just cut into two runs - cut and then turned round. A right-to-left run whose script
+        // changes half way along is still one direction, so the piece written first is the
+        // rightmost and has to be handed over last. Nothing said so until a line of Hebrew
+        // followed by Arabic came out with the Hebrew on the left.
+        var runs = TextItemizer.Itemize(Hebrew + Arabic, BidiParagraphDirection.RightToLeft);
+
+        runs.Select(run => run.ScriptCode).Should().Equal(new[] { "arab", "hebr" });
+    }
+
+    [Fact]
+    public void ASpaceInsideARightToLeftRunDoesNotCutIt()
+    {
+        // The space is script Common and takes the script of what it is beside - but "beside" is
+        // decided inside the bidirectional run, not across the paragraph. Asked of the paragraph,
+        // this space goes with the Latin that precedes it in the text; and the algorithm then puts
+        // it in the middle of the Arabic. Cutting there would have been a boundary that is not one,
+        // and it would have left the real boundary uncut.
+        var runs = TextItemizer.Itemize("one " + Arabic, BidiParagraphDirection.RightToLeft);
+
+        runs.Should().HaveCount(2);
+        runs[0].ScriptCode.Should().Be("arab", "the space belongs to the run it lands in");
+        runs[0].Length.Should().Be(5, "which is four letters and the space in front of them");
+        runs[1].ScriptCode.Should().Be("latn");
     }
 
     [Fact]

@@ -84,7 +84,7 @@ static class FontHelper
             // not share an em.
             double MeasureLine(ReadOnlySpan<char> line, int spaces)
             {
-                var shaped = TextShaping.ShapeText(line, font, descriptor);
+                var shaped = TextShaping.ShapeText(line, font, descriptor, format.TextDirection);
                 return LineWidth(shaped.Width, shaped.GlyphCount, spaces);
             }
 

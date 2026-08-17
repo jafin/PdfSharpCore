@@ -80,9 +80,16 @@ exactly as before, and nothing is asked about coverage at all. The families are 
 discovered because working out unprompted which of a machine's installed faces can draw a character
 means reading the `cmap` of every one of them; implement `IFontFallback` yourself if you want that.
 
-Still missing: a layout engine that places each word itself is not reordered *across* words. That
-means a justified `XTextFormatter` line, and MigraDoc paragraphs, which have no way to say which
-direction they run in yet. `docs/specs/text-shaping-and-bidi.md` has the rest.
+`XTextFormatter` handles right-to-left paragraphs, justified ones included, and takes a
+`TextDirection` rather than guessing which way a paragraph runs from its first strong character:
+
+```csharp
+formatter.TextDirection = BidiParagraphDirection.RightToLeft;
+```
+
+Still missing: **MigraDoc** draws one show-text operator per word, so a MigraDoc paragraph has each
+of its words turned round correctly and the words themselves left in the order they were written.
+`docs/specs/text-shaping-and-bidi.md` says what that takes.
 
 ### Fonts
 

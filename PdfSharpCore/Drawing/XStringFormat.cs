@@ -157,6 +157,31 @@ public class XStringFormat
     double _textRise;
 
     /// <summary>
+    /// Gets or sets which way the text runs. The default is
+    /// <see cref="BidiParagraphDirection.Automatic"/>, which reads it off the text itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the paragraph level of the Unicode Bidirectional Algorithm, rules P2 and P3. Left to
+    /// itself the algorithm takes the direction from the first strong character in the string, which
+    /// is right far more often than not and wrong in the cases that matter: a right-to-left
+    /// paragraph opening with a Latin brand name, or a quotation, or a number. Setting it says what
+    /// the text is rather than leaving it to be guessed.
+    /// </para>
+    /// <para>
+    /// It does not turn the string round on its own. The characters of a run are ordered by the
+    /// algorithm either way; what this changes is where the neutral characters and the runs of the
+    /// other direction end up, which is exactly what the paragraph level decides.
+    /// </para>
+    /// </remarks>
+    public Text.BidiParagraphDirection TextDirection
+    {
+        get => _textDirection;
+        set => _textDirection = value;
+    }
+    Text.BidiParagraphDirection _textDirection;
+
+    /// <summary>
     /// Gets or sets the angle, in degrees, by which the text is slanted to the right.
     /// Negative values slant it to the left. The default is 0.
     /// This is a skew of the text matrix rather than a text state parameter, and like

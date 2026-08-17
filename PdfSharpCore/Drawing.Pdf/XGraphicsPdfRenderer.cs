@@ -426,7 +426,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             // is the same cmap lookup per character it has always been - except that a
             // right-to-left run comes back in the order it is drawn rather than the order it was
             // written.
-            var shaped = TextShaping.ShapeText(s.AsSpan(), font, descriptor);
+            var shaped = TextShaping.ShapeText(s.AsSpan(), font, descriptor, format.TextDirection);
 
             if (shaped.IsAllOneFont(font))
             {

@@ -34,18 +34,11 @@ public static class TextItemizer
             return runs;
 
         var bidi = BidiAlgorithm.Resolve(text, direction);
-
-        // Script per character rather than per run, so that a bidi run can be cut wherever the
-        // script changes inside it without having to intersect two lists of ranges.
-        var scripts = new UnicodeScript[text.Length];
-        foreach (var run in ScriptItemizer.Itemize(text))
-        {
-            for (int idx = run.Start; idx < run.Start + run.Length; idx++)
-                scripts[idx] = run.Script;
-        }
+        var scripts = ScriptsOf(text);
 
         foreach (var level in bidi.Runs())
         {
+            int first = runs.Count;
             int start = level.Start;
             var script = ScriptOf(scripts, level, start);
 
@@ -61,9 +54,58 @@ public static class TextItemizer
             }
 
             runs.Add(new TextRun(start, level.Start + level.Length - start, level.Level, script));
+
+            // The pieces of a right-to-left run are drawn right to left: the piece written first is
+            // the rightmost. This is the same reordering the algorithm did to the runs themselves,
+            // one level further down and for a reason it knows nothing about - a run does not stop
+            // being one direction because the script changed half way along it.
+            if (level.Direction == XTextDirection.RightToLeft)
+                runs.Reverse(first, runs.Count - first);
         }
 
         return runs;
+    }
+
+    /// <summary>
+    /// The script of each character, with Common and Inherited left exactly as they are.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="ScriptItemizer"/>, which is the same question asked of the
+    /// paragraph as a whole and gives a different answer. It sweeps a Common character into the run
+    /// beside it, and beside is not a property the paragraph can settle: the space in
+    /// "one <c>&#x0645;&#x0646;</c>" goes with the Latin when the paragraph is read as one piece,
+    /// and the bidirectional algorithm then puts that space in the middle of the Arabic run. The
+    /// script itemiser has cut where there is no boundary and left the real one uncut.
+    /// <para>
+    /// So the sweeping happens here instead, inside a bidirectional run, where "beside" means
+    /// something. A run is one direction before it is one script.
+    /// </para>
+    /// </remarks>
+    static UnicodeScript[] ScriptsOf(string text)
+    {
+        var scripts = new UnicodeScript[text.Length];
+        for (int idx = 0; idx < text.Length;)
+        {
+            // A lone surrogate is not a character and char.ConvertToUtf32 throws on one, which is
+            // not an answer a layout path can use. It is read as itself instead.
+            int width = char.IsHighSurrogate(text[idx])
+                        && idx + 1 < text.Length
+                        && char.IsLowSurrogate(text[idx + 1])
+                ? 2
+                : 1;
+
+            int codePoint = width == 2 ? char.ConvertToUtf32(text[idx], text[idx + 1]) : text[idx];
+            var script = UnicodeProperties.ScriptOf(codePoint);
+
+            // Both halves of a surrogate pair answer the script of the character they make, so that
+            // an astral character cannot be cut down the middle of itself.
+            for (int at = 0; at < width; at++)
+                scripts[idx + at] = script;
+
+            idx += width;
+        }
+
+        return scripts;
     }
 
     /// <summary>

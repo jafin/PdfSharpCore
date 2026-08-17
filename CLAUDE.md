@@ -182,11 +182,16 @@ right-to-left run, because `ShapedRun` promises visual order and the renderer re
 consumer who takes no HarfBuzz dependency still gets Hebrew and Arabic the right way round, unjoined.
 That is the older half of the complaint in `empira/PDFsharp-1.5#144` and it is fixed in the core.
 
-Where it stops: **a layout engine that places each word itself is not reordered across words.**
-`XTextFormatter` joins a line back into one string before drawing it, so a line comes out right —
-except when justifying, which draws word by word. `MigraDocCore.Rendering/ParagraphRenderer.cs`
-always draws word by word. Both are pinned by `Drawing/Layout/BidirectionalLayoutTests.cs`, including
-the case that is still wrong, so fixing it fails a test rather than passing silently.
+Where it stops: **`MigraDocCore.Rendering/ParagraphRenderer.cs` draws one show-text operator per
+word**, so a MigraDoc paragraph has each word turned round correctly and the words themselves left in
+the order they were written. `ParagraphFormat.TextDirection` is deliberately *not* on the DOM until
+that is fixed — it was built, measured to change nothing, and taken out again.
+
+`XTextFormatter` does handle it. Every alignment but one hands a whole line to `DrawString` and so
+needed no change; justifying places each word itself and now orders them by the leftmost position
+any of the word's characters ends up at. Ordering by *leftmost* rather than by the first character
+is what keeps an English phrase inside a right-to-left line in its own order.
+`Drawing/Layout/BidirectionalLayoutTests.cs` pins all of it.
 
 The character property tables are **generated and checked in** — `tools/UnicodeTableGenerator`,
 deliberately outside `PdfSharpCore.slnx` so the build and CI never see it, run by hand on a Unicode
