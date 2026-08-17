@@ -365,8 +365,7 @@ internal class ChartRenderer : ShapeRenderer
     if (chart.IsNull("AlternativeText") || string.IsNullOrEmpty(chart.AlternativeText))
       return Tagger.Artifact(gfx);
 
-    var scope = Tagger.Block(gfx, chart, PdfTag.Figure);
-    var element = Tagger.Current;
+    var scope = Tagger.Block(gfx, chart, PdfTag.Figure, out var element);
     if (element != null)
       element.AlternateText = chart.AlternativeText;
 

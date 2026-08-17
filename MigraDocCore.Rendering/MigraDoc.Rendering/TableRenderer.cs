@@ -111,9 +111,9 @@ internal class TableRenderer : Renderer
     Rectangle innerRect = GetInnerRect(CalcStartingHeight(), cell);
 
     using (Tagger.Enter(RowElementOf(cell)))
-    using (Tagger.Container(gfx, cell, IsHeaderCell(cell) ? PdfTag.TH : PdfTag.TD))
+    using (Tagger.Container(gfx, cell, IsHeaderCell(cell) ? PdfTag.TH : PdfTag.TD, out var element))
     {
-      DescribeCell(cell);
+      DescribeCell(cell, element);
 
       // Shading and borders are decoration and go out as artifacts; only what is in the cell is
       // content. A reader that announced every rule would be unusable on a bordered table.
@@ -145,9 +145,14 @@ internal class TableRenderer : Renderer
   /// what lets a reader say "Total: 49.20" instead of "49.20", and the spans are what stop a merged
   /// cell shifting every value after it into the wrong column.
   /// </remarks>
-  void DescribeCell(Cell cell)
+  /// <param name="cell">The cell being described.</param>
+  /// <param name="element">
+  /// The element opened for it, which is null when it was not tagged — inside a header or footer,
+  /// for instance. Passed in rather than read from the tagger, because a refused scope leaves the
+  /// enclosing element current and these entries would then describe that.
+  /// </param>
+  void DescribeCell(Cell cell, PdfStructureElement element)
   {
-    var element = Tagger.Current;
     if (element == null)
       return;
 
@@ -344,9 +349,9 @@ internal class TableRenderer : Renderer
     InitRendering();
 
     Tagger.EndList();
-    using (Tagger.Container(gfx, table, PdfTag.Table))
+    using (Tagger.Container(gfx, table, PdfTag.Table, out var element))
     {
-      DescribeTable();
+      DescribeTable(element);
       RenderHeaderRows();
 
       if (startRow < table.Rows.Count)
@@ -375,9 +380,12 @@ internal class TableRenderer : Renderer
   /// tells it, before it starts, whether the table is worth walking — so it is the one thing here
   /// that has to come from the caller, and <see cref="Table.Summary"/> is where they put it.
   /// </remarks>
-  void DescribeTable()
+  /// <param name="element">
+  /// The element opened for the table, which is null when it was not tagged. Passed in for the same
+  /// reason as in <see cref="DescribeCell"/>.
+  /// </param>
+  void DescribeTable(PdfStructureElement element)
   {
-    var element = Tagger.Current;
     if (element == null || table.IsNull("Summary"))
       return;
 

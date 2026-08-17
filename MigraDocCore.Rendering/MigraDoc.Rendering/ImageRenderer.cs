@@ -146,8 +146,7 @@ internal class ImageRenderer : ShapeRenderer
 
         Tagger.EndList();
 
-        var scope = Tagger.Block(gfx, image, PdfTag.Figure);
-        var element = Tagger.Current;
+        var scope = Tagger.Block(gfx, image, PdfTag.Figure, out var element);
         if (element != null)
             element.AlternateText = image.AlternativeText;
 

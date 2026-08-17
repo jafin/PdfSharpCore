@@ -75,9 +75,19 @@ internal sealed class StructureTagger
 
     /// <summary>
     /// Whether the graphics being drawn into can carry marks — which it cannot when tagging is off,
-    /// nor when it is a measuring context or a form rather than a page.
+    /// nor when it is a measuring context or a form rather than a page, nor before a page has been
+    /// begun.
     /// </summary>
-    bool CanTag(XGraphics gfx) => Enabled && gfx != null && gfx.PdfPage != null;
+    /// <remarks>
+    /// That last condition is the one that is easy to miss. <see cref="_document"/> is assigned by
+    /// <see cref="BeginPage"/> and everything here is built against it, but nothing obliges a caller
+    /// to begin a page: <see cref="DocumentRenderer.RenderObject"/> draws a single object onto a
+    /// page-backed surface and never does. Tagging looked possible on that path — enabled, and a real
+    /// page to mark — and a list paragraph reached <c>_document.Structure</c> with nothing there.
+    /// Asked here rather than at each caller, because "no page has been begun" is one condition and
+    /// not five.
+    /// </remarks>
+    bool CanTag(XGraphics gfx) => Enabled && gfx != null && gfx.PdfPage != null && _document != null;
 
     /// <summary>
     /// Whether content may be tagged here, which it may not once anything has declared itself
@@ -105,7 +115,9 @@ internal sealed class StructureTagger
     /// </remarks>
     internal void BeginPage(XGraphics gfx)
     {
-        if (!CanTag(gfx))
+        // Its own test rather than CanTag, which now asks whether a page has been begun — and this
+        // is the method that begins one.
+        if (!Enabled || gfx == null || gfx.PdfPage == null)
             return;
 
         var page = gfx.PdfPage;
@@ -143,11 +155,32 @@ internal sealed class StructureTagger
     /// </param>
     /// <param name="tag">What kind of element it is.</param>
     internal IDisposable Block(XGraphics gfx, object key, PdfTag tag)
+        => Block(gfx, key, tag, out _);
+
+    /// <inheritdoc cref="Block(XGraphics,object,PdfTag)"/>
+    /// <param name="gfx">The surface being drawn on, which the marks are written into.</param>
+    /// <param name="key">The DOM object the element stands for.</param>
+    /// <param name="tag">What kind of element it is.</param>
+    /// <param name="element">
+    /// The element that was opened, or null if none was — which is the answer whenever tagging is
+    /// off, no page has been begun, or this is inside an artifact.
+    /// </param>
+    /// <remarks>
+    /// For a caller with something to write onto the element it just opened. It must not read
+    /// <see cref="Current"/> for that: a scope that was refused pushed nothing, so Current still
+    /// names whatever was current before — the enclosing paragraph, the section, the document — and
+    /// the caller's alternate text or summary lands on that instead. A figure in a running head
+    /// reaches exactly that case, because a header is drawn inside an artifact and an artifact does
+    /// not change what is current.
+    /// </remarks>
+    internal IDisposable Block(XGraphics gfx, object key, PdfTag tag, out PdfStructureElement element)
     {
+        element = null;
         if (!CanTagContent(gfx))
             return Nothing;
 
-        return Marks(gfx, Element(key, tag, ParentFor(key)));
+        element = Element(key, tag, ParentFor(key));
+        return Marks(gfx, element);
     }
 
     /// <summary>
@@ -161,11 +194,25 @@ internal sealed class StructureTagger
     /// one.
     /// </remarks>
     internal IDisposable Container(XGraphics gfx, object key, PdfTag tag)
+        => Container(gfx, key, tag, out _);
+
+    /// <inheritdoc cref="Container(XGraphics,object,PdfTag)"/>
+    /// <param name="gfx">The surface being drawn on.</param>
+    /// <param name="key">The DOM object the element stands for.</param>
+    /// <param name="tag">What kind of element it is.</param>
+    /// <param name="element">
+    /// The element that was opened, or null if none was. See
+    /// <see cref="Block(XGraphics,object,PdfTag,out PdfStructureElement)"/> for why a caller with
+    /// something to write onto it must ask this way rather than read <see cref="Current"/>.
+    /// </param>
+    internal IDisposable Container(XGraphics gfx, object key, PdfTag tag, out PdfStructureElement element)
     {
+        element = null;
         if (!CanTagContent(gfx))
             return Nothing;
 
-        return Enter(Element(key, tag, ParentFor(key)));
+        element = Element(key, tag, ParentFor(key));
+        return Enter(element);
     }
 
     /// <summary>

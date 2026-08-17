@@ -289,8 +289,15 @@ to set `TagContent = false`. And a renderer that draws anything must say what it
 decoration in `Tagger.Artifact`, and **anything inside an artifact scope is not tagged at all** — the
 tagger counts depth and refuses, because a running head drawn by the paragraph renderer would otherwise
 appear in the tree as a paragraph.
- `docs/specs/tagged-pdf-accessibility.md` has the rest, including why
-an element is keyed by its DOM object rather than built per render pass.
+
+That refusal has a consequence worth knowing before you write a renderer: **`Tagger.Current` is not
+"the element I just opened".** A refused scope pushes nothing, so `Current` still names what was
+current before it — and a renderer that opened a scope and then wrote alternate text onto `Current`
+wrote it onto an unrelated element. Take the element from the `out` parameter of `Tagger.Block` /
+`Tagger.Container` instead, and treat null as "not tagged".
+
+`docs/specs/tagged-pdf-accessibility.md` has the rest, including why an element is keyed by its DOM
+object rather than built per render pass.
 
 ## Multi-targeting
 

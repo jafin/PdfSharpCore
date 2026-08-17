@@ -9,6 +9,7 @@ using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.Rendering.Tests.Helpers;
+using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 // The content-stream readers are linked in from the other test project and keep their namespace.
@@ -341,6 +342,72 @@ public class TaggedOutputTests
         // artifact scope instead. A page number read out between every paragraph is worse than no
         // page number.
         tree.Descendants().Should().HaveCount(3, "Document, Sect and the one paragraph");
+    }
+
+    [Fact]
+    public void ADescribedImageInARunningHeadDoesNotDescribeSomethingElseInstead()
+    {
+        var document = new Document();
+        var section = document.AddSection();
+        section.AddParagraph("Body text.");
+
+        var logo = section.Headers.Primary.AddParagraph().AddImage(AnImage());
+        logo.Width = "3cm";
+        logo.AlternativeText = "The company logo.";
+
+        var tree = Structure.Of(document);
+
+        // The image is inside an artifact, so no Figure is opened for it — and it must not describe
+        // anything else either. The renderer used to ask the tagger what was current straight after
+        // opening its scope, which is a different question: a refused scope pushes nothing, so what
+        // came back was the enclosing element and the logo's alternate text was written onto that.
+        // A reader would then have announced the body of the page as "The company logo."
+        tree.OfTag("Figure").Should().BeEmpty();
+        tree.Descendants().Should().OnlyContain(node => string.IsNullOrEmpty(node.AlternateText),
+            "nothing in the tree is described by an image that is not in the tree");
+    }
+
+    [Fact]
+    public void OneObjectCanBeDrawnOnAPageThatWasNeverBegun()
+    {
+        // RenderObject draws a single object onto a surface the caller owns, and nothing about that
+        // path begins a page. Tagging still looked possible from inside it — it is switched on, and
+        // there is a real page to write marks onto — so a list paragraph went to build its /L
+        // against a document the tagger had not been given yet and threw NullReferenceException at
+        // the caller. The condition it was missing is "no page has been begun", which is now part
+        // of the one test the tagger asks rather than absent from three of its methods.
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph("A list item");
+        paragraph.Format.ListInfo.ListType = ListType.BulletList1;
+
+        var renderer = new DocumentRenderer(document);
+        renderer.PrepareDocument();
+
+        using var pdf = new PdfDocument();
+        using var gfx = XGraphics.FromPdfPage(pdf.AddPage());
+
+        var act = () => renderer.RenderObject(gfx, XUnit.FromCentimeter(1), XUnit.FromCentimeter(1),
+            XUnit.FromCentimeter(10), paragraph);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ADescribedTableInARunningHeadDoesNotSummariseSomethingElseInstead()
+    {
+        var document = new Document();
+        var section = document.AddSection();
+        section.AddParagraph("Body text.");
+
+        var table = section.Headers.Primary.AddTable();
+        table.AddColumn("4cm");
+        table.Summary = "Two columns of nothing in particular.";
+        table.AddRow().Cells[0].AddParagraph("Cell");
+
+        var tree = Structure.Of(document);
+
+        tree.OfTag("Table").Should().BeEmpty();
+        tree.Descendants().Should().OnlyContain(node => string.IsNullOrEmpty(node.Summary));
     }
 
     [Fact]

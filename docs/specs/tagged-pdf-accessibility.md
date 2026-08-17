@@ -78,6 +78,27 @@ exact failure the artifact scope exists to prevent, produced by the code that op
 counts artifact depth and refuses to build any element at all while it is inside one. It is the single
 thing most worth knowing before adding a renderer to this.
 
+**A refused scope is the trap the artifact rule sets.** `Tagger.Block` and `Tagger.Container` hand
+back `StructureTagger.Nothing` and push nothing when tagging is refused — which, per the rule above,
+is what happens inside an artifact. `Tagger.Current` then still names whatever was current *before*
+the artifact opened, because `Artifact` deliberately does not change the current element. So a
+renderer that opened a scope and then read `Current` to find "the element I just opened" got an
+unrelated one, and wrote its metadata onto that: an image with alternate text in a running head put
+"The company logo." onto the body of the page, and a table with a summary in a header put its
+`/Summary` on an enclosing element. Three renderers did this. The fix is to stop inferring the
+element: `Block` and `Container` have overloads handing it back, `null` when nothing was opened, and
+`DescribeCell`/`DescribeTable` take it as a parameter. **A renderer with something to write onto an
+element must never read `Current` for it.**
+
+**`CanTag` has to ask whether a page has been begun.** `_document` is assigned by `BeginPage`, and
+everything the tagger builds is built against it — but nothing obliges a caller to begin a page.
+`DocumentRenderer.RenderObject` draws one object onto a surface the caller owns and never does. On
+that path tagging looked possible (enabled, and a real page to mark), so a list paragraph reached
+`_document.Structure.CreateElement` with `_document` still null and threw `NullReferenceException`
+at the caller. `Element` had its own null check and the other two entry points did not, which is the
+shape of the mistake: the condition belongs in the one test they all ask, not in whichever of them
+somebody remembered. `BeginPage` keeps its own test, since it is the method that begins the page.
+
 **An element belongs to a document object, not to a render pass.** A paragraph broken over a page
 boundary is drawn by two renderers, and a table's heading row is drawn again at the top of every page
 the table continues onto. Keyed by the DOM object and reused, those come out as one paragraph and one
