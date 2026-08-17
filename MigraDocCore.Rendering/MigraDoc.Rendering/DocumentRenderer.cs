@@ -149,6 +149,39 @@ public class DocumentRenderer
     internal FormattedDocument formattedDocument;
 
     /// <summary>
+    /// Gets or sets whether the rendered output carries a structure tree describing it — headings as
+    /// headings, tables as rows and cells, images as figures — rather than only the marks that draw
+    /// it. The default is <c>true</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// On by default, and that is the deliberate part. Hand-tagging is a feature; not having to is
+    /// the product, and almost nobody who needs an accessible document knows to go and ask for one.
+    /// A document rendered to anything other than a PDF page — a measuring context, a form XObject —
+    /// is unaffected, because there is nowhere on those to put a mark.
+    /// </para>
+    /// <para>
+    /// Turn it off for output that will be post-processed in a way the tree cannot survive. Resizing
+    /// a page is the one in this library: it moves the page's content into a form XObject, which
+    /// leaves every marked-content identifier pointing at content that is no longer where the tree
+    /// says it is, so <see cref="PdfSharpCore.Pdf.PdfDocument.ResizePages"/> refuses a tagged
+    /// document outright rather than breaking it invisibly.
+    /// </para>
+    /// </remarks>
+    public bool TagContent
+    {
+        get => Tagger.Enabled;
+        set => Tagger.Enabled = value;
+    }
+
+    /// <summary>
+    /// Builds the structure tree as the document is drawn. Shared by every renderer of this pass, so
+    /// that a paragraph broken over two pages stays one paragraph.
+    /// </summary>
+    internal StructureTagger Tagger => tagger ??= new StructureTagger();
+    StructureTagger tagger;
+
+    /// <summary>
     /// Renders a MigraDoc document to the specified graphics object.
     /// </summary>
     public void RenderPage(XGraphics gfx, int page)
@@ -161,6 +194,11 @@ public class DocumentRenderer
     /// </summary>
     public void RenderPage(XGraphics gfx, int page, PageRenderOptions options)
     {
+        // Before the empty-page test rather than after it. A page that draws nothing still belongs
+        // in the structure tree, or it cannot be told apart from one imported out of an untagged
+        // document — and a validator is right to refuse both.
+        Tagger.BeginPage(gfx);
+
         if (formattedDocument.IsEmptyPage(page))
             return;
 
@@ -298,10 +336,17 @@ public class DocumentRenderer
         Rectangle headerArea = formattedDocument.GetHeaderArea(page);
         RenderInfo[] renderInfos = formattedHeader.GetRenderInfos();
         FieldInfos fieldInfos = formattedDocument.GetFieldInfos(page);
-        foreach (RenderInfo renderInfo in renderInfos)
+
+        // A running head is furniture, never content. Read out between every paragraph it is worse
+        // than useless, which is why marking it as an artifact is half the accessibility rule and
+        // not a tidiness measure.
+        using (Tagger.Artifact(graphics))
         {
-            Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
-            renderer.Render();
+            foreach (RenderInfo renderInfo in renderInfos)
+            {
+                Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
+                renderer.Render();
+            }
         }
     }
 
@@ -326,20 +371,25 @@ public class DocumentRenderer
         XUnit distance = renderedTop - formattedTop;
 
         FieldInfos fieldInfos = formattedDocument.GetFieldInfos(page);
-        foreach (RenderInfo renderInfo in renderInfos)
+
+        // As the header: a folio is furniture. See RenderHeader.
+        using (Tagger.Artifact(graphics))
         {
-            Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
-            XUnit savedY = renderer.RenderInfo.LayoutInfo.ContentArea.Y;
-            renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY + distance;
-            try
+            foreach (RenderInfo renderInfo in renderInfos)
             {
-                renderer.Render();
-            }
-            finally
-            {
-                // The pages of a section share the one formatted footer, so a move left in
-                // place would be there still the next time the footer was drawn.
-                renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
+                Renderer renderer = Renderer.Create(graphics, this, renderInfo, fieldInfos);
+                XUnit savedY = renderer.RenderInfo.LayoutInfo.ContentArea.Y;
+                renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY + distance;
+                try
+                {
+                    renderer.Render();
+                }
+                finally
+                {
+                    // The pages of a section share the one formatted footer, so a move left in
+                    // place would be there still the next time the footer was drawn.
+                    renderer.RenderInfo.LayoutInfo.ContentArea.Y = savedY;
+                }
             }
         }
     }

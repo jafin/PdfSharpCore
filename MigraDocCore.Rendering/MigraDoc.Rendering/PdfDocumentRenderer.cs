@@ -72,12 +72,32 @@ public class PdfDocumentRenderer
     /// Gets or sets the language.
     /// </summary>
     /// <value>The language.</value>
+    /// <remarks>
+    /// An RFC 3066 tag such as "en-GB". Written to the catalog, and required by PDF/UA — a reader
+    /// that does not know what language a document is in cannot choose a voice to read it in.
+    /// </remarks>
     public string Language
     {
         get => language;
         set => language = value;
     }
     string language = String.Empty;
+
+    /// <summary>
+    /// Gets or sets whether the rendered PDF carries a structure tree describing it. The default is
+    /// <c>true</c>. See <see cref="MigraDocCore.Rendering.DocumentRenderer.TagContent"/>.
+    /// </summary>
+    public bool TagContent
+    {
+        get => tagContent;
+        set
+        {
+            tagContent = value;
+            if (documentRenderer != null)
+                documentRenderer.TagContent = value;
+        }
+    }
+    bool tagContent = true;
 
     /// <summary>
     /// Set the MigraDoc document to be rendered by this printer.
@@ -127,6 +147,14 @@ public class PdfDocumentRenderer
             documentRenderer = new DocumentRenderer(document);
             documentRenderer.WorkingDirectory = workingDirectory;
         }
+
+        documentRenderer.TagContent = tagContent;
+
+        // The document's language belongs on the catalog and in the structure tree both, and it is
+        // set here rather than in CreatePdfDocument because a caller supplying their own PdfDocument
+        // never goes through that.
+        if (!string.IsNullOrEmpty(language))
+            documentRenderer.Tagger.Language = language;
         if (prepareCompletely && documentRenderer.formattedDocument == null)
         {
             documentRenderer.PrepareDocument();

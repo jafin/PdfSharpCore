@@ -30,7 +30,9 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
@@ -38,6 +40,7 @@ using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.Pdf.Structure;
 
 using PdfSharpCore;
 
@@ -136,22 +139,124 @@ internal class ParagraphRenderer : Renderer
             documentRenderer.AddOutline((int)paragraph.Format.OutlineLevel, GetOutlineTitle(),
                 gfx.PdfPage, OutlineDestinationTop());
 
-        RenderShading();
-        RenderBorders();
-
-        ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
-        for (int idx = 0; idx < parFormatInfo.LineCount; ++idx)
+        // Shading and borders are decoration, and they are drawn before the paragraph's own scope
+        // opens rather than inside it. Nesting an artifact inside the content it decorates is legal
+        // and says the wrong thing: the shading is not part of the paragraph, it is behind it.
+        using (Tagger.Artifact(gfx))
         {
-            LineInfo lineInfo = parFormatInfo.GetLineInfo(idx);
-            isLastLine = (idx == parFormatInfo.LineCount - 1);
+            RenderShading();
+            RenderBorders();
+        }
 
-            lastTabPosition = 0;
-            if (lineInfo.reMeasureLine)
-                ReMeasureLine(ref lineInfo);
+        using (BeginStructure())
+        {
+            ParagraphFormatInfo parFormatInfo = (ParagraphFormatInfo)renderInfo.FormatInfo;
+            FindBrokenWords(parFormatInfo);
 
-            RenderLine(lineInfo);
+            for (int idx = 0; idx < parFormatInfo.LineCount; ++idx)
+            {
+                LineInfo lineInfo = parFormatInfo.GetLineInfo(idx);
+                isLastLine = (idx == parFormatInfo.LineCount - 1);
+
+                lastTabPosition = 0;
+                if (lineInfo.reMeasureLine)
+                    ReMeasureLine(ref lineInfo);
+
+                RenderLine(lineInfo);
+            }
         }
     }
+
+    /// <summary>
+    /// Works out what this paragraph is — a heading, a list item, or prose — and makes the element
+    /// holding its lines current for the scope.
+    /// </summary>
+    /// <remarks>
+    /// A list item is the awkward one, because the bullet and the text are siblings rather than one
+    /// inside the other: <c>/LI</c> holds a <c>/Lbl</c> for the symbol and an <c>/LBody</c> for
+    /// everything else. So the label is not opened here — <see cref="RenderLine"/> opens it around
+    /// the symbol on the first line, and what this makes current is the body.
+    /// </remarks>
+    IDisposable BeginStructure()
+    {
+        labelElement = null;
+
+        if (!IsListItem(out var listType))
+        {
+            Tagger.EndList();
+            return Tagger.Block(gfx, paragraph, TagOfParagraph());
+        }
+
+        var item = Tagger.ListItem(gfx, paragraph, listType);
+        if (item == null)
+            return StructureTagger.Nothing;
+
+        labelElement = Tagger.Element(paragraph, PdfTag.Lbl, item, LabelSlot);
+
+        var body = Tagger.Element(paragraph, PdfTag.LBody, item, BodySlot);
+        return Tagger.Marks(gfx, body);
+    }
+
+    /// <summary>
+    /// Which of a list paragraph's two elements is meant. Slot 0 is the <c>/LI</c> itself.
+    /// </summary>
+    const int LabelSlot = 1;
+    const int BodySlot = 2;
+
+    /// <summary>
+    /// Whether this paragraph draws a bullet or a number, and of what kind.
+    /// </summary>
+    /// <remarks>
+    /// Asked of the format info rather than of the format, and only in the rendering phase, so it
+    /// agrees with what <see cref="RenderListSymbol"/> will actually draw — a paragraph carrying a
+    /// <c>ListInfo</c> whose type is none of the six draws nothing, and a continuation of a split
+    /// paragraph draws nothing either.
+    /// </remarks>
+    bool IsListItem(out ListType listType)
+    {
+        listType = ListType.BulletList1;
+        if (!GetListSymbol(out _, out _))
+            return false;
+
+        ParagraphFormat format = paragraph.Format;
+        if (format.IsNull("ListInfo"))
+            return false;
+
+        listType = format.ListInfo.ListType;
+        return true;
+    }
+
+    /// <summary>
+    /// The structure type of this paragraph: a heading at its outline level, or prose.
+    /// </summary>
+    /// <remarks>
+    /// From the outline level rather than from the style name, because the level is what the style
+    /// sets and what a caller overrides per paragraph — a heading styled by hand still says so there.
+    /// PDF has six heading levels and MigraDoc has nine, so the last three land on <c>/H6</c>: a
+    /// heading too deep to name exactly is still a heading, and calling it a paragraph would lose
+    /// more.
+    /// </remarks>
+    PdfTag TagOfParagraph()
+    {
+        switch ((int)paragraph.Format.OutlineLevel)
+        {
+            case 1: return PdfTag.H1;
+            case 2: return PdfTag.H2;
+            case 3: return PdfTag.H3;
+            case 4: return PdfTag.H4;
+            case 5: return PdfTag.H5;
+            case 6:
+            case 7:
+            case 8:
+            case 9: return PdfTag.H6;
+            default: return PdfTag.P;
+        }
+    }
+
+    /// <summary>
+    /// The label element of a list item, opened around the bullet on the first line only.
+    /// </summary>
+    PdfStructureElement labelElement;
 
     bool IsRenderedField(DocumentObject docObj)
     {
@@ -715,20 +820,270 @@ internal class ParagraphRenderer : Renderer
 
         bool ready = currentLeaf == null;
         if (isFirstLine)
-            RenderListSymbol();
-
-        while (!ready)
         {
-            if (currentLeaf.Current == lineInfo.endIter.Current)
-                ready = true;
-
-            if (currentLeaf.Current == lineInfo.lastTab)
-                lastTabPassed = true;
-            RenderElement(currentLeaf.Current);
-            currentLeaf = currentLeaf.GetNextLeaf();
+            // The bullet is the /Lbl and the text is the /LBody, and they are siblings — so the
+            // label's own scope is opened here, inside the body's, and closed again before the words
+            // start. A label drawn inside the body would be read as part of the sentence.
+            using (Tagger.Marks(gfx, labelElement))
+                RenderListSymbol();
         }
+
+        try
+        {
+            while (!ready)
+            {
+                if (currentLeaf.Current == lineInfo.endIter.Current)
+                    ready = true;
+
+                if (currentLeaf.Current == lineInfo.lastTab)
+                    lastTabPassed = true;
+
+                OpenInlineScopes();
+                RenderElement(currentLeaf.Current);
+                currentLeaf = currentLeaf.GetNextLeaf();
+            }
+        }
+        finally
+        {
+            // Never allowed to straddle a line. The annotation is made per line anyway, and a scope
+            // left open by a line that ends inside a hyperlink would swallow everything after it.
+            // The broken word does straddle one, but as two runs of marks on the same element rather
+            // than as one sequence — which is also what carries it over a page boundary, where one
+            // sequence is not even possible.
+            CloseInlineScopes();
+        }
+
         currentYPosition += lineInfo.vertical.height;
         isFirstLine = false;
+    }
+
+    /// <summary>
+    /// Opens and closes the scopes that live inside a line — a <c>/Link</c> around the text of a
+    /// hyperlink, a <c>/Span</c> around a word broken at a hyphen — as the leaf about to be drawn
+    /// moves into and out of them.
+    /// </summary>
+    /// <remarks>
+    /// Before the element is drawn rather than after it, which is what stops this being a line in
+    /// <see cref="RealizeHyperlink"/>. That runs once the word is already on the page — it measures
+    /// what was drawn in order to grow the annotation's rectangle — so a scope opened there would
+    /// leave the first word of every link outside the link.
+    /// </remarks>
+    void OpenInlineScopes()
+    {
+        Hyperlink hyperlink = GetHyperlink();
+        if (!ReferenceEquals(hyperlink, scopedHyperlink))
+        {
+            // The span first: it is the inner scope, and closing scopes out of order would cross a
+            // pair of BDC/EMC rather than nest them.
+            CloseSpanScope();
+            CloseLinkScope();
+
+            if (hyperlink != null)
+            {
+                scopedHyperlink = hyperlink;
+                linkScope = Tagger.Marks(gfx, LinkElementOf(hyperlink));
+            }
+        }
+
+        BrokenWord word = BrokenWordOf(currentLeaf.Current);
+        if (!ReferenceEquals(word, scopedWord))
+        {
+            CloseSpanScope();
+
+            if (word != null)
+            {
+                scopedWord = word;
+                spanScope = Tagger.Marks(gfx, SpanElementOf(word));
+            }
+        }
+    }
+
+    void CloseInlineScopes()
+    {
+        CloseSpanScope();
+        CloseLinkScope();
+    }
+
+    void CloseLinkScope()
+    {
+        linkScope?.Dispose();
+        linkScope = null;
+        scopedHyperlink = null;
+    }
+
+    void CloseSpanScope()
+    {
+        spanScope?.Dispose();
+        spanScope = null;
+        scopedWord = null;
+    }
+
+    /// <summary>
+    /// The element standing for a hyperlink, one per hyperlink however many lines and pages its text
+    /// runs over, and however many annotations that costs.
+    /// </summary>
+    PdfStructureElement LinkElementOf(Hyperlink hyperlink) =>
+        Tagger.Element(hyperlink, PdfTag.Link, Tagger.Current);
+
+    IDisposable linkScope;
+    Hyperlink scopedHyperlink;
+
+    // ----------------------------------------------------------------------------------------
+    // Words broken at a soft hyphen
+    //
+    // A word broken across a line is on the page as "some-" and "thing" and is neither of those.
+    // Anything reading the marks gets the hyphen the typesetter added and the break the line
+    // introduced, and has no way to know that the word was "something" — so a screen reader says
+    // "some" and "thing", a search for the word fails, and copying the paragraph out pastes the
+    // hyphen. /ActualText is what says otherwise: an exact replacement for an element and its
+    // children, which the two fragments and the hyphen between them are.
+    //
+    // The replacement goes on a /Span element covering both fragments rather than on either of the
+    // two marked-content sequences that draw them. It has to: the fragments are separated by a line
+    // break and sometimes by a page break, so there is no one sequence to put it on, and putting the
+    // word on each of two sequences would say it twice.
+    // ----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A word this paragraph breaks at a soft hyphen: the leaves it is drawn from, and what it says.
+    /// </summary>
+    sealed class BrokenWord
+    {
+        internal BrokenWord(DocumentObject hyphen, string text)
+        {
+            Hyphen = hyphen;
+            Text = text;
+        }
+
+        /// <summary>
+        /// The soft hyphen the break happens at, which is also the key the element is filed under —
+        /// stable across the two renderers that draw a paragraph split over a page boundary, where
+        /// nothing belonging to a renderer would be.
+        /// </summary>
+        internal DocumentObject Hyphen { get; }
+
+        /// <summary>The whole word, without the hyphen that was never part of it.</summary>
+        internal string Text { get; }
+    }
+
+    /// <summary>
+    /// Finds the words this part of the paragraph breaks, so that the lines below can wrap each one
+    /// in a scope as they come to it.
+    /// </summary>
+    /// <remarks>
+    /// Two places a break can be. A soft hyphen that ends a line is one — that is the test
+    /// <see cref="RenderSoftHyphen"/> itself uses to decide whether to draw a hyphen at all, so the
+    /// two cannot disagree about which hyphens are real. The other is a break inherited from the
+    /// previous part: a paragraph split over a page boundary at a hyphen has the hyphen on one page
+    /// and the rest of the word on the next, drawn by a different renderer that would otherwise
+    /// never learn that its first leaves finish a word begun elsewhere.
+    /// </remarks>
+    void FindBrokenWords(ParagraphFormatInfo formatInfo)
+    {
+        brokenWords = null;
+
+        if (!Tagger.Enabled || gfx.PdfPage == null)
+            return;
+
+        for (int idx = 0; idx < formatInfo.LineCount; ++idx)
+            RecordBrokenWord(formatInfo.GetLineInfo(idx).endIter);
+
+        if (formatInfo.LineCount > 0)
+            RecordBrokenWord(formatInfo.GetLineInfo(0).startIter?.GetPreviousLeaf());
+    }
+
+    /// <summary>
+    /// Records the word broken at the given leaf, if that leaf is a soft hyphen with a word on each
+    /// side of it.
+    /// </summary>
+    void RecordBrokenWord(ParagraphIterator hyphen)
+    {
+        if (hyphen == null || !IsSoftHyphen(hyphen.Current))
+            return;
+
+        if (brokenWords != null && brokenWords.ContainsKey(hyphen.Current))
+            return;
+
+        // The same guard FormatSoftHyphen uses. A hyphen with nothing on one side of it did not
+        // break a word, so there is no word to put back together.
+        ParagraphIterator previous = hyphen.GetPreviousLeaf();
+        ParagraphIterator next = hyphen.GetNextLeaf();
+        if (previous == null || next == null)
+            return;
+        if (!IsPlainText(previous.Current) || !IsPlainText(next.Current))
+            return;
+
+        var leaves = new List<DocumentObject>();
+        var text = new StringBuilder();
+
+        // Backwards to the front of the word, then forwards to the end of it. The walk stops at
+        // anything that is not plain text or another soft hyphen — a blank, a tab, a field, a symbol
+        // — which is what makes the run a word. It also stops the replacement from claiming more
+        // than the scope covers: whatever the walk collects is exactly what the scope will wrap and
+        // exactly what the replacement will spell.
+        var head = new List<DocumentObject>();
+        for (var iter = previous; iter != null && IsWordFragment(iter.Current); iter = iter.GetPreviousLeaf())
+            head.Add(iter.Current);
+        head.Reverse();
+
+        leaves.AddRange(head);
+        leaves.Add(hyphen.Current);
+        for (var iter = next; iter != null && IsWordFragment(iter.Current); iter = iter.GetNextLeaf())
+            leaves.Add(iter.Current);
+
+        foreach (DocumentObject leaf in leaves)
+        {
+            // The hyphens are what is being taken out. A word may carry several and break at one of
+            // them; the others draw nothing and must not spell anything either.
+            if (!IsSoftHyphen(leaf))
+                text.Append(((Text)leaf).Content);
+        }
+
+        var word = new BrokenWord(hyphen.Current, text.ToString());
+        brokenWords ??= new Dictionary<DocumentObject, BrokenWord>(ReferenceComparer.Instance);
+        foreach (DocumentObject leaf in leaves)
+            brokenWords[leaf] = word;
+    }
+
+    /// <summary>
+    /// Whether a leaf is part of a word rather than something between words.
+    /// </summary>
+    bool IsWordFragment(DocumentObject docObj) => IsPlainText(docObj) || IsSoftHyphen(docObj);
+
+    BrokenWord BrokenWordOf(DocumentObject leaf) =>
+        brokenWords != null && leaf != null && brokenWords.TryGetValue(leaf, out BrokenWord word)
+            ? word
+            : null;
+
+    /// <summary>
+    /// The element standing for a broken word, one however many lines and pages its fragments are
+    /// spread over, carrying the word it really spells.
+    /// </summary>
+    PdfStructureElement SpanElementOf(BrokenWord word)
+    {
+        PdfStructureElement element = Tagger.Element(word.Hyphen, PdfTag.Span, Tagger.Current);
+        if (element != null)
+            element.ActualText = word.Text;
+
+        return element;
+    }
+
+    Dictionary<DocumentObject, BrokenWord> brokenWords;
+    IDisposable spanScope;
+    BrokenWord scopedWord;
+
+    /// <summary>
+    /// Keys leaves by identity. A <c>Text</c> compares by value, and the two halves of "in-ter-in"
+    /// are equal without being the same leaf.
+    /// </summary>
+    sealed class ReferenceComparer : IEqualityComparer<DocumentObject>
+    {
+        internal static readonly ReferenceComparer Instance = new ReferenceComparer();
+
+        public bool Equals(DocumentObject x, DocumentObject y) => ReferenceEquals(x, y);
+
+        public int GetHashCode(DocumentObject obj) =>
+            System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 
     void ReMeasureLine(ref LineInfo lineInfo)
@@ -1149,26 +1504,56 @@ internal class ParagraphRenderer : Renderer
         if (page != null)
         {
             XRect rect = gfx.Transformer.WorldToDefaultPage(hyperlinkRect);
+            PdfSharpCore.Pdf.Annotations.PdfLinkAnnotation annotation = null;
 
             switch (hyperlink.Type)
             {
                 case HyperlinkType.Local:
                     int pageRef = fieldInfos.GetPhysicalPageNumber(hyperlink.Name);
                     if (pageRef > 0)
-                        page.AddDocumentLink(new PdfRectangle(rect), pageRef,
+                        annotation = page.AddDocumentLink(new PdfRectangle(rect), pageRef,
                             fieldInfos.GetBookmarkTop(hyperlink.Name));
                     break;
 
                 case HyperlinkType.Web:
-                    page.AddWebLink(new PdfRectangle(rect), hyperlink.Name);
+                    annotation = page.AddWebLink(new PdfRectangle(rect), hyperlink.Name);
                     break;
 
                 case HyperlinkType.File:
-                    page.AddFileLink(new PdfRectangle(rect), hyperlink.Name);
+                    annotation = page.AddFileLink(new PdfRectangle(rect), hyperlink.Name);
                     break;
             }
+
+            TagLink(hyperlink, annotation);
             hyperlinkRect = new XRect();
         }
+    }
+
+    /// <summary>
+    /// Joins a link annotation to the structure and gives it something to be announced as.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A link that exists only as a rectangle is found by a reader hit-testing the page and by
+    /// nothing else, so the annotation goes into the tree beside the text it covers. One hyperlink
+    /// makes as many annotations as it has lines and pages, and all of them join the same element —
+    /// which is what makes a link broken over a line break one link.
+    /// </para>
+    /// <para>
+    /// The description is the destination, because it is the only thing here that is certainly true.
+    /// The link's own text is what a reader would rather hear, and by the time the annotation is
+    /// made the text has been drawn and not kept.
+    /// </para>
+    /// </remarks>
+    void TagLink(Hyperlink hyperlink, PdfSharpCore.Pdf.Annotations.PdfLinkAnnotation annotation)
+    {
+        if (annotation == null)
+            return;
+
+        if (string.IsNullOrEmpty(annotation.Elements.GetString("/Contents")))
+            annotation.Elements.SetString("/Contents", hyperlink.Name ?? "");
+
+        Tagger.AddAnnotation(gfx, LinkElementOf(hyperlink), annotation);
     }
 
     void RealizeHyperlink(XUnit width)

@@ -1762,11 +1762,12 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     {
         BeginPage();
         BeginGraphicMode();
-        _content.Append("/Artifact BMC\n");
+        _artifactStarts.Push(_content.Length);
+        _content.Append(ArtifactPrologue);
     }
 
     /// <summary>
-    /// Closes the innermost marked-content or artifact sequence.
+    /// Closes the innermost marked-content sequence.
     /// </summary>
     internal void EndMarkedContent()
     {
@@ -1774,6 +1775,45 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         BeginGraphicMode();
         _content.Append("EMC\n");
     }
+
+    /// <summary>
+    /// Closes the innermost artifact sequence, or takes it back if nothing was drawn inside it.
+    /// </summary>
+    /// <remarks>
+    /// Taking it back matters because of who opens these. Automatic tagging wraps the decoration of
+    /// every paragraph — its shading and its borders — in an artifact scope, and the overwhelming
+    /// majority of paragraphs have neither, so an empty <c>/Artifact BMC EMC</c> pair per paragraph
+    /// would be the single largest thing tagging added to a document and would mean nothing.
+    /// <para>
+    /// Safe because the test is exact. If anything at all was appended since the <c>BMC</c> — even
+    /// the <c>ET</c> that closing a text object writes — the lengths differ and the pair stands. So
+    /// a scope is only ever rewound when the bytes between its ends are none.
+    /// </para>
+    /// </remarks>
+    internal void EndArtifact()
+    {
+        BeginPage();
+        BeginGraphicMode();
+
+        if (_artifactStarts.Count > 0)
+        {
+            var start = _artifactStarts.Pop();
+            if (start + ArtifactPrologue.Length == _content.Length)
+            {
+                _content.Length = start;
+                return;
+            }
+        }
+
+        _content.Append("EMC\n");
+    }
+
+    const string ArtifactPrologue = "/Artifact BMC\n";
+
+    /// <summary>
+    /// Where each open artifact sequence began in the content, so that an empty one can be undone.
+    /// </summary>
+    readonly Stack<int> _artifactStarts = new Stack<int>();
 
     internal void BeginGraphicMode()
     {

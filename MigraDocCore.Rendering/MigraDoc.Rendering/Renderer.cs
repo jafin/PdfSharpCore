@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
@@ -224,6 +224,21 @@ internal abstract class Renderer
       + "from the page without a word. Draw bar codes on the PdfSharp surface instead: build a "
       + "PdfSharpCore.Drawing.BarCodes.BarCode and pass it to XGraphics.DrawBarCode, or a "
       + "CodeDataMatrix and XGraphics.DrawMatrixCode.");
+
+  /// <summary>
+  /// The tagger this pass is building the structure tree with.
+  /// </summary>
+  /// <remarks>
+  /// Shared by every renderer of one pass, because an element belongs to a document object and not
+  /// to a renderer: a paragraph broken over two pages is drawn by two renderers and is one paragraph.
+  /// A renderer built without a document renderer behind it — which the measuring passes and
+  /// <see cref="DocumentRenderer.RenderObject"/> both do — gets a disabled one, so that every scope
+  /// it hands back closes nothing and no call site needs to ask whether tagging is on.
+  /// </remarks>
+  internal StructureTagger Tagger =>
+    documentRenderer?.Tagger ?? (emptyTagger ??= new StructureTagger { Enabled = false });
+
+  StructureTagger emptyTagger;
 
   #region fields
 

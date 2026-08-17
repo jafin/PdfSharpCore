@@ -54,10 +54,10 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
 Five test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
 is the broad one and the default. `MigraDocCore.DocumentObjectModel.Generators.Tests` drives the
 DOM's source generator through `CSharpGeneratorDriver`. `MigraDocCore.Rendering.Tests` covers
-MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and deliberately
-rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four content-stream
-readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in place and both
-projects get the change.
+MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and its tagged output,
+and deliberately rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four
+content-stream readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in
+place and both projects get the change.
 
 `PdfSharpCore.Charting.Tests` covers the charting renderers — axis scales, category axes, plot
 areas, data labels, axis titles — and links three of those same readers. Every renderer in the
@@ -162,6 +162,18 @@ through the same surface, so a layout fix lands in `MigraDocCore.Rendering` and 
 Fonts are always embedded, with no setting to disable it. TrueType outlines are subsetted;
 PostScript (CFF) outlines cannot be and embed whole. A weight or slant with no font file is
 simulated by stroking or skewing.
+
+## Tagged output
+
+**MigraDoc tags what it draws, and that is the default** — `PdfDocumentRenderer.TagContent` is `true`,
+so every document it renders carries a structure tree. Two consequences bite immediately.
+`PdfPage.Resize` refuses a tagged document, so code that renders through MigraDoc and then resizes has
+to set `TagContent = false`. And a renderer that draws anything must say what it is drawing:
+`Renderer.Tagger` hands out the scopes, content goes in `Tagger.Block`/`Container`/`Marks` and
+decoration in `Tagger.Artifact`, and **anything inside an artifact scope is not tagged at all** — the
+tagger counts depth and refuses, because a running head drawn by the paragraph renderer would otherwise
+appear in the tree as a paragraph. `docs/specs/tagged-pdf-accessibility.md` has the rest, including why
+an element is keyed by its DOM object rather than built per render pass.
 
 ## Multi-targeting
 

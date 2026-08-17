@@ -30,6 +30,7 @@
 
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
+using PdfSharpCore.Pdf.Structure;
 
 namespace MigraDocCore.Rendering;
 
@@ -65,9 +66,19 @@ internal class TextFrameRenderer : ShapeRenderer
 
   internal override void Render()
   {
-    RenderFilling();
-    RenderContent();
-    RenderLine();
+    using (Tagger.Artifact(gfx))
+      RenderFilling();
+
+    // A text frame holds real content — paragraphs and tables, which tag themselves — so it is a
+    // section of the document rather than a figure. Its fill and its border are decoration and go
+    // out as artifacts; nothing here needs alternate text, because everything inside it is text that
+    // a reader can read for itself.
+    Tagger.EndList();
+    using (Tagger.Container(gfx, textframe, PdfTag.Section))
+      RenderContent();
+
+    using (Tagger.Artifact(gfx))
+      RenderLine();
   }
 
   void RenderContent()

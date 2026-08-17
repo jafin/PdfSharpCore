@@ -416,6 +416,28 @@ public partial class Table : DocumentObject, IVisitable
     [DV] internal bool? keepTogether;
 
     /// <summary>
+    /// Gets or sets a description of what the table holds and how it is arranged, for a reader who
+    /// cannot see its shape.
+    /// </summary>
+    /// <remarks>
+    /// What a tagged document writes as the <c>/Summary</c> of the <c>/Table</c> element. Header
+    /// cells and their scope let a reader navigate a table one cell at a time; a summary is what
+    /// tells it, before it starts, whether the table is worth navigating. Leave it unset for a table
+    /// used for layout rather than for data — those should not be tables at all, but they are.
+    /// <para>
+    /// Distinct from <see cref="Comment"/>, which is a note to whoever reads the MDDDL and never
+    /// reaches the PDF.
+    /// </para>
+    /// </remarks>
+    public string Summary
+    {
+        get => summary ?? "";
+        set => summary = value;
+    }
+
+    [DV] internal string summary;
+
+    /// <summary>
     /// Gets or sets a comment associated with this object.
     /// </summary>
     public string Comment
@@ -443,6 +465,9 @@ public partial class Table : DocumentObject, IVisitable
 
         if ((style ?? "") != String.Empty)
             serializer.WriteSimpleAttribute("Style", Style);
+
+        if (summary != null)
+            serializer.WriteSimpleAttribute("Summary", Summary);
 
         if (!IsNull("Format"))
             format.Serialize(serializer, "Format", null);

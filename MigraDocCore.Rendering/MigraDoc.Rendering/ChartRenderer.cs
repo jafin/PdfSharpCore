@@ -28,11 +28,13 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Tables;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
+using PdfSharpCore.Pdf.Structure;
 
 namespace MigraDocCore.Rendering;
 
@@ -313,33 +315,62 @@ internal class ChartRenderer : ShapeRenderer
 
   internal override void Render()
   {
-    RenderFilling();
+    using (Tagger.Artifact(gfx))
+      RenderFilling();
+
     Area contentArea = renderInfo.LayoutInfo.ContentArea;
 
-    ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
-    if (formatInfo.formattedHeader != null)
-      RenderArea(formatInfo.formattedHeader, GetHeaderRect());
+    // A chart is a picture of data, and to a reader who cannot see it that is all it is: axis labels
+    // and data labels read out in drawing order say nothing about the shape they describe. So it is
+    // one figure standing or falling on its description, exactly as an image is — see
+    // Shape.AlternativeText for why an undescribed one is furniture rather than a figure with
+    // nothing to say.
+    Tagger.EndList();
+    using (BeginStructure())
+    {
+      ChartFormatInfo formatInfo = (ChartFormatInfo)renderInfo.FormatInfo;
+      if (formatInfo.formattedHeader != null)
+        RenderArea(formatInfo.formattedHeader, GetHeaderRect());
 
-    if (formatInfo.formattedFooter != null)
-      RenderArea(formatInfo.formattedFooter, GetFooterRect());
+      if (formatInfo.formattedFooter != null)
+        RenderArea(formatInfo.formattedFooter, GetFooterRect());
 
-    if (formatInfo.formattedTop != null)
-      RenderArea(formatInfo.formattedTop, GetTopRect());
+      if (formatInfo.formattedTop != null)
+        RenderArea(formatInfo.formattedTop, GetTopRect());
 
-    if (formatInfo.formattedBottom != null)
-      RenderArea(formatInfo.formattedBottom, GetBottomRect());
+      if (formatInfo.formattedBottom != null)
+        RenderArea(formatInfo.formattedBottom, GetBottomRect());
 
-    if (formatInfo.formattedLeft != null)
-      RenderArea(formatInfo.formattedLeft, GetLeftRect());
+      if (formatInfo.formattedLeft != null)
+        RenderArea(formatInfo.formattedLeft, GetLeftRect());
 
-    if (formatInfo.formattedRight != null)
-      RenderArea(formatInfo.formattedRight, GetRightRect());
+      if (formatInfo.formattedRight != null)
+        RenderArea(formatInfo.formattedRight, GetRightRect());
 
-    PlotArea plotArea = (PlotArea)chart.GetValue("PlotArea", GV.ReadOnly);
-    if (plotArea != null)
-      RenderPlotArea(plotArea, GetPlotRect());
+      PlotArea plotArea = (PlotArea)chart.GetValue("PlotArea", GV.ReadOnly);
+      if (plotArea != null)
+        RenderPlotArea(plotArea, GetPlotRect());
+    }
 
-    RenderLine();
+    using (Tagger.Artifact(gfx))
+      RenderLine();
+  }
+
+  /// <summary>
+  /// Opens the scope the chart is drawn in: a figure when it has been described, an artifact when it
+  /// has not.
+  /// </summary>
+  IDisposable BeginStructure()
+  {
+    if (chart.IsNull("AlternativeText") || string.IsNullOrEmpty(chart.AlternativeText))
+      return Tagger.Artifact(gfx);
+
+    var scope = Tagger.Block(gfx, chart, PdfTag.Figure);
+    var element = Tagger.Current;
+    if (element != null)
+      element.AlternateText = chart.AlternativeText;
+
+    return scope;
   }
 
   void RenderPlotArea(PlotArea area, Rectangle rect)

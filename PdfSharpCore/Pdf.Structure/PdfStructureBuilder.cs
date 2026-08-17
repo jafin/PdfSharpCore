@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PdfSharpCore.Pdf.Advanced;
 
@@ -85,6 +86,24 @@ public sealed class PdfStructureBuilder
     }
 
     /// <summary>
+    /// Brings a page into the structure tree without tagging anything on it, giving it the
+    /// <c>/StructParents</c> and <c>/Tabs</c> that every page of a tagged document needs.
+    /// </summary>
+    /// <remarks>
+    /// A page acquires those the moment something on it is tagged, so this is only needed for a page
+    /// that draws nothing — a blank page between chapters, say. Without it such a page is
+    /// indistinguishable from one imported out of an untagged document, and a validator is right to
+    /// object to both. Calling it twice for the same page does nothing the second time.
+    /// </remarks>
+    public void RegisterPage(PdfPage page)
+    {
+        if (page == null)
+            throw new ArgumentNullException(nameof(page));
+
+        MarksOf(page);
+    }
+
+    /// <summary>
     /// Joins an annotation to an element, so that a link is reachable by a reader walking the
     /// structure rather than only by one hit-testing rectangles.
     /// </summary>
@@ -106,7 +125,13 @@ public sealed class PdfStructureBuilder
 
         marks = new PageMarks(_nextParentKey++);
         _pages[page] = marks;
-        page.Elements.SetInteger("/StructParents", marks.StructParents);
+        page.Elements.SetInteger(PdfPage.Keys.StructParents, marks.StructParents);
+
+        // Written for every tagged page rather than only for one claiming PDF/UA, because it is a
+        // mechanical consequence of there being a structure tree and no caller could want otherwise.
+        // Unset, the tab key walks the annotations in the order they sit in the array — which is
+        // drawing order, which is the order the tree exists to correct.
+        page.Elements.SetName(PdfPage.Keys.Tabs, "/S");
         return marks;
     }
 
