@@ -157,7 +157,25 @@ public class BidirectionalParagraphTests
         var page = Rendered.FirstPageOf(document);
         var mark = Glyphs.For("1").Single();
 
-        Glyphs.On(page).Count(glyph => glyph == mark).Should().Be(2,
-            "one mark beside the text and one at the head of the note, and no third one");
+        // Where each mark landed, not just how many there are. A count alone would be satisfied by
+        // two marks on the paragraph, which is close to the defect being pinned: the duplicate was
+        // drawn on the same line as the real one, at the position the probing walk had reached.
+        var marks = Glyphs.PlacedOn(page)
+            .Where(run => run.Run.Contains(mark))
+            .Select(run => run.Y)
+            .OrderByDescending(y => y)
+            .ToList();
+
+        // The paragraph's own baseline: the highest thing on the page that is not a mark. The other
+        // text on the page is the note, which is at the foot of it.
+        var line = Glyphs.PlacedOn(page)
+            .Where(run => !run.Run.Contains(mark))
+            .Max(run => run.Y);
+
+        marks.Should().HaveCount(2, "one beside the text and one at the head of the note");
+        marks[0].Should().BeApproximately(line, 6.0,
+            "the reference mark is a superscript on the paragraph's own line");
+        marks[1].Should().BeLessThan(line - 100,
+            "and the other is at the head of the note, down at the foot of the page");
     }
 }

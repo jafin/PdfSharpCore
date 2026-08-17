@@ -137,12 +137,38 @@ internal static class TextOperators
     ///     to, and is the whole of what a test of that wants to see.
     ///   </para>
     ///   <para>
-    ///     The position is accumulated from the text-positioning operators: <c>Tm</c> sets it
-    ///     outright and <c>Td</c> moves it, both relative to the start of the text object, which is
-    ///     enough to order what is on one page against itself.
+    ///     The positions it is sorted by come from <see cref="Placed"/>; a test that needs them
+    ///     rather than the order they produce wants <see cref="ShownWithPositions"/>.
     ///   </para>
     /// </remarks>
     internal static IReadOnlyList<string> ShownAcrossThePage(PdfPage page)
+    {
+        return Placed(page)
+            .OrderByDescending(run => run.Y)
+            .ThenBy(run => run.X)
+            .ThenBy(run => run.Written)
+            .Select(run => run.Text)
+            .ToList();
+    }
+
+    /// <summary>
+    ///   The strings shown on the page with the position each was drawn at, in the order they were
+    ///   written.
+    /// </summary>
+    /// <remarks>
+    ///   For a test that has to say <em>where</em> something landed rather than only in what order.
+    ///   Positions are as PDF measures them, so a bigger Y is further up the page.
+    /// </remarks>
+    internal static IReadOnlyList<(double X, double Y, string Text)> ShownWithPositions(PdfPage page)
+        => Placed(page).Select(run => (run.X, run.Y, run.Text)).ToList();
+
+    /// <summary>
+    ///   Every shown string with the pen position it was drawn at, accumulated from the
+    ///   text-positioning operators: <c>Tm</c> sets the position outright and <c>Td</c> moves it,
+    ///   both relative to the start of the text object, which is enough to place what is on one
+    ///   page against itself.
+    /// </summary>
+    static List<(double X, double Y, int Written, string Text)> Placed(PdfPage page)
     {
         var shown = new List<(double X, double Y, int Written, string Text)>();
         double x = 0, y = 0;
@@ -179,12 +205,7 @@ internal static class TextOperators
             }
         }
 
-        return shown
-            .OrderByDescending(run => run.Y)
-            .ThenBy(run => run.X)
-            .ThenBy(run => run.Written)
-            .Select(run => run.Text)
-            .ToList();
+        return shown;
     }
 
     static IEnumerable<CArray> TJArrays(PdfPage page)
