@@ -358,9 +358,9 @@ No shared fixture, so take these in rank order and stop when the return drops. A
 | # | target | suite | status |
 |---|---|---|---|
 | 18.1 | `PdfTextExtractor.Walker.Execute(COperator)` — `Pdf.Extraction/PdfTextExtractor.cs:132` — CC 44, 60%, **124 points** | Core | **done**, 60% → 95.5% |
-| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | **left**, unreachable |
-| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | **left**, compiled out of every build |
-| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | **left**, unreachable |
+| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | **deleted** |
+| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | **deleted**, replaced by tests |
+| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | **deleted** |
 | 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | **done**, all four overloads |
 | 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | **left**, wants a font with `vmtx` |
 | 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | **done** |
@@ -393,6 +393,33 @@ the check comes before the test. A method at 0% is not necessarily untested; it 
   `PdfCrossReferenceTable.cs:199` to `:241` are commented out on top of that.
 - **18.4 is private with no caller.** `CreateValue` is declared without an access modifier inside
   `DictionaryElements`, so it is private, and nothing calls it.
+
+**All three were then deleted**, which is batch 0 and 1's answer rather than batch 12.1's: none of
+them implements a named algorithm worth keeping as a basis for future work, and all three are
+`internal` or `private` in a repository with no `InternalsVisibleTo`, so removing them is invisible
+to every consumer.
+
+18.2's `// TODO: public?` was answered "no" before it was deleted, and the answer is worth keeping
+because the question will occur to the next reader too. A caller can already do the whole job through
+public API — `page.Reference.ObjectID` reads an id, and `PdfPages` is publicly `IEnumerable<PdfPage>`:
+
+```csharp
+((IEnumerable<PdfPage>)document.Pages).FirstOrDefault(page => page.Reference.ObjectID == wanted)
+```
+
+Checked rather than assumed, with a throwaway test that was then removed. The cast is needed because
+`PdfPages` declares `new GetEnumerator()` over `PdfDictionary`'s, so overload resolution otherwise
+fails. Publishing `FindPage` would also have exported a wart: it scans with `item as PdfReference`
+and a null check, so a page held as a direct dictionary rather than an indirect reference is silently
+skipped — it answers null where the public indexer answers the page.
+
+18.3's invariants were **moved into tests rather than dropped**, which is the point of removing a
+check that never ran. `PdfSharpCore.Test/Pdfs/CrossReferenceConsistencyTests` asserts them from
+outside, against the bytes the writer produced: every object numbered once, no object numbered zero,
+and the count the xref declares matching the objects the file defines. The renumbering path the old
+checks bracketed is covered directly — importing pages from a second document, where both number
+their objects from one and a failure to renumber would collide. The two assertions cross-check each
+other, so a regular expression that matched nothing would fail the test rather than pass it quietly.
 
 **18.5 was done and is the one straightforward item in the six.** All four `CalculateTextSize`
 overloads are public and had never run. 7 tests added to `XTextSegmentFormatterTests`, asserting

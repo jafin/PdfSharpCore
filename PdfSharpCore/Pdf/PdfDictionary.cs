@@ -1073,35 +1073,6 @@ public class PdfDictionary : PdfObject, IEnumerable<KeyValuePair<string, PdfItem
             return dict;
         }
 
-        PdfItem CreateValue([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)]Type type, PdfDictionary oldValue)
-        {
-
-            // Rewritten WinRT style.
-            PdfObject obj = null;
-            var ctorInfos = type.GetTypeInfo().DeclaredConstructors; // GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(PdfDocument) }, null);
-            foreach (var ctorInfo in ctorInfos)
-            {
-                var parameters = ctorInfo.GetParameters();
-                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(PdfDocument))
-                {
-                    obj = ctorInfo.Invoke(new object[] { _ownerDictionary.Owner }) as PdfObject;
-                    break;
-                }
-            }
-            Debug.Assert(obj != null, "No appropriate constructor found for type: " + type.Name);
-            if (oldValue != null)
-            {
-                obj.Reference = oldValue.Reference;
-                obj.Reference.Value = obj;
-                if (obj is PdfDictionary)
-                {
-                    PdfDictionary dict = (PdfDictionary)obj;
-                    dict._elements = oldValue._elements;
-                }
-            }
-            return obj;
-        }
-
         /// <summary>
         /// Sets the entry with the specified value. DON'T USE THIS FUNCTION - IT MAY BE REMOVED.
         /// </summary>

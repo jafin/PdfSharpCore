@@ -625,9 +625,7 @@ public static class PdfReader
                     //bool b = document.irefTable.Contains(new PdfObjectID(1108));
                     //b.GetType();
 
-                    document._irefTable.CheckConsistence();
                     document._irefTable.Renumber();
-                    document._irefTable.CheckConsistence();
                 }
             }
         }
