@@ -27,7 +27,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PdfSharpCore.Pdf.Advanced;
 
@@ -133,42 +132,7 @@ internal static class PdfNamedDestinations
     /// </summary>
     internal static IEnumerable<KeyValuePair<string, PdfItem>> Enumerate(PdfDocument document)
     {
-        PdfCatalog catalog = document?.Catalog;
-        PdfDictionary names = catalog?.Elements.GetDictionary("/Names");
-        PdfDictionary dests = names?.Elements.GetDictionary("/Dests");
-        return dests == null
-            ? Enumerable.Empty<KeyValuePair<string, PdfItem>>()
-            : Walk(dests, 0);
-    }
-
-    static IEnumerable<KeyValuePair<string, PdfItem>> Walk(PdfDictionary node, int depth)
-    {
-        // The same cap the search uses, and for the same reason: a tree that leads back into
-        // itself would otherwise be walked forever.
-        if (node == null || depth > MaxDepth)
-            yield break;
-
-        PdfArray leaves = node.Elements.GetArray("/Names");
-        if (leaves != null)
-        {
-            int count = leaves.Elements.Count;
-            for (int idx = 0; idx + 1 < count; idx += 2)
-            {
-                string name = TextOf(leaves.Elements[idx]);
-                if (name != null)
-                    yield return new KeyValuePair<string, PdfItem>(name, leaves.Elements[idx + 1]);
-            }
-        }
-
-        PdfArray kids = node.Elements.GetArray("/Kids");
-        if (kids == null)
-            yield break;
-
-        for (int idx = 0; idx < kids.Elements.Count; idx++)
-        {
-            foreach (var entry in Walk(kids.Elements.GetDictionary(idx), depth + 1))
-                yield return entry;
-        }
+        return PdfNameTree.Enumerate(document, "/Dests");
     }
 
     /// <summary>
@@ -190,32 +154,11 @@ internal static class PdfNamedDestinations
     /// The text of a name written either as a string or as a name, without the slash a name
     /// carries, or null if the item is neither.
     /// </summary>
-    static string TextOf(PdfItem item)
-    {
-        if (item is PdfString text)
-            return text.Value;
-
-        if (item is PdfStringObject textObject)
-            return textObject.Value;
-
-        PdfName name = item as PdfName;
-        if (name != null)
-            return WithoutSlash(name.Value);
-
-        PdfNameObject nameObject = item as PdfNameObject;
-        if (nameObject != null)
-            return WithoutSlash(nameObject.Value);
-
-        return null;
-    }
-
-    static string WithoutSlash(string name)
-    {
-        return name != null && name.Length > 0 && name[0] == '/' ? name.Substring(1) : name;
-    }
+    static string TextOf(PdfItem item) => PdfNameTree.TextOf(item);
 
     /// <summary>
-    /// How far down a name tree to go before giving up on it.
+    /// How far down a name tree to go before giving up on it. The same cap the shared walk uses,
+    /// and for the same reason.
     /// </summary>
-    const int MaxDepth = 32;
+    const int MaxDepth = PdfNameTree.MaxDepth;
 }
