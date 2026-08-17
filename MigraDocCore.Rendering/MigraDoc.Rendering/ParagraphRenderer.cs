@@ -2240,10 +2240,21 @@ internal class ParagraphRenderer : Renderer
         if (mark.Length == 0)
             return;
 
+        XUnit width = MeasureFootnoteMark(mark);
+
+        if (probing)
+        {
+            // The mark is text on the line like any other. Left out of the probed string, every
+            // character index after it would be short by its length and the bidirectional algorithm
+            // would place the rest of the line against the wrong positions.
+            probedText.Append(mark);
+            currentXPosition += width;
+            return;
+        }
+
         XFont xFont = FontHandler.ToSubSuperFont(CurrentFont);
         gfx.DrawString(mark, xFont, CurrentBrush, currentXPosition, FootnoteMarkBaseline);
 
-        XUnit width = MeasureFootnoteMark(mark);
         RealizeHyperlink(width);
         currentXPosition += width;
     }

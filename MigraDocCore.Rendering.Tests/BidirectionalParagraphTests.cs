@@ -138,4 +138,26 @@ public class BidirectionalParagraphTests
         Glyphs.AcrossThePage(page).Should().Equal(Drawn("\u05D3\u05D2\u05D1\u05D0"),
             "and placed in the order they are read");
     }
+
+    [Fact]
+    public void AFootnoteMarkOnAReorderedLineIsDrawnOnce()
+    {
+        // The probing walk is a walk of the same renderers with the drawing turned off, and every
+        // one of them has to know it. RenderFootnote did not: it drew its mark during the probe, at
+        // the position the probe had reached, and then again for real at the reordered position. So
+        // a Hebrew paragraph carrying a footnote grew a second reference mark, in the wrong place,
+        // that nothing in the structure tree accounted for.
+        var document = new Document();
+        var section = document.AddSection();
+        var paragraph = section.AddParagraph();
+        paragraph.Format.TextDirection = BidiParagraphDirection.RightToLeft;
+        paragraph.AddText(First + " " + Second);
+        paragraph.AddFootnote("The note.");
+
+        var page = Rendered.FirstPageOf(document);
+        var mark = Glyphs.For("1").Single();
+
+        Glyphs.On(page).Count(glyph => glyph == mark).Should().Be(2,
+            "one mark beside the text and one at the head of the note, and no third one");
+    }
 }
