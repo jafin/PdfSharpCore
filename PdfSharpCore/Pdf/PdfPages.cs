@@ -78,28 +78,6 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     }
 
     /// <summary>
-    /// Finds a page by its id. Transforms it to PdfPage if necessary.
-    /// </summary>
-    internal PdfPage FindPage(PdfObjectID id)  // TODO: public?
-    {
-        PdfPage page = null;
-        foreach (PdfItem item in PagesArray)
-        {
-            PdfReference reference = item as PdfReference;
-            if (reference != null)
-            {
-                PdfDictionary dictionary = reference.Value as PdfDictionary;
-                if (dictionary != null && dictionary.ObjectID == id)
-                {
-                    page = dictionary as PdfPage ?? new PdfPage(dictionary);
-                    break;
-                }
-            }
-        }
-        return page;
-    }
-
-    /// <summary>
     /// Creates a new PdfPage, adds it to the end of this document, and returns it.
     /// </summary>
     [MustUseReturnValue]

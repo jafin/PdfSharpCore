@@ -398,6 +398,102 @@ public class AcroFormFieldKindTests
     }
 
     /// <summary>
+    ///   The specification requires <c>/I</c> in two cases, and only one of them is a list that
+    ///   allows several choices: the other is two options exporting the same text, which a
+    ///   single-choice list may have just as easily. Stripping <c>/I</c> from every such list lost
+    ///   the choice - <c>/V</c> says only "Kent", and searching <c>/Opt</c> for it finds the first
+    ///   Kent whichever one was picked.
+    /// </summary>
+    [Fact]
+    public void ASingleChoiceListKeepsTheIndexEntryWhenTwoOptionsExportTheSameText()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey")).AcroForm.Fields["county"];
+
+        field.SelectedIndex = 1;
+
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeTrue(
+            "/V cannot say which Kent was chosen, so /I has to");
+        field.SelectedIndex.Should().Be(1, "the second Kent, not the first");
+    }
+
+    /// <summary>
+    ///   And no further than that: an option whose text finds itself is written as <c>/V</c> alone,
+    ///   so the entry appears where it earns its place rather than on every single-choice list.
+    /// </summary>
+    [Fact]
+    public void ASingleChoiceListNeedsNoIndexEntryForTheFirstOfTwoAlikeOptions()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey")).AcroForm.Fields["county"];
+
+        field.SelectedIndex = 0;
+
+        field.Elements.ContainsKey(PdfChoiceField.Keys.I).Should().BeFalse(
+            "searching /Opt for Kent finds this one anyway");
+        field.SelectedIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void TheChosenOneOfTwoAlikeOptionsSurvivesARoundTripWithoutMultiSelect()
+    {
+        var document = FormWith("/Ch", "county",
+            f => AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey"));
+        ((PdfListBoxField)document.AcroForm.Fields["county"]).SelectedIndex = 1;
+
+        using var written = new MemoryStream();
+        document.Save(written, false);
+        written.Position = 0;
+        // Fully qualified: this test assembly has a PdfReader of its own.
+        var reopened = PdfSharpCore.Pdf.IO.PdfReader.Open(
+            written, PdfSharpCore.Pdf.IO.PdfDocumentOpenMode.Modify);
+
+        ((PdfListBoxField)reopened.AcroForm.Fields["county"]).SelectedIndex.Should().Be(1);
+    }
+
+    /// <summary>
+    ///   <c>/I</c> is required where two options export the same text, but a producer may leave it
+    ///   out all the same, and then <c>/V</c> naming that text twice is all there is to go on. Each
+    ///   entry takes the first option no earlier entry has taken, so two named Kents are read as
+    ///   the two options that are Kent rather than as the first of them twice over.
+    /// </summary>
+    [Fact]
+    public void AValueNamingTheSameTextTwiceIsReadAsTwoOptionsWhenThereIsNoIndexEntry()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Kent", "Surrey");
+            var chosen = new PdfArray(f.Owner);
+            chosen.Elements.Add(new PdfString("Kent"));
+            chosen.Elements.Add(new PdfString("Kent"));
+            f.Elements["/V"] = chosen;
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices.Should().Equal(new[] { 0, 1 });
+    }
+
+    /// <summary>
+    ///   The limit of that: where only one option exports the text, a <c>/V</c> naming it twice
+    ///   still selects the one option, because there is no second to give the second entry.
+    /// </summary>
+    [Fact]
+    public void AValueNamingTheOneMatchingOptionTwiceSelectsItOnce()
+    {
+        var field = (PdfListBoxField)FormWith("/Ch", "county", f =>
+        {
+            AcroFormBuilder.WithFlags(f, PdfAcroFieldFlags.MultiSelect);
+            AcroFormBuilder.WithOptions(f, "Kent", "Sussex", "Surrey");
+            var chosen = new PdfArray(f.Owner);
+            chosen.Elements.Add(new PdfString("Kent"));
+            chosen.Elements.Add(new PdfString("Kent"));
+            f.Elements["/V"] = chosen;
+        }).AcroForm.Fields["county"];
+
+        field.SelectedIndices.Should().Equal(new[] { 0 });
+    }
+
+    /// <summary>
     ///   Where the two entries disagree the specification gives <c>/V</c> precedence, so an
     ///   <c>/I</c> naming options <c>/V</c> does not is passed over rather than believed.
     /// </summary>

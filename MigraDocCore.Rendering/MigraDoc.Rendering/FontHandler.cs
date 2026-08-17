@@ -28,8 +28,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-#define CACHE_FONTS_
-
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel;

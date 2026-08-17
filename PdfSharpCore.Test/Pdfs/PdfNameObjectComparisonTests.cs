@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using Xunit;
@@ -66,6 +67,44 @@ public class PdfNameObjectComparisonTests
         (name == null).Should().BeFalse("the name is there, whatever it holds");
         (name != null).Should().BeTrue();
         (name == "/Kent").Should().BeFalse();
+    }
+
+    /// <summary>
+    ///   <c>Equals</c> and <c>GetHashCode</c> read the same settable value the operators do, and so
+    ///   need the same guard: without it an ordinary equality test against a name whose value has
+    ///   been cleared throws <see cref="NullReferenceException"/> rather than answering, and putting
+    ///   that name in any hash-based collection throws on the way in.
+    /// </summary>
+    [Fact]
+    public void ANameWhoseValueIsNullStillAnswersEqualityRatherThanThrowing()
+    {
+        var name = new PdfNameObject(new PdfDocument(), "/Kent");
+        name.Value = null;
+
+        name.Equals("/Kent").Should().BeFalse();
+        name.Equals(null).Should().BeFalse("a name that is there equals nothing when it holds nothing");
+        name.GetHashCode().Should().Be(0);
+    }
+
+    [Fact]
+    public void ANameWhoseValueIsNullCanBeHeldInAHashSet()
+    {
+        var name = new PdfNameObject(new PdfDocument(), "/Kent");
+        name.Value = null;
+
+        var act = () => new HashSet<PdfNameObject> { name }.Contains(name);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ANameEqualsTheStringItHolds()
+    {
+        var name = new PdfNameObject(new PdfDocument(), "/Kent");
+
+        name.Equals("/Kent").Should().BeTrue();
+        name.Equals("/Sussex").Should().BeFalse();
+        name.GetHashCode().Should().Be("/Kent".GetHashCode(), "the name hashes as the string it is");
     }
 
     /// <summary>

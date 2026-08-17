@@ -77,11 +77,12 @@ public sealed class DdlEncoder
 
         // escape comments
         case '/':
+          // Escape this slash alone and let the loop reach the next one. Writing "\//" and
+          // skipping the second slash escapes only the first of a pair, so a third slash
+          // arrived unescaped and "///" came out as "\///" - which reads back as an escaped
+          // slash followed by the start of a comment, swallowing the rest of the line.
           if (index < length - 1 && str[index + 1] == '/')
-          {
-            strb.Append("\\//");
-            ++index;
-          }
+            strb.Append("\\/");
           else
             strb.Append("/");
           break;

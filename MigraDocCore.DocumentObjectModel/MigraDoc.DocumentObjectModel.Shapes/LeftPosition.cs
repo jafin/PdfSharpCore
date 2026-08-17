@@ -206,10 +206,15 @@ public struct LeftPosition : INullableValue
   /// </summary>
   public static LeftPosition Parse(string value)
   {
-    if (value == null || value.Length == 0)
+    if (value == null)
       throw new ArgumentNullException("value");
 
+    // Trim before testing for emptiness, not after: a string of nothing but whitespace passes a
+    // length test taken on the untrimmed string and then leaves nothing to read value[0] from.
     value = value.Trim();
+    if (value.Length == 0)
+      throw new ArgumentNullException("value");
+
     char ch = value[0];
     if (ch == '+' || ch == '-' || Char.IsNumber(ch))
       return Unit.Parse(value);

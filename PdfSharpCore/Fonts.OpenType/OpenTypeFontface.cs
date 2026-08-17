@@ -27,8 +27,6 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-#define VERBOSE_
-
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;

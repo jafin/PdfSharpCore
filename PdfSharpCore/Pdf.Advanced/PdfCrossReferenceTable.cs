@@ -196,7 +196,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
     {
         // TODO: remove PdfBooleanObject, PdfIntegerObject etc.
         var removed = ObjectTable.Count;
-        //CheckConsistence();
         // TODO: Is this really so easy?
         var irefs = TransitiveClosure(_document._trailer);
 
@@ -214,7 +213,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
             MaxObjectNumber = Math.Max(MaxObjectNumber, iref.ObjectNumber);
         }
 
-        //CheckConsistence();
         removed -= ObjectTable.Count;
         return removed;
     }
@@ -224,7 +222,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
     /// </summary>
     internal void Renumber()
     {
-        //CheckConsistence();
         var irefs = AllReferences;
         ObjectTable.Clear();
         // Give all objects a new number.
@@ -238,47 +235,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
         }
 
         MaxObjectNumber = count;
-        //CheckConsistence();
-    }
-
-    /// <summary>
-    /// Checks the logical consistence for debugging purposes (useful after reconstruction work).
-    /// </summary>
-    [Conditional("DEBUG_")]
-    public void CheckConsistence()
-    {
-        var ht1 = new Dictionary<PdfReference, object>();
-        foreach (var iref in ObjectTable.Values)
-        {
-            Debug.Assert(!ht1.ContainsKey(iref), "Duplicate iref.");
-            Debug.Assert(iref.Value != null);
-            ht1.Add(iref, null);
-        }
-
-        var ht2 = new Dictionary<PdfObjectID, object>();
-        foreach (var iref in ObjectTable.Values)
-        {
-            Debug.Assert(!ht2.ContainsKey(iref.ObjectID), "Duplicate iref.");
-            ht2.Add(iref.ObjectID, null);
-        }
-
-        ICollection collection = ObjectTable.Values;
-        var count = collection.Count;
-        var irefs = new PdfReference[count];
-        collection.CopyTo(irefs, 0);
-        for (var i = 0; i < count; i++)
-        for (var j = 0; j < count; j++)
-            if (i != j)
-            {
-                Debug.Assert(ReferenceEquals(irefs[i].Document, _document));
-                Debug.Assert(irefs[i] != irefs[j]);
-                Debug.Assert(!ReferenceEquals(irefs[i], irefs[j]));
-                Debug.Assert(!ReferenceEquals(irefs[i].Value, irefs[j].Value));
-                Debug.Assert(!Equals(irefs[i].ObjectID, irefs[j].Value.ObjectID));
-                Debug.Assert(irefs[i].ObjectNumber != irefs[j].Value.ObjectNumber);
-                Debug.Assert(ReferenceEquals(irefs[i].Document, irefs[j].Document));
-                GetType();
-            }
     }
 
     /// <summary>
@@ -296,7 +252,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
     /// </summary>
     public PdfReference[] TransitiveClosure(PdfObject pdfObject, int depth)
     {
-        CheckConsistence();
         var objects = new Dictionary<PdfItem, object>();
         _overflow = new Dictionary<PdfItem, object>();
         TransitiveClosureImplementation(objects, pdfObject);
@@ -314,8 +269,6 @@ internal sealed class PdfCrossReferenceTable // Must not be derive from PdfObjec
 
             goto TryAgain;
         }
-
-        CheckConsistence();
 
         ICollection collection = objects.Keys;
         var count = collection.Count;

@@ -35,6 +35,463 @@ Re-measured the same way after each batch. Every batch is done.
 Every run exit 0, and every total checked against `dotnet test --list-tests` rather than read off
 the word `Passed`.
 
+## Re-measured at `1d46b2a`, 2026-08-17
+
+Every batch above being done, the list was re-measured to find the next one. **4,049 tests, exit 0,
+no test-host crash** — 152 more than the last row above.
+
+**The percentages from this run are not comparable to the table above, and are deliberately not
+added to it.** The run had to be made in Release: the Roslyn analysis server holds
+`MigraDocCore.DocumentObjectModel.Generators/bin/Debug/netstandard2.0/…Generators.dll` open, so the
+Debug build cannot complete on a machine running it. Release reports 70.4% of lines and 54.6% of
+branches over eight assemblies, against the 78.3%/73.9% over six above — a different configuration
+over a different denominator, so the difference says nothing about whether coverage moved. Anyone
+re-measuring for the table must stop the analysis server first and build Debug.
+
+Two things about the run *are* comparable, because they count methods rather than lines, and both
+say the backlog worked:
+
+| | baseline `d0d36e5` | now `1d46b2a` |
+|---|---|---|
+| methods above the CRAP threshold of 30 | 237 | **172** |
+| of those, never executed at all | 109 | **71** |
+| methods measured | 7,287 | 7,527 |
+
+Retirable points now stand at about **8,700**, against the 17,900 the original list opened with.
+
+A note for whoever measures next, because it cost an hour here. ReportGenerator emits no risk
+hotspots for these reports, and coverlet writes `crapScore="0"` on every method, so the score has to
+be computed — `cc² × (1 − cov)³ + cc` — from each method's `cyclomaticComplexity` and
+`sequenceCoverage` attributes in the OpenCover XML. Use `sequenceCoverage`; do **not** compute
+coverage by unioning sequence points by hand. A multi-line `||` chain short-circuits, so its later
+sequence points never execute even when the method is fully exercised, and a hand-rolled union
+reports `AnsiEncoding.IsAnsi1252Char` at 57% when it is at 100%. The four methods in the
+"Out of scope — already covered" table below are the check: any method that reads them at less than
+100% has a broken measurement, not a coverage gap.
+
+## Batch 15 — one method, two copies, again
+
+`MigraDocCore.DocumentObjectModel.Tests`. The highest-value shape in this list, and the third time
+it has come up.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 15.1 | `LeftPosition.Parse(string)` — `Shapes/LeftPosition.cs:207` | 10 | 0% | 100 | **done**, finding F21 |
+| 15.2 | `TopPosition.Parse(string)` — `Shapes/TopPosition.cs:203` | 10 | 0% | 100 | **done**, finding F21 |
+
+`public static`, and the two bodies are identical character for character apart from the type name:
+trim, look at the first character, and either hand the string to `Unit.Parse` or to
+`Enum.Parse(typeof(ShapePosition), …)`. Neither has ever run.
+
+Write one table of strings and assert both against it, the way `ExtractPageNumberParityTests` holds
+the two `ExtractPageNumber` copies to one answer — that is the arrangement that makes them agree
+rather than merely testing them separately. F6, F12 and F18 were all one half of a near-copy pair
+having a guard its twin lacked, so a divergence here is a finding, not a test to bend around.
+
+One thing to settle rather than pin blindly. Both open with
+
+```csharp
+if (value == null || value.Length == 0)
+    throw new ArgumentNullException("value");
+```
+
+which answers `ArgumentNullException` for `""`. That is the wrong exception for an empty string and
+the argument name is a literal rather than `nameof`. Decide whether the empty case becomes
+`ArgumentException` — it is a public API change, so it wants saying out loud — and pin whichever
+answer is chosen.
+
+Cover: a signed number, an unsigned number, a unit with a suffix, each `ShapePosition` member,
+wrong case, surrounding whitespace, a name that is not a member, `""` and null.
+
+**They agree, and they were wrong together** — see F21, which is the same shape as F12. 58 tests in
+`MigraDocCore.DocumentObjectModel.Tests/LeftAndTopPositionParityTests`, of which 24 hold both
+implementations to one table.
+
+Two things learned rather than assumed, and pinned as such:
+
+- **Nothing in the repository calls either method.** `git grep` finds no caller outside the new
+  tests; the DDL parser and the DOM set `Left` and `Top` through `INullableValue.SetValue`, which is
+  a different path with its own copy of the enum-or-unit decision. That is why both sat at 0%. They
+  are `public static` and this is a library, so unlike batch 12.1 they are not unreachable — they
+  are public API with no internal caller, and the defect below was consumer-facing.
+- **The asymmetry is deliberate and had to be pinned separately.** The two share one
+  `ShapePosition` enum and admit different members of it — `Left`, `Right`, `Center`, `Inside`,
+  `Outside` against `Top`, `Bottom`, `Center` — so each must *refuse* the names the other takes.
+  The refusal is not in `Parse` at all: it happens in the private constructor the implicit
+  conversion runs, which is why reading `Parse` alone makes the two look interchangeable.
+  `Undefined` is the one name that parses to an empty position rather than throwing, because both
+  constructors admit it by name.
+
+The `ArgumentNullException`-for-`""` question the batch raised was **settled by leaving it**. It is
+the wrong exception by BCL convention, and the argument name is a literal rather than `nameof` — but
+`""` already answered `ArgumentNullException` before this work, changing it would break a caller
+catching that type specifically, and it buys nothing a caller can use. The fix below therefore
+changes the behaviour of no input that previously worked: the only inputs whose answer moved are the
+ones that previously crashed.
+
+### F21 — a position of nothing but whitespace read off the end of the string
+
+Both copies opened by testing the string they were given, and trimming it afterwards:
+
+```csharp
+if (value == null || value.Length == 0)
+    throw new ArgumentNullException("value");
+
+value = value.Trim();
+char ch = value[0];
+```
+
+`"   "` has a length of three, so it passed the guard; `Trim()` then left nothing, and `value[0]`
+threw `IndexOutOfRangeException` — out of a public API, with nothing in the message to say what was
+wrong. Demonstrated against both before fixing, over `"   "`, `"\t"`, `" \t "` and `"\r\n"`:
+
+```text
+LeftPosition.Parse("   ")  ->  IndexOutOfRangeException
+TopPosition.Parse("   ")   ->  IndexOutOfRangeException
+```
+
+The fix is the order of the two steps, in both:
+
+```csharp
+if (value == null)
+    throw new ArgumentNullException("value");
+
+value = value.Trim();
+if (value.Length == 0)
+    throw new ArgumentNullException("value");
+
+char ch = value[0];
+```
+
+Pinned by `WhitespaceAloneIsRefusedTheSameWayAsNothingAtAll`, which ran red with
+`IndexOutOfRangeException` against the unfixed code before it ran green — the four whitespace cases
+failed and the other 54 tests passed, so the pin is known to be capable of failing.
+
+This is F12's shape exactly: a guard testing the wrong side of a bound, copied identically into both
+halves of a near-copy pair, so neither had the guard the other lacked and the parity test found it
+by agreeing rather than by disagreeing.
+
+## Batch 16 — the generator's cache key
+
+`MigraDocCore.DocumentObjectModel.Generators.Tests`. Highest-scoring method in the tree that has
+never run.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 16.1 | `EquatableArray<T>.Equals(EquatableArray<T>)` — `Model/EquatableArray.cs:29` | 14 | 0% | 196 | **done**, 0% → 62.5%, below the threshold |
+| 16.2 | `EquatableArray<T>.GetHashCode()` — `Model/EquatableArray.cs:45` | — | 0% | — | **left**, never called |
+
+This is what makes the incremental generator's models comparable, so it decides whether a pipeline
+step is re-run or served from cache. Wrong `Equals` is not a cosmetic bug: too eager and the
+generator emits stale source, too shy and incremental caching stops working.
+
+**There is no direct route to it.** `EquatableArray`, `DomMemberModel`, `ParsedMember`, `ParsedType`
+and `DiagnosticInfo` are all `internal`, and this repository has no `InternalsVisibleTo`. What is
+observable is the consequence, through the public `DomValueModelGenerator` and Roslyn's own step
+tracking: run the generator over one compilation, run it again over a second parsed separately from
+the same or different text, and ask the driver why the source-output step ran. The two compilations
+share no syntax tree and no symbol, so a driver answering `Cached` can only have got there by
+comparing the models by value.
+
+10 tests in `IncrementalCachingTests`, with the two-run mechanics in `IncrementalCachingProbe`.
+They are worth more than the score says: **nothing had ever tested that the caching works at all**,
+and it is the whole reason the models are shaped the way they are.
+
+Three things learned, and the last two are why 16.1 stops at 62.5% rather than going further.
+
+**Only one `EquatableArray` is ever compared.** `DomTypeModel` holds an
+`EquatableArray<DomMemberModel>` and declares `IEquatable<DomTypeModel>`, but it is built inside the
+`RegisterSourceOutput` callback — downstream of every cache — so nothing compares it, ever. The one
+that travels through the pipeline is `DiagnosticInfo.MessageArgs`, an `EquatableArray<string>`, and
+that is the only route to `Equals`. Not a defect, but it means the value equality on `DomTypeModel`
+is inert, and it is why the method sat at 0% despite the type being central to the design.
+
+**The remaining branches have no public route**, checked rather than assumed:
+
+- The null-array branch needs `default(EquatableArray<T>)`. The only constructor assigns from
+  `ToArray()`, and nothing in the generator creates a default one.
+- The length-mismatch branch needs two `DiagnosticInfo`s with the same descriptor and different
+  argument counts. A record compares its members in declaration order, so `Descriptor` is compared
+  first and a differing one returns before `MessageArgs` is reached — and every call site uses a
+  fixed number of arguments per descriptor (`NotPartial` one, `NotADocumentObject` and
+  `RefOnlyOnValueType` two, `NotAnInstanceMember` and `UnsupportedMemberType` three). So the two
+  conditions cannot both hold.
+- `Equals(object)`, `GetHashCode()` and the non-generic `GetEnumerator()` are never called: the
+  pipeline compares through `IEquatable<T>` and never hashes a model.
+
+**A latent hazard, recorded rather than fixed.** `Equals` compares elements with
+`array[i].Equals(other.array[i])` and `GetHashCode` calls `item.GetHashCode()`, both of which throw
+`NullReferenceException` on a null element of a reference type — and `T` is `string` or
+`DomMemberModel`, both reference types. It is unreachable today: every `DiagnosticInfo.Create` call
+site passes symbol names, and `DomMemberModel`s come from a parse that cannot yield null.
+`EqualityComparer<T>.Default` would handle it on both sides. Left alone because nothing can reach
+it, and a change to a comparison this central wants a demonstrated failure behind it rather than a
+guess — the same reasoning as `Table.SetEdge` under F4.
+
+One more thing pinned that surprised the batch: **an edit anywhere above a declaration invalidates
+the cache**, comment or blank line included. `ParsedMember.DeclarationOrder` is
+`TargetNode.GetLocation().SourceSpan.Start` and `LocationInfo` carries the spans, so inserting
+anything higher up the file moves both and the whole emit re-runs. `DomModels.cs` already says
+Location "costs nothing in cache terms that DeclarationOrder does not already cost", which is true —
+the cost was already there. Recorded rather than fixed: the obvious cheaper key, an ordinal index
+within the type, is not available to `ForAttributeWithMetadataName`, which sees one member at a time
+and never its siblings. `AnEditAboveADeclarationIsNotServedFromTheCacheEvenWhenItChangesNothing`
+pins it, with `AnEditBelowEveryDeclarationIsServedFromTheCache` beside it to show the cause is
+position rather than trivia.
+
+## Batch 17 — text encoders and the DDL scanner's readers
+
+`MigraDocCore.DocumentObjectModel.Tests` for the DDL items, `PdfSharpCore.Test` for the encoder.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 17.1 | `DdlEncoder.StringToLiteral(string)` — `DdlEncoder.cs:102` | 10 | 0% | 100 | **done**, 0% → 100% |
+| 17.2 | `DdlEncoder.StringToText(string)` — `DdlEncoder.cs:55` | 18 | 37% | 82 | **done**, 37% → 100%, findings F22 and F23 |
+| 17.3 | `PdfEncoders.ToHexStringLiteral(string, PdfStringEncoding, PdfStandardSecurityHandler)` — `Pdf.Internal/PdfEncoders.cs:139` | 10 | 0% | 100 | **left**, wants a fixture |
+| 17.4 | `DdlScanner.MoveToNextParagraphContentLine(…)` — `DdlScanner.cs:628` | 18 | 35% | 89 | **left**, its own batch |
+| 17.5 | `DdlScanner.ReadText(…)` — `DdlScanner.cs:385` | 30 | 59% | 62 | **left**, its own batch |
+
+17.1 and 17.2 are the two halves of one job — escaping a string for DDL — and share a fixture, which
+is why they are together rather than one per rank. The round trip is the assertion worth making:
+encode, read back through `DdlReader`, and check the string survives. Escapes, braces, backslashes
+and a string that needs no escaping at all are where the branches are.
+
+45 tests in `MigraDocCore.DocumentObjectModel.Tests/DdlEncoderTests`, taking both encoders to 100%
+and both below the threshold. **Two findings, F22 and F23**, and only the first is fixed.
+
+The two methods escape different things, which is deliberate and is now pinned as such: paragraph
+text escapes the backslash, both braces and the comment marker, because all of those end the text
+early; a quoted literal escapes the backslash and the quote and nothing else, because inside quotes
+nothing else means anything. They also disagree about null — `StringToText` hands it straight back
+and `StringToLiteral` answers `""` — which is pinned rather than reconciled, since either could
+otherwise look like the mistake.
+
+**17.3 was left.** `PdfEncoders` is `internal` and so is `PdfStringFlags`, so there is no public way
+to construct a `PdfString` that carries the `HexLiteral` flag: the flag only ever arrives from the
+parser having read a `<…>` literal out of a file. Covering it therefore needs a PDF fixture that
+already contains a hex string, and the byte-level surgery to make one out of a document this library
+wrote shifts every xref offset. It is a fixture item rather than a test item, and it belongs with
+whatever batch next needs a hand-built PDF. Note that `LexerHexStringTests` already covers the
+reading side.
+
+**17.4 and 17.5 were left**, and were not moved by this batch — `ReadText` is still at 59.1% and
+`MoveToNextParagraphContentLine` at 35.0% after all 45 tests. That is the right answer rather than a
+disappointment: both are about a paragraph *continuing across lines*, and every test here is a
+single-line paragraph. They want a batch of their own, built from multi-line paragraphs, blank-line
+separation and the indentation rules — which is a fixture and a subject, not a fixture these
+happened to share.
+
+### F22 — three slashes in a row came out as a comment
+
+`StringToText` escapes `//` because it would otherwise begin a comment. It escaped only the first
+slash of each pair, and consumed the second:
+
+```csharp
+case '/':
+  if (index < length - 1 && str[index + 1] == '/')
+  {
+    strb.Append("\\//");
+    ++index;
+  }
+  else
+    strb.Append("/");
+  break;
+```
+
+For exactly two slashes that is right: `\//` reads back as an escaped slash and then a plain one.
+For three it is not. `"///"` came out as `\///`, which the scanner reads as one escaped slash
+followed by `//` — the start of a comment — so the rest of the line, including the brace closing the
+paragraph, was swallowed and the document would not read back at all:
+
+```text
+"///"  ->  \///  ->  DdlParserException: End of file expected.
+```
+
+Any odd run of three or more slashes does it, and a Windows UNC path or a URL in a paragraph is
+enough to produce one. The fix escapes every slash that begins a pair and lets the loop reach the
+next one, which is also simpler than what it replaces — no index to skip:
+
+```csharp
+case '/':
+  if (index < length - 1 && str[index + 1] == '/')
+    strb.Append("\\/");
+  else
+    strb.Append("/");
+  break;
+```
+
+`"//"` still encodes to `\//`, so nothing that worked changes. `"///"` now encodes to `\/\//` and
+`"////"` to `\/\/\//`, both of which read back as themselves. Pinned by the escaping table and, end
+to end, by `TextSurvivesBeingWrittenAndReadAgain` over `a///b` and `a////b`.
+
+### F23 — text beginning with an escaped character cannot be read back
+
+Found while fixing F22, and left recorded rather than fixed because the repair is in the serializer
+rather than the encoder.
+
+A paragraph carrying no style or format of its own is written as bare text inside its section,
+without a `\paragraph` keyword around it. The escapes in that text are only honoured once the
+scanner is reading paragraph content, and what gets it there is the first plain character. So text
+whose *first* character needs escaping is encoded correctly and then read at section level, where
+`\{` is a keyword rather than an escaped brace: the brace nesting goes wrong and the reader gives up.
+
+```text
+"{}"   ->  \{\}   ->  DdlParserException: End of file expected.
+"//"   ->  \//    ->  DdlParserException: End of file expected.
+"a{b}c" ->  a\{b\}c  ->  reads back as itself
+```
+
+A single letter in front of it is the difference. Both halves are pinned — the round-trip theory
+asserts the working case, and `TextBeginningWithAnEscapedCharacterCannotBeReadBack` asserts the
+broken one — so a fix shows up as a failing test rather than silently.
+
+Not fixed here because the encoder is not what is wrong: it produced exactly the right escape. The
+repair is for the paragraph serializer to emit `\paragraph{…}` when its text begins with a character
+it had to escape, and that changes the shape of documents this library writes, which is a decision
+of its own rather than a coverage item.
+
+## Batch 18 — never executed, one apiece
+
+No shared fixture, so take these in rank order and stop when the return drops. All are `CC 10` at
+0%, worth 100 retirable points each, unless noted.
+
+| # | target | suite | status |
+|---|---|---|---|
+| 18.1 | `PdfTextExtractor.Walker.Execute(COperator)` — `Pdf.Extraction/PdfTextExtractor.cs:132` — CC 44, 60%, **124 points** | Core | **done**, 60% → 95.5% |
+| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | **deleted** |
+| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | **deleted**, replaced by tests |
+| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | **deleted** |
+| 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | **done**, all four overloads |
+| 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | **left**, wants a font with `vmtx` |
+| 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | **done** |
+| 18.8 | `LineFormat.Serialize(Serializer)` — `Shapes/LineFormat.cs:127` | DOM | **done** |
+| 18.9 | `TextMeasurement.MeasureString(string, UnitType)` — `TextMeasurement.cs:58` | Rendering | **done** |
+| 18.10 | `DocumentRenderer.RenderObject(…)` — `DocumentRenderer.cs:261` | Rendering | **done** |
+
+18.1 is the largest single return left that is not already recorded as left — the text extractor's
+operator walker, at 60% over forty-four branches. Every content operator it does not handle is an
+uncovered branch, and `text-extraction.md` is the spec to read first.
+
+18.7 wants the assertion `Chart.DeepCopy` got in batch 5.2: mutate the original after copying and
+check the copy did not move. A deep copy that returns non-null proves nothing.
+
+18.9 is in `MigraDocCore.Rendering.Tests` and needs a real font, so it cannot go in the DOM suite —
+`NamedFontsOnly.cs` serves a name and throws if asked for a face.
+
+**Three of the first six turned out to be unreachable**, which is batch 12's lesson again and is why
+the check comes before the test. A method at 0% is not necessarily untested; it is sometimes uncalled.
+
+- **18.2 has no caller anywhere.** `FindPage` is `internal`, and its own declaration is the only
+  occurrence of the name in the repository — it carries a `// TODO: public?` comment and has been
+  waiting for an answer since the initial import. Not deleted, because making it public is a
+  plausible answer and the decision is not a coverage item's to take.
+- **18.3 is compiled out of every build.** `CheckConsistence` carries `[Conditional("DEBUG_")]` —
+  with a trailing underscore, which is this codebase's way of writing a symbol that is never
+  defined, as `#define VERBOSE_` in `OpenTypeFontTables.cs` does. So the two calls in
+  `PdfReader.Open` and the two inside the class are all removed by the compiler in Debug and Release
+  alike, and no test can reach it in any configuration. The four further call sites at
+  `PdfCrossReferenceTable.cs:199` to `:241` are commented out on top of that.
+- **18.4 is private with no caller.** `CreateValue` is declared without an access modifier inside
+  `DictionaryElements`, so it is private, and nothing calls it.
+
+**All three were then deleted**, which is batch 0 and 1's answer rather than batch 12.1's: none of
+them implements a named algorithm worth keeping as a basis for future work, and all three are
+`internal` or `private` in a repository with no `InternalsVisibleTo`, so removing them is invisible
+to every consumer.
+
+18.2's `// TODO: public?` was answered "no" before it was deleted, and the answer is worth keeping
+because the question will occur to the next reader too. A caller can already do the whole job through
+public API — `page.Reference.ObjectID` reads an id, and `PdfPages` is publicly `IEnumerable<PdfPage>`:
+
+```csharp
+((IEnumerable<PdfPage>)document.Pages).FirstOrDefault(page => page.Reference.ObjectID == wanted)
+```
+
+Checked rather than assumed, with a throwaway test that was then removed. The cast is needed because
+`PdfPages` declares `new GetEnumerator()` over `PdfDictionary`'s, so overload resolution otherwise
+fails. Publishing `FindPage` would also have exported a wart: it scans with `item as PdfReference`
+and a null check, so a page held as a direct dictionary rather than an indirect reference is silently
+skipped — it answers null where the public indexer answers the page.
+
+18.3's invariants were **moved into tests rather than dropped**, which is the point of removing a
+check that never ran. `PdfSharpCore.Test/Pdfs/CrossReferenceConsistencyTests` asserts them from
+outside, against the bytes the writer produced: every object numbered once, no object numbered zero,
+and the count the xref declares matching the objects the file defines. The renumbering path the old
+checks bracketed is covered directly — importing pages from a second document, where both number
+their objects from one and a failure to renumber would collide. The two assertions cross-check each
+other, so a regular expression that matched nothing would fail the test rather than pass it quietly.
+
+**18.5 was done and is the one straightforward item in the six.** All four `CalculateTextSize`
+overloads are public and had never run. 7 tests added to `XTextSegmentFormatterTests`, asserting
+that the two string overloads and the two segment overloads agree with each other — the string ones
+build a single segment and delegate, so a disagreement means one has grown a step the other has not —
+and that narrowing the width makes the same text taller, which is what says it lays the text out
+rather than measuring one line.
+
+One quirk pinned there rather than assumed: **measuring an empty string reports no height and the
+whole width the caller offered.** With no blocks to measure the width falls back to the incoming
+`width` rather than to zero, so a caller sizing a box to its content gets back the box it started
+with.
+
+**18.6 was left.** `VerticalMetricsTable` reads `vmtx`, which is a vertical-writing table that the
+Latin faces in `Assets/Fonts` do not carry, so covering it needs a CJK or vertical-metrics font
+added to the repository — a fixture decision rather than a test.
+
+Three that look like this batch and are **not** on it, checked before listing: `DataMatrixSymbol
+.SmallestSizeFor` (barcodes are a fork-inherited corner with no other coverage and no spec — its own
+decision), `OpenTypeDescriptor..ctor` (reached only through font loading, so it is covered
+incidentally the moment 18.6 is), and `LineFormatRenderer..ctor(XGraphics, LineFormat, double)`,
+which batch 13.3 records as done and which now reads 0% — worth a look on its own account, because
+either the batch-13 test stopped reaching it or the two-argument overload no longer chains to it.
+
+### What 18.1 needed, and why the walker was only half covered
+
+`XGraphics` emits four of the operators the walker understands — `Tf`, `Tm`, `Tj` and `TJ` — so a
+page this library drew leaves most of the switch untouched however many drawing tests are written.
+The rest are what another producer's page contains, and reaching them means writing the content
+stream by hand. `TextExtractionTests` already had the mechanism for that in `WithTwoShows`; it is now
+a general `WithContentReplaced`, which draws a word to get a font resource and its `/ToUnicode` map
+and then replaces the content stream outright.
+
+9 tests, covering `q`, `Q`, `cm`, `TD`, `T*`, `TL`, `Tz`, `Ts`, `Tr` and `'`. Two are worth naming:
+
+- **Text in render mode 3 is skipped, and that is a decision rather than an oversight.** It is how
+  the OCR layer under a scanned page is drawn, and reporting it would hand the caller the page's
+  text twice. Pinned in both directions, because render mode is text state that persists past `ET`:
+  one test says the invisible run is not reported, the next says a run after it *is*, which is what
+  would fail if the mode were ever treated as lapsing at `ET`.
+- **`TD` sets the leading as a side effect**, and the test asserts a third run positioned by a
+  following `T*` rather than the second run's position — otherwise it would be testing the movement
+  and not the side effect.
+
+### 18.7 to 18.10 — the last four, and one lesson about which reader to use
+
+7 tests in `MigraDocCore.DocumentObjectModel.Tests/TableCloneAndLineFormatTests` and 15 in
+`MigraDocCore.Rendering.Tests/TextMeasurementAndRenderObjectTests`.
+
+`Table.DeepCopy` is `protected override` and reached through the public `Clone`. It clones five
+children by hand — columns, rows, format, borders and shading — so the assertion that matters is
+independence, the way `Chart.DeepCopy` got it in batch 5.2: mutate the original afterwards and check
+the copy did not follow, in both directions. The reparenting half is not directly observable, so it
+is checked by putting the copy in a document of its own and writing it.
+
+`LineFormat.Serialize` has five guarded attributes and is reached by writing a document containing a
+shape. Both sides are pinned: everything set is written, and an untouched line format contributes no
+attributes rather than a row of defaults. Note in passing that `LineStyle` has exactly one member,
+`Single`, so the `Style` attribute can only ever say one thing.
+
+`TextMeasurement.MeasureString` and `DocumentRenderer.RenderObject` are both public, both need a real
+font, and so both go in `MigraDocCore.Rendering.Tests` rather than the DOM suite. Each unit
+conversion is asserted against the measurement in points rather than against a number typed in, so
+the tests say what the unit means and stay true whatever the font measures.
+
+**The lesson, which cost a run:** `Glyphs` is the right reader for the rest of that suite and the
+wrong one here. It reads glyph identifiers because `PdfDocumentRenderer` embeds its fonts as
+Identity-H — but `RenderObject` draws onto an `XGraphics` the caller made, which is the whole point
+of it, and that path writes the string as characters. The first version of these tests read "Framed"
+as `{18034, 24941, 25956}`, which is the characters two at a time. `TextOperators.ShownStrings` is
+the reader for a page that was not written by the document renderer.
+
 The last row is the review of the pull request the rest of this was raised in. It moves neither
 number, which is the point of recording it: three more defects (F18–F20) and four tests that were
 not asserting what they said they were, none of it visible in a coverage percentage. The lines were
@@ -133,6 +590,9 @@ what pins it now. Numbered in the order they were found, which is the order of t
 | F18 | The UTF-16 half of the literal string scanner had F16's fault and did not get F16's fix | yes |
 | F19 | `GetMatrix` refused the literal that `SetMatrix` and its own create branch write, so **no matrix this library wrote could be read back** | yes |
 | F20 | A check box whose single widget is a child of its own ignored `Checked = true` entirely | yes |
+| F21 | `LeftPosition.Parse` and `TopPosition.Parse` tested for emptiness before trimming, so a string of nothing but whitespace read `value[0]` off the end — `IndexOutOfRangeException` from a public API, identically in both copies | yes |
+| F22 | `DdlEncoder.StringToText` escaped only the first slash of each `//` pair and consumed the second, so `"///"` came out as `\///` — an escaped slash followed by the start of a comment, which swallowed the rest of the line and the brace ending the paragraph | yes |
+| F23 | A paragraph with no style of its own is written without a `\paragraph` keyword, so text whose first character needs escaping is read at section level where the escape is not honoured, and the document will not read back | no — pinned |
 
 Eighteen of the twenty are fixed. F3 is recorded rather than fixed because fixing it changes what
 the reader accepts, which is a decision rather than a repair. F1 is half fixed: the unreachable
