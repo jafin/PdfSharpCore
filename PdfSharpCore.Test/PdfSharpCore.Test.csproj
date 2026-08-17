@@ -16,6 +16,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Ghostscript.NativeAssets" Version="10.7.1" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.2" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="14.2.1.2" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="14.2.1.2" />
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.15.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.1" />
@@ -34,6 +37,7 @@
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
+    <ProjectReference Include="..\PdfSharpCore.HarfBuzz\PdfSharpCore.HarfBuzz.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
     <ProjectReference Include="..\PdfSharpCore.ImageSharp\PdfSharpCore.ImageSharp.csproj" />
     <!--

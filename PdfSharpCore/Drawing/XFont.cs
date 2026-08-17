@@ -291,6 +291,24 @@ public sealed class XFont
 
     XGlyphTypeface _glyphTypeface;
 
+    /// <summary>
+    /// This font as a <see cref="T:PdfSharpCore.Fonts.ITextShaper"/> is shown it: the resolved
+    /// face, its bytes, and the size to shape at.
+    /// </summary>
+    /// <remarks>
+    /// A separate type rather than the <see cref="XFont"/> itself because everything a shaper
+    /// needs from a font - the typeface, the face name, the font source - lives on types this
+    /// assembly keeps internal, and a public seam cannot hand over what a caller cannot read.
+    /// Built once and kept, so that a shaper called for every word of a paragraph is handed the
+    /// same instance each time and can cache its own face against it.
+    /// </remarks>
+    internal ShapingFont ShapingFont => _shapingFont ??= new ShapingFont(
+        _glyphTypeface.FamilyName, _glyphTypeface.FaceName, _glyphTypeface.Key,
+        _glyphTypeface.IsBold, _glyphTypeface.IsItalic,
+        _emSize, _unitsPerEm, _glyphTypeface.FontSource.Bytes);
+
+    ShapingFont _shapingFont;
+
 
     internal OpenTypeDescriptor Descriptor
     {

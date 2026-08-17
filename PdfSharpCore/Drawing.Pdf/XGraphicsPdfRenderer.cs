@@ -32,6 +32,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Text;
+using PdfSharpCore.Fonts;
 using PdfSharpCore.Fonts.OpenType;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
@@ -411,7 +412,6 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
         PdfFont realizedFont = _gfxState._realizedFont;
         Debug.Assert(realizedFont != null);
-        realizedFont.AddChars(s);
 
         const string format2 = Config.SignificantFigures4;
         OpenTypeDescriptor descriptor = realizedFont.FontDescriptor._descriptor;
@@ -421,27 +421,32 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         string text = null;
         if (font.Unicode)
         {
-            StringBuilder sb = new StringBuilder();
-            bool isSymbolFont = descriptor.FontFace.cmap.symbol;
-            for (int idx = 0; idx < s.Length; idx++)
-            {
-                char ch = s[idx];
-                if (isSymbolFont)
-                {
-                    // Remap ch for symbol fonts.
-                    ch = (char)(ch | (descriptor.FontFace.os2.usFirstCharIndex & 0xFF00));  // @@@ refactor
-                }
-                int glyphID = descriptor.CharCodeToGlyphIndex(ch);
-                sb.Append((char)glyphID);
-            }
-            string glyphs = sb.ToString();
+            // Asked of the shaping seam rather than looked up one character at a time, so that the
+            // glyphs drawn are the glyphs MeasureString measured. With no shaper registered this
+            // is the same cmap lookup per character it has always been - except that a
+            // right-to-left run comes back in the order it is drawn rather than the order it was
+            // written.
+            var shaped = TextShaping.ShapeText(s.AsSpan(), font, descriptor);
 
-            text = PdfGraphicsState.NeedsWordSpacingByHand(font, format)
-                ? WordSpacedGlyphRun(s, glyphs, font.Size, format.WordSpacing)
-                : GlyphRunToHexString(glyphs) + " Tj";
+            if (shaped.IsAllOneFont(font))
+            {
+                // The glyphs the run really drew, rather than the ones the characters would have
+                // been looked up as. This is what decides both which glyphs are embedded and what
+                // /ToUnicode says they mean, and a shaper's choices have to reach it or the page
+                // draws a glyph the file neither carries nor describes.
+                foreach (var segment in shaped.Segments)
+                    realizedFont.AddShapedRun(segment.Run, segment.TextIn(s));
+
+                text = ShowTextOperators(s, shaped, font, format);
+            }
+            else
+            {
+                text = FallenBackTextOperators(s, shaped, font, format);
+            }
         }
         else
         {
+            realizedFont.AddChars(s);
             byte[] bytes = PdfEncoders.WinAnsiEncoding.GetBytes(s);
             text = PdfEncoders.ToStringLiteral(bytes, false, null) + " Tj";
         }
@@ -1900,47 +1905,273 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     }
 
     /// <summary>
-    /// Builds a TJ array that draws <paramref name="glyphs"/> with <paramref name="wordSpacing"/>
-    /// points of extra room after every space, for the fonts whose Tw cannot say so.
+    /// The show-text operators for a whole string, one segment at a time in the order the segments
+    /// are drawn.
     /// </summary>
     /// <remarks>
-    /// A number in a TJ array moves the pen back by n/1000 of the font size, so the number that
-    /// buys one word spacing is -wordSpacing * 1000 / size. The horizontal scaling multiplies that
-    /// displacement and the one Tw produces alike, so it cancels and is not compensated for here.
+    /// PDF has no notion of direction: a show-text operator paints glyphs at the pen and moves the
+    /// pen along. So drawing the segments back to back in visual order is all reordering takes, and
+    /// a string of one segment - which is nearly all of them - produces exactly the operator it
+    /// produced before there were segments at all.
+    /// </remarks>
+    string ShowTextOperators(string text, ShapedText shaped, XFont font, XStringFormat format)
+    {
+        var segments = shaped.Segments;
+        if (segments.Count == 1)
+            return SegmentOperators(segments[0].TextIn(text), segments[0].Run, font, format);
+
+        var parts = new StringBuilder();
+        for (int idx = 0; idx < segments.Count; idx++)
+        {
+            if (idx > 0)
+                parts.Append('\n');
+            parts.Append(SegmentOperators(segments[idx].TextIn(text), segments[idx].Run, font, format));
+        }
+
+        return parts.ToString();
+    }
+
+    /// <summary>
+    /// The show-text operators for a string some of which is drawn with another face, with the
+    /// <c>Tf</c> that selects each face written between them.
+    /// </summary>
+    /// <remarks>
     /// <para>
-    /// <paramref name="text"/> is the string as the caller wrote it and <paramref name="glyphs"/>
-    /// the glyph identifiers it was mapped to, one per character, so an index into one is an index
-    /// into the other.
+    /// Selecting a font does not move the pen, so a <c>Tf</c> can go between two show operators and
+    /// the second carries on exactly where the first stopped. That is the whole mechanism: the
+    /// segments are already in the order they are drawn and already carry the face each was shaped
+    /// against.
+    /// </para>
+    /// <para>
+    /// The face the caller asked for is selected again at the end, whether or not it was the last
+    /// one used, so that <see cref="PdfGraphicsState"/> goes on being right about what the content
+    /// stream has selected. The alternative - telling the graphics state what happened - is one
+    /// more thing to keep in step and buys one <c>Tf</c> on the rare string that needed a fallback
+    /// at all.
+    /// </para>
+    /// <para>
+    /// Style simulation is not reconsidered per face: a caller whose primary face has no bold file
+    /// gets bold simulated across the whole string, including the parts drawn by a fallback that
+    /// may well have a real bold. Reconsidering it would mean a rendering mode and a character
+    /// spacing per segment, and both are text state that the measuring path would then have to
+    /// agree with.
     /// </para>
     /// </remarks>
-    static string WordSpacedGlyphRun(string text, string glyphs, double fontSize, double wordSpacing)
+    string FallenBackTextOperators(string text, ShapedText shaped, XFont font, XStringFormat format)
     {
-        Debug.Assert(text.Length == glyphs.Length, "One glyph per character, or the split lands in the wrong place.");
+        const string sizeFormat = Config.SignificantFigures3;
+
+        var parts = new StringBuilder();
+        XFont selected = font;
+
+        foreach (var segment in shaped.Segments)
+        {
+            string name = GetFontName(segment.Font, out var pdfFont);
+
+            if (!ReferenceEquals(segment.Font, selected))
+            {
+                parts.AppendFormat(CultureInfo.InvariantCulture,
+                    "{0} {1:" + sizeFormat + "} Tf\n", name, segment.Font.Size);
+                selected = segment.Font;
+            }
+
+            string of = segment.TextIn(text);
+            pdfFont.AddShapedRun(segment.Run, of);
+            parts.Append(SegmentOperators(of, segment.Run, segment.Font, format));
+            parts.Append('\n');
+        }
+
+        if (!ReferenceEquals(selected, font))
+        {
+            parts.AppendFormat(CultureInfo.InvariantCulture,
+                "{0} {1:" + sizeFormat + "} Tf", GetFontName(font, out _), font.Size);
+        }
+
+        return parts.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>
+    /// The show-text operators for one shaped run: the glyphs, the room a word spacing asks for
+    /// after every space, and the displacements a shaper asked for to place its glyphs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A run with nothing to say beyond its glyphs is still a plain <c>Tj</c>, which is what every
+    /// run was before there was a shaper and what nearly every run still is. The rest of this is
+    /// what the other cases cost.
+    /// </para>
+    /// <para>
+    /// A number in a TJ array moves the pen back by n/1000 of the font size. That one mechanism
+    /// pays for both of the horizontal cases: the number that buys one word spacing is
+    /// <c>-wordSpacing * 1000 / size</c>, and a glyph a shaper wants drawn <c>dx</c> to the right
+    /// of the pen is written as <c>-dx</c> before it and <c>+dx</c> after, so that it is displaced
+    /// without the run growing. The horizontal scaling multiplies that displacement and the one Tw
+    /// produces alike, so it cancels and is not compensated for here.
+    /// </para>
+    /// <para>
+    /// A vertical displacement has no such mechanism, and needs <c>Ts</c>, which is text state
+    /// rather than an operand - so a run whose glyphs sit at different heights has to be shown in
+    /// one piece per height. <c>Ts</c> is <b>not</b> zero on entry:
+    /// <see cref="PdfGraphicsState.RealizeFont"/> has already written
+    /// <see cref="XStringFormat.TextRise"/> there and believes it is still there. So a glyph a
+    /// shaper wants raised is raised from that rise rather than from the baseline, and the rise is
+    /// put back to it rather than to zero - otherwise a superscript containing an attached mark
+    /// draws the mark at the wrong height, and every string drawn after it loses its rise
+    /// altogether because the graphics state has been lied to.
+    /// </para>
+    /// </remarks>
+    string SegmentOperators(string text, ShapedRun run, XFont font, XStringFormat format)
+    {
+        string glyphs = TextShaping.GlyphIds(run);
+        Debug.Assert(run.Glyphs.Count == glyphs.Length, "One character of the glyph run per glyph.");
+
+        var shaped = run.Glyphs;
+        double fontSize = font.Size;
 
         // A font of no size has no displacement to divide into, and nothing to show either.
-        if (fontSize <= 0)
+        double wordSpacing = fontSize > 0 && PdfGraphicsState.NeedsWordSpacingByHand(font, format)
+            ? format.WordSpacing
+            : 0;
+
+        bool displacedSideways = false, displacedUpwards = false;
+        for (int idx = 0; idx < shaped.Count; idx++)
+        {
+            displacedSideways |= shaped[idx].OffsetX != 0;
+            displacedUpwards |= shaped[idx].OffsetY != 0;
+        }
+
+        if (wordSpacing == 0 && !displacedSideways && !displacedUpwards)
             return GlyphRunToHexString(glyphs) + " Tj";
 
-        double adjustment = -wordSpacing * 1000 / fontSize;
+        if (!displacedUpwards || fontSize <= 0)
+            return ShownGlyphs(text, run, glyphs, fontSize, wordSpacing, 0, shaped.Count);
 
-        StringBuilder tj = new StringBuilder("[");
+        // Where the graphics state already has the rise, and where it has to be left.
+        double baseline = format.TextRise;
+
+        var parts = new StringBuilder();
+        double realized = baseline;
         int start = 0;
-        for (int idx = 0; idx < text.Length; idx++)
+        while (start < shaped.Count)
         {
-            if (!IsWordSpace(text[idx]))
-                continue;
+            double rise = Rise(shaped[start], run, fontSize, baseline);
+            int end = start + 1;
+            while (end < shaped.Count && Rise(shaped[end], run, fontSize, baseline) == rise)
+                end++;
 
-            // The run up to and including the space, then the room that follows it.
-            tj.Append(GlyphRunToHexString(glyphs.Substring(start, idx - start + 1)));
-            tj.Append(' ');
-            tj.Append(adjustment.ToString(Config.SignificantFigures3, CultureInfo.InvariantCulture));
-            tj.Append(' ');
-            start = idx + 1;
+            if (rise != realized)
+            {
+                parts.AppendFormat(CultureInfo.InvariantCulture,
+                    "{0:" + Config.SignificantFigures4 + "} Ts\n", rise);
+                realized = rise;
+            }
+
+            parts.Append(ShownGlyphs(text, run, glyphs, fontSize, wordSpacing, start, end));
+            parts.Append('\n');
+            start = end;
         }
-        if (start < glyphs.Length)
-            tj.Append(GlyphRunToHexString(glyphs.Substring(start)));
+
+        if (realized != baseline)
+            parts.AppendFormat(CultureInfo.InvariantCulture,
+                "{0:" + Config.SignificantFigures4 + "} Ts", baseline);
+
+        return parts.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>
+    /// How far above the baseline a glyph is drawn, in points: the rise the text state is already
+    /// at plus whatever the shaper asked for on top of it.
+    /// </summary>
+    static double Rise(ShapedGlyph glyph, ShapedRun run, double fontSize, double baseline)
+        => baseline + glyph.OffsetY * fontSize / run.UnitsPerEm;
+
+    /// <summary>
+    /// Glyphs <paramref name="from"/> up to <paramref name="to"/>, as a Tj if nothing has to be
+    /// displaced between them and as a TJ array if something does.
+    /// </summary>
+    static string ShownGlyphs(string text, ShapedRun run, string glyphs, double fontSize,
+        double wordSpacing, int from, int to)
+    {
+        var shaped = run.Glyphs;
+        double emUnits = 1000.0 / run.UnitsPerEm;
+        double wordAdjustment = fontSize > 0 ? -wordSpacing * 1000 / fontSize : 0;
+
+        var tj = new StringBuilder("[");
+        int pending = from;
+        bool adjusted = false;
+
+        void Show(int end)
+        {
+            if (end > pending)
+                tj.Append(GlyphRunToHexString(glyphs.Substring(pending, end - pending)));
+            pending = end;
+        }
+
+        void Move(double amount)
+        {
+            tj.Append(' ');
+            tj.Append(amount.ToString(Config.SignificantFigures3, CultureInfo.InvariantCulture));
+            tj.Append(' ');
+            adjusted = true;
+        }
+
+        for (int idx = from; idx < to; idx++)
+        {
+            double sideways = shaped[idx].OffsetX * emUnits;
+
+            // Rightwards before the glyph, and back again after it, so that the displacement does
+            // not carry into whatever follows.
+            if (sideways != 0)
+            {
+                Show(idx);
+                Move(-sideways);
+            }
+
+            double after = sideways;
+            if (wordAdjustment != 0 && IsLastGlyphOfWordSpace(text, shaped, idx))
+                after += wordAdjustment;
+
+            if (after != 0)
+            {
+                Show(idx + 1);
+                Move(after);
+            }
+        }
+
+        Show(to);
+
+        if (!adjusted)
+        {
+            // Nothing needed moving after all, so the array would only be a longer way of saying
+            // the same thing.
+            return GlyphRunToHexString(glyphs.Substring(from, to - from)) + " Tj";
+        }
+
+        // A run ending on a displacement leaves a space behind it, which is legal and untidy.
+        if (tj[tj.Length - 1] == ' ')
+            tj.Length--;
+
         tj.Append("] TJ");
         return tj.ToString();
+    }
+
+    /// <summary>
+    /// Whether the glyph at <paramref name="index"/> is the last one drawn for a character a word
+    /// spacing is paid out for - which is where the extra room goes.
+    /// </summary>
+    /// <remarks>
+    /// Read from <see cref="ShapedGlyph.Cluster"/> rather than by indexing the text, because there
+    /// is no longer one glyph per character and a ligature earlier in the string would put the
+    /// room inside the wrong word. Several glyphs may share the space's cluster, and the room goes
+    /// after the last of them rather than inside the group.
+    /// </remarks>
+    static bool IsLastGlyphOfWordSpace(string text, IReadOnlyList<ShapedGlyph> shaped, int index)
+    {
+        int cluster = shaped[index].Cluster;
+        if (cluster < 0 || cluster >= text.Length || !IsWordSpace(text[cluster]))
+            return false;
+
+        return index + 1 >= shaped.Count || shaped[index + 1].Cluster != cluster;
     }
 
     /// <summary>

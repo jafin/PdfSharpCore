@@ -137,6 +137,91 @@ public static class GlobalFontSettings
     static IGlyphOutlineProvider _glyphOutlineProvider;
 
     /// <summary>
+    /// Gets or sets the shaper that turns characters into the glyphs a font really draws for them,
+    /// for the current application domain. Null means none is registered, and then every path
+    /// behaves as it always has: one character, one glyph, no reordering.
+    /// </summary>
+    /// <remarks>
+    /// The fourth seam, and the only one whose unset state is not an error - see
+    /// <see cref="ITextShaper"/> for why. Reading it therefore answers null rather than throwing,
+    /// and setting it to null puts the unshaped behaviour back. It may be set, replaced or cleared
+    /// at any time; unlike <see cref="FontResolver"/>, nothing is cached against it.
+    /// <para>
+    /// It is not part of <see cref="IFontResolver"/> for the same reason
+    /// <see cref="GlyphOutlineProvider"/> is not: that interface is implemented by every consumer
+    /// who has written a resolver of their own, and a new member on it would break all of them. A
+    /// shaper reads its font bytes from the font it is handed, which came through the registered
+    /// resolver, so the two cannot disagree about which face a family means.
+    /// </para>
+    /// </remarks>
+    public static ITextShaper TextShaper
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _textShaper;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+        set
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                _textShaper = value;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+    static ITextShaper _textShaper;
+
+    /// <summary>
+    /// Gets or sets what to try when the chosen face has no glyph for a character, for the current
+    /// application domain. Null means nothing is tried, and then a character the face cannot draw
+    /// is <c>.notdef</c>, exactly as it has always been.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The fifth seam, and the second whose unset state is not an error. Reading it answers the
+    /// registered fallback if there is one, and otherwise the registered
+    /// <see cref="FontResolver"/> when that resolver implements <see cref="IFontFallback"/> as
+    /// well - a resolver that already knows what is installed is the natural place to answer from,
+    /// and a consumer who has written one should not have to register it twice.
+    /// </para>
+    /// <para>
+    /// It may be set, replaced or cleared at any time. Changing it drops what the library had
+    /// worked out about which face draws which character, so a document part-way through being
+    /// drawn will use the new answer from the next string onwards - which is why it is better set
+    /// once, before anything is drawn.
+    /// </para>
+    /// </remarks>
+    public static IFontFallback FontFallback
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _fontFallback ?? _fontResolver as IFontFallback;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+        set
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                _fontFallback = value;
+                FontFallbackResolution.Forget();
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+    static IFontFallback _fontFallback;
+
+    /// <summary>
     /// Gets or sets the default font encoding used for XFont objects where encoding is not explicitly specified.
     /// If it is not set, the default value is PdfFontEncoding.Unicode.
     /// If you are sure your document contains only Windows-1252 characters (see https://en.wikipedia.org/wiki/Windows-1252) 

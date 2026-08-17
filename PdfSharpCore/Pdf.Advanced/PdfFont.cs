@@ -71,6 +71,12 @@ public class PdfFont : PdfDictionary
             _cmapInfo.AddChars(text);
     }
 
+    internal void AddShapedRun(Fonts.ShapedRun run, string text)
+    {
+        if (_cmapInfo != null)
+            _cmapInfo.AddShapedRun(run, text);
+    }
+
     internal void AddGlyphIndices(string glyphIndices)
     {
         if (_cmapInfo != null)

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.IO;
 using PdfSharpCore.Fonts;
@@ -77,30 +78,50 @@ internal sealed class PdfToUnicodeMap : PdfDictionary
             "/CMapName /Adobe-Identity-UCS def /CMapType 2 def\n";
         string suffix = "endcmap CMapName currentdict /CMap defineresource pop end end";
 
-        Dictionary<int, char> glyphIndexToCharacter = new Dictionary<int, char>();
+        var meanings = _cmapInfo.GlyphMeanings();
         int lowIndex = 65536, hiIndex = -1;
-        foreach (KeyValuePair<char, int> entry in _cmapInfo.CharacterToGlyphIndex)
+        foreach (int index in meanings.Keys)
         {
-            int index = (int)entry.Value;
             lowIndex = Math.Min(lowIndex, index);
             hiIndex = Math.Max(hiIndex, index);
-            //glyphIndexToCharacter.Add(index, entry.Key);
-            glyphIndexToCharacter[index] = entry.Key;
         }
+
+        // A glyph standing for exactly one character can go in a bfrange, which is how every
+        // entry was written before there was anything else to write. One standing for several -
+        // a ligature, a composed accent - cannot: a bfrange destination is a single code, so
+        // those need a bfchar, whose destination is a string of any length.
+        var single = meanings.Where(entry => entry.Value.Length == 1).ToList();
+        var several = meanings.Where(entry => entry.Value.Length > 1).ToList();
 
         MemoryStream ms = new MemoryStream();
         StreamWriter wrt = new StreamWriter(ms, Encoding.UTF8);
         wrt.Write(prefix);
 
-        wrt.WriteLine("1 begincodespacerange");
-        wrt.WriteLine(String.Format("<{0:X4}><{1:X4}>", lowIndex, hiIndex));
-        wrt.WriteLine("endcodespacerange");
+        if (hiIndex >= lowIndex)
+        {
+            wrt.WriteLine("1 begincodespacerange");
+            wrt.WriteLine(String.Format("<{0:X4}><{1:X4}>", lowIndex, hiIndex));
+            wrt.WriteLine("endcodespacerange");
+        }
 
-        // Sorting seems not necessary. The limit is 100 entries, we will see.
-        wrt.WriteLine(String.Format("{0} beginbfrange", glyphIndexToCharacter.Count));
-        foreach (KeyValuePair<int, char> entry in glyphIndexToCharacter)
-            wrt.WriteLine(String.Format("<{0:X4}><{0:X4}><{1:X4}>", entry.Key, (int)entry.Value));
-        wrt.WriteLine("endbfrange");
+        // "shall not exceed 100" - ISO 32000-1 section 9.10.3, of both kinds of block. A document
+        // of any size has more glyphs than that, so this is not a limit that only exotic files
+        // reach; it was simply never applied.
+        foreach (var block in Blocks(single))
+        {
+            wrt.WriteLine(String.Format("{0} beginbfrange", block.Count));
+            foreach (var entry in block)
+                wrt.WriteLine(String.Format("<{0:X4}><{0:X4}><{1:X4}>", entry.Key, (int)entry.Value[0]));
+            wrt.WriteLine("endbfrange");
+        }
+
+        foreach (var block in Blocks(several))
+        {
+            wrt.WriteLine(String.Format("{0} beginbfchar", block.Count));
+            foreach (var entry in block)
+                wrt.WriteLine(String.Format("<{0:X4}><{1}>", entry.Key, Utf16BigEndian(entry.Value)));
+            wrt.WriteLine("endbfchar");
+        }
 
         wrt.Write(suffix);
         wrt.Dispose();
@@ -126,6 +147,33 @@ internal sealed class PdfToUnicodeMap : PdfDictionary
             Stream.Value = bytes;
             Elements.SetInteger(PdfStream.Keys.Length, Stream.Length);
         }
+    }
+
+    /// <summary>
+    /// The entries in blocks of at most a hundred, which is as many as a bfrange or a bfchar is
+    /// allowed to hold.
+    /// </summary>
+    static IEnumerable<List<KeyValuePair<int, string>>> Blocks(List<KeyValuePair<int, string>> entries)
+    {
+        const int most = 100;
+        for (int start = 0; start < entries.Count; start += most)
+            yield return entries.GetRange(start, Math.Min(most, entries.Count - start));
+    }
+
+    /// <summary>
+    /// A destination string as a bfchar wants it: UTF-16 big-endian, in hexadecimal.
+    /// </summary>
+    /// <remarks>
+    /// The characters go in as they stand, surrogate pairs included, because UTF-16BE is what a
+    /// <c>/ToUnicode</c> destination is defined to be and a .NET string is UTF-16 already.
+    /// </remarks>
+    static string Utf16BigEndian(string characters)
+    {
+        var hex = new StringBuilder(characters.Length * 4);
+        foreach (char character in characters)
+            hex.AppendFormat("{0:X4}", (int)character);
+
+        return hex.ToString();
     }
 
     public sealed class Keys : PdfStream.Keys

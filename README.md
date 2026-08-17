@@ -29,6 +29,61 @@ ImageSource.ImageSourceImpl = new SkiaImageSource();
 
 Both throw a descriptive `InvalidOperationException` if you use them without registering a backend first.
 
+### Text shaping
+
+| Package | Backend | License | Notes |
+| --- | --- | --- | --- |
+| `PdfSharpCore.HarfBuzz` | [HarfBuzzSharp](https://github.com/mono/SkiaSharp) | MIT | Optional. Works with either imaging backend. Native library — see below. |
+
+Without it, a string goes to the page one character at a time, each mapped to the glyph the font's
+`cmap` gives for that code point. For Latin that is nearly right — it loses kerning and ligatures.
+For Arabic it is wrong, because the alphabet has initial, medial, final and isolated forms and
+Unicode stores the letter rather than the form, so the letters never join. Registering a shaper runs
+the font's own `GSUB` and `GPOS` tables instead:
+
+```csharp
+using PdfSharpCore.Fonts;
+using PdfSharpCore.HarfBuzz;
+
+GlobalFontSettings.TextShaper = new HarfBuzzTextShaper();
+```
+
+Unlike the other seams this one is optional and reads as `null` until you set it, so nothing changes
+by leaving it alone. Setting it **will** change where lines wrap, because kerning and ligatures
+change how wide text measures — register it before you pin any layout you care about.
+
+It is a package of its own rather than part of a backend so that shaping does not oblige you to pick
+one, and it needs the same kind of native asset reference SkiaSharp does:
+
+```xml
+<PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="14.2.1.2" />
+<PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.2" />
+<PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="14.2.1.2" />
+```
+
+**Bidirectional reordering does not need the shaper and is on already.** Every `DrawString` and every
+`MeasureString` runs the Unicode Bidirectional Algorithm over the string, cuts it into runs of one
+direction and one script, and draws them in the order they are read — so `"سلام"` comes out as
+`"سلام"` and not as `"م ا ل س"`, with or without `PdfSharpCore.HarfBuzz`. Without the shaper the
+letters do not *join*, which needs the font's `GSUB`; with it, they do. Text made only of characters
+below `U+02B0` skips the whole thing, so plain Latin costs nothing.
+
+**A character the chosen face has no glyph for can be drawn by one that does.** Name the families to
+fall back to, in order of preference, and a run is cut wherever coverage runs out:
+
+```csharp
+GlobalFontSettings.FontFallback = new FontFallbackList("Noto Sans Arabic", "Noto Sans Devanagari");
+```
+
+Optional, like the shaper: with nothing registered, a missing glyph is `.notdef` — an empty box —
+exactly as before, and nothing is asked about coverage at all. The families are named rather than
+discovered because working out unprompted which of a machine's installed faces can draw a character
+means reading the `cmap` of every one of them; implement `IFontFallback` yourself if you want that.
+
+Still missing: a layout engine that places each word itself is not reordered *across* words. That
+means a justified `XTextFormatter` line, and MigraDoc paragraphs, which have no way to say which
+direction they run in yet. `docs/specs/text-shaping-and-bidi.md` has the rest.
+
 ### Fonts
 
 The resolver shipped with each backend discovers `.ttf`, `.otf`, `.ttc` and `.otc` in the platform's
