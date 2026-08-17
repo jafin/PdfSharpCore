@@ -66,11 +66,18 @@ public sealed class PdfNameObject : PdfObject
     }
 
     /// <summary>
-    /// Determines whether the specified object is equal to the current object.
+    /// Determines whether the specified object is equal to the current object. A name whose value
+    /// is null equals nothing at all.
     /// </summary>
+    /// <remarks>
+    /// <see cref="Value"/> is settable and may be set to null, so neither this nor
+    /// <see cref="GetHashCode"/> may read it without asking first: an ordinary equality test, or
+    /// putting the name in a hash set, would otherwise throw
+    /// <see cref="System.NullReferenceException"/> rather than answer.
+    /// </remarks>
     public override bool Equals(object obj)
     {
-        return _value.Equals(obj);
+        return _value != null && _value.Equals(obj);
     }
 
     /// <summary>
@@ -78,7 +85,7 @@ public sealed class PdfNameObject : PdfObject
     /// </summary>
     public override int GetHashCode()
     {
-        return _value.GetHashCode();
+        return _value?.GetHashCode() ?? 0;
     }
 
     /// <summary>
