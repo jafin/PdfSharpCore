@@ -70,6 +70,10 @@ static class FontFallbackResolution
     /// to a different face from its base breaks the attachment the shaper was about to make, and a
     /// mark placed by one font against a letter drawn by another is a worse defect than a missing
     /// mark.</item>
+    /// <item><b>A joining control</b>, U+200C and U+200D, which say how the letters on either side
+    /// of them join and are read by the face those letters are drawn from. Moving one to a face of
+    /// its own would separate the instruction from the letters it is about and split the run
+    /// between them, which is the one thing that certainly stops it working.</item>
     /// <item><b>A character nothing offered can draw.</b> Splitting the run there would cost the
     /// shaping across the boundary and buy an identical <c>.notdef</c>.</item>
     /// </list>
@@ -101,6 +105,7 @@ static class FontFallbackResolution
         OpenTypeDescriptor descriptor)
     {
         if (char.IsWhiteSpace(character)
+            || UnicodeProperties.IsJoiningControl(character)
             || UnicodeProperties.BidiClassOf(character) == BidiClass.NSM)
         {
             return null;

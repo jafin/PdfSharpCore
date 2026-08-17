@@ -89,6 +89,7 @@ public static partial class BidiAlgorithm
     {
         var levels = new byte[length];
         var removed = new bool[length];
+        var joining = new bool[length];
         var firstUnit = new int[unitsPer.Count];
 
         for (int idx = 0, unit = 0; idx < unitsPer.Count; idx++)
@@ -98,6 +99,7 @@ public static partial class BidiAlgorithm
             {
                 levels[unit] = resolved.Levels[idx];
                 removed[unit] = resolved.Removed[idx];
+                joining[unit] = resolved.Joining[idx];
             }
         }
 
@@ -110,7 +112,7 @@ public static partial class BidiAlgorithm
                 order.Add(firstUnit[idx] + repeat);
         }
 
-        return new BidiResult(resolved.ParagraphLevel, levels, removed, order.ToArray());
+        return new BidiResult(resolved.ParagraphLevel, levels, removed, order.ToArray(), joining);
     }
 
     /// <summary>Whether rule X9 takes this class out before anything is resolved.</summary>
@@ -180,10 +182,17 @@ public static partial class BidiAlgorithm
             ResetWhitespaceLevels();
 
             var removed = new bool[_length];
+            var joining = new bool[_length];
             for (int idx = 0; idx < _length; idx++)
+            {
                 removed[idx] = IsRemovedByX9(_initial[idx]);
 
-            return new BidiResult(_paragraphLevel, _levels, removed, Reorder(removed));
+                // Removed from the ordering and kept for the shaper: see BidiResult.Runs.
+                joining[idx] = removed[idx] && _codePoints[idx] <= char.MaxValue
+                    && UnicodeProperties.IsJoiningControl((char)_codePoints[idx]);
+            }
+
+            return new BidiResult(_paragraphLevel, _levels, removed, Reorder(removed), joining);
         }
 
         // ----- BD9: which PDI closes which isolate initiator --------------------------------------

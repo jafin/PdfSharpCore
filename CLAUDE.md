@@ -177,6 +177,14 @@ that are each one direction **and** one script, in the order they are drawn — 
 `ITextShaper.Shape` takes. `TextShaping.ShapeText` is its one caller inside the library, and through
 it every `DrawString` and every `MeasureString` reorders.
 
+**A joining control is inside a run, not between two.** U+200C and U+200D are bidi class `BN` and so
+removed by rule X9, which is right for ordering and was wrong for shaping — they are exactly the
+characters that tell the face how the letters either side of them join. `BidiResult.Runs` therefore
+reaches over one rather than breaking at it, and `TextShaping.Unshaped` skips it explicitly so that
+no glyph is drawn for a character that is zero width by definition. Both halves are load-bearing, and
+it is only those two characters, not the whole of `BN`: `UnicodeProperties.IsJoiningControl` says
+which, and widening it would change what existing documents look like.
+
 **Reordering is not shaping, and does not need a shaper.** `TextShaping.Unshaped` reverses a
 right-to-left run, because `ShapedRun` promises visual order and the renderer relies on it — so a
 consumer who takes no HarfBuzz dependency still gets Hebrew and Arabic the right way round, unjoined.
@@ -280,7 +288,8 @@ to set `TagContent = false`. And a renderer that draws anything must say what it
 `Renderer.Tagger` hands out the scopes, content goes in `Tagger.Block`/`Container`/`Marks` and
 decoration in `Tagger.Artifact`, and **anything inside an artifact scope is not tagged at all** — the
 tagger counts depth and refuses, because a running head drawn by the paragraph renderer would otherwise
-appear in the tree as a paragraph. `docs/specs/tagged-pdf-accessibility.md` has the rest, including why
+appear in the tree as a paragraph.
+ `docs/specs/tagged-pdf-accessibility.md` has the rest, including why
 an element is keyed by its DOM object rather than built per render pass.
 
 ## Multi-targeting

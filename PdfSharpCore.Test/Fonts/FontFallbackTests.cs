@@ -39,6 +39,9 @@ public class FontFallbackTests
     // "arabi" - four Arabic letters, none of which Liberation Sans has any glyph for.
     const string Arabic = "\u0639\u0631\u0628\u064A";
 
+    // U+200D ZERO WIDTH JOINER, written as a code point because it is invisible in a source file.
+    const string Joiner = "\u200D";
+
     static XFont Latin() => new XFont("Arial", 20);
 
     static XFont ArabicFont()
@@ -278,6 +281,39 @@ public class FontFallbackTests
 
         DrawnText.GlyphRuns(DrawnText.Page(Arabic + " " + Arabic, Latin()))
             .Should().HaveCount(1, "one face, one direction, one script, one run");
+    }
+
+    [Fact]
+    public void AJoiningControlDoesNotCutTheRunEither()
+    {
+        RegisterArabic();
+
+        // The control is there to say how the letters on either side of it join, and it is read by
+        // the face those letters are drawn from. Giving it a face of its own would put the
+        // instruction in one run and the letters it is about in another, which is the one
+        // arrangement that certainly cannot work.
+        using var _ = new Installed(new Only(Arabic, ArabicFamily));
+
+        DrawnText.GlyphRuns(DrawnText.Page(Arabic + Joiner + Arabic, Latin()))
+            .Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ASurrogatePairIsNotSplitBetweenTwoFaces()
+    {
+        RegisterArabic();
+
+        // The two halves of a supplementary character are not characters. Asked about separately -
+        // which is what a loop over UTF-16 code units does - each is a lone surrogate, and a face
+        // boundary falling between them would draw one character out of two files. Nothing can
+        // draw it at all yet, the cmap reader handling format 4 alone; what is pinned here is that
+        // the pair stays whole on the way past.
+        using var _ = new Installed(new Only(Arabic, ArabicFamily));
+
+        // MATHEMATICAL BOLD CAPITAL A, U+1D400, between two runs of Arabic.
+        DrawnText.GlyphRuns(DrawnText.Page(Arabic + "\U0001D400" + Arabic, Latin()))
+            .Should().OnlyContain(run => run.Length != 1,
+                "a run of exactly one glyph would be half of the pair on its own");
     }
 
     [Fact]

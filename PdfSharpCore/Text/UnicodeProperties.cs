@@ -59,6 +59,34 @@ public static class UnicodeProperties
     }
 
     /// <summary>
+    /// Whether a character is one of the two controls that say how the letters around it join:
+    /// U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both are <see cref="BidiClass.BN"/> and so removed by rule X9 before the bidirectional
+    /// algorithm resolves anything - which is right for ordering and wrong for shaping. They exist
+    /// to be read by the face's own <c>GSUB</c> rules: a joiner between two Arabic letters asks for
+    /// the joined forms of both, a non-joiner asks for the isolated forms, and a shaper that never
+    /// sees either draws the default and gets one of the two cases wrong. They are the reason a
+    /// removed character can still belong inside a run.
+    /// </para>
+    /// <para>
+    /// Only these two, not the whole of <see cref="BidiClass.BN"/>. The rest of that class is
+    /// embedding controls, which change direction and so cannot fall inside one run anyway, and
+    /// characters like the soft hyphen that this library has always drawn whatever glyph the face
+    /// maps them to. Widening this would change what existing documents look like.
+    /// </para>
+    /// </remarks>
+    internal static bool IsJoiningControl(char character)
+        => character == ZeroWidthNonJoiner || character == ZeroWidthJoiner;
+
+    // Written as code points rather than as characters. Both are invisible, and an invisible
+    // character in a source file is one nobody can see is wrong.
+    const char ZeroWidthNonJoiner = (char)0x200C;
+    const char ZeroWidthJoiner = (char)0x200D;
+
+    /// <summary>
     /// The index of the run <paramref name="codePoint"/> falls in. The table is a complete
     /// partition, so there is always one.
     /// </summary>

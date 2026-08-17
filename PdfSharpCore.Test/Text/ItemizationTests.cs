@@ -22,6 +22,12 @@ public class ItemizationTests
     const string Arabic = "\u0639\u0631\u0628\u064A";
     const string Hebrew = "\u05D0\u05D1";
 
+    // Two Arabic letters with a ZERO WIDTH JOINER between them, and a ZERO WIDTH NO-BREAK SPACE.
+    // Both are removed by rule X9 and neither is visible in a source file, which is why they are
+    // written out here rather than inline.
+    const string Joined = "\u0639\u200D\u0631";
+    const string ByteOrderMark = "\uFEFF";
+
     // ----- script itemisation ----------------------------------------------------------------------
 
     [Fact]
@@ -181,6 +187,46 @@ public class ItemizationTests
         runs[0].ScriptCode.Should().Be("arab", "the space belongs to the run it lands in");
         runs[0].Length.Should().Be(5, "which is four letters and the space in front of them");
         runs[1].ScriptCode.Should().Be("latn");
+    }
+
+    [Fact]
+    public void AJoiningControlStaysInsideTheRunItSitsIn()
+    {
+        // U+200D ZERO WIDTH JOINER is bidirectional class BN, so rule X9 takes it out before
+        // anything is resolved and it appears in no visual order. That is right for ordering and
+        // was wrong for shaping: the run stopped at it and started again after it, so the shaper
+        // was handed one Arabic letter, then another, and never the word. It could not obey the
+        // joiner - it could not even see it - and drew the isolated form of both letters.
+        var runs = TextItemizer.Itemize(Joined, BidiParagraphDirection.RightToLeft);
+
+        runs.Should().HaveCount(1, "a joiner is inside a run, not between two");
+        runs[0].Start.Should().Be(0);
+        runs[0].Length.Should().Be(3, "two letters and the joiner between them");
+    }
+
+    [Fact]
+    public void AJoiningControlIsStillNotDrawn()
+    {
+        // Kept in the run and kept out of the order: the run reaches over it, and nothing puts a
+        // glyph on the page for it. Both halves matter - a joiner that appeared in the visual order
+        // would be a character the renderer draws, and it is zero width by definition.
+        var result = BidiAlgorithm.Resolve(Joined, BidiParagraphDirection.RightToLeft);
+
+        result.Removed[1].Should().BeTrue();
+        result.VisualOrder.Should().Equal(new[] { 2, 0 });
+    }
+
+    [Fact]
+    public void AnyOtherRemovedCharacterStillEndsTheRun()
+    {
+        // U+FEFF is class BN and removed as well, and unlike a joiner it says nothing a shaper
+        // could act on. Reaching a run over it would put a character into the span that the
+        // unshaped path then looks a glyph up for and draws a box where nothing belongs. Only the
+        // two joining controls are worth the exception.
+        var runs = TextItemizer.Itemize("ab" + ByteOrderMark + "cd");
+
+        runs.Should().HaveCount(2);
+        runs.Select(run => run.Length).Should().Equal(new[] { 2, 2 });
     }
 
     [Fact]

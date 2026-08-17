@@ -94,6 +94,19 @@ static class TextShaping
 
         for (int idx = start; idx < end; idx++)
         {
+            // The trailing half of a surrogate pair is not a character and has no face of its own.
+            // Asked separately it would be a lone surrogate, which no cmap covers, and a cut here
+            // would put the two halves of one character in two fonts. It goes wherever its leading
+            // half went.
+            //
+            // That leading half is asked about as a UTF-16 code unit rather than as the code point
+            // the pair spells, which is as much as this library can currently do with a
+            // supplementary character: the cmap reader handles format 4 alone, so nothing above the
+            // BMP resolves to a glyph in any face and there is no coverage answer to be had. See
+            // docs/specs/text-shaping-and-bidi.md.
+            if (idx > start && char.IsLowSurrogate(whole[idx]) && char.IsHighSurrogate(whole[idx - 1]))
+                continue;
+
             var wanted = FontFallbackResolution.FontFor(whole[idx], font, descriptor);
 
             // No opinion, or the same opinion as the piece being built: nothing to cut.
@@ -231,11 +244,27 @@ static class TextShaping
         bool symbol = descriptor.FontFace.cmap.symbol;
         int symbolBase = descriptor.FontFace.os2.usFirstCharIndex & 0xFF00;
 
-        bool rightToLeft = direction == XTextDirection.RightToLeft;
-        var glyphs = new ShapedGlyph[text.Length];
+        // A joining control is inside the run because a real shaper has to read it - see
+        // BidiResult.Runs - and this is not a real shaper. It draws nothing for one: the control is
+        // zero width by definition, so whatever glyph the face happens to map it to is not a glyph
+        // to put on the page, and .notdef least of all.
+        int drawn = 0;
         for (int idx = 0; idx < text.Length; idx++)
         {
+            if (!UnicodeProperties.IsJoiningControl(text[idx]))
+                drawn++;
+        }
+
+        if (drawn == 0)
+            return ShapedRun.Empty(descriptor.UnitsPerEm, direction);
+
+        bool rightToLeft = direction == XTextDirection.RightToLeft;
+        var glyphs = new ShapedGlyph[drawn];
+        for (int idx = 0, position = 0; idx < text.Length; idx++)
+        {
             char ch = text[idx];
+            if (UnicodeProperties.IsJoiningControl(ch))
+                continue;
 
             // Used | rather than + because of http://PdfSharpCore.codeplex.com/workitem/15954.
             if (symbol)
@@ -245,8 +274,9 @@ static class TextShaping
 
             // The cluster stays the index of the character it came from; only the position in the
             // list changes, so a right-to-left run's clusters descend exactly as a shaper's do.
-            int at = rightToLeft ? text.Length - 1 - idx : idx;
+            int at = rightToLeft ? drawn - 1 - position : position;
             glyphs[at] = new ShapedGlyph((ushort)glyphIndex, idx, descriptor.GlyphIndexToWidth(glyphIndex));
+            position++;
         }
 
         return new ShapedRun(glyphs, descriptor.UnitsPerEm, direction);

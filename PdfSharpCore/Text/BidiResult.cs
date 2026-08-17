@@ -10,13 +10,25 @@ namespace PdfSharpCore.Text;
 /// </summary>
 public sealed class BidiResult
 {
-    internal BidiResult(byte paragraphLevel, byte[] levels, bool[] removed, int[] visualOrder)
+    internal BidiResult(byte paragraphLevel, byte[] levels, bool[] removed, int[] visualOrder,
+        bool[] joining)
     {
         ParagraphLevel = paragraphLevel;
         Levels = levels;
         Removed = removed;
         VisualOrder = visualOrder;
+        _joining = joining;
     }
+
+    // Which of the removed characters are joining controls, and so belong inside the run they sit
+    // in even though nothing is drawn for them. See UnicodeProperties.IsJoiningControl.
+    readonly bool[] _joining;
+
+    /// <summary>
+    /// <see cref="_joining"/>, for the one caller that has to carry it from a result indexed by
+    /// code point to one indexed by code unit.
+    /// </summary>
+    internal IReadOnlyList<bool> Joining => _joining;
 
     /// <summary>
     /// The level the paragraph as a whole runs at: even for left to right, odd for right to left.
@@ -58,6 +70,16 @@ public sealed class BidiResult
     /// The runs of the paragraph in visual order, each one a stretch of text at a single level and
     /// so a single direction - which is the form a shaper wants them in.
     /// </summary>
+    /// <remarks>
+    /// A run covers the characters between its ends, which is not quite the same as the characters
+    /// in <see cref="VisualOrder"/>: a joining control is removed by rule X9 and so appears in no
+    /// visual order, but it sits inside the run it was written in and the run reaches over it. That
+    /// is deliberate and it is what the control is for - <c>U+0627 U+200D U+0628</c> is one Arabic
+    /// word asking for its joined forms, and cutting it into two runs at the joiner both loses the
+    /// instruction and stops the shaper seeing the two letters together. Every other removed
+    /// character ends the run, because the rest of them change direction and a run is one direction
+    /// by definition.
+    /// </remarks>
     public IReadOnlyList<BidiRun> Runs()
     {
         var runs = new List<BidiRun>();
@@ -74,7 +96,7 @@ public sealed class BidiResult
             int step = (level & 1) == 0 ? 1 : -1;
             while (idx + 1 < order.Count
                    && Levels[order[idx + 1]] == level
-                   && order[idx + 1] == order[idx] + step)
+                   && order[idx + 1] == Next(order[idx], step))
             {
                 idx++;
             }
@@ -86,6 +108,19 @@ public sealed class BidiResult
         }
 
         return runs;
+    }
+
+    /// <summary>
+    /// The next index a run may reach to from <paramref name="from"/>: one step on, and on again
+    /// over any joining control, because those are inside runs rather than between them.
+    /// </summary>
+    int Next(int from, int step)
+    {
+        int at = from + step;
+        while (at >= 0 && at < _joining.Length && _joining[at])
+            at += step;
+
+        return at;
     }
 }
 
