@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf.Structure;
 
 namespace MigraDocCore.Rendering;
 
@@ -44,10 +45,18 @@ internal class FootnoteRenderer
 
             RenderInfo[] renderInfos = formatted.GetRenderInfos();
 
-            // The note's text sits to the right of the gutter it was laid out to leave; the mark
-            // goes in the gutter, so the two cannot run into one another however wide the mark is.
-            RenderByInfos(left + formatted.Indent, y, renderInfos);
-            DrawMark(note, formatted, left, y);
+            // The element the paragraph renderer built where this note was cited. Entered rather than
+            // marked: the note draws its content through renderers of its own, which mark what they
+            // draw, and a /Note holding marks directly as well would claim that some of the page
+            // belongs to the note rather than to the paragraphs inside it.
+            PdfStructureElement element = Tagger.FootnoteFor(_gfx, note);
+            using (Tagger.Enter(element))
+            {
+                // The note's text sits to the right of the gutter it was laid out to leave; the mark
+                // goes in the gutter, so the two cannot run into one another however wide the mark is.
+                RenderByInfos(left + formatted.Indent, y, renderInfos);
+                DrawMark(note, formatted, left, y, element);
+            }
 
             y += formatted.ContentHeight;
         }
@@ -57,11 +66,21 @@ internal class FootnoteRenderer
     /// The rule between the body text and the notes. A third of the column at hairline weight,
     /// which is what a reader expects and what Word and LaTeX both draw.
     /// </summary>
+    /// <remarks>
+    /// Drawn as an artifact, because that is what it is: a rule saying where the body text stops and
+    /// the notes start, carrying nothing a reader needs read to them. Everything on a page is either
+    /// content or furniture, and a line that is neither is the first thing a validator objects to.
+    /// </remarks>
     void DrawSeparator(XUnit left, XUnit top, XUnit width)
     {
-        XUnit y = top + FormattedDocument.FootnoteSeparatorOffset;
-        _gfx.DrawLine(new XPen(XColors.Black, 0.5), left, y, left + width / 3, y);
+        using (Tagger.Artifact(_gfx))
+        {
+            XUnit y = top + FormattedDocument.FootnoteSeparatorOffset;
+            _gfx.DrawLine(new XPen(XColors.Black, 0.5), left, y, left + width / 3, y);
+        }
     }
+
+    StructureTagger Tagger => _documentRenderer.Tagger;
 
     /// <summary>
     /// The note's own mark, drawn into the indent its first paragraph was formatted with.
@@ -71,7 +90,8 @@ internal class FootnoteRenderer
     /// caller's and putting a generated number into it would change what a caller reads back out
     /// of their own document object model.
     /// </remarks>
-    void DrawMark(Footnote note, FormattedFootnote formatted, XUnit left, XUnit top)
+    void DrawMark(Footnote note, FormattedFootnote formatted, XUnit left, XUnit top,
+        PdfStructureElement element)
     {
         string mark = _documentRenderer.Footnotes.MarkFor(note);
         if (mark.Length == 0)
@@ -86,7 +106,11 @@ internal class FootnoteRenderer
         // reads as part of the sentence rather than as the mark that names it.
         XUnit baseline = top + FontHandler.GetSubSuperScaling(font)
             * (font.GetHeight() - FontHandler.GetDescent(font));
-        _gfx.DrawString(mark, raised, new XSolidBrush(XColors.Black), left, baseline);
+
+        using (Tagger.FootnoteLabel(_gfx, note, element))
+        {
+            _gfx.DrawString(mark, raised, new XSolidBrush(XColors.Black), left, baseline);
+        }
     }
 
     void RenderByInfos(XUnit xShift, XUnit yShift, RenderInfo[] renderInfos)

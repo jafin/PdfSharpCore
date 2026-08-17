@@ -18,8 +18,8 @@ namespace PdfSharpCore.Pdf.Structure;
 /// <para>
 /// <b>What is checked.</b> The document is tagged; it has a title, in the information dictionary and
 /// declared as the thing to show in the title bar; it declares a language; every page is in the
-/// structure tree and orders its tabs by structure; every figure has alternate text; every link
-/// annotation has a description and is reachable from the tree.
+/// structure tree and orders its tabs by structure; every figure has alternate text; every note has an
+/// identifier; every link annotation has a description and is reachable from the tree.
 /// </para>
 /// <para>
 /// <b>What is not.</b> That no content sits outside the structure tree — the marks would have to be
@@ -47,6 +47,7 @@ public static class PdfUaValidator
         RequireLanguage(document);
         RequirePagesInTheTree(document);
         RequireAlternateTextOnFigures(document);
+        RequireIdentifiedNotes(document);
         RequireDescribedLinks(document);
     }
 
@@ -123,6 +124,32 @@ public static class PdfUaValidator
                     + "nothing at all to the reader it was tagged for. Give it one, or make it an "
                     + "artifact — a decorative image honestly marked as decoration conforms, and an "
                     + "undescribed figure does not. From MigraDoc, set Image.AlternativeText.");
+        }
+    }
+
+    /// <summary>
+    /// Every note has to be nameable, because something else has to be able to name it.
+    /// </summary>
+    /// <remarks>
+    /// ISO 14289-1 7.9. A footnote is the one structure type whose whole purpose is to be pointed at
+    /// from somewhere else — the raised mark in the sentence that cited it — and an element with no
+    /// identifier cannot be pointed at, so a reader has no way to offer the jump from the mark to the
+    /// note or back again. The identifier is also what the structure tree root's <c>/IDTree</c> is
+    /// keyed by, so an unnamed note is absent from that index as well.
+    /// </remarks>
+    static void RequireIdentifiedNotes(PdfDocument document)
+    {
+        foreach (var element in Elements(document))
+        {
+            if (element.Elements.GetName(PdfStructureElement.Keys.S) != PdfTag.Note.Name)
+                continue;
+
+            if (string.IsNullOrEmpty(element.Elements.GetString(PdfStructureElement.Keys.ID)))
+                throw new InvalidOperationException(
+                    "A note in the structure tree has no /ID, which PDF/UA requires of every one: a "
+                    + "note exists to be pointed at from the mark that cited it, and an element with "
+                    + "no identifier cannot be pointed at. Set PdfStructureElement.Id. A footnote "
+                    + "rendered by MigraDoc is given one automatically.");
         }
     }
 
