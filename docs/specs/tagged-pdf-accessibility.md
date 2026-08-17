@@ -13,7 +13,7 @@ Gap **G2** of the competitive gap analysis. **All three stages are built.**
 | 5 | `Image.AlternativeText`, `Table.Summary` on the DOM | B | done, **on `Shape`, not `Image`** |
 | 6 | PDF/UA-1 identifier in XMP, `/Tabs /S`, a pre-save validator | C | done |
 | 6b | `/ActualText` at a hyphenation break | C | done |
-| 6c | `/ActualText` for ligatures | C | not done, **nothing to say until G3** |
+| 6c | `/ActualText` for ligatures | C | done |
 | 7 | veraPDF in CI | C | not started |
 
 Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs` for Stage A, and
@@ -163,6 +163,87 @@ than doing nothing at all. `FindBrokenWords` therefore looks in two places: at e
 before the first line's start. `AWordBrokenAcrossAPageIsStillOneWord` fails with one mark instead of
 two if that second look is removed.
 
+**A footnote is tagged where it is cited, not where it is drawn.** A footnote reaches the page from two
+renderers: `ParagraphRenderer` draws the raised mark in the middle of a line, and `FootnoteRenderer`
+draws the note itself in a band at the foot of the page. Where the `/Note` is created decides where a
+screen reader hears it, and drawing order would put every note after all the body text of the page,
+severed from the sentence that cited it — which is the reading order a structure tree exists to
+correct. So the element is built at the citation, as a sibling of the `/Reference` and a child of the
+paragraph, and `FootnoteRenderer` asks the tagger for the same element later and fills it in.
+
+Both are inline-level structure types, which is exactly where ISO 32000-1 puts them: `/Reference` is
+the pointer, `/Note` is what it points at. Three elements are keyed by one `Footnote` — the reference,
+the note, and the `/Lbl` for the note's own mark in the gutter — which is what the tagger's slots are
+for, and the key has to be the DOM object because a paragraph split across a page break is drawn by a
+renderer built afresh per page.
+
+**The `/Note` holds no marks of its own.** It is entered rather than marked: its content is drawn by
+paragraph renderers that mark what they draw, and a `/Note` carrying marks directly as well would
+claim that some of the page belongs to the note rather than to the label and paragraphs inside it.
+Two marks are its own — the `/Lbl` in the gutter — and the separator rule above the block is an
+artifact, because it says where the body text stops and carries nothing to read out.
+
+**A note carries an `/ID`, and PDF/UA is held to it.** ISO 14289-1 7.9 requires one of every `/Note`,
+and the reason is the shape of the feature: a note exists to be pointed at from the mark that cited
+it, and an element with no identifier cannot be pointed at. That needed machinery the codebase did not
+have — `PdfStructureElement.Id`, and the structure tree root's `/IDTree`, which ISO 32000-1 requires
+the moment any element carries an identifier. The index is built by walking the tree at save time
+rather than by recording identifiers as they are handed out, so that one a caller set themselves is
+indexed exactly like one the tagger generated; a registration call beside the property is a call
+somebody forgets, and forgetting it writes an element nothing can look up. Two elements under one
+identifier is refused rather than resolved, because which of them a reader should land on is a
+question about the document.
+
+**A ligature says what it stands for, in a sequence inside the text object.** `ShapedGlyph.Cluster`
+says which characters a glyph came from, and `/ToUnicode` has always spent that on a text extractor.
+`/Span <</ActualText …>> BDC … EMC` around the glyph is the other half, for everything that reads
+marked content instead — which is what assistive technology reads. Both are answered from
+`TextShaping.CharactersOf`, one implementation, because two would eventually disagree and the document
+would then say one thing to an extractor and another to a screen reader.
+
+That sequence deliberately stays **inside** the text object, which is the opposite of what
+`BeginMarkedContent` does. A structural sequence carries an `/MCID` and has to be able to contain a
+whole text object, so it is written in graphic mode; this one carries no identifier, is not a structure
+element, and has to wrap one show-text operator because what it claims is true of one glyph. Ending the
+text object around each ligature would also send the pen back to the origin, which is the trap the
+tagging path already documents.
+
+**A run with no ligature in it is written byte for byte as before**, which is every run of every
+document produced before there was a shaper and nearly every run since. That guard is what kept the
+existing goldens and the untagged layout pin where they were.
+
+**Fewer glyphs than characters is what makes a ligature**, and counting only the characters is not the
+same test. The commonest cluster of more than one character is a base and the marks attached to it:
+Devanagari `कि` and an Arabic letter carrying a vowel sign are each two characters drawn with two
+glyphs, nothing swallowed anything, and `/ToUnicode` already says what each glyph stands for. Asked of
+the characters alone, every syllable of a page of Hindi is a ligature — a marked-content sequence and
+its own show-text operator each, where the run used to be a single `Tj`. So the cluster's glyphs are
+counted against its characters, and whole clusters are stepped over rather than single glyphs, so that
+what comes back is always a cluster's first glyph: reported from the middle of one, the span would
+cover a ligature's tail and leave its head outside, saying of some of the glyphs what is only true of
+all of them together.
+
+**A joining control is not a ligature**, and this is the case that bites. U+200C and U+200D are zero
+width by definition and `TextShaping.Unshaped` draws no glyph for either, so a cluster spanning a
+letter and a joining control is one letter that was told how to join — not a pair that became one
+glyph. Counting it wrapped most of a word of Arabic in a sequence claiming a ligature that was not
+there, and cut a run that had been one show-text operator since before there was a shaper. So the
+controls are removed before the count is taken and before the text is written: a reader told that a
+glyph spells "letter, zero-width joiner" is being told about a character nothing on the page stands
+for. It is also the one place `/ActualText` and `/ToUnicode` part company on purpose: extraction keeps
+the joiner, because a joiner that was in the source belongs in the copy, and `/ActualText` drops it,
+because it describes what is on the page. Two answers to different questions, not two implementations
+drifting apart — `TextShaping.CharactersOf` still answers both and the divergence is recorded on it.
+
+**A defect fell out of this.** `CLexer.ScanDictionary` ended a dictionary at the first `>` it saw,
+assuming the next character was the second of a `>>`. That holds for `<</MCID 0>>` and fails for
+`<</ActualText <FEFF0066>>>`, where the hex string's own `>` comes first — so the rest of the
+dictionary was read as operators and the stray `>` stopped the whole content stream. This library
+could not read the content it had just written. It now balances the nesting and steps over the hex
+strings, literal strings and comments a dictionary may hold — a comment is legal wherever whitespace
+is, and a `>>` inside one closes nothing — and `CLexerTests` pins each of those and the plain case,
+which every tagged page is full of.
+
 **`AlternativeText` went on `Shape`, not on `Image`.** A chart needs one for the same reason and to the
 same effect: to a reader who cannot see it, axis labels read out in drawing order say nothing about the
 shape they describe. `TextFrame` inherits it and ignores it, because a text frame holds paragraphs and
@@ -170,16 +251,13 @@ tables that describe themselves.
 
 ## Still to do
 
-- **`/ActualText` for ligatures.** There are no ligatures to disagree about until shaping lands —
-  `docs/specs/text-shaping-and-bidi.md`, gap G3 — because a string still goes to the page one
-  character at a time. When it does land, the shaper's cluster indices are what say which characters a
-  glyph stands for, and this is where they are spent. Hyphenation breaks, the only case that exists
-  today, are done.
 - **Reading `/ActualText` back.** `PdfSharpCore.Pdf.Extraction.PdfTextExtractor` ignores marked
-  content entirely, so this library still extracts its own hyphenated word as two fragments. Honouring
-  the tree means resolving the page's `/StructParents` through the parent tree to reach the element,
-  and it is the natural next piece of `docs/specs/text-extraction.md` rather than of this — tagged
-  extraction is listed there as the reason to have an extractor here at all.
+  content entirely, so this library still extracts its own hyphenated word as two fragments — and now
+  its own ligature spans as well, though `/ToUnicode` covers the ligature case for it and nothing
+  covers the hyphenated one. Honouring the tree means resolving the page's `/StructParents` through
+  the parent tree to reach the element, and it is the natural next piece of
+  `docs/specs/text-extraction.md` rather than of this — tagged extraction is listed there as the
+  reason to have an extractor here at all.
 - **veraPDF in CI.** Without it every conformance claim here is self-certified, which is worth little.
   `PdfUaValidator` lists what it does and does not check, and the largest thing it cannot check is that
   no content sits outside the tree, which needs a content-stream pass it does not make. This remains
@@ -191,10 +269,10 @@ tables that describe themselves.
   nothing in the DOM says it is.
 - **A link in a running header** is not reachable from the tree, because the header is an artifact and
   nothing inside one is tagged. `PdfUaValidator` reports it rather than hiding it.
-- **`Footnote` → `/Note`** is in the mapping below and is moot: `MigraDocCore.Rendering` never draws a
-  footnote. There is a DOM type and no renderer for it.
 - **Heading levels are not checked for skips**, and PDF/UA cares. `Heading1` followed by `Heading3` is
   written as `/H1` then `/H3`.
+- **A note's `/ID` is generated, not chosen.** `note1`, `note2`, in citation order. A caller who wants
+  their own has to set `PdfStructureElement.Id` afterwards, and nothing exposes the element to them.
 
 ---
 
@@ -318,7 +396,8 @@ The mapping, as built:
 | `TextFrame` | `/Sect` | it holds paragraphs and tables that describe themselves |
 | `HeaderFooter` | **artifact** | never content, and nothing inside one is tagged either |
 | Cell borders and shading, paragraph borders and shading, shape fills and outlines | **artifact** | decoration |
-| `Footnote` | — | `MigraDocCore.Rendering` never draws one |
+| `Footnote` | `/Reference` + `/Note` → `/Lbl` + `/P` | both inside the paragraph that cited it, so the note reads where it is cited rather than where it is drawn; the `/Note` carries the `/ID` PDF/UA requires, and the separator rule above the block is an artifact |
+| a glyph standing for several characters | `/Span` with `/ActualText`, in the content stream | a marked-content sequence inside the text object rather than a structure element, because it is true of one glyph; written only where a cluster's glyphs are fewer than its characters, so a base and the marks on it are left alone; joining controls are not counted and not written |
 
 `Row.HeadingFormat` means the header/body distinction was already modelled, which is lucky — table
 tagging is otherwise the hardest part, because `/TH` scope and the header/data association is what
@@ -357,12 +436,14 @@ Everything else `PdfUaValidator` throws over, naming the rule, before a byte is 
 | Every page in the tree, with `/StructParents` | yes |
 | `/Tabs /S` on every page | yes — and set, as above |
 | Every `/Figure` has `/Alt` or `/ActualText` | yes |
+| Every `/Note` has an `/ID` | yes |
+| No two elements share an `/ID` | yes — the builder refuses it too, while assembling the `/IDTree`, and runs first; this is so a caller can find out by asking rather than by saving |
 | Every link annotation has `/Contents` | yes |
 | Every link annotation reachable from the tree | yes |
 | No content outside the structure tree | **no** — needs a content-stream pass |
 | No structure element with no content | **no** |
 | Headings do not skip a level | **no** |
-| `/ActualText` where the marks and the text disagree | **no** — written at every hyphenation break, but nothing checks that one is missing |
+| `/ActualText` where the marks and the text disagree | **no** — written at every hyphenation break and around every ligature, but nothing checks that one is missing |
 | Fonts embedded, every glyph reachable through `/ToUnicode` | not checked, and true of everything this library writes |
 
 The PDF/UA-1 identifier goes into the XMP packet that `docs/specs/pdf-a-conformance.md` built —

@@ -52,6 +52,34 @@ public sealed class PdfStructureElement : PdfDictionary
     }
 
     /// <summary>
+    /// Gets or sets the name this element can be referred to by from elsewhere in the document.
+    /// Setting it to null or empty removes it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Most elements need none — the tree already says where they are. What needs one is an element
+    /// something else has to point at, and PDF/UA-1 requires it of every <c>/Note</c>, so that a
+    /// reader can offer to jump from a footnote's reference mark to the note and back.
+    /// </para>
+    /// <para>
+    /// A byte string rather than a text string, and written raw for that reason: this is a key in the
+    /// structure tree root's <c>/IDTree</c>, which a reader compares byte by byte. Re-encoding it as
+    /// UTF-16 would change the bytes and stop the key matching the element that owns it.
+    /// </para>
+    /// </remarks>
+    public string Id
+    {
+        get => Elements.GetString(Keys.ID);
+        set
+        {
+            if (string.IsNullOrEmpty(value))
+                Elements.Remove(Keys.ID);
+            else
+                Elements.SetString(Keys.ID, value, PdfStringEncoding.RawEncoding);
+        }
+    }
+
+    /// <summary>
     /// Adds a child element and records this element as its parent. The tree is doubly linked
     /// because a reader walks it in both directions — down to read, up to work out context.
     /// </summary>
@@ -162,6 +190,14 @@ public sealed class PdfStructureElement : PdfDictionary
         /// <summary>(Optional) The language of this element.</summary>
         [KeyInfo(KeyType.TextString | KeyType.Optional)]
         public const string Lang = "/Lang";
+
+        /// <summary>
+        /// (Optional; required by ISO 14289-1 of every Note) The name this element may be referred to
+        /// by, unique within the document and a key of the structure tree root's IDTree. A byte
+        /// string, not a text string.
+        /// </summary>
+        [KeyInfo(KeyType.ByteString | KeyType.Optional)]
+        public const string ID = "/ID";
 
         /// <summary>Gets the KeysMeta for these keys.</summary>
         internal static DictionaryMeta Meta => _meta ??= CreateMeta(typeof(Keys));

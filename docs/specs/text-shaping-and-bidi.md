@@ -114,6 +114,11 @@ line breaking (you may only break at a cluster boundary), `/ToUnicode` construct
 glyph and two characters), and `/ActualText` for tagged output. A shaping API that returns glyphs and
 advances but no clusters is not usable for a PDF writer, only for a screen.
 
+The last two are both built now, and both read `TextShaping.CharactersOf` — one implementation, because
+two would eventually disagree and a document would then say one thing to a text extractor and another
+to a screen reader. See `docs/specs/tagged-pdf-accessibility.md` for what a ligature is written as, and
+for why a joining control does not count as one.
+
 Like `GlyphOutlineProvider`, a shaper must take its font bytes **through** `FontResolver` rather than
 resolving a family itself, or the two seams disagree about which face a family means.
 
