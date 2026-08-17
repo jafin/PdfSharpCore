@@ -212,27 +212,23 @@ public class CLexer
     }
 
     /// <summary>
-    /// Scans a dictionary. Not implemented: it clears the token and reports an operator, which is why
-    /// <see cref="CSymbol.Dictionary"/> notes that <c>&lt;&lt; … &gt;&gt;</c> is taken as a string.
-    /// </summary>
-    /// <summary>
     /// Scans a dictionary as one opaque token, from its opening <c>&lt;&lt;</c> to the
     /// <c>&gt;&gt;</c> that closes it.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The closing <c>&gt;&gt;</c> is the one that matches, which is not the same as the first
-    /// <c>&gt;</c> that comes along. Three things put a <c>&gt;</c> inside a dictionary before its
-    /// own end: a hex string, another dictionary, and a hex string inside another dictionary. Ending
-    /// at the first one leaves the rest of the dictionary to be read as operators, and the stray
-    /// <c>&gt;</c> then stops the whole content stream — which is what
-    /// <c>/Span &lt;&lt;/ActualText &lt;FEFF00660069&gt;&gt;&gt; BDC</c> did, the sequence that says
-    /// a ligature stands for several characters.
+    /// <c>&gt;</c> that comes along. A hex string holds one, so does a nested dictionary, and so does
+    /// a hex string inside a nested dictionary. Ending at the first one leaves the rest of the
+    /// dictionary to be read as operators, and the stray <c>&gt;</c> then stops the whole content
+    /// stream — which is what <c>/Span &lt;&lt;/ActualText &lt;FEFF00660069&gt;&gt;&gt; BDC</c> did,
+    /// the sequence that says a ligature stands for several characters.
     /// </para>
     /// <para>
-    /// A literal string is stepped over as well, for the same reason one character further on: a
-    /// <c>&gt;</c> may appear inside one, and so may an escaped closing parenthesis, so the escapes
-    /// have to be honoured to find where the string ends.
+    /// A literal string and a comment are stepped over for the same reason: either may hold a
+    /// <c>&gt;</c> that closes nothing. A string needs its escapes honoured to find where it ends, or
+    /// an escaped closing parenthesis would end it early; a comment simply runs to the end of the
+    /// line. A comment is legal wherever whitespace is, which includes between a dictionary's keys.
     /// </para>
     /// </remarks>
     protected CSymbol ScanDictionary()
@@ -309,6 +305,13 @@ public class CLexer
                         else if (ch == ')')
                             parentheses--;
                     }
+                    break;
+
+                case '%':
+                    // A comment, which runs to the end of the line. Whatever it says is not syntax,
+                    // so a '>>' inside one closes nothing.
+                    while (_nextChar != Chars.CR && _nextChar != Chars.LF && _nextChar != Chars.EOF)
+                        _token.Append(ScanNextChar());
                     break;
 
                 case '>':

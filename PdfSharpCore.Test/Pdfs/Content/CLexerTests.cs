@@ -56,6 +56,10 @@ public class CLexerTests
     [InlineData("<</Desc (a > b)>> BDC", "<</Desc (a > b)>>")]
     [InlineData("<</Desc (escaped \\) and > )>> BDC", "<</Desc (escaped \\) and > )>>")]
     [InlineData("<</Desc (nested (pair) > )>> BDC", "<</Desc (nested (pair) > )>>")]
+    // A comment is legal wherever whitespace is, which includes between a dictionary's keys, and
+    // what it says is not syntax - so neither the '>>' nor the '(' in one closes or opens anything.
+    [InlineData("<</A 1 % see >> below\n/B 2>> BDC", "<</A 1 % see >> below\n/B 2>>")]
+    [InlineData("<</A 1 % unclosed ( paren\n/B 2>> BDC", "<</A 1 % unclosed ( paren\n/B 2>>")]
     public async Task ScanNextToken_readsADictionaryToTheAngleBracketsThatMatch(
         string content, string expected)
     {
