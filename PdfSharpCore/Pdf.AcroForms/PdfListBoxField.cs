@@ -134,10 +134,16 @@ public sealed class PdfListBoxField : PdfChoiceField
                 Elements[Keys.V] = values;
             }
 
-            // /I is for a list that allows several choices. The specification says it should not
-            // be used by one that does not, so a single-choice list carries /V alone and any /I
-            // left over from before is taken away rather than left to disagree with it.
-            WriteSelectedIndices(AllowsMultipleSelection ? indices : new int[0]);
+            // /I is for a list that allows several choices, so a single-choice list carries /V
+            // alone and any /I left over from before is taken away rather than left to disagree
+            // with it. The exception is the other case the specification requires /I for: two
+            // options exporting the same text, where /V names the text and cannot say which of
+            // them was meant, so searching /Opt for it finds the first and loses the choice.
+            bool tellsApartWhatTheValueCannot =
+                indices.Length == 1 && IndexInOptArray(texts[0]) != indices[0];
+
+            WriteSelectedIndices(
+                AllowsMultipleSelection || tellsApartWhatTheValueCannot ? indices : new int[0]);
         }
     }
 

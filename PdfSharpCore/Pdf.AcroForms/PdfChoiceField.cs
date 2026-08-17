@@ -56,6 +56,22 @@ public abstract class PdfChoiceField : PdfAcroField
     /// </summary>
     protected int IndexInOptArray(string value)
     {
+        return IndexInOptArray(value, null);
+    }
+
+    /// <summary>
+    /// The index in <c>/Opt</c> of the first option exporting <paramref name="value"/> that is not
+    /// already among <paramref name="taken"/>, or -1 when the array holds no such option. A null
+    /// <paramref name="taken"/> takes nothing to be spoken for and so finds the first match.
+    /// </summary>
+    /// <remarks>
+    /// Two options may export the same text, and a search that always starts at the beginning finds
+    /// the first of them every time - so a <c>/V</c> naming that text twice would be read as one
+    /// option chosen rather than two. Passing over what earlier entries already accounted for gives
+    /// the second occurrence the second option.
+    /// </remarks>
+    int IndexInOptArray(string value, List<int> taken)
+    {
         PdfArray opt = Elements.GetArray(Keys.Opt);
 
         if (opt != null)
@@ -63,6 +79,9 @@ public abstract class PdfChoiceField : PdfAcroField
             int count = opt.Elements.Count;
             for (int idx = 0; idx < count; idx++)
             {
+                if (taken != null && taken.Contains(idx))
+                    continue;
+
                 PdfItem item = opt.Elements[idx];
                 if (item is PdfString)
                 {
@@ -143,11 +162,16 @@ public abstract class PdfChoiceField : PdfAcroField
         if (disambiguated != null)
             return disambiguated;
 
+        // Each named export value takes the first option offering it that an earlier one has not
+        // already taken, so that two options exporting the same text account for two entries in /V
+        // rather than both collapsing onto the first. /I says which two where it is there and
+        // usable; this is what is left when it is not, and the specification requires it to be
+        // there in exactly this case.
         var indices = new List<int>();
         foreach (string text in chosenTexts)
         {
-            int index = IndexInOptArray(text);
-            if (index != -1 && !indices.Contains(index))
+            int index = IndexInOptArray(text, indices);
+            if (index != -1)
                 indices.Add(index);
         }
 
