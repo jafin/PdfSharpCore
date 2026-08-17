@@ -255,4 +255,100 @@ public class XTextSegmentFormatterTests
 
         draw.Should().NotThrow();
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // CalculateTextSize - the measuring half of the class, which lays the text out into a rectangle
+    // of unbounded height and reports what it filled. All four overloads had never been executed.
+    // ---------------------------------------------------------------------------------------------
+
+    const string Sentence = "A sentence long enough that it has to wrap when the width is small.";
+
+    static XSize Measured(Func<XTextSegmentFormatter, XSize> measure)
+    {
+        var document = new PdfDocument();
+        using var gfx = XGraphics.FromPdfPage(document.AddPage());
+        return measure(new XTextSegmentFormatter(gfx));
+    }
+
+    [Fact]
+    public void MeasuringTextReportsSomethingWithinTheWidthItWasGiven()
+    {
+        var size = Measured(f => f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 400));
+
+        size.Width.Should().BeGreaterThan(0).And.BeLessThanOrEqualTo(400);
+        size.Height.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void NarrowingTheWidthMakesTheSameTextTaller()
+    {
+        // The assertion that says it is really laying the text out rather than measuring one line:
+        // the same words in a narrower column have to wrap onto more of them.
+        var wide = Measured(f => f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 400));
+        var narrow = Measured(f => f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 80));
+
+        narrow.Height.Should().BeGreaterThan(wide.Height);
+        narrow.Width.Should().BeLessThanOrEqualTo(80);
+    }
+
+    [Fact]
+    public void TheOverloadWithoutAFormatMeasuresTheSameAsTopLeft()
+    {
+        var byDefault = Measured(f => f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 200));
+        var explicitly = Measured(f =>
+            f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 200, XStringFormats.TopLeft));
+
+        byDefault.Width.Should().Be(explicitly.Width);
+        byDefault.Height.Should().Be(explicitly.Height);
+    }
+
+    [Fact]
+    public void OneSegmentMeasuresTheSameAsTheStringItHolds()
+    {
+        // The string overloads build a single segment and hand it to the segment overload, so the
+        // two routes have to agree - and if they ever stop agreeing, one of them has grown a step
+        // the other has not.
+        var asString = Measured(f => f.CalculateTextSize(Sentence, Plain, XBrushes.Black, 200));
+        var asSegment = Measured(f =>
+            f.CalculateTextSize(new[] { Segment(Sentence, Plain, XBrushes.Black) }, 200));
+
+        asSegment.Width.Should().BeApproximately(asString.Width, 0.01);
+        asSegment.Height.Should().BeApproximately(asString.Height, 0.01);
+    }
+
+    [Fact]
+    public void TheSegmentOverloadWithoutAFormatAlsoMeasuresAsTopLeft()
+    {
+        var segments = new[] { Segment(Sentence, Plain, XBrushes.Black) };
+
+        var byDefault = Measured(f => f.CalculateTextSize(segments, 200));
+        var explicitly = Measured(f => f.CalculateTextSize(segments, 200, XStringFormats.TopLeft));
+
+        byDefault.Width.Should().Be(explicitly.Width);
+        byDefault.Height.Should().Be(explicitly.Height);
+    }
+
+    [Fact]
+    public void MoreTextMeasuresTaller()
+    {
+        var one = Measured(f => f.CalculateTextSize(
+            new[] { Segment(Sentence, Plain, XBrushes.Black) }, 200));
+        var two = Measured(f => f.CalculateTextSize(
+            new[] { Segment(Sentence, Plain, XBrushes.Black), Segment(Sentence, Bold, XBrushes.Red) }, 200));
+
+        two.Height.Should().BeGreaterThan(one.Height);
+    }
+
+    [Fact]
+    public void MeasuringNothingReportsNoHeightButTheWholeWidthItWasOffered()
+    {
+        // Worth pinning rather than assuming, because it is the surprising half of the pair: with no
+        // blocks to measure there is no height, and the width falls back to the width the caller
+        // offered rather than to nothing. A caller sizing a box to its content gets the box it
+        // started with.
+        var size = Measured(f => f.CalculateTextSize("", Plain, XBrushes.Black, 250));
+
+        size.Height.Should().Be(0);
+        size.Width.Should().Be(250);
+    }
 }

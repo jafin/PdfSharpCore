@@ -357,12 +357,12 @@ No shared fixture, so take these in rank order and stop when the return drops. A
 
 | # | target | suite | status |
 |---|---|---|---|
-| 18.1 | `PdfTextExtractor.Walker.Execute(COperator)` — `Pdf.Extraction/PdfTextExtractor.cs:132` — CC 44, 60%, **124 points** | Core | |
-| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | |
-| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | |
-| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | |
-| 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | |
-| 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | |
+| 18.1 | `PdfTextExtractor.Walker.Execute(COperator)` — `Pdf.Extraction/PdfTextExtractor.cs:132` — CC 44, 60%, **124 points** | Core | **done**, 60% → 95.5% |
+| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | **left**, unreachable |
+| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | **left**, compiled out of every build |
+| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | **left**, unreachable |
+| 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | **done**, all four overloads |
+| 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | **left**, wants a font with `vmtx` |
 | 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | |
 | 18.8 | `LineFormat.Serialize(Serializer)` — `Shapes/LineFormat.cs:127` | DOM | |
 | 18.9 | `TextMeasurement.MeasureString(string, UnitType)` — `TextMeasurement.cs:58` | Rendering | |
@@ -378,12 +378,64 @@ check the copy did not move. A deep copy that returns non-null proves nothing.
 18.9 is in `MigraDocCore.Rendering.Tests` and needs a real font, so it cannot go in the DOM suite —
 `NamedFontsOnly.cs` serves a name and throws if asked for a face.
 
+**Three of the first six turned out to be unreachable**, which is batch 12's lesson again and is why
+the check comes before the test. A method at 0% is not necessarily untested; it is sometimes uncalled.
+
+- **18.2 has no caller anywhere.** `FindPage` is `internal`, and its own declaration is the only
+  occurrence of the name in the repository — it carries a `// TODO: public?` comment and has been
+  waiting for an answer since the initial import. Not deleted, because making it public is a
+  plausible answer and the decision is not a coverage item's to take.
+- **18.3 is compiled out of every build.** `CheckConsistence` carries `[Conditional("DEBUG_")]` —
+  with a trailing underscore, which is this codebase's way of writing a symbol that is never
+  defined, as `#define VERBOSE_` in `OpenTypeFontTables.cs` does. So the two calls in
+  `PdfReader.Open` and the two inside the class are all removed by the compiler in Debug and Release
+  alike, and no test can reach it in any configuration. The four further call sites at
+  `PdfCrossReferenceTable.cs:199` to `:241` are commented out on top of that.
+- **18.4 is private with no caller.** `CreateValue` is declared without an access modifier inside
+  `DictionaryElements`, so it is private, and nothing calls it.
+
+**18.5 was done and is the one straightforward item in the six.** All four `CalculateTextSize`
+overloads are public and had never run. 7 tests added to `XTextSegmentFormatterTests`, asserting
+that the two string overloads and the two segment overloads agree with each other — the string ones
+build a single segment and delegate, so a disagreement means one has grown a step the other has not —
+and that narrowing the width makes the same text taller, which is what says it lays the text out
+rather than measuring one line.
+
+One quirk pinned there rather than assumed: **measuring an empty string reports no height and the
+whole width the caller offered.** With no blocks to measure the width falls back to the incoming
+`width` rather than to zero, so a caller sizing a box to its content gets back the box it started
+with.
+
+**18.6 was left.** `VerticalMetricsTable` reads `vmtx`, which is a vertical-writing table that the
+Latin faces in `Assets/Fonts` do not carry, so covering it needs a CJK or vertical-metrics font
+added to the repository — a fixture decision rather than a test.
+
 Three that look like this batch and are **not** on it, checked before listing: `DataMatrixSymbol
 .SmallestSizeFor` (barcodes are a fork-inherited corner with no other coverage and no spec — its own
 decision), `OpenTypeDescriptor..ctor` (reached only through font loading, so it is covered
 incidentally the moment 18.6 is), and `LineFormatRenderer..ctor(XGraphics, LineFormat, double)`,
 which batch 13.3 records as done and which now reads 0% — worth a look on its own account, because
 either the batch-13 test stopped reaching it or the two-argument overload no longer chains to it.
+
+### What 18.1 needed, and why the walker was only half covered
+
+`XGraphics` emits four of the operators the walker understands — `Tf`, `Tm`, `Tj` and `TJ` — so a
+page this library drew leaves most of the switch untouched however many drawing tests are written.
+The rest are what another producer's page contains, and reaching them means writing the content
+stream by hand. `TextExtractionTests` already had the mechanism for that in `WithTwoShows`; it is now
+a general `WithContentReplaced`, which draws a word to get a font resource and its `/ToUnicode` map
+and then replaces the content stream outright.
+
+9 tests, covering `q`, `Q`, `cm`, `TD`, `T*`, `TL`, `Tz`, `Ts`, `Tr` and `'`. Two are worth naming:
+
+- **Text in render mode 3 is skipped, and that is a decision rather than an oversight.** It is how
+  the OCR layer under a scanned page is drawn, and reporting it would hand the caller the page's
+  text twice. Pinned in both directions, because render mode is text state that persists past `ET`:
+  one test says the invisible run is not reported, the next says a run after it *is*, which is what
+  would fail if the mode were ever treated as lapsing at `ET`.
+- **`TD` sets the leading as a side effect**, and the test asserts a third run positioned by a
+  following `T*` rather than the second run's position — otherwise it would be testing the movement
+  and not the side effect.
 
 The last row is the review of the pull request the rest of this was raised in. It moves neither
 number, which is the point of recording it: three more defects (F18–F20) and four tests that were

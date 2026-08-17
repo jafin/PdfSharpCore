@@ -91,9 +91,17 @@ Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
       level where the escape is not honoured. 17.3 left (needs a hex-string PDF fixture; `PdfEncoders`
       and `PdfStringFlags` are both internal). 17.4 and 17.5 left and deliberately unmoved — they are
       about paragraphs continuing across lines and want a batch built from multi-line fixtures.
-- [ ] Then 18. Route each test by the rules in that spec: DOM-only targets go to
-      `MigraDocCore.DocumentObjectModel.Tests`, layout to `MigraDocCore.Rendering.Tests`, charting to
-      `PdfSharpCore.Charting.Tests`, everything in the core package to `PdfSharpCore.Test`.
+- [x] **Batch 18 — first six worked, 18.1 and 18.5 done.** 16 tests. `PdfTextExtractor.Walker
+      .Execute` **60% → 95.5%** (CRAP 168 → 44) by writing content streams by hand, since `XGraphics`
+      only ever emits four of the operators it understands. All four `CalculateTextSize` overloads
+      covered. **Three of the six were unreachable** — batch 12's lesson again: `PdfPages.FindPage`
+      has no caller anywhere, `DictionaryElements.CreateValue` is private with no caller, and
+      `PdfCrossReferenceTable.CheckConsistence` carries `[Conditional("DEBUG_")]` — a symbol never
+      defined — so it is compiled out of Debug and Release alike. 18.6 needs a font with `vmtx`.
+- [ ] Batch 18.7 to 18.10 remain — two DOM, two rendering. Route each test by the rules in that spec:
+      DOM-only targets go to `MigraDocCore.DocumentObjectModel.Tests`, layout to
+      `MigraDocCore.Rendering.Tests`, charting to `PdfSharpCore.Charting.Tests`, everything in the
+      core package to `PdfSharpCore.Test`.
 - [ ] Any test that scans malformed input carries `[Fact(Timeout = …)]` **with** the `Task.Run`
       wrapper — xUnit honours a timeout only on an `async` test, and a lexer change hangs the host
       rather than failing it.

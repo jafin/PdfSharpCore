@@ -247,7 +247,177 @@ public class TextExtractionTests
         extracting.Should().Throw<ArgumentNullException>();
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // The text-state and positioning operators. XGraphics emits only a few of these - Tf, Tm, Tj and
+    // TJ - so a page it drew leaves most of the walker's switch untouched. Every test below replaces
+    // the content stream outright and writes the operator itself, which is the only way to reach
+    // them, and is what a page from another producer would contain.
+    // ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TextDrawnInvisiblyIsNotExtracted()
+    {
+        // Render mode 3 is how the OCR layer under a scanned page is drawn. Reporting it would give
+        // a caller the page's text twice, so it is skipped - a decision this class makes rather than
+        // exposes, and one worth pinning because it is silent.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj ET\n" +
+            $"BT {font} 12 Tf 3 Tr 1 0 0 1 40 650 Tm <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().ContainSingle("the run in render mode 3 is not reported");
+        runs[0].Origin.Y.Should().BeApproximately(700, 0.5, "the visible one is the one that survives");
+    }
+
+    [Fact]
+    public void TextAfterAnInvisibleRunIsExtractedAgain()
+    {
+        // The other side of it: render mode is text state and persists past ET, so the mode has to
+        // be put back rather than assumed to lapse. If it were sticky the page would extract to
+        // nothing at all.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 3 Tr 1 0 0 1 40 700 Tm <{shown}> Tj ET\n" +
+            $"BT {font} 12 Tf 0 Tr 1 0 0 1 40 650 Tm <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().ContainSingle();
+        runs[0].Origin.Y.Should().BeApproximately(650, 0.5, "the second run is the visible one");
+    }
+
+    [Fact]
+    public void TheNextLineOperatorMovesDownByTheLeading()
+    {
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 14 TL 1 0 0 1 40 700 Tm <{shown}> Tj T* <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(2);
+        runs[0].Origin.Y.Should().BeApproximately(700, 0.5);
+        runs[1].Origin.Y.Should().BeApproximately(686, 0.5, "T* steps down by the leading TL set");
+        runs[1].Origin.X.Should().BeApproximately(40, 0.5,
+            "T* returns to the start of the line rather than to where the last run ended");
+    }
+
+    [Fact]
+    public void AQuotedShowMovesToTheNextLineBeforeShowingIt()
+    {
+        // ' is T* and Tj in one operator.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 14 TL 1 0 0 1 40 700 Tm <{shown}> Tj <{shown}> ' ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(2);
+        runs[1].Origin.Y.Should().BeApproximately(686, 0.5);
+        runs[1].Origin.X.Should().BeApproximately(40, 0.5);
+    }
+
+    [Fact]
+    public void MovingTheLineWithTdAlsoSetsTheLeadingForWhatFollows()
+    {
+        // TD is Td with a side effect: it sets the leading to the negation of its ty, so a following
+        // T* repeats the same step without being told the distance again. Asserting the third run is
+        // what makes this a test of the side effect rather than of the movement.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj 0 -20 TD <{shown}> Tj T* <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(3);
+        runs[0].Origin.Y.Should().BeApproximately(700, 0.5);
+        runs[1].Origin.Y.Should().BeApproximately(680, 0.5, "TD moved the line down by 20");
+        runs[2].Origin.Y.Should().BeApproximately(660, 0.5, "and left the leading at 20 for T*");
+    }
+
+    [Fact]
+    public void HorizontalScalingNarrowsTheRunItIsSetFor()
+    {
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj ET\n" +
+            $"BT {font} 12 Tf 50 Tz 1 0 0 1 40 650 Tm <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(2);
+        runs[1].Width.Should().BeApproximately(runs[0].Width / 2, runs[0].Width * 0.02,
+            "Tz is a percentage, so 50 is half as wide");
+    }
+
+    [Fact]
+    public void ARiseLiftsTheBaselineOfWhatFollowsIt()
+    {
+        // Ts is what a superscript is drawn with.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj 6 Ts <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(2);
+        runs[0].Origin.Y.Should().BeApproximately(700, 0.5);
+        runs[1].Origin.Y.Should().BeApproximately(706, 0.5, "the rise is added to the baseline");
+    }
+
+    [Fact]
+    public void RestoringTheGraphicsStateUndoesTheTransformUnderIt()
+    {
+        // q, cm and Q. Both blocks name the same text position, so the only thing that can separate
+        // them is whether Q put the transformation matrix back.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"q 1 0 0 1 0 100 cm BT {font} 12 Tf 1 0 0 1 40 600 Tm <{shown}> Tj ET Q\n" +
+            $"BT {font} 12 Tf 1 0 0 1 40 600 Tm <{shown}> Tj ET\n"));
+
+        var runs = PdfTextExtractor.ExtractRuns(page);
+
+        runs.Should().HaveCount(2);
+        runs[0].Origin.Y.Should().BeApproximately(700, 0.5, "the cm inside q lifted it by 100");
+        runs[1].Origin.Y.Should().BeApproximately(600, 0.5, "and Q put the matrix back for the rest");
+    }
+
+    [Fact]
+    public void AnUnbalancedRestoreIsIgnoredRatherThanThrowing()
+    {
+        // A Q with no q under it is malformed, and a content stream from anywhere can be. The stack
+        // is checked before it is popped, so the page still reads.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"Q BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj ET\n"));
+
+        PdfTextExtractor.ExtractRuns(page).Should().ContainSingle();
+    }
+
     private static XFont Font => new("Arial", 12);
+
+    /// <summary>
+    ///   A page whose content stream is replaced outright by <paramref name="build"/>, which is
+    ///   handed the name of the font resource and the hexadecimal glyph string of a word already
+    ///   drawn with it. Everything the page needs to be a page - the resources, the font, its
+    ///   <c>/ToUnicode</c> map - comes from having drawn that word first.
+    /// </summary>
+    private static byte[] WithContentReplaced(Func<string, string, string> build)
+    {
+        var document = Reader.Open(new MemoryStream(
+            Draw(gfx => gfx.DrawString("Sample", Font, XBrushes.Black, 40, 100))), PdfDocumentOpenMode.Modify);
+
+        var page = document.Pages[0];
+        var content = Encoding.Latin1.GetString(PageContent.Of(page));
+
+        var font = page.Elements.GetDictionary("/Resources").Elements.GetDictionary("/Font")
+            .Elements.KeyNames[0].Value;
+        var shown = content.Substring(content.IndexOf('<') + 1,
+            content.IndexOf('>') - content.IndexOf('<') - 1);
+
+        var bytes = Encoding.Latin1.GetBytes(build(font, shown));
+        var stream = (PdfDictionary)page.Elements.GetValue("/Contents");
+        stream.Stream.Value = bytes;
+        stream.Elements.Remove("/Filter");
+        stream.Elements.SetInteger("/Length", bytes.Length);
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        return output.ToArray();
+    }
 
     private static double Measure(string text)
     {
