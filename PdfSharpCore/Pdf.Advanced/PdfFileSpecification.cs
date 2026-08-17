@@ -1,20 +1,16 @@
-﻿namespace PdfSharpCore.Pdf.Advanced;
+namespace PdfSharpCore.Pdf.Advanced;
 
 /// <summary>
 /// Represent a file stream embedded in the PDF document
 /// </summary>
 public class PdfFileSpecification : PdfDictionary
 {
-    private readonly PdfDictionary embeddedFileDictionary;
-
     /// <summary>Initializes a new file specification with an empty embedded-file dictionary.</summary>
     public PdfFileSpecification(PdfDocument document)
         : base(document)
     {
-        embeddedFileDictionary = new PdfDictionary();
-
         Elements.SetName(Keys.Type, "/Filespec");
-        Elements.SetObject(Keys.EF, embeddedFileDictionary);
+        Elements.SetObject(Keys.EF, new PdfDictionary());
     }
 
     /// <summary>Initializes a new file specification naming a file and the embedded bytes for it.</summary>
@@ -23,6 +19,37 @@ public class PdfFileSpecification : PdfDictionary
     {
         FileName = fileName;
         EmbeddedFile = embeddedFile;
+    }
+
+    /// <summary>
+    /// Takes over a dictionary read out of a document, so that a specification reached through the
+    /// catalog or through an annotation is this type rather than the plain dictionary it was parsed
+    /// as.
+    /// </summary>
+    internal PdfFileSpecification(PdfDictionary dictionary)
+        : base(dictionary)
+    { }
+
+    /// <summary>
+    /// The <c>/EF</c> dictionary naming the streams the file is embedded as, made on first use.
+    /// <para>
+    /// Read out of the elements rather than held in a field, because a specification also arrives by
+    /// being read from a document — and one that did would otherwise have no dictionary here at all,
+    /// and lose its embedded file the moment anybody asked for it.
+    /// </para>
+    /// </summary>
+    PdfDictionary EmbeddedFiles
+    {
+        get
+        {
+            var files = Elements.GetDictionary(Keys.EF);
+            if (files == null)
+            {
+                files = new PdfDictionary();
+                Elements.SetObject(Keys.EF, files);
+            }
+            return files;
+        }
     }
 
     /// <summary>
@@ -49,28 +76,112 @@ public class PdfFileSpecification : PdfDictionary
         }
     }
 
+    /// <summary>
+    /// Gets or sets what a viewer shows beside the file name in its attachments pane, written as
+    /// <c>/Desc</c>. Setting it to null removes it.
+    /// </summary>
+    public string Description
+    {
+        get => Elements.GetString(Keys.Desc);
+        set
+        {
+            if (value == null)
+                Elements.Remove(Keys.Desc);
+            else
+                Elements.SetString(Keys.Desc, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets what this file has to do with the document, written as <c>/AFRelationship</c>.
+    /// A specification that says nothing, or that names a relationship this enumeration does not
+    /// have, reads as <see cref="PdfAFRelationship.Unspecified"/>.
+    /// </summary>
+    /// <remarks>
+    /// Reading and writing are deliberately not symmetrical about an absent entry. Writing
+    /// <see cref="PdfAFRelationship.Unspecified"/> puts <c>/Unspecified</c> in the file, because
+    /// PDF/A-3 asks for the entry to be present and that is the value for having nothing to say;
+    /// reading an absent entry answers the same thing, because there is nothing else it could mean.
+    /// So a document read and written back keeps its meaning while gaining an entry a validator
+    /// wants — which is the direction that matters.
+    /// </remarks>
+    public PdfAFRelationship Relationship
+    {
+        get => RelationshipOf(Elements.GetName(Keys.AFRelationship));
+        set => Elements.SetName(Keys.AFRelationship, NameOf(value));
+    }
+
     /// <summary>Gets or sets the embedded file this specification points at.</summary>
     public PdfEmbeddedFile EmbeddedFile
     {
         get
         {
-            var reference = embeddedFileDictionary.Elements.GetReference(Keys.F);
+            var files = Elements.GetDictionary(Keys.EF);
 
-            return reference?.Value as PdfEmbeddedFile;
+            // Transformed rather than cast. Read back out of a document the stream is a plain
+            // dictionary, and a cast would answer null for an attachment that is plainly there.
+            return EmbeddedFileOf(files?.Elements[Keys.F]);
         }
         set
         {
             if (value == null)
             {
-                embeddedFileDictionary.Elements.Remove(Keys.F);
+                Elements.GetDictionary(Keys.EF)?.Elements.Remove(Keys.F);
             }
             else
             {
                 if (!value.IsIndirect)
                     Owner._irefTable.Add(value);
 
-                embeddedFileDictionary.Elements.SetReference(Keys.F, value);
+                EmbeddedFiles.Elements.SetReference(Keys.F, value);
             }
+        }
+    }
+
+    /// <summary>
+    /// The embedded file an entry stands for, whichever of the three shapes it arrived in: the
+    /// stream already transformed to this type, an indirect reference to one, or the plain
+    /// dictionary a reader parsed. Transforming re-points the reference at the new instance, so
+    /// asking twice does not build two.
+    /// </summary>
+    static PdfEmbeddedFile EmbeddedFileOf(PdfItem item)
+    {
+        if (item is PdfReference reference)
+            item = reference.Value;
+
+        if (item is PdfEmbeddedFile embedded)
+            return embedded;
+
+        return item is PdfDictionary dictionary ? new PdfEmbeddedFile(dictionary) : null;
+    }
+
+    /// <summary>
+    /// The relationship a <c>/AFRelationship</c> name stands for. Anything unrecognised is
+    /// unspecified rather than an error: a document may legally carry a relationship from a later
+    /// part of the standard than this enumeration covers, and refusing to read the rest of the
+    /// attachment over it would help nobody.
+    /// </summary>
+    static PdfAFRelationship RelationshipOf(string name)
+    {
+        switch (name)
+        {
+            case "/Source": return PdfAFRelationship.Source;
+            case "/Data": return PdfAFRelationship.Data;
+            case "/Alternative": return PdfAFRelationship.Alternative;
+            case "/Supplement": return PdfAFRelationship.Supplement;
+            default: return PdfAFRelationship.Unspecified;
+        }
+    }
+
+    static string NameOf(PdfAFRelationship relationship)
+    {
+        switch (relationship)
+        {
+            case PdfAFRelationship.Source: return "/Source";
+            case PdfAFRelationship.Data: return "/Data";
+            case PdfAFRelationship.Alternative: return "/Alternative";
+            case PdfAFRelationship.Supplement: return "/Supplement";
+            default: return "/Unspecified";
         }
     }
 
@@ -124,6 +235,21 @@ public class PdfFileSpecification : PdfDictionary
         /// </summary>
         [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
         public const string EF = "/EF";
+
+        /// <summary>
+        /// (Optional; PDF 1.6) Descriptive text associated with the file specification, shown
+        /// beside the file name by a viewer listing what a document carries.
+        /// </summary>
+        [KeyInfo("1.6", KeyType.TextString | KeyType.Optional)]
+        public const string Desc = "/Desc";
+
+        /// <summary>
+        /// (Required for an associated file; PDF 2.0, and by ISO 19005-3 for every attachment of a
+        /// PDF/A-3 document) A name saying how the embedded file relates to the document it is
+        /// attached to: Source, Data, Alternative, Supplement or Unspecified.
+        /// </summary>
+        [KeyInfo("1.7", KeyType.Name | KeyType.Optional)]
+        public const string AFRelationship = "/AFRelationship";
 
         /// <summary>
         /// Gets the KeysMeta for these keys.

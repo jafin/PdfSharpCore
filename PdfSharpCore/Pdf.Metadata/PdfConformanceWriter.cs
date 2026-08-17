@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Security;
 
@@ -88,12 +89,19 @@ internal static class PdfConformanceWriter
                 + "Options.OutputIntentIccProfile to the bytes of a profile — no profile ships with "
                 + "this library, because which one is right is a decision about the document.");
 
-        if (options.Conformance != PdfAConformance.PdfA3B && HasEmbeddedFiles(document))
+        var attachments = EmbeddedFiles(document);
+
+        if (options.Conformance != PdfAConformance.PdfA3B && attachments.Count != 0)
             throw new InvalidOperationException(
                 options.Conformance + " may not carry an embedded file unless that file is itself "
                 + "PDF/A — and nothing here can establish that, so the claim is refused rather than "
-                + "made on trust. PDF/A-3 is the profile with no such restriction, which is why "
-                + "hybrid e-invoices such as ZUGFeRD and Factur-X are built on it.");
+                + "made on trust. This document carries " + attachments.Count + ", the first of them "
+                + "'" + attachments[0].FileName + "'. PDF/A-3 is the profile with no such "
+                + "restriction, which is why hybrid e-invoices such as ZUGFeRD and Factur-X are "
+                + "built on it.");
+
+        if (options.Conformance == PdfAConformance.PdfA3B)
+            EnforceAssociation(document, attachments);
 
         // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raising a low
         // version is not enough on its own: a document that has already asked for something newer
@@ -120,10 +128,122 @@ internal static class PdfConformanceWriter
             document._version = floor;
     }
 
-    static bool HasEmbeddedFiles(PdfDocument document)
+    /// <summary>
+    /// The two rules PDF/A-3 adds by permitting attachments at all: each has to say what it is to
+    /// the document, and each has to be attached <em>to</em> something rather than merely present.
+    /// </summary>
+    /// <remarks>
+    /// Both are refused rather than repaired, and the difference from the other rules here is worth
+    /// stating. A missing relationship could be written as <c>/Unspecified</c> and a loose file
+    /// could be associated with the document, and either would be this code deciding what an
+    /// attachment means — which is the one thing it does not know. <see cref="PdfAttachments"/>
+    /// settles both at the point the caller does know, which is why a document built through it
+    /// never reaches these throws.
+    /// </remarks>
+    static void EnforceAssociation(PdfDocument document, List<PdfFileSpecification> attachments)
     {
-        var names = document.Catalog.Elements.GetDictionary(PdfCatalog.Keys.Names);
-        return names?.Elements["/EmbeddedFiles"] != null;
+        var associated = document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
+
+        foreach (var attachment in attachments)
+        {
+            if (!IsListedIn(associated, attachment))
+                throw new InvalidOperationException(
+                    "PDF/A-3 requires every embedded file to be associated with the document or with "
+                    + "part of it, and '" + attachment.FileName + "' is associated with nothing — it "
+                    + "is in the file but not of it, which a validator reads as a broken document "
+                    + "rather than as a document with an attachment. Attach it through "
+                    + "Attachments.Add, or hand the specification you already have to "
+                    + "Attachments.Associate.");
+
+            if (attachment.Elements[PdfFileSpecification.Keys.AFRelationship] == null)
+                throw new InvalidOperationException(
+                    "PDF/A-3 requires every attachment to say what it has to do with the document, "
+                    + "and '" + attachment.FileName + "' says nothing. Set its Relationship — "
+                    + nameof(PdfAFRelationship) + "." + nameof(PdfAFRelationship.Data) + " is what a "
+                    + "hybrid e-invoice wants, and " + nameof(PdfAFRelationship) + "."
+                    + nameof(PdfAFRelationship.Unspecified) + " is the honest answer when there is "
+                    + "nothing more precise to say.");
+        }
+    }
+
+    static bool IsListedIn(PdfArray associated, PdfFileSpecification attachment)
+    {
+        if (associated == null)
+            return false;
+
+        for (int idx = 0; idx < associated.Elements.Count; idx++)
+        {
+            if (ReferenceEquals(PdfAttachments.Resolve(associated.Elements[idx]), attachment))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Every file the document carries the bytes of, wherever it is listed: the catalog's
+    /// association array, the <c>/EmbeddedFiles</c> name tree, and the file attachment annotations
+    /// on its pages.
+    /// </summary>
+    /// <remarks>
+    /// All three, because the rule is about the file being in the document and not about how it got
+    /// there. Looking only at the name tree — which is what this did — meant a document could carry
+    /// an attachment on an annotation, claim PDF/A-1, and be told nothing: the one path a caller had
+    /// for attaching a file before <see cref="PdfAttachments"/> existed was the one path the check
+    /// could not see. A specification with no <c>/EF</c> is not counted; it names a file somewhere
+    /// else, and PDF/A objects to carrying bytes rather than to mentioning a filename.
+    /// </remarks>
+    static List<PdfFileSpecification> EmbeddedFiles(PdfDocument document)
+    {
+        var found = new List<PdfFileSpecification>();
+
+        var associated = document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
+        if (associated != null)
+        {
+            for (int idx = 0; idx < associated.Elements.Count; idx++)
+                Collect(found, associated.Elements[idx]);
+        }
+
+        foreach (var entry in PdfNameTree.Enumerate(document, "/EmbeddedFiles"))
+            Collect(found, entry.Value);
+
+        foreach (PdfPage page in document.Pages)
+        {
+            var annotations = page.Elements.GetArray("/Annots");
+            if (annotations == null)
+                continue;
+
+            for (int idx = 0; idx < annotations.Elements.Count; idx++)
+            {
+                var annotation = Dictionary(annotations.Elements[idx]);
+                if (annotation != null)
+                    Collect(found, annotation.Elements["/FS"]);
+            }
+        }
+
+        return found;
+    }
+
+    static void Collect(List<PdfFileSpecification> found, PdfItem item)
+    {
+        var specification = PdfAttachments.Resolve(item);
+        if (specification?.EmbeddedFile == null)
+            return;
+
+        foreach (var already in found)
+        {
+            if (ReferenceEquals(already, specification))
+                return;
+        }
+
+        found.Add(specification);
+    }
+
+    static PdfDictionary Dictionary(PdfItem item)
+    {
+        if (item is PdfReference reference)
+            item = reference.Value;
+        return item as PdfDictionary;
     }
 
     /// <summary>

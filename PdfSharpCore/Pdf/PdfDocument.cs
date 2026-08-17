@@ -767,6 +767,19 @@ public sealed class PdfDocument : PdfObject, IDisposable
     Structure.PdfStructureBuilder _structure;
 
     /// <summary>
+    /// Gets the files this document carries, and the way to attach one.
+    /// </summary>
+    /// <remarks>
+    /// Reading this changes nothing about the document — it looks at the catalog rather than
+    /// building anything — so a document that never attaches a file is written exactly as it was
+    /// before. Attaching one lists it in both places an attachment belongs: see
+    /// <see cref="Advanced.PdfAttachments"/> for why both are needed, and note that only PDF/A-3
+    /// among the archival profiles may carry one at all.
+    /// </remarks>
+    public Advanced.PdfAttachments Attachments => _attachments ??= new Advanced.PdfAttachments(this);
+    Advanced.PdfAttachments _attachments;
+
+    /// <summary>
     /// Gets a value indicating whether anything has been tagged, without creating a structure tree
     /// by asking.
     /// </summary>

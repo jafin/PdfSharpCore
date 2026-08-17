@@ -1,20 +1,21 @@
-﻿namespace PdfSharpCore.Pdf.Advanced;
+﻿using System;
+
+namespace PdfSharpCore.Pdf.Advanced;
 
 /// <summary>
 /// Represent a file stream embedded in the PDF document
 /// </summary>
 public class PdfEmbeddedFile : PdfDictionary
 {
-    private readonly PdfDictionary paramsDictionary;
-
     /// <summary>Initializes a new embedded file with no content yet.</summary>
     public PdfEmbeddedFile(PdfDocument document)
         : base(document)
     {
-        paramsDictionary = new PdfDictionary();
-
         Elements.SetName(Keys.Type, "/EmbeddedFile");
-        Elements.SetObject(Keys.Params, paramsDictionary);
+
+        // Made here as well as on demand, so that a file created and never filled in writes the
+        // same empty parameter dictionary it always did.
+        Elements.SetObject(Keys.Params, new PdfDictionary());
     }
 
     /// <summary>Initializes a new embedded file holding the given bytes.</summary>
@@ -25,6 +26,36 @@ public class PdfEmbeddedFile : PdfDictionary
     }
 
     /// <summary>
+    /// Takes over a dictionary read out of a document, so that an embedded file reached through a
+    /// file specification is this type rather than the plain dictionary it was parsed as.
+    /// </summary>
+    internal PdfEmbeddedFile(PdfDictionary dictionary)
+        : base(dictionary)
+    { }
+
+    /// <summary>
+    /// The parameter dictionary the size, the checksum and the dates live in, made on first use.
+    /// <para>
+    /// Read out of <c>/Params</c> rather than held in a field, because an embedded file also arrives
+    /// by being read from a document — and one that did would otherwise have no dictionary here at
+    /// all, and answer every question about itself by throwing.
+    /// </para>
+    /// </summary>
+    PdfDictionary Parameters
+    {
+        get
+        {
+            var parameters = Elements.GetDictionary(Keys.Params);
+            if (parameters == null)
+            {
+                parameters = new PdfDictionary();
+                Elements.SetObject(Keys.Params, parameters);
+            }
+            return parameters;
+        }
+    }
+
+    /// <summary>
     /// Stores the bytes as this file's stream and records its size, and its MD5 checksum when one is
     /// given. Passing no checksum removes any recorded already.
     /// </summary>
@@ -32,14 +63,15 @@ public class PdfEmbeddedFile : PdfDictionary
     {
         CreateStream(bytes);
 
-        paramsDictionary.Elements.SetInteger(Keys.Size, bytes.Length);
+        var parameters = Parameters;
+        parameters.Elements.SetInteger(Keys.Size, bytes.Length);
 
         if (string.IsNullOrEmpty(checksum))
-            paramsDictionary.Elements.Remove(Keys.CheckSum);
+            parameters.Elements.Remove(Keys.CheckSum);
         else
             // The checksum is the bytes of an MD5 digest rather than text, so it is named raw
             // and the bytes above ASCII in it are written as they are.
-            paramsDictionary.Elements.SetString(Keys.CheckSum, checksum, PdfStringEncoding.RawEncoding);
+            parameters.Elements.SetString(Keys.CheckSum, checksum, PdfStringEncoding.RawEncoding);
     }
 
     /// <summary>Gets or sets the media type of the embedded file, written as the <c>/Subtype</c> name.</summary>
@@ -49,7 +81,34 @@ public class PdfEmbeddedFile : PdfDictionary
         set => Elements.SetName(Keys.Subtype, value);
     }
 
-    // TODO : Add properties for the subdictionnary Params and the subsubdictionnary Mac
+    /// <summary>
+    /// Gets or sets when the embedded file was last modified, written as <c>/ModDate</c> in the
+    /// parameter dictionary. Reading a file that records none answers
+    /// <see cref="DateTime.MinValue"/>.
+    /// </summary>
+    /// <remarks>
+    /// PDF/A-3 requires this of an attachment, which is why it is a property rather than a comment
+    /// about the parameter dictionary: an archive has to be able to say how old the thing it is
+    /// keeping is, and the file system it came from is not there to be asked.
+    /// </remarks>
+    public DateTime ModificationDate
+    {
+        get => Parameters.Elements.GetDateTime(Keys.ModDate, DateTime.MinValue);
+        set => Parameters.Elements.SetDateTime(Keys.ModDate, value);
+    }
+
+    /// <summary>
+    /// Gets or sets when the embedded file was created, written as <c>/CreationDate</c> in the
+    /// parameter dictionary. Reading a file that records none answers
+    /// <see cref="DateTime.MinValue"/>.
+    /// </summary>
+    public DateTime CreationDate
+    {
+        get => Parameters.Elements.GetDateTime(Keys.CreationDate, DateTime.MinValue);
+        set => Parameters.Elements.SetDateTime(Keys.CreationDate, value);
+    }
+
+    // TODO : Add properties for the subsubdictionnary Mac
 
     /// <summary>
     /// Predefined keys of this embedded file.

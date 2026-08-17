@@ -1,0 +1,365 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+
+namespace PdfSharpCore.Pdf.Advanced;
+
+/// <summary>
+/// The files a document carries as a whole, and the way to add one.
+/// </summary>
+/// <remarks>
+/// <para>
+/// An attachment reaches a document through two places at once, and both are needed. The catalog's
+/// <c>/AF</c> array <em>associates</em> the file with the document — which is what makes it part of
+/// the document rather than merely present in it, and what PDF/A-3 requires of every embedded file
+/// — while the <c>/Names /EmbeddedFiles</c> name tree is what a viewer reads to populate its
+/// attachments pane. A file in only the first is invisible to a reader; a file in only the second
+/// is invisible to a validator. <see cref="Add(string,byte[],PdfAFRelationship,string,string)"/>
+/// writes both.
+/// </para>
+/// <para>
+/// Reading looks in both, so an attachment put there by another producer is found whichever of the
+/// two that producer wrote. The order is the <c>/AF</c> order first, then anything the name tree
+/// holds that <c>/AF</c> does not.
+/// </para>
+/// <para>
+/// PDF/A-3 is the only archival profile that may carry an attachment at all, and it is what the
+/// hybrid e-invoice formats — ZUGFeRD, Factur-X — are built on. Attaching the invoice XML with
+/// <see cref="PdfAFRelationship.Data"/> and claiming
+/// <see cref="PdfAConformance.PdfA3B"/> is the whole of what those formats ask of the PDF side.
+/// </para>
+/// </remarks>
+public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
+{
+    /// <summary>
+    /// The kind of name tree an attachment is listed in, under the catalog's <c>/Names</c>.
+    /// </summary>
+    const string EmbeddedFiles = "/EmbeddedFiles";
+
+    readonly PdfDocument _document;
+
+    internal PdfAttachments(PdfDocument document)
+    {
+        _document = document;
+    }
+
+    /// <summary>
+    /// Gets how many files the document carries.
+    /// </summary>
+    public int Count => Specifications().Count;
+
+    /// <summary>
+    /// Gets the file at the given position, in the order <see cref="GetEnumerator"/> reports.
+    /// </summary>
+    public PdfFileSpecification this[int index]
+    {
+        get
+        {
+            var specifications = Specifications();
+            if (index < 0 || index >= specifications.Count)
+                throw new ArgumentOutOfRangeException(nameof(index), index,
+                    "The document carries " + specifications.Count + " attachment(s).");
+            return specifications[index];
+        }
+    }
+
+    /// <summary>
+    /// Attaches a file to the document and returns the specification describing it, so that a caller
+    /// can set anything this does not cover.
+    /// </summary>
+    /// <param name="fileName">
+    /// The name the file is carried under, which is both what a reader shows and the key it is found
+    /// by. Two attachments may not share one.
+    /// </param>
+    /// <param name="bytes">The content of the file. Embedded as it is given, uncompressed by this.</param>
+    /// <param name="relationship">
+    /// What the file has to do with the document. The default says nothing, honestly; an e-invoice
+    /// wants <see cref="PdfAFRelationship.Data"/>.
+    /// </param>
+    /// <param name="description">What a viewer shows beside the name, or null for none.</param>
+    /// <param name="mimeType">
+    /// The media type, written as the embedded stream's <c>/Subtype</c> — "text/xml" for an invoice.
+    /// Null leaves it unsaid.
+    /// </param>
+    public PdfFileSpecification Add(string fileName, byte[] bytes,
+        PdfAFRelationship relationship = PdfAFRelationship.Unspecified,
+        string description = null, string mimeType = null)
+    {
+        if (fileName == null)
+            throw new ArgumentNullException(nameof(fileName));
+        if (fileName.Length == 0)
+            throw new ArgumentException(
+                "An attachment has to be named: the name is what a reader shows and what the file is "
+                + "found by.", nameof(fileName));
+        if (bytes == null)
+            throw new ArgumentNullException(nameof(bytes));
+
+        if (IsTaken(fileName))
+            throw new InvalidOperationException(
+                "This document already carries a file called '" + fileName + "'. A name is what "
+                + "identifies an attachment to a reader and what it is listed under, so two cannot "
+                + "share one — attach the second under a name of its own.");
+
+        var embedded = new PdfEmbeddedFile(_document, bytes);
+
+        if (!string.IsNullOrEmpty(mimeType))
+            embedded.MimeType = mimeType;
+
+        // Stamped rather than left out. PDF/A-3 requires it of an attachment, and an archive that
+        // cannot say how old the thing it is keeping is has lost half the point of keeping it — the
+        // file system the bytes came from is not there to be asked afterwards.
+        embedded.ModificationDate = GlobalTimeSettings.Now;
+
+        var specification = new PdfFileSpecification(_document, fileName, embedded)
+        {
+            Relationship = relationship,
+            Description = description,
+        };
+
+        // Indirect because it has to be: ISO 32000-1 says a file specification carrying /EF is
+        // referenced indirectly, and both places it goes below hold a reference to it rather than
+        // a copy — which is what keeps them talking about one file instead of two.
+        _document._irefTable.Add(specification);
+
+        Associate(specification);
+        Register(fileName, specification);
+
+        return specification;
+    }
+
+    /// <summary>
+    /// Associates a file specification the caller already has with the document, by listing it in
+    /// the catalog's <c>/AF</c> array. Answers whether it was added, which is false if it was listed
+    /// already.
+    /// </summary>
+    /// <remarks>
+    /// What <see cref="Add(string,byte[],PdfAFRelationship,string,string)"/> does for a file it has
+    /// just embedded, offered on its own for the file that arrived another way — the one on a
+    /// <see cref="Annotations.PdfFileAttachmentAnnotation"/>, most of all. Such a file is in the
+    /// document and PDF/A-3 requires it to be associated, and there is nothing to attach a second
+    /// time: it is the same bytes, wanting one more mention. The name tree is deliberately not
+    /// touched, because an annotation's attachment is shown by the annotation.
+    /// </remarks>
+    public bool Associate(PdfFileSpecification specification)
+    {
+        if (specification == null)
+            throw new ArgumentNullException(nameof(specification));
+
+        if (!specification.IsIndirect)
+            _document._irefTable.Add(specification);
+
+        var associated = AssociatedFiles();
+        for (int idx = 0; idx < associated.Elements.Count; idx++)
+        {
+            if (ReferenceEquals(Resolve(associated.Elements[idx]), specification))
+                return false;
+        }
+
+        associated.Elements.Add(specification.Reference);
+        return true;
+    }
+
+    /// <summary>
+    /// Stops the document carrying the given file, and answers whether it was carrying it. The
+    /// bytes are not hunted down and deleted: an object nothing reaches is dropped when the
+    /// document is saved.
+    /// </summary>
+    public bool Remove(PdfFileSpecification specification)
+    {
+        if (specification == null)
+            throw new ArgumentNullException(nameof(specification));
+
+        var removed = false;
+
+        var associated = _document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
+        if (associated != null)
+        {
+            for (int idx = associated.Elements.Count - 1; idx >= 0; idx--)
+            {
+                if (ReferenceEquals(Resolve(associated.Elements[idx]), specification))
+                {
+                    associated.Elements.RemoveAt(idx);
+                    removed = true;
+                }
+            }
+
+            if (associated.Elements.Count == 0)
+                _document.Catalog.Elements.Remove(PdfCatalog.Keys.AF);
+        }
+
+        var leaves = Leaves();
+        if (leaves != null)
+        {
+            // Backwards, and two at a time: the array alternates key and value, so removing a pair
+            // from the front would renumber every pair after it mid-walk.
+            for (int idx = leaves.Elements.Count - 2; idx >= 0; idx -= 2)
+            {
+                if (ReferenceEquals(Resolve(leaves.Elements[idx + 1]), specification))
+                {
+                    leaves.Elements.RemoveAt(idx + 1);
+                    leaves.Elements.RemoveAt(idx);
+                    removed = true;
+                }
+            }
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Gets an enumerator over the files the document carries.
+    /// </summary>
+    public IEnumerator<PdfFileSpecification> GetEnumerator() => Specifications().GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    /// <summary>
+    /// Every file the document carries, from the association array first and then from the name
+    /// tree, without repeating one that is in both — which, for anything this library wrote, is
+    /// all of them.
+    /// </summary>
+    List<PdfFileSpecification> Specifications()
+    {
+        var found = new List<PdfFileSpecification>();
+
+        var associated = _document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
+        if (associated != null)
+        {
+            for (int idx = 0; idx < associated.Elements.Count; idx++)
+                AddOnce(found, associated.Elements[idx]);
+        }
+
+        foreach (var entry in PdfNameTree.Enumerate(_document, EmbeddedFiles))
+            AddOnce(found, entry.Value);
+
+        return found;
+    }
+
+    static void AddOnce(List<PdfFileSpecification> found, PdfItem item)
+    {
+        var specification = Resolve(item);
+        if (specification == null)
+            return;
+
+        // By instance rather than by name. Resolving transforms the dictionary in place and points
+        // the reference at the result, so the same file reached from both places is the same object
+        // the second time — while two files that happen to share a name stay two.
+        for (int idx = 0; idx < found.Count; idx++)
+        {
+            if (ReferenceEquals(found[idx], specification))
+                return;
+        }
+
+        found.Add(specification);
+    }
+
+    /// <summary>
+    /// The specification an entry stands for, whichever of the three shapes it arrived in: already
+    /// this type, an indirect reference to one, or the plain dictionary a reader parsed.
+    /// </summary>
+    internal static PdfFileSpecification Resolve(PdfItem item)
+    {
+        if (item is PdfReference reference)
+            item = reference.Value;
+
+        if (item is PdfFileSpecification specification)
+            return specification;
+
+        // Transforming re-points the reference at the new instance, so a second look answers the
+        // same object rather than building another wrapper around the same dictionary.
+        return item is PdfDictionary dictionary ? new PdfFileSpecification(dictionary) : null;
+    }
+
+    /// <summary>
+    /// The catalog's association array, made on first use.
+    /// </summary>
+    PdfArray AssociatedFiles()
+    {
+        var associated = _document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
+        if (associated == null)
+        {
+            associated = new PdfArray(_document);
+            _document.Catalog.Elements[PdfCatalog.Keys.AF] = associated;
+        }
+        return associated;
+    }
+
+    /// <summary>
+    /// The one leaf of the <c>/EmbeddedFiles</c> name tree, or null if the document has no tree yet.
+    /// </summary>
+    PdfArray Leaves()
+    {
+        return PdfNameTree.Root(_document, EmbeddedFiles)?.Elements.GetArray("/Names");
+    }
+
+    /// <summary>
+    /// Whether the document already carries a file under this name, wherever it is listed.
+    /// </summary>
+    bool IsTaken(string fileName)
+    {
+        foreach (var specification in Specifications())
+        {
+            if (string.Equals(specification.FileName, fileName, StringComparison.Ordinal))
+                return true;
+        }
+
+        foreach (var entry in PdfNameTree.Enumerate(_document, EmbeddedFiles))
+        {
+            if (string.Equals(entry.Key, fileName, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Lists the file in the <c>/EmbeddedFiles</c> name tree, which is what a viewer reads to show
+    /// a document's attachments.
+    /// </summary>
+    /// <remarks>
+    /// One flat leaf, however many files there are. A name tree may be nested and has to be sorted,
+    /// and nesting exists so that a reader can binary-search a tree of thousands without loading it
+    /// — which is a real concern for the destinations of a large document and no concern at all for
+    /// attachments, of which a document has a handful. Sorted it must be regardless, because a
+    /// reader is entitled to binary-search even one node.
+    /// </remarks>
+    void Register(string fileName, PdfFileSpecification specification)
+    {
+        var names = _document.Catalog.Elements.GetDictionary(PdfCatalog.Keys.Names);
+        if (names == null)
+        {
+            names = new PdfDictionary(_document);
+            _document._irefTable.Add(names);
+            _document.Catalog.Elements[PdfCatalog.Keys.Names] = names.Reference;
+        }
+
+        var root = names.Elements.GetDictionary(EmbeddedFiles);
+        if (root == null)
+        {
+            root = new PdfDictionary(_document);
+            names.Elements.SetObject(EmbeddedFiles, root);
+        }
+
+        var leaves = root.Elements.GetArray("/Names");
+        if (leaves == null)
+        {
+            leaves = new PdfArray(_document);
+            root.Elements.SetObject("/Names", leaves);
+        }
+
+        // Where the name belongs, by the byte order a reader compares keys in. The pair goes in
+        // together, so the array keeps alternating key and value.
+        int at = leaves.Elements.Count;
+        for (int idx = 0; idx + 1 < leaves.Elements.Count; idx += 2)
+        {
+            if (string.CompareOrdinal(PdfNameTree.TextOf(leaves.Elements[idx]) ?? "", fileName) > 0)
+            {
+                at = idx;
+                break;
+            }
+        }
+
+        leaves.Elements.Insert(at, new PdfString(fileName));
+        leaves.Elements.Insert(at + 1, specification.Reference);
+    }
+}
