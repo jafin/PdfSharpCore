@@ -133,6 +133,23 @@ public sealed class PdfDocumentOptions
     PdfAConformance _conformance = PdfAConformance.None;
 
     /// <summary>
+    /// Gets or sets the accessibility profile the document claims. The default is
+    /// <see cref="PdfUAConformance.None"/>.
+    /// <para>
+    /// As with <see cref="Conformance"/>, the claim is enforced rather than stamped on: the writer
+    /// walks the structure tree and the pages before writing anything and throws naming the first
+    /// rule the document breaks. The rules it can settle by looking are listed on
+    /// <see cref="Structure.PdfUaValidator"/>, and they are not all of PDF/UA.
+    /// </para>
+    /// </summary>
+    public PdfUAConformance UAConformance
+    {
+        get => _uaConformance;
+        set => _uaConformance = value;
+    }
+    PdfUAConformance _uaConformance = PdfUAConformance.None;
+
+    /// <summary>
     /// Gets or sets a value indicating that an XMP metadata packet is written even when no
     /// conformance is claimed. A claimed conformance implies one regardless.
     /// </summary>

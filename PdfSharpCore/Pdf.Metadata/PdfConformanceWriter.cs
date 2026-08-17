@@ -24,8 +24,9 @@ internal static class PdfConformanceWriter
     {
         var options = document.Options;
         var claimsConformance = options.Conformance != PdfAConformance.None;
+        var claimsAccessibility = options.UAConformance != PdfUAConformance.None;
 
-        if (!claimsConformance && !options.WriteXmpMetadata)
+        if (!claimsConformance && !claimsAccessibility && !options.WriteXmpMetadata)
             return;
 
         if (claimsConformance)
@@ -34,7 +35,25 @@ internal static class PdfConformanceWriter
             AttachOutputIntent(document);
         }
 
+        if (claimsAccessibility)
+            EnforceAccessibility(document);
+
         AttachMetadata(document);
+    }
+
+    /// <summary>
+    /// Settles the two things a PDF/UA claim implies rather than asks for, and then holds the
+    /// document to the rest.
+    /// </summary>
+    static void EnforceAccessibility(PdfDocument document)
+    {
+        // Set rather than demanded. Both are mechanical consequences of the claim — nobody asks for
+        // PDF/UA and wants a reader to announce the file name — and refusing to save over something
+        // there is only one right answer to teaches nothing. The title itself is refused rather than
+        // invented, because only the caller knows it.
+        document.ViewerPreferences.DisplayDocTitle = true;
+
+        Structure.PdfUaValidator.Validate(document);
     }
 
     /// <summary>
@@ -119,8 +138,10 @@ internal static class PdfConformanceWriter
         // Set after the callback rather than before it. The conformance claim is what a validator
         // reads to decide which rules to hold the file to, and Options.Conformance is the one place
         // that decides it — a callback that could clear it, or set one the document was never
-        // checked against, would be a way of writing a claim nothing stands behind.
+        // checked against, would be a way of writing a claim nothing stands behind. The same goes
+        // for the accessibility claim, which XMP is the only place to make.
         metadata.Conformance = document.Options.Conformance;
+        metadata.UAConformance = document.Options.UAConformance;
 
         var stream = new PdfDictionary(document);
         stream.Elements.SetName("/Type", "/Metadata");
