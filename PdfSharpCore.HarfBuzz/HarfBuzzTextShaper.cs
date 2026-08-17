@@ -42,7 +42,10 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
     readonly ConcurrentDictionary<string, Lazy<ShapedFace>> _faces =
         new ConcurrentDictionary<string, Lazy<ShapedFace>>();
 
-    bool _disposed;
+    // Volatile because Dispose and Shape run on different threads by design - the shaper is
+    // registered for the whole application domain - and a plain write is not guaranteed to be seen
+    // by a reader that is already spinning in a loop of its own.
+    volatile bool _disposed;
 
     /// <inheritdoc/>
     public ShapedRun Shape(ReadOnlySpan<char> text, ShapingFont font, XTextDirection direction,
@@ -51,6 +54,9 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
         if (font == null)
             throw new ArgumentNullException(nameof(font));
 
+        // The early answer, not the guarantee. A thread can pass this and then be overtaken by a
+        // Dispose on another; what makes that safe is that ShapedFace refuses to shape once it has
+        // been freed, under the same lock it shapes with.
         if (_disposed)
             throw new ObjectDisposedException(nameof(HarfBuzzTextShaper));
 
@@ -58,7 +64,7 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
             return ShapedRun.Empty(font.UnitsPerEm, direction);
 
         var face = _faces.GetOrAdd(
-            font.Key ?? font.FaceName ?? string.Empty,
+            font.Key,
             _ => new Lazy<ShapedFace>(() => new ShapedFace(font),
                 LazyThreadSafetyMode.ExecutionAndPublication)).Value;
 
@@ -76,21 +82,34 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
     /// drawn is still holding on to nothing of it, because a <see cref="ShapedRun"/> is managed
     /// memory and keeps no native handle.
     /// </summary>
+    /// <remarks>
+    /// Safe to call while another thread is shaping. That thread finishes the run it is in - a
+    /// face frees itself only once it can take its own lock - and the next call it makes answers
+    /// with <see cref="ObjectDisposedException"/>. Disposing a shaper other threads are using is
+    /// still a mistake; this is what keeps the mistake from being a use-after-free in native
+    /// memory, which ends the process rather than raising anything a caller could catch.
+    /// </remarks>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
         _disposed = true;
-        foreach (var face in _faces.Values)
-        {
-            // A face nothing ever asked for was never built, and building it here only to free it
-            // would be a strange way to spend the time.
-            if (face.IsValueCreated)
-                face.Value.Dispose();
-        }
 
-        _faces.Clear();
+        // Taken out one at a time rather than walked and cleared, because a thread that read
+        // _disposed a moment before it was set is still entitled to add a face, and a face left in
+        // the dictionary after this returns is one nothing here will ever free. Draining until it
+        // is empty catches those stragglers; the loop ends because every thread that could add one
+        // is now seeing a shaper that refuses. A face still being parsed as this runs is the one
+        // case left over - it is not built yet, so there is nothing to free, and whatever it
+        // finishes building is left to its finaliser.
+        while (!_faces.IsEmpty)
+        {
+            foreach (var key in _faces.Keys)
+            {
+                // A face nothing ever asked for was never built, and building it here only to free
+                // it would be a strange way to spend the time.
+                if (_faces.TryRemove(key, out var face) && face.IsValueCreated)
+                    face.Value.Dispose();
+            }
+        }
     }
 
     /// <summary>
@@ -173,6 +192,13 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
         {
             lock (_gate)
             {
+                // Inside the lock, so that a Dispose racing this either freed the handles before
+                // the call began - and is seen here - or waits until the call is over. The shaper's
+                // own flag cannot give this guarantee: it is read before the face is resolved, and
+                // everything after that read is a window.
+                if (_freed)
+                    throw new ObjectDisposedException(nameof(HarfBuzzTextShaper));
+
                 using var buffer = new Buffer();
                 buffer.AddUtf16(text);
                 buffer.Direction = direction == XTextDirection.RightToLeft
@@ -224,11 +250,23 @@ public sealed class HarfBuzzTextShaper : ITextShaper, IDisposable
             return true;
         }
 
+        bool _freed;
+
         public void Dispose()
         {
-            _font?.Dispose();
-            _face?.Dispose();
-            _blob?.Dispose();
+            // The same lock Shape takes, so this waits for a run in flight rather than pulling the
+            // native handles out from under it. Reached twice during construction failure and
+            // disposal, hence the flag being set rather than assumed.
+            lock (_gate)
+            {
+                if (_freed)
+                    return;
+
+                _freed = true;
+                _font?.Dispose();
+                _face?.Dispose();
+                _blob?.Dispose();
+            }
         }
     }
 }

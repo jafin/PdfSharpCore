@@ -176,7 +176,14 @@ survives.
   in design units rather than in HarfBuzz's default 26.6 fixed point — see the note on units under
   item 1.
 - **Faces are parsed once and cached on `ShapingFont.Key`.** Parsing a font per word would cost far
-  more than shaping it, and `Key` exists on `ShapingFont` for exactly this.
+  more than shaping it, and `Key` exists on `ShapingFont` for exactly this. The key's contract —
+  distinct per face, stable for one — is **enforced by the constructor** rather than merely
+  documented, and the shaper has no fallback for a missing one. It had both, and the combination was
+  the dangerous kind of quiet: a keyless face fell back to a shared cache entry, so the second such
+  face shaped came back with glyph identifiers read out of the *first* one's file. A glyph
+  identifier indexes a font and nothing downstream checks which font, so the page would have drawn
+  whatever the other face happened to have at those numbers — wrong text, no exception, and only on
+  the pages using the second font.
 - **Shaping against one face is serialised by a lock.** An `hb_font_t` is not safe to shape with
   from two threads at once, and a shaper is registered once for the whole application domain, so it
   will be. Two different faces still shape concurrently.
@@ -187,7 +194,7 @@ survives.
   never overrides what was set, so a caller who knows stays in charge. This is not automatic language
   detection, which this note rules out below; it is HarfBuzz reading the characters in front of it.
 
-### Two bugs worth not writing again
+### Three bugs worth not writing again
 
 `OneShaperServesSeveralThreadsAtOnce` caught both, and both had the same symptom: a run coming back
 with the **right glyphs and the wrong positions** — unkerned, once in a few hundred shapings, on one
@@ -205,6 +212,25 @@ delegate, so the blob frees it when HarfBuzz is done with it and not before.
 others are abandoned holding live native handles, for a finaliser to free at some unrelated later
 moment. A `Lazy<T>` with `ExecutionAndPublication` builds the face exactly once however many threads
 arrive together. This one is a leak in any case, whatever it does to correctness.
+
+**`Dispose` and `Shape` needed ordering between them, and a flag is not one.** `Shape` read a plain
+`bool _disposed`, then resolved a face, then called into native code — three steps with two windows
+in them. A `Dispose` arriving in either window freed the `Font`, the `Face` and the block behind the
+`Blob` while another thread was about to shape with them: a use-after-free in native memory, which
+ends the process rather than raising the `ObjectDisposedException` the remarks promised and
+`AShaperThatHasBeenDisposedSaysSoRatherThanCrashingTheProcess` asserts.
+
+The guarantee had to move to where the resource is. `ShapedFace` already takes a lock around every
+shaping call, because a HarfBuzz font cannot be shaped with from two threads at once — so its
+`Dispose` takes the same lock and sets a flag that `Shape` checks *inside* it. A disposal now either
+completes before a shaping call starts and is seen by it, or waits for the call to finish. The
+shaper's own `_disposed` stays as the early answer for the ordinary case and is `volatile`, and its
+`Dispose` drains the dictionary rather than snapshotting it, so a face added by a thread that read
+the flag a moment too early is still freed. Nothing new is locked on the shaping path: it is the
+lock that was already being taken.
+
+Disposing a shaper other threads are still drawing with remains a mistake — the point is that it is
+now a catchable one.
 
 ## Items 3 and 4 — bidi and itemisation, in the core · **built**
 
@@ -307,9 +333,9 @@ preference that this library has no way to judge. A list the document's author w
 better, and the seam is shaped so that a consumer who wants discovery can implement `IFontFallback`
 themselves without any of this changing.
 
-### Three characters are deliberately not asked about
+### Four characters are deliberately not asked about
 
-Coverage is consulted per character, and three kinds of character get no opinion — in each case
+Coverage is consulted per character, and four kinds of character get no opinion — in each case
 because having one would do harm:
 
 - **White space.** A space carries no shape worth choosing a face for, and giving it one cuts the
@@ -319,8 +345,19 @@ because having one would do harm:
   against a letter drawn by another is a worse defect than a mark that is missing, and splitting the
   two breaks the attachment the shaper was about to make. `UnicodeProperties.BidiClassOf` already
   knows which characters those are, which is the bidi table earning its keep somewhere unexpected.
+- **A joining control**, U+200C and U+200D, which say how the letters on either side of them join
+  and are read by the face those letters are drawn from. Moving one to a face of its own would put
+  the instruction in one run and the letters it is about in another — the one arrangement that
+  certainly cannot work. See *Joining controls are inside runs* below.
 - **A character nothing offered can draw.** Cutting the run there costs the shaping across the
   boundary and buys the identical `.notdef`.
+
+**A surrogate pair is never cut in half either.** The loop walks UTF-16 code units, so the trailing
+half of a pair would be asked about as a lone surrogate — which no `cmap` covers — and a face
+boundary could fall between the two halves of one character. The trailing half is skipped and goes
+wherever the leading half went. Nothing above the basic multilingual plane resolves to a glyph at
+all yet, so this buys nothing today; it is here so that the format 12 reader has one less thing to
+fix when it arrives.
 
 ### What building it settled
 
@@ -528,6 +565,35 @@ old one carries a comment saying why it does not.
 `Enumerable.Reverse` overload taking an array, which beats the `MemoryExtensions` span overload that
 wins on .NET 8 and returns `void`. A test compiled clean on one leg and not the other. Worth
 remembering in a repository that multi-targets: write `Enumerable.Reverse(x)` when `x` is an array.
+
+### Joining controls are inside runs, not between them
+
+Rule X9 removes the explicit embedding controls and everything else of class `BN` before the
+algorithm resolves anything, and `BidiResult.VisualOrder` therefore does not contain them. `Runs()`
+built its runs by walking that order and breaking wherever the indices stopped stepping by one — so
+a removed character in the middle of a run both vanished and **cut the run in two**.
+
+U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are class `BN`. They are also the two
+characters whose entire purpose is to tell the face how the letters on either side of them join:
+`GSUB` reads them, a joiner asks for the joined forms and a non-joiner for the isolated ones. So the
+one script that most needs them — Arabic — was the one where they were dropped, *and* where the two
+letters they sat between were handed to the shaper as separate runs that could not be joined even by
+default. Two failures from one line of run-splitting logic.
+
+A run now reaches over a joining control: `Runs()` steps past one when deciding whether the run
+continues, so the control ends up inside the span handed to the shaper. Both halves of that matter,
+and the second is what makes it safe:
+
+- **It is in the run**, because it exists to be read and nothing else can read it.
+- **It is still not in the visual order**, and `TextShaping.Unshaped` skips it explicitly, so no
+  glyph is put on the page for it. Without that second half the no-shaper path would have looked
+  `.notdef` up for a character that is zero width by definition and drawn a box where nothing was.
+
+**Only these two, not the whole of `BN`.** The rest of that class is embedding controls, which
+change direction and so cannot fall inside one run anyway, and characters like U+00AD SOFT HYPHEN
+that this library has always drawn whatever glyph the face maps them to. Widening the exception
+would change what existing documents look like, which is a different decision from fixing Arabic.
+`UnicodeProperties.IsJoiningControl` is the one place that says which they are.
 
 ---
 

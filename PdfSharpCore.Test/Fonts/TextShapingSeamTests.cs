@@ -465,4 +465,22 @@ public class TextShapingSeamTests
         run.Glyphs.Select(glyph => glyph.Cluster).Should().Equal(new[] { 1, 0 },
             "a right-to-left run is handed over already reversed, so its clusters descend");
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AFaceWithoutAKeyIsRefused(string key)
+    {
+        // The key is what a shaper caches its parsed face under, and the type's own documentation
+        // promises it is distinct per face. Nothing enforced that, so every keyless face shared one
+        // cache entry: the second one shaped would come back with glyph identifiers read out of the
+        // first one's file. Those identifiers index a font and nothing downstream checks which, so
+        // the page would have drawn whatever that other face happened to have at those numbers -
+        // wrong, silently, and only where the second font was used.
+        var act = () => new ShapingFont("Family", "Face", key,
+            isBold: false, isItalic: false, emSize: 12, unitsPerEm: 1000, bytes: Array.Empty<byte>());
+
+        act.Should().Throw<ArgumentException>().WithParameterName("key");
+    }
 }

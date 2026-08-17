@@ -35,12 +35,25 @@ public sealed class ShapingFont
     /// <param name="emSize">The size in points the text will be drawn at.</param>
     /// <param name="unitsPerEm">The design units per em of the face; must be positive.</param>
     /// <param name="bytes">The bytes of the font file.</param>
+    /// <exception cref="ArgumentException"><paramref name="key"/> is null or blank.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="unitsPerEm"/> is not positive.</exception>
     public ShapingFont(string familyName, string faceName, string key,
         bool isBold, bool isItalic, double emSize, int unitsPerEm, byte[] bytes)
     {
         if (unitsPerEm <= 0)
             throw new ArgumentOutOfRangeException(nameof(unitsPerEm),
                 "A face has a positive number of design units per em; advances are read against it.");
+
+        // Refused here rather than worked around by whoever reads it. A shaper caches its parsed
+        // face under this key, so two faces sharing one - which is what every keyless face would
+        // do - means the second is shaped with the first's glyph identifiers. Those identifiers
+        // index a font file, nothing downstream checks which file, and the text comes out as
+        // whatever the other face happens to have at those indices: wrong, silently, and only on
+        // the pages that use the second font.
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException(
+                "A shaping font needs a key that is distinct per face and stable for one, because "
+                + "that is what a shaper caches its parsed face under.", nameof(key));
 
         FamilyName = familyName;
         FaceName = faceName;
@@ -64,9 +77,9 @@ public sealed class ShapingFont
     public string FaceName { get; }
 
     /// <summary>
-    /// The key this library caches the face under. Distinct faces have distinct keys and the same
-    /// face always has the same one, so a shaper wanting to keep a parsed face of its own between
-    /// calls can key it on this and nothing else.
+    /// The key this library caches the face under. Never null or blank: distinct faces have
+    /// distinct keys and the same face always has the same one, so a shaper wanting to keep a
+    /// parsed face of its own between calls can key it on this and nothing else.
     /// </summary>
     public string Key { get; }
 

@@ -52,8 +52,15 @@ public interface ITextShaper
     /// <c>i</c> comes out wrong.
     /// </param>
     /// <returns>
-    /// The glyphs in visual order, with advances and offsets in the face's design units. Never
-    /// null.
+    /// The glyphs in visual order, with advances and offsets in the face's design units, or an
+    /// empty run for empty input.
+    /// <para>
+    /// <b>Null declines the run.</b> The caller then draws it the way it would have been drawn had
+    /// no shaper been registered at all - one character, one <c>cmap</c> lookup, one glyph - so a
+    /// shaper meeting a face it cannot parse, a script it does not implement, or anything else it
+    /// would rather not answer for says so by returning null rather than by throwing. Declining is
+    /// not failing: the run is still drawn, just not shaped.
+    /// </para>
     /// </returns>
     ShapedRun Shape(ReadOnlySpan<char> text, ShapingFont font, XTextDirection direction,
         string script, string language);
