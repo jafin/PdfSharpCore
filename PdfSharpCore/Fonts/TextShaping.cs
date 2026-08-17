@@ -19,7 +19,7 @@ static class TextShaping
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is what measuring and drawing ask, rather than <see cref="Shape"/> directly, because a
+    /// This is what measuring and drawing ask, rather than <see cref="Shape(System.ReadOnlySpan{char},PdfSharpCore.Drawing.XFont,PdfSharpCore.Fonts.OpenType.OpenTypeDescriptor,PdfSharpCore.Fonts.XTextDirection,string,string)"/> directly, because a
     /// string is not a run. Shaping "Hello <c>&#x0645;&#x0631;&#x062D;&#x0628;&#x0627;</c>" as one
     /// piece asks the face to apply one script's rules to two scripts' characters and draws the
     /// second of them backwards; cutting it first is the whole of what the Unicode Bidirectional
@@ -154,7 +154,7 @@ static class TextShaping
 
     /// <summary>
     /// Shapes a run against a font, through the registered <see cref="ITextShaper"/> if there is
-    /// one and through <see cref="Unshaped"/> if there is not.
+    /// one and through the unshaped path if there is not.
     /// </summary>
     internal static ShapedRun Shape(ReadOnlySpan<char> text, XFont font,
         XTextDirection direction = XTextDirection.LeftToRight,

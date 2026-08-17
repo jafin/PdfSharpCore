@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Drawing;
@@ -135,11 +135,13 @@ internal sealed class StructureTagger
     /// Marks everything drawn in the scope as belonging to a new element of the given type, a child
     /// of whatever is current, and makes it current in turn.
     /// </summary>
+    /// <param name="gfx">The surface being drawn on, which the marks are written into.</param>
     /// <param name="key">
     /// The DOM object the element stands for. Asked for twice — because the object was drawn on two
     /// pages, or in a table heading repeated on each — the same element comes back and gains a second
     /// run of marks, which is what makes it one thing in the tree rather than two.
     /// </param>
+    /// <param name="tag">What kind of element it is.</param>
     internal IDisposable Block(XGraphics gfx, object key, PdfTag tag)
     {
         if (!CanTagContent(gfx))
@@ -218,6 +220,9 @@ internal sealed class StructureTagger
     /// The element for a document object, built the first time it is asked for and handed back
     /// unchanged afterwards.
     /// </summary>
+    /// <param name="key">The DOM object the element stands for.</param>
+    /// <param name="tag">What kind of element it is.</param>
+    /// <param name="parent">The element it hangs beneath, the first time it is built.</param>
     /// <param name="slot">
     /// Which of the object's elements is wanted, for the few objects that need more than one. A list
     /// paragraph is one object holding a label and a body, and the two have to be told apart by

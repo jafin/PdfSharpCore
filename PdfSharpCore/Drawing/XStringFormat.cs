@@ -1,4 +1,4 @@
-#region PDFsharp - A .NET library for processing PDF
+﻿#region PDFsharp - A .NET library for processing PDF
 //
 // Authors:
 //   Stefan Lange
@@ -158,7 +158,7 @@ public class XStringFormat
 
     /// <summary>
     /// Gets or sets which way the text runs. The default is
-    /// <see cref="BidiParagraphDirection.Automatic"/>, which reads it off the text itself.
+    /// <see cref="Text.BidiParagraphDirection.Automatic"/>, which reads it off the text itself.
     /// </summary>
     /// <remarks>
     /// <para>

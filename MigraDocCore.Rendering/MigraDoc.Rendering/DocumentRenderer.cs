@@ -1,4 +1,4 @@
-#region MigraDoc - Creating Documents on the Fly
+﻿#region MigraDoc - Creating Documents on the Fly
 //
 // Authors:
 //   Klaus Potzesny (mailto:Klaus.Potzesny@PdfSharpCore.com)
@@ -164,7 +164,7 @@ public class DocumentRenderer
     /// Turn it off for output that will be post-processed in a way the tree cannot survive. Resizing
     /// a page is the one in this library: it moves the page's content into a form XObject, which
     /// leaves every marked-content identifier pointing at content that is no longer where the tree
-    /// says it is, so <see cref="PdfSharpCore.Pdf.PdfDocument.ResizePages"/> refuses a tagged
+    /// says it is, so <see cref="PdfSharpCore.Pdf.PdfDocument.ResizePages(PdfSharpCore.PageSize,PdfSharpCore.PageOrientation,PdfSharpCore.PageResizeOptions)"/> refuses a tagged
     /// document outright rather than breaking it invisibly.
     /// </para>
     /// </remarks>
