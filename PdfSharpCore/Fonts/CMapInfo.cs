@@ -78,6 +78,94 @@ internal class CMapInfo
     }
 
     /// <summary>
+    /// Adds the glyphs of a shaped run, and what each of them stands for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The counterpart of <see cref="AddChars"/> for text that went through a shaper, and it has to
+    /// be a counterpart rather than an addition: a shaper chooses glyphs the <c>cmap</c> never
+    /// would. A ligature or a composed accent is one glyph standing for characters that each have a
+    /// glyph of their own, and recording the characters' glyphs instead would embed and describe
+    /// glyphs the page does not draw while leaving out the one it does.
+    /// </para>
+    /// <para>
+    /// The characters a glyph stands for are read from the cluster indices around it, which is the
+    /// only place that information exists. Where the same glyph turns up meaning two different
+    /// things, the shorter reading wins - a glyph reachable as one character is better described by
+    /// that character than by the two-character sequence that also composes to it - and choosing by
+    /// length rather than by arrival keeps the written file the same whichever string was drawn
+    /// first.
+    /// </para>
+    /// </remarks>
+    public void AddShapedRun(ShapedRun run, string text)
+    {
+        if (run == null || text == null)
+            return;
+
+        var glyphs = run.Glyphs;
+        for (int idx = 0; idx < glyphs.Count; idx++)
+        {
+            int glyphIndex = glyphs[idx].GlyphId;
+            GlyphIndices[glyphIndex] = null;
+
+            string characters = CharactersOf(run, idx, text);
+            if (characters.Length == 0)
+                continue;
+
+            if (!GlyphIndexToCharacters.TryGetValue(glyphIndex, out string known)
+                || characters.Length < known.Length)
+            {
+                GlyphIndexToCharacters[glyphIndex] = characters;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The characters of <paramref name="text"/> that the glyph at <paramref name="index"/> stands
+    /// for: from its own cluster up to the next one along the text.
+    /// </summary>
+    /// <remarks>
+    /// "The next one along the text" is not "the next one in the list". A right-to-left run is
+    /// handed over in visual order, so its clusters descend, and the cluster that follows this one
+    /// in the source is found by looking back down the glyphs rather than forward. Several glyphs
+    /// sharing a cluster all answer the same characters, which between them is what they drew.
+    /// </remarks>
+    static string CharactersOf(ShapedRun run, int index, string text)
+    {
+        var glyphs = run.Glyphs;
+        int cluster = glyphs[index].Cluster;
+        if (cluster < 0 || cluster >= text.Length)
+            return string.Empty;
+
+        int end = text.Length;
+        if (run.Direction == XTextDirection.RightToLeft)
+        {
+            for (int idx = index - 1; idx >= 0; idx--)
+            {
+                if (glyphs[idx].Cluster > cluster)
+                {
+                    end = glyphs[idx].Cluster;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int idx = index + 1; idx < glyphs.Count; idx++)
+            {
+                if (glyphs[idx].Cluster > cluster)
+                {
+                    end = glyphs[idx].Cluster;
+                    break;
+                }
+            }
+        }
+
+        end = Math.Min(end, text.Length);
+        return end <= cluster ? string.Empty : text.Substring(cluster, end - cluster);
+    }
+
+    /// <summary>
     /// Adds the glyphIndices to the hashtable.
     /// </summary>
     public void AddGlyphIndices(string glyphIndices)
@@ -133,4 +221,32 @@ internal class CMapInfo
     public char MaxChar = char.MinValue;
     public Dictionary<char, int> CharacterToGlyphIndex = new();
     public Dictionary<int, object> GlyphIndices = new();
+
+    /// <summary>
+    /// What each glyph of a shaped run stands for, which is not always one character. Filled by
+    /// <see cref="AddShapedRun"/> and read by the <c>/ToUnicode</c> writer, which is the only
+    /// place a ligature can be told apart from the characters it swallowed.
+    /// </summary>
+    public Dictionary<int, string> GlyphIndexToCharacters = new();
+
+    /// <summary>
+    /// Every glyph this font has been asked to draw, with the characters it stands for - the two
+    /// sources merged, and the shorter reading of a glyph preferred over the longer for the reason
+    /// given on <see cref="AddShapedRun"/>.
+    /// </summary>
+    internal Dictionary<int, string> GlyphMeanings()
+    {
+        var meanings = new Dictionary<int, string>();
+
+        foreach (var entry in CharacterToGlyphIndex)
+            meanings[entry.Value] = entry.Key.ToString();
+
+        foreach (var entry in GlyphIndexToCharacters)
+        {
+            if (!meanings.TryGetValue(entry.Key, out string known) || entry.Value.Length < known.Length)
+                meanings[entry.Key] = entry.Value;
+        }
+
+        return meanings;
+    }
 }

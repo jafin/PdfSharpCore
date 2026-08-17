@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Fonts.OpenType;
@@ -70,67 +71,109 @@ static class FontHelper
             // A glyph advances by its own width plus the character spacing, and a space by the word
             // spacing on top of that; the horizontal scaling then applies to the lot. PDF 32000-1
             // section 9.4.4.
-            double LineWidth(int fontUnits, int glyphs, int spaces)
-                => fontUnits * font.Size / descriptor.UnitsPerEm + glyphs * characterSpacing + spaces * wordSpacing;
+            double LineWidth(double points, int glyphs, int spaces)
+                => points + glyphs * characterSpacing + spaces * wordSpacing;
 
-            bool symbol = descriptor.FontFace.cmap.symbol;
+            // What the line is really as wide as, asked of the shaping seam rather than counted
+            // one character-width at a time. With no shaper registered the answer is the same sum
+            // it always was; with one, it is the sum after kerning and ligatures, which is the
+            // whole point - a measurement the drawing path would disagree with is worse than none.
+            // Asked of ShapeText rather than Shape so that a line changing script, direction or
+            // face part way is measured as the several runs it is drawn as, which is not the same
+            // width - and it comes back in points rather than design units because two faces need
+            // not share an em.
+            double MeasureLine(ReadOnlySpan<char> line, int spaces)
+            {
+                var shaped = TextShaping.ShapeText(line, font, descriptor, format.TextDirection);
+                return LineWidth(shaped.Width, shaped.GlyphCount, spaces);
+            }
+
             int length = text.Length;
-            var height = singleLineHeight;
-            double maxWidth = 0;
-            int width = 0;
-            int glyphCount = 0;
-            int spaceCount = 0;
+
+            // Nothing here needs rewriting before it can be shaped, so the string is shaped where
+            // it stands. Much the commonest case, and the one the layout engine measures every
+            // word of, so it is worth not copying for.
+            bool plain = true;
+            int plainSpaces = 0;
             for (int idx = 0; idx < length; idx++)
             {
                 char ch = text[idx];
-
-                // Handle line feed ( \n)
-                if (ch == 10)
-                {
-                    if (idx < (length - 1))
-                    {
-                        maxWidth = Math.Max(maxWidth, LineWidth(width, glyphCount, spaceCount));
-                        width = 0;
-                        glyphCount = 0;
-                        spaceCount = 0;
-                        height += lineGapHeight + singleLineHeight;
-                    }
-
-                    continue;
-                }
-
-                // HACK: Handle tabulator sign as space (\t)
-                if (ch == 9)
-                {
-                    ch = ' ';
-                }
-
-                // HACK: Unclear what to do here.
                 if (ch < 32)
                 {
-                    continue;
+                    plain = false;
+                    break;
                 }
-
-                // Counted before the symbol remapping below, which would turn the space into some
-                // other code point entirely.
                 if (ch == ' ')
-                    spaceCount++;
-
-                if (symbol)
-                {
-                    // Remap ch for symbol fonts.
-                    ch = (char)(ch | (descriptor.FontFace.os2.usFirstCharIndex & 0xFF00));  // @@@ refactor
-                    // Used | instead of + because of: http://PdfSharpCore.codeplex.com/workitem/15954
-                }
-                int glyphIndex = descriptor.CharCodeToGlyphIndex(ch);
-                width += descriptor.GlyphIndexToWidth(glyphIndex);
-                glyphCount++;
+                    plainSpaces++;
             }
-            maxWidth = Math.Max(maxWidth, LineWidth(width, glyphCount, spaceCount));
 
-            // What? size.Width = maxWidth * font.Size * (font.Italic ? 1 : 1) / descriptor.UnitsPerEm;
-            size.Width = maxWidth * format.HorizontalScaling / 100;
-            size.Height = height;
+            if (plain)
+            {
+                size.Width = MeasureLine(text.AsSpan(), plainSpaces) * format.HorizontalScaling / 100;
+                size.Height = singleLineHeight;
+            }
+            else
+            {
+                var height = singleLineHeight;
+                double maxWidth = 0;
+
+                // The line with its line feeds taken out, its tabs turned into spaces and its
+                // other control characters dropped - the three things the loop below used to do
+                // to a character on its way to the cmap, which a shaper must not be asked to do
+                // anything with.
+                char[] line = ArrayPool<char>.Shared.Rent(length);
+                try
+                {
+                    int lineLength = 0;
+                    int spaceCount = 0;
+                    for (int idx = 0; idx < length; idx++)
+                    {
+                        char ch = text[idx];
+
+                        // Handle line feed ( \n)
+                        if (ch == 10)
+                        {
+                            if (idx < (length - 1))
+                            {
+                                maxWidth = Math.Max(maxWidth,
+                                    MeasureLine(new ReadOnlySpan<char>(line, 0, lineLength), spaceCount));
+                                lineLength = 0;
+                                spaceCount = 0;
+                                height += lineGapHeight + singleLineHeight;
+                            }
+
+                            continue;
+                        }
+
+                        // HACK: Handle tabulator sign as space (\t)
+                        if (ch == 9)
+                        {
+                            ch = ' ';
+                        }
+
+                        // HACK: Unclear what to do here.
+                        if (ch < 32)
+                        {
+                            continue;
+                        }
+
+                        if (ch == ' ')
+                            spaceCount++;
+
+                        line[lineLength++] = ch;
+                    }
+                    maxWidth = Math.Max(maxWidth,
+                        MeasureLine(new ReadOnlySpan<char>(line, 0, lineLength), spaceCount));
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(line);
+                }
+
+                // What? size.Width = maxWidth * font.Size * (font.Italic ? 1 : 1) / descriptor.UnitsPerEm;
+                size.Width = maxWidth * format.HorizontalScaling / 100;
+                size.Height = height;
+            }
         }
         Debug.Assert(descriptor != null, "No OpenTypeDescriptor.");
 

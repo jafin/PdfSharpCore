@@ -1529,6 +1529,44 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
+    /// Marks everything drawn until the returned scope is disposed as belonging to a structure
+    /// element that already exists, rather than to a new one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The overload taking a <see cref="PdfStructure.PdfTag"/> creates an element and nests it inside
+    /// whichever scope is open, which is what a caller drawing a page in reading order wants. Anything
+    /// building the tree first and drawing afterwards wants this one instead: the shape of a table is
+    /// rows and cells, but the order it is drawn in is shading, then content, then borders, and the
+    /// two cannot both be expressed by nesting <c>using</c> blocks.
+    /// </para>
+    /// <para>
+    /// Called more than once with the same element, the marks accumulate — which is what makes a
+    /// paragraph broken over two pages one paragraph rather than two.
+    /// </para>
+    /// </remarks>
+    /// <param name="element">
+    /// An element from <see cref="PdfStructure.PdfStructureBuilder.CreateElement"/>, belonging to the
+    /// document being drawn into.
+    /// </param>
+    public IDisposable BeginMarkedContent(PdfStructure.PdfStructureElement element)
+    {
+        if (element == null)
+            throw new ArgumentNullException(nameof(element));
+
+        var renderer = PdfRenderer("Marked content can only be written to a PDF page.");
+        var page = renderer._page
+            ?? throw new InvalidOperationException(
+                "Marked content can only be written to a PDF page, not to a form.");
+
+        var mcid = page.Owner.Structure.AddMarkedContent(page, element);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid);
+        _markedContent.Push(element);
+
+        return new MarkedContentScope(this, true);
+    }
+
+    /// <summary>
     /// Marks everything drawn until the returned scope is disposed as an artifact: on the page, but
     /// not part of what the page says.
     /// </summary>
@@ -1571,9 +1609,20 @@ public sealed class XGraphics : IDisposable
                 return;
 
             _closed = true;
+            var renderer = (Drawing.Pdf.XGraphicsPdfRenderer)_gfx._renderer;
+
             if (_isStructural)
+            {
                 _gfx._markedContent.Pop();
-            ((Drawing.Pdf.XGraphicsPdfRenderer)_gfx._renderer).EndMarkedContent();
+                renderer.EndMarkedContent();
+            }
+            else
+            {
+                // An artifact that turned out to hold nothing is taken back rather than written. A
+                // structural one is not: its identifier is already in the tree, and an element
+                // pointing at marks that are no longer there is worse than an empty pair of them.
+                renderer.EndArtifact();
+            }
         }
     }
 

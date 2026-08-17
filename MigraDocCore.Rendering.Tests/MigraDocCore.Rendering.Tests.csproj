@@ -77,6 +77,14 @@
           Link="Assets\Fonts\LICENSE.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!--
+      One image, for the tagging tests: an image is either a described figure or an artifact, and
+      deciding which needs a real image that the backend will actually decode. Linked rather than
+      copied for the same reason as the fonts.
+    -->
+    <None Include="..\PdfSharpCore.Test\Assets\lenna.png" Link="Assets\lenna.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

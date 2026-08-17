@@ -65,13 +65,40 @@ public sealed class PdfStructureElement : PdfDictionary
     /// Points this element at a run of marks on a page. The integer is the marked-content
     /// identifier that the <c>BDC</c> in the content stream carries.
     /// </summary>
+    /// <remarks>
+    /// A bare integer in <c>/K</c> is read against the element's own <c>/Pg</c>, so it can only ever
+    /// mean a mark on that one page. An element whose marks are on more than one page is not an edge
+    /// case once anything tags automatically — a paragraph broken over a page boundary is one, and so
+    /// is a table heading repeated at the top of each page the table continues onto. For those the
+    /// standard has a marked-content reference, which carries its own <c>/Pg</c>, and this switches
+    /// to one the moment a second page turns up. Writing an integer instead would file the mark under
+    /// whichever page happened to be named first, and a reader following it would land on the wrong
+    /// page or on nothing at all.
+    /// </remarks>
     internal void AddMarkedContent(PdfPage page, int mcid)
     {
-        // /Pg says which page the marks are on. It could be left off when the parent already says
-        // so, and is written always because an element whose children span pages is legal and the
-        // saving is a few bytes.
-        Elements[Keys.Pg] = page.Reference;
-        Kids().Elements.Add(new PdfInteger(mcid));
+        var pg = Elements[Keys.Pg];
+
+        if (pg == null)
+        {
+            Elements[Keys.Pg] = page.Reference;
+            Kids().Elements.Add(new PdfInteger(mcid));
+            return;
+        }
+
+        if (ReferenceEquals(pg, page.Reference))
+        {
+            Kids().Elements.Add(new PdfInteger(mcid));
+            return;
+        }
+
+        // Direct rather than indirect: it is two entries long, it has exactly one referent, and
+        // tagging already multiplies the object count enough without a fresh object per mark.
+        var reference = new PdfDictionary(Owner);
+        reference.Elements.SetName(Keys.Type, "/MCR");
+        reference.Elements[MarkedContentKeys.Pg] = page.Reference;
+        reference.Elements.SetInteger(MarkedContentKeys.MCID, mcid);
+        Kids().Elements.Add(reference);
     }
 
     /// <summary>
@@ -149,6 +176,16 @@ public sealed class PdfStructureElement : PdfDictionary
     {
         public const string Obj = "/Obj";
         public const string Pg = "/Pg";
+    }
+
+    /// <summary>
+    /// The entries of a marked-content reference, which is how a mark on a page other than the
+    /// element's own says which page it is on.
+    /// </summary>
+    static class MarkedContentKeys
+    {
+        public const string Pg = "/Pg";
+        public const string MCID = "/MCID";
     }
 
     internal override DictionaryMeta Meta => Keys.Meta;

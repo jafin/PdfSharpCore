@@ -35,6 +35,7 @@ using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Visitors;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Internals;
+using PdfSharpCore.Pdf.Structure;
 
 namespace MigraDocCore.Rendering;
 
@@ -108,9 +109,77 @@ internal class TableRenderer : Renderer
   void RenderCell(Cell cell)
   {
     Rectangle innerRect = GetInnerRect(CalcStartingHeight(), cell);
-    RenderShading(cell, innerRect);
-    RenderContent(cell, innerRect);
-    RenderBorders(cell, innerRect);
+
+    using (Tagger.Enter(RowElementOf(cell)))
+    using (Tagger.Container(gfx, cell, IsHeaderCell(cell) ? PdfTag.TH : PdfTag.TD, out var element))
+    {
+      DescribeCell(cell, element);
+
+      // Shading and borders are decoration and go out as artifacts; only what is in the cell is
+      // content. A reader that announced every rule would be unusable on a bordered table.
+      using (Tagger.Artifact(gfx))
+        RenderShading(cell, innerRect);
+
+      RenderContent(cell, innerRect);
+
+      using (Tagger.Artifact(gfx))
+        RenderBorders(cell, innerRect);
+    }
+  }
+
+  /// <summary>
+  /// Whether a cell heads its column rather than holding data.
+  /// </summary>
+  /// <remarks>
+  /// The same test the renderer uses to decide which rows to repeat at the top of a continuation
+  /// page, so the two cannot disagree: a row repeated as a heading is tagged as one.
+  /// </remarks>
+  bool IsHeaderCell(Cell cell) => cell.Row.Index <= lastHeaderRow;
+
+  /// <summary>
+  /// Writes what a reader needs in order to place a cell: which way its heading reaches, and how far
+  /// it spans when it has been merged with its neighbours.
+  /// </summary>
+  /// <remarks>
+  /// Without these a table reads as a stream of values with nothing to attach them to. The scope is
+  /// what lets a reader say "Total: 49.20" instead of "49.20", and the spans are what stop a merged
+  /// cell shifting every value after it into the wrong column.
+  /// </remarks>
+  /// <param name="cell">The cell being described.</param>
+  /// <param name="element">
+  /// The element opened for it, which is null when it was not tagged — inside a header or footer,
+  /// for instance. Passed in rather than read from the tagger, because a refused scope leaves the
+  /// enclosing element current and these entries would then describe that.
+  /// </param>
+  void DescribeCell(Cell cell, PdfStructureElement element)
+  {
+    if (element == null)
+      return;
+
+    var columns = cell.MergeRight + 1;
+    var rows = cell.MergeDown + 1;
+    var header = IsHeaderCell(cell);
+
+    if (!header && columns == 1 && rows == 1)
+      return;
+
+    var attributes = new PdfSharpCore.Pdf.PdfDictionary(element.Owner);
+    attributes.Elements.SetName("/O", "/Table");
+
+    if (header)
+    {
+      // /Column and not /Row: a heading row heads the columns beneath it. MigraDoc has no notion of
+      // a heading column, so /Row never arises here — a table wanting one has to be tagged by hand.
+      attributes.Elements.SetName("/Scope", "/Column");
+    }
+
+    if (columns > 1)
+      attributes.Elements.SetInteger("/ColSpan", columns);
+
+    if (rows > 1)
+      attributes.Elements.SetInteger("/RowSpan", rows);
+
+    element.Elements["/A"] = attributes;
   }
 
   private void EqualizeRoundedCornerBorders(Cell cell) {
@@ -278,23 +347,63 @@ internal class TableRenderer : Renderer
   internal override void Render()
   {
     InitRendering();
-    RenderHeaderRows();
-    if (startRow < table.Rows.Count)
+
+    Tagger.EndList();
+    using (Tagger.Container(gfx, table, PdfTag.Table, out var element))
     {
-      Cell cell = table[startRow, 0];
+      DescribeTable(element);
+      RenderHeaderRows();
 
-      int cellIdx = mergedCells.BinarySearch(table[startRow, 0], new CellComparer());
-      while (cellIdx < mergedCells.Count)
+      if (startRow < table.Rows.Count)
       {
-        cell = (Cell)mergedCells[cellIdx];
-        if (cell.Row.Index > endRow)
-          break;
+        Cell cell = table[startRow, 0];
 
-        RenderCell(cell);
-        ++cellIdx;
+        int cellIdx = mergedCells.BinarySearch(table[startRow, 0], new CellComparer());
+        while (cellIdx < mergedCells.Count)
+        {
+          cell = (Cell)mergedCells[cellIdx];
+          if (cell.Row.Index > endRow)
+            break;
+
+          RenderCell(cell);
+          ++cellIdx;
+        }
       }
     }
   }
+
+  /// <summary>
+  /// Writes the table's summary onto its element, once.
+  /// </summary>
+  /// <remarks>
+  /// Header cells and their scope let a reader walk a table one cell at a time. The summary is what
+  /// tells it, before it starts, whether the table is worth walking — so it is the one thing here
+  /// that has to come from the caller, and <see cref="Table.Summary"/> is where they put it.
+  /// </remarks>
+  /// <param name="element">
+  /// The element opened for the table, which is null when it was not tagged. Passed in for the same
+  /// reason as in <see cref="DescribeCell"/>.
+  /// </param>
+  void DescribeTable(PdfStructureElement element)
+  {
+    if (element == null || table.IsNull("Summary"))
+      return;
+
+    element.Elements.SetString("/Summary", table.Summary);
+  }
+
+  /// <summary>
+  /// The row a cell belongs to, as an element of the tree.
+  /// </summary>
+  /// <remarks>
+  /// Cells are drawn out of a flat list rather than row by row — the list is in row-major order, so
+  /// asking for the row of each cell in turn builds the rows in the order a reader wants them, and
+  /// asking twice for the same row hands back the one already built. That last part is what carries
+  /// a table over a page boundary: the heading rows are drawn again at the top of every page the
+  /// table continues onto, and they have to stay the same rows.
+  /// </remarks>
+  PdfStructureElement RowElementOf(Cell cell) =>
+    Tagger.Element(cell.Row, PdfTag.TR, Tagger.Current);
 
   void InitFormat(Area area, FormatInfo previousFormatInfo)
   {

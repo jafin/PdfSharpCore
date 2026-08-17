@@ -215,6 +215,35 @@ public partial class Shape : DocumentObject
   }
   [DV]
   internal Unit width = Unit.NullValue;
+
+  /// <summary>
+  /// Gets or sets the text that stands in for this shape for a reader who cannot see it.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// What a tagged document writes as the <c>/Alt</c> of the shape's <c>/Figure</c> element. It is
+  /// what decides whether the shape is tagged at all: described, it is a figure; left unset, it is
+  /// drawn as an artifact and passed over in silence.
+  /// </para>
+  /// <para>
+  /// That is the right way round. An undescribed figure tells a reader that something is there and
+  /// then cannot say what, which leaves them knowing only that they have missed something; marked as
+  /// decoration it is at least honest, and for the rule above a letterhead it is also correct.
+  /// Nothing invents a description — what a picture is for is a fact about the document rather than
+  /// about the pixels, and a guess would go into the one field nobody can check.
+  /// </para>
+  /// <para>
+  /// Ignored by <see cref="TextFrame"/>, whose contents are paragraphs and tables that describe
+  /// themselves.
+  /// </para>
+  /// </remarks>
+  public string AlternativeText
+  {
+    get => this.alternativeText ?? "";
+    set => this.alternativeText = value;
+  }
+  [DV]
+  internal string alternativeText;
   #endregion
 
   #region Internal
@@ -231,6 +260,8 @@ public partial class Shape : DocumentObject
       serializer.WriteSimpleAttribute("RelativeHorizontal", this.RelativeHorizontal);
     if (this.relativeVertical != null)
       serializer.WriteSimpleAttribute("RelativeVertical", this.RelativeVertical);
+    if (this.alternativeText != null)
+      serializer.WriteSimpleAttribute("AlternativeText", this.AlternativeText);
     if (!this.IsNull("Left"))
       this.left.Serialize(serializer);
     if (!this.IsNull("Top"))

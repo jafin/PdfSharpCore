@@ -61,6 +61,18 @@ public sealed class XmpMetadata
     public PdfAConformance Conformance { get; set; }
 
     /// <summary>
+    /// The accessibility profile the document claims, which becomes the <c>pdfuaid:part</c> entry.
+    /// <see cref="PdfUAConformance.None"/> writes none.
+    /// </summary>
+    /// <remarks>
+    /// XMP is the only place a PDF/UA claim can be made — unlike PDF/A there is no dictionary entry
+    /// for it, so a document with a perfect structure tree and no identifier claims nothing at all.
+    /// The two claims are independent and a document may carry both: PDF/A-3 says it will still open
+    /// in fifty years, PDF/UA-1 says it can be read aloud, and neither implies the other.
+    /// </remarks>
+    public PdfUAConformance UAConformance { get; set; }
+
+    /// <summary>
     /// Whole <c>rdf:Description</c> elements to place after the ones built here, for schemas this
     /// class knows nothing about. Each entry is written verbatim, so each is the caller's to get
     /// right — including its own namespace declarations.
@@ -111,6 +123,7 @@ public sealed class XmpMetadata
         AppendPdf(xmp);
         AppendBasic(xmp);
         AppendConformance(xmp);
+        AppendAccessibility(xmp);
 
         foreach (var description in AdditionalDescriptions)
             xmp.Append("  ").Append(description).Append('\n');
@@ -173,6 +186,20 @@ public sealed class XmpMetadata
         xmp.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n");
         AppendSimple(xmp, "pdfaid:part", PartOf(Conformance));
         AppendSimple(xmp, "pdfaid:conformance", "B");
+        xmp.Append("  </rdf:Description>\n");
+    }
+
+    private void AppendAccessibility(StringBuilder xmp)
+    {
+        if (UAConformance == PdfUAConformance.None)
+            return;
+
+        xmp.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\">\n");
+
+        // No conformance letter to go with it. PDF/UA-1 has parts and no levels, where PDF/A has
+        // both — writing a pdfuaid:conformance to match the pdfaid one above is a common mistake and
+        // a validator objects to it.
+        AppendSimple(xmp, "pdfuaid:part", "1");
         xmp.Append("  </rdf:Description>\n");
     }
 

@@ -182,7 +182,13 @@ internal static class MigraDocCorpus
     /// <summary>
     ///   Every document in the corpus, rendered, with the content of each page of each.
     /// </summary>
-    internal static string OfEveryDocument()
+    /// <param name="tagged">
+    ///   Whether the renderer describes what it draws as well as drawing it. Both are wanted: the
+    ///   pinned baseline is what these documents drew before there was any such thing as tagging, so
+    ///   the way to show that tagging moved nothing is to render with it and find the same drawing
+    ///   underneath the marks.
+    /// </param>
+    internal static string OfEveryDocument(bool tagged = true)
     {
         var report = new StringBuilder();
 
@@ -193,7 +199,7 @@ internal static class MigraDocCorpus
             var document = new Document();
             build(document);
 
-            var renderer = new PdfDocumentRenderer(true) { Document = document };
+            var renderer = new PdfDocumentRenderer(true) { Document = document, TagContent = tagged };
             renderer.RenderDocument();
 
             using var stream = new MemoryStream();

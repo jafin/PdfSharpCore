@@ -44,17 +44,56 @@ internal static class Glyphs
         var runs = new List<IReadOnlyList<int>>();
 
         foreach (var run in TextOperators.ShownStrings(page))
-        {
-            // Two bytes per glyph. Reading a run a byte at a time shifts everything by half a
-            // glyph and produces a sequence that differs everywhere.
-            var glyphs = new List<int>();
-            for (var idx = 0; idx + 1 < run.Length; idx += 2)
-                glyphs.Add((run[idx] << 8) | run[idx + 1]);
-
-            runs.Add(glyphs);
-        }
+            runs.Add(GlyphsOf(run));
 
         return runs;
+    }
+
+    /// <summary>
+    ///   The glyphs the page draws, in the order a reader sees them rather than the order they
+    ///   were written.
+    /// </summary>
+    /// <remarks>
+    ///   The two differ for a right-to-left paragraph, whose words are drawn in the order they
+    ///   are written and placed in the order they are read. Which of the two a test wants depends
+    ///   on what it is asking: <see cref="On"/> for the reading order a structure tree records,
+    ///   this for what the page looks like.
+    /// </remarks>
+    internal static IReadOnlyList<int> AcrossThePage(PdfPage page)
+    {
+        var glyphs = new List<int>();
+
+        foreach (var run in TextOperators.ShownAcrossThePage(page))
+            glyphs.AddRange(GlyphsOf(run));
+
+        return glyphs;
+    }
+
+    /// <summary>
+    ///   The glyph runs the page draws with the position each was drawn at, for a test that has to
+    ///   say where something landed and not only in what order. A bigger Y is further up the page.
+    /// </summary>
+    internal static IReadOnlyList<(double X, double Y, IReadOnlyList<int> Run)> PlacedOn(PdfPage page)
+    {
+        var placed = new List<(double, double, IReadOnlyList<int>)>();
+
+        foreach (var (x, y, run) in TextOperators.ShownWithPositions(page))
+            placed.Add((x, y, GlyphsOf(run)));
+
+        return placed;
+    }
+
+    /// <summary>
+    ///   One show-text operand read as glyph identifiers. Two bytes each - reading it a byte at a
+    ///   time shifts everything by half a glyph and produces a sequence that differs everywhere.
+    /// </summary>
+    static IReadOnlyList<int> GlyphsOf(string run)
+    {
+        var glyphs = new List<int>();
+        for (var idx = 0; idx + 1 < run.Length; idx += 2)
+            glyphs.Add((run[idx] << 8) | run[idx + 1]);
+
+        return glyphs;
     }
 
     /// <summary>

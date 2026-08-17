@@ -5,7 +5,7 @@ Gap **G4** of the competitive gap analysis.
 
 | item | what | status |
 |---|---|---|
-| 1 | An XMP metadata writer, synchronised with the info dictionary | done |
+| 1 | An XMP metadata writer, synchronised with the info dictionary | done, **and PDF/UA now shares it** |
 | 2 | Output intent with an embedded ICC profile | done, **caller supplies the profile** |
 | 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, **partially** |
 | 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | not started |
@@ -33,7 +33,18 @@ otherwise.
 
 **veraPDF is not in CI.** Without it the conformance claim is self-certified, which is worth little.
 That remains the right next step and it is still a Java/Docker step added to a build that is
-currently pure .NET plus Ghostscript.
+currently pure .NET plus Ghostscript. It is now wanted by two features rather than one — see
+`docs/specs/tagged-pdf-accessibility.md`, whose PDF/UA claim is self-certified in the same way and
+for the same reason.
+
+## What was added afterwards
+
+`XmpMetadata` gained `UAConformance`, writing `pdfuaid:part`, when tagged output learned to claim
+PDF/UA-1. The proposal above said the packet was built to be extended and named PDF/UA as the first
+thing that would extend it, which turned out to be right — the whole change was one property, one
+`rdf:Description`, and one line in `PdfConformanceWriter` setting it after the customisation callback
+for the reason the callback comment already gave. The two claims are independent: PDF/A says the file
+will still open in fifty years, PDF/UA says it can be read aloud, and a document may make both.
 
 ---
 

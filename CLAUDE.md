@@ -39,7 +39,8 @@ input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests �
 ```
 PdfSharpCore ─────────────┬── PdfSharpCore.Skia        (SkiaSharp; the default backend)
    (no imaging or font    ├── PdfSharpCore.ImageSharp   (ImageSharp 2.1.x, Fonts 1.0.1)
-    dependency of its own)└── PdfSharpCore.Signing      (CMS signing; net8.0;net10.0 only)
+    dependency of its own)├── PdfSharpCore.HarfBuzz     (HarfBuzzSharp; shaping, either backend)
+                          └── PdfSharpCore.Signing      (CMS signing; net8.0;net10.0 only)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
    │              ▲                                                              ▲
@@ -54,10 +55,10 @@ PdfSharpCore ─────────────┬── PdfSharpCore.Skia 
 Five test projects, and which one a new test belongs in is worth a moment. `PdfSharpCore.Test`
 is the broad one and the default. `MigraDocCore.DocumentObjectModel.Generators.Tests` drives the
 DOM's source generator through `CSharpGeneratorDriver`. `MigraDocCore.Rendering.Tests` covers
-MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and deliberately
-rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four content-stream
-readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in place and both
-projects get the change.
+MigraDoc's own layout — paragraphs, tables, fields, the paragraph iterator — and its tagged output,
+and deliberately rasterizes nothing, so it needs neither Ghostscript nor ImageMagick. It links four
+content-stream readers out of `PdfSharpCore.Test/Helpers` rather than keeping copies; edit those in
+place and both projects get the change.
 
 `PdfSharpCore.Charting.Tests` covers the charting renderers — axis scales, category axes, plot
 areas, data labels, axis titles — and links three of those same readers. Every renderer in the
@@ -102,8 +103,8 @@ inside a test host that has already installed `PinnedFontResolver`, and `GlobalF
 resources, not content files** (a referenced project's content items do not reach the referencing
 project's output directory).
 
-The core package deliberately carries no imaging or font dependency. All three seams are static, and
-each throws a descriptive `InvalidOperationException` when read unset:
+The core package deliberately carries no imaging or font dependency. All five seams are static, and
+the first three throw a descriptive `InvalidOperationException` when read unset:
 
 - `GlobalFontSettings.FontResolver` — an `IFontResolver`; backends supply `SkiaFontResolver` /
   `ImageSharpFontResolver`, both built on `Utils/FontResolverBase`. Must be set before any font is
@@ -115,6 +116,121 @@ each throws a descriptive `InvalidOperationException` when read unset:
   and nothing else, so it can be set, replaced or cleared at any time. A provider takes its font
   bytes **through** `FontResolver` rather than resolving a family itself, or the two seams will
   disagree about which face a family means.
+- `GlobalFontSettings.TextShaper` — an `ITextShaper`; `PdfSharpCore.HarfBuzz` supplies
+  `HarfBuzzTextShaper`. **One of the two seams whose unset state is not an error**: reading it
+  answers null, and then every path does what this library always did, one character to one `cmap`
+  lookup to one glyph. It can be set, replaced or cleared at any time, and a shaper that returns
+  null for a run has declined it rather than failed, so the unshaped result stands.
+- `GlobalFontSettings.FontFallback` — an `IFontFallback`, which says which families to try for a
+  character the chosen face has no glyph for. **The other seam whose unset state is not an error**:
+  null means a missing glyph stays `.notdef`, exactly as it always was. `FontFallbackList` is the
+  whole of what most documents need. Reading it answers the registered `FontResolver` when that
+  resolver implements `IFontFallback` too, so a resolver that already knows what is installed need
+  not be registered twice. **Nothing about coverage is looked at while it is null** — that is what
+  keeps the common path free.
+
+Note the asymmetry between the last two and `FontResolver`: a new member on `IFontResolver` would
+break every consumer who has written one, and netstandard2.1 rules out a default interface method
+Unity's runtime would accept. That is why capability keeps arriving as a seam of its own rather
+than as a wider resolver, and it is the answer to "why is this not just on `IFontResolver`".
+
+`PdfSharpCore.HarfBuzz` is a package of its own rather than a class in a backend, because shaping
+must not oblige a consumer to pick an imaging backend — `PdfSharpCore.ImageSharp` is pinned to
+SixLabors.Fonts 1.0.1 for licence reasons and cannot shape for itself. It takes `HarfBuzzSharp`
+alone, not `SkiaSharp.HarfBuzz`.
+
+Everything that turns a character into a glyph goes through the internal `Fonts/TextShaping` — both
+`FontHelper.MeasureString` and `XGraphicsPdfRenderer.DrawString`, so that the glyphs measured are the
+glyphs drawn. A shaper is handed a `ShapingFont`, not an `XFont`, because the typeface and font source
+are internal; it carries the already-resolved face and its bytes, so a shaper cannot disagree with the
+renderer about which file a family means. Advances are in **font design units**, read against
+`ShapedRun.UnitsPerEm`.
+
+Both of those call `TextShaping.ShapeText`, not `TextShaping.Shape`: a *string* is not a run, and
+`ShapeText` is where it is cut into runs — one direction and one script each — and each is shaped on
+its own terms. It answers a `ShapedText`, a list of `ShapedSegment` in **visual order**. Drawing them
+back to back is all that reordering takes, because PDF has no notion of direction: a show-text
+operator paints glyphs at the pen and moves the pen along. **A string of characters all below
+`U+02B0` skips itemisation entirely** — everything there is Latin or Common and left to right, so
+there can only be one run — which is what keeps the common path free of a bidi resolution and a
+string copy, and what kept every existing golden image exactly where it was.
+
+**`ShapedGlyph.Cluster` is load-bearing.** It is the character↔glyph map, and three separate things
+read it. `CMapInfo.AddShapedRun` — which *replaces* `AddChars` on the Unicode path, because the
+characters' own glyphs are not the ones drawn — records both the glyphs to embed and give widths to
+and what each of them stands for. `PdfToUnicodeMap` writes a one-character glyph as a `bfrange` and a
+several-character one as a `bfchar`, because a `bfrange` destination is a single code and cannot say
+that one glyph swallowed two characters. And `XGraphicsPdfRenderer.ShowTextOperators` reads it to put
+a word spacing after the space's *last* glyph rather than at the space's character index.
+
+A glyph a shaper wants displaced is written as `-dx … +dx` inside a `TJ` array for the horizontal and
+with `Ts` for the vertical — nothing else in the renderer writes `Ts`, so it is zero on entry and is
+put back. A run needing no displacement is still a plain `Tj`, which is what keeps every existing
+document byte-identical.
+
+## Bidi and script itemisation
+
+`PdfSharpCore/Text/` holds the Unicode Bidirectional Algorithm (UAX #9) and script itemisation
+(UAX #24). Pure text processing, no font and no backend, which is why it is in the core rather than
+behind the shaping seam. `TextItemizer.Itemize` is the entry point worth knowing: it hands back runs
+that are each one direction **and** one script, in the order they are drawn — which is exactly what
+`ITextShaper.Shape` takes. `TextShaping.ShapeText` is its one caller inside the library, and through
+it every `DrawString` and every `MeasureString` reorders.
+
+**A joining control is inside a run, not between two.** U+200C and U+200D are bidi class `BN` and so
+removed by rule X9, which is right for ordering and was wrong for shaping — they are exactly the
+characters that tell the face how the letters either side of them join. `BidiResult.Runs` therefore
+reaches over one rather than breaking at it, and `TextShaping.Unshaped` skips it explicitly so that
+no glyph is drawn for a character that is zero width by definition. Both halves are load-bearing, and
+it is only those two characters, not the whole of `BN`: `UnicodeProperties.IsJoiningControl` says
+which, and widening it would change what existing documents look like.
+
+**Reordering is not shaping, and does not need a shaper.** `TextShaping.Unshaped` reverses a
+right-to-left run, because `ShapedRun` promises visual order and the renderer relies on it — so a
+consumer who takes no HarfBuzz dependency still gets Hebrew and Arabic the right way round, unjoined.
+That is the older half of the complaint in `empira/PDFsharp-1.5#144` and it is fixed in the core.
+
+A layout engine that places each word itself has to order them, and two do. `XTextFormatter` hands
+whole lines to `DrawString` for every alignment but one, so only justifying needed changing.
+`MigraDocCore.Rendering/ParagraphRenderer.cs` draws one show-text operator per leaf and needed the
+most: **it walks each line twice**, once with `probing` set to learn how wide every leaf is without
+drawing anything, then again for real with each leaf placed where the bidirectional algorithm says.
+
+Both order a word by **the leftmost position any of its characters ends up at**, not by its first
+character — a right-to-left word's first character is its rightmost. That is also what keeps an
+English phrase inside a Hebrew sentence in its own order, where reversing the line turns it round.
+
+Two things about the MigraDoc pass are load-bearing. **The second walk is still in the order the
+leaves were written** — only the x changes — so the marked content stays in reading order, which
+is what a structure tree is for; `TheMarksStayInTheOrderTheTextIsRead` asserts both orders at once.
+And **a line with a tab in it is left alone**, because a tab's width is consumed from a list built
+during formatting and cannot be walked twice. While reordering, the underline, strikethrough and
+hyperlink rules are drawn per leaf rather than per stretch, or one rectangle would run backwards
+across the line.
+
+`ParagraphFormat.TextDirection`, `XTextFormatter.TextDirection` and `XStringFormat.TextDirection`
+all take `BidiParagraphDirection` — one type, not three saying the same thing.
+`Drawing/Layout/BidirectionalLayoutTests.cs` and `MigraDocCore.Rendering.Tests/BidirectionalParagraphTests.cs`
+pin the two engines.
+
+The character property tables are **generated and checked in** — `tools/UnicodeTableGenerator`,
+deliberately outside `PdfSharpCore.slnx` so the build and CI never see it, run by hand on a Unicode
+bump. Read its README before touching them; the short version is that `DerivedBidiClass.txt`'s
+`@missing` lines live inside comments, are not all `Left_To_Right`, and are what make unassigned code
+points in the Hebrew and Arabic blocks default to `R` and `AL`.
+
+Everything is pinned to **Unicode 17.0.0**, and three things move together on a bump: the generated
+tables, the gzipped conformance suites in `PdfSharpCore.Test/Assets/Unicode/`, and the version
+asserted in `UnicodePropertyTests`. Bumping one without the others tests one Unicode against
+another's expectations.
+
+`BidiConformanceTests` runs `BidiTest.txt` and `BidiCharacterTest.txt` in full — 861,948 cases, about
+two seconds — as one `[Fact]` per suite rather than a theory per case, because half a million xUnit
+cases is a denial of service on the runner rather than a test run. If a change to the algorithm
+breaks something, that is what says so, and it reports the failing case in UAX #9's own rule terms.
+
+`docs/specs/text-shaping-and-bidi.md` has the rest, including what is still missing: font fallback,
+the measurement paths, and the DOM property.
 
 `PdfSharpCore.Signing` is the one package that does **not** multi-target `netstandard2.1`, and the
 one that carries a dependency the core deliberately refuses: `System.Security.Cryptography.Pkcs`,
@@ -162,6 +278,26 @@ through the same surface, so a layout fix lands in `MigraDocCore.Rendering` and 
 Fonts are always embedded, with no setting to disable it. TrueType outlines are subsetted;
 PostScript (CFF) outlines cannot be and embed whole. A weight or slant with no font file is
 simulated by stroking or skewing.
+
+## Tagged output
+
+**MigraDoc tags what it draws, and that is the default** — `PdfDocumentRenderer.TagContent` is `true`,
+so every document it renders carries a structure tree. Two consequences bite immediately.
+`PdfPage.Resize` refuses a tagged document, so code that renders through MigraDoc and then resizes has
+to set `TagContent = false`. And a renderer that draws anything must say what it is drawing:
+`Renderer.Tagger` hands out the scopes, content goes in `Tagger.Block`/`Container`/`Marks` and
+decoration in `Tagger.Artifact`, and **anything inside an artifact scope is not tagged at all** — the
+tagger counts depth and refuses, because a running head drawn by the paragraph renderer would otherwise
+appear in the tree as a paragraph.
+
+That refusal has a consequence worth knowing before you write a renderer: **`Tagger.Current` is not
+"the element I just opened".** A refused scope pushes nothing, so `Current` still names what was
+current before it — and a renderer that opened a scope and then wrote alternate text onto `Current`
+wrote it onto an unrelated element. Take the element from the `out` parameter of `Tagger.Block` /
+`Tagger.Container` instead, and treat null as "not tagged".
+
+`docs/specs/tagged-pdf-accessibility.md` has the rest, including why an element is keyed by its DOM
+object rather than built per render pass.
 
 ## Multi-targeting
 

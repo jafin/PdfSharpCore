@@ -1,21 +1,35 @@
-# Proposal — tagged PDF and PDF/UA accessible output
+# Spec — tagged PDF and PDF/UA accessible output
 
 What accessible output covers, and what it deliberately leaves out.
-Gap **G2** of the competitive gap analysis. **Stage A is built. Stages B and C are not.**
+Gap **G2** of the competitive gap analysis. **All three stages are built.**
 
 | item | what | stage | status |
 |---|---|---|---|
 | 1 | `PdfSharpCore.Pdf.Structure` — structure tree, role map, parent tree | A | done |
 | 2 | `XGraphics.BeginMarkedContent` / `BeginArtifact`, and `BDC`/`EMC` emission | A | done |
 | 3 | Catalog `/MarkInfo`, `/Lang` | A | done |
-| 3b | `/ViewerPreferences /DisplayDocTitle`, and requiring a title | A | not started |
-| 4 | MigraDoc tags its own output — headings, tables, lists, figures, links | B | not started |
-| 5 | `Image.AlternativeText`, `Table.Summary` on the DOM | B | not started |
-| 6 | PDF/UA-1 identifier in XMP, `/ActualText`, `/Tabs /S`, a pre-save validator | C | not started |
+| 3b | `/ViewerPreferences /DisplayDocTitle`, and requiring a title | A | done, on a PDF/UA claim |
+| 4 | MigraDoc tags its own output — headings, tables, lists, figures, links | B | done, **and it is the default** |
+| 5 | `Image.AlternativeText`, `Table.Summary` on the DOM | B | done, **on `Shape`, not `Image`** |
+| 6 | PDF/UA-1 identifier in XMP, `/Tabs /S`, a pre-save validator | C | done |
+| 6b | `/ActualText` at a hyphenation break | C | done |
+| 6c | `/ActualText` for ligatures | C | not done, **nothing to say until G3** |
+| 7 | veraPDF in CI | C | not started |
 
-Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs`.
+Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs` for Stage A, and
+`MigraDocCore.Rendering.Tests/TaggedOutputTests.cs` and `PdfUaConformanceTests.cs` for B and C.
 
 ```csharp
+// Stage B: nothing asked for, and the document comes out described.
+var renderer = new PdfDocumentRenderer(true) { Document = document, Language = "en-GB" };
+renderer.RenderDocument();
+renderer.PdfDocument.Info.Title = "Statement of account";
+renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA1;   // and be held to it
+renderer.Save("statement.pdf");
+```
+
+```csharp
+// Stage A, still there for a page drawn by hand.
 using (gfx.BeginMarkedContent(PdfTag.H1))
     gfx.DrawString("Invoice", headingFont, XBrushes.Black, 40, 60);
 
@@ -23,9 +37,9 @@ using (gfx.BeginArtifact())                       // running heads, folios, rule
     gfx.DrawString("Page 3 of 9", smallFont, XBrushes.Gray, 500, 800);
 ```
 
-Asking for `PdfDocument.Structure` is what makes a document tagged. One that never does is written
-exactly as it was before — no tree, no `/MarkInfo`, and not one extra byte, which the first test
-pins.
+For a page drawn by hand, asking for `PdfDocument.Structure` is what makes a document tagged, and one
+that never does is written exactly as it was before — no tree, no `/MarkInfo`, and not one extra byte,
+which the first test pins. **For MigraDoc that is now the other way round**: see the break below.
 
 ## What Stage A settled that the proposal had not
 
@@ -43,16 +57,144 @@ must not be able to leave one open. There is a test that throws inside a scope a
 **`BDC` is always emitted in graphic mode.** A marked-content sequence opened between `BT` and `ET`
 nests inside the text object instead of containing it. `BeginGraphicMode` is called first, always.
 
-## Still true, and still the reason to finish this
+## What Stages B and C settled that the proposal had not
 
-Stage A is a hand-driven API. **The value is in Stage B** — a caller should get an accessible
-document out of MigraDoc without tagging anything by hand, because almost nobody will do it by hand.
-Until then this is the plumbing and not the feature, and no document produced through
-`MigraDocCore.Rendering` is tagged at all.
+**Tagging MigraDoc is on by default, and `PdfPage.Resize` is the cost.** The proposal called the
+default flip "the break worth taking" and did not say what it breaks. `PdfDocumentRenderer.TagContent`
+defaults to `true`, so every document rendered through MigraDoc now carries a structure tree — and
+`PdfSharpCore/Pdf.Advanced/PdfPageResizer.cs` refuses a tagged document outright, because resizing
+moves a page's content into a form XObject and leaves every identifier in the tree pointing at content
+that is no longer where the tree says it is. That refusal used to be an edge case for files other
+people made. It is now the common path, and code that rendered a MigraDoc document and then resized
+its pages has to set `TagContent = false`. Making the tree survive a resize is the right answer and it
+is not this piece of work; refusing loudly is better than breaking invisibly, which is what
+`page-resize.md` already says and now means far more often.
 
-Stage C, and therefore any actual PDF/UA claim, additionally needs the XMP identifier — which
-`docs/specs/pdf-a-conformance.md` now has the writer for — and veraPDF in CI, without which a
-conformance claim is self-certified.
+**An artifact is not a container its contents can opt out of.** A running head is drawn by the same
+paragraph renderer as body text, and that renderer tags what it draws — so the first working version
+put the header's paragraphs in the tree as paragraphs, inside an `/Artifact` sequence saying they were
+not content. A reader following the tree would have read the running head aloud on every page: the
+exact failure the artifact scope exists to prevent, produced by the code that opens it. So the tagger
+counts artifact depth and refuses to build any element at all while it is inside one. It is the single
+thing most worth knowing before adding a renderer to this.
+
+**A refused scope is the trap the artifact rule sets.** `Tagger.Block` and `Tagger.Container` hand
+back `StructureTagger.Nothing` and push nothing when tagging is refused — which, per the rule above,
+is what happens inside an artifact. `Tagger.Current` then still names whatever was current *before*
+the artifact opened, because `Artifact` deliberately does not change the current element. So a
+renderer that opened a scope and then read `Current` to find "the element I just opened" got an
+unrelated one, and wrote its metadata onto that: an image with alternate text in a running head put
+"The company logo." onto the body of the page, and a table with a summary in a header put its
+`/Summary` on an enclosing element. Three renderers did this. The fix is to stop inferring the
+element: `Block` and `Container` have overloads handing it back, `null` when nothing was opened, and
+`DescribeCell`/`DescribeTable` take it as a parameter. **A renderer with something to write onto an
+element must never read `Current` for it.**
+
+**`CanTag` has to ask whether a page has been begun.** `_document` is assigned by `BeginPage`, and
+everything the tagger builds is built against it — but nothing obliges a caller to begin a page.
+`DocumentRenderer.RenderObject` draws one object onto a surface the caller owns and never does. On
+that path tagging looked possible (enabled, and a real page to mark), so a list paragraph reached
+`_document.Structure.CreateElement` with `_document` still null and threw `NullReferenceException`
+at the caller. `Element` had its own null check and the other two entry points did not, which is the
+shape of the mistake: the condition belongs in the one test they all ask, not in whichever of them
+somebody remembered. `BeginPage` keeps its own test, since it is the method that begins the page.
+
+**An element belongs to a document object, not to a render pass.** A paragraph broken over a page
+boundary is drawn by two renderers, and a table's heading row is drawn again at the top of every page
+the table continues onto. Keyed by the DOM object and reused, those come out as one paragraph and one
+heading row; built per pass they would come out as two paragraphs and five heading rows, and a reader
+would announce them as such. That is why `StructureTagger` is a class with a dictionary in it rather
+than a few calls scattered through the renderers.
+
+**That forced a fix in Stage A's plumbing.** An element pointing at marks on two pages cannot use a
+bare integer in `/K`, which is read against the element's own `/Pg` and so can only ever mean one page.
+`PdfStructureElement.AddMarkedContent` now switches to a marked-content reference — `<</Type /MCR /Pg …
+/MCID …>>` — the moment a second page turns up. Stage A never hit this because a hand-tagged scope
+opens and closes on one page; nothing automatic can avoid it.
+
+**Structural nesting is not drawing nesting.** A table is rows and cells; it is drawn as shading, then
+content, then borders, cell by cell out of a flat list. So the tree is built by naming a parent rather
+than by nesting `using` blocks, which is why `XGraphics` grew
+`BeginMarkedContent(PdfStructureElement)` beside the overload that takes a tag.
+
+**An empty artifact scope is worth taking back.** Automatic tagging wraps the decoration of every
+paragraph — its shading and its borders — in an artifact scope, and the overwhelming majority of
+paragraphs have neither. An empty `/Artifact BMC EMC` pair per paragraph would have been the largest
+single thing tagging added to a document and would have meant nothing, so
+`XGraphicsPdfRenderer.EndArtifact` rewinds the content when nothing at all was written between the
+ends. The test is exact — if even the `ET` that closes a text object was appended, the pair stands —
+and it is deliberately not done for a structural scope, whose identifier is already in the tree.
+
+**Tagging moves the operands and not the glyphs.** A `BDC` is always written in graphic mode, so
+tagging ends the text object before each scope and starts a new one after it, and every `Td` in a
+fresh text object is measured from the origin instead of from the line before. The layout pin in
+`PdfSharpCore.Test/Rendering/MigraDocLayoutPinTests.cs` therefore does two things now: it renders the
+corpus untagged and demands the historical bytes exactly, and it renders it tagged and demands the
+same glyph runs in the same order on the same pages. Re-capturing the baseline with marks in it would
+have recorded whatever the new code did and called it correct.
+
+**The alternate text decides whether an image is tagged at all**, rather than being an optional extra
+on a figure that is tagged regardless. Described, an image is a `/Figure`; undescribed, it is drawn as
+an artifact. That is the right way round: an undescribed figure announces to a reader that something is
+there and then cannot say what, which leaves them knowing only that they have missed something, whereas
+decoration honestly marked as decoration is passed over in silence — and for the rule above a
+letterhead that is also the truth. Nothing guesses at a description.
+
+**A broken word is one `/Span`, not one hyphen marked as noise.** The page says "demon-" and
+"strate" and the word is neither. There are two ways to say so, and the difference matters. Marking
+just the hyphen with an empty `/ActualText` says "ignore this glyph" and leaves the two fragments to
+be rejoined by whatever a reader does at a line break — which is usually to insert a space, so the
+word comes back as "demon strate". Putting the whole word on a `/Span` covering both fragments says
+what the word is, and nothing has to be inferred. ISO 32000-1 describes exactly this case, so the
+second is also the endorsed reading.
+
+That forces the replacement onto the structure element rather than onto the marked-content sequence.
+The fragments are separated by a line break and sometimes by a page break, so there is no one sequence
+to carry it, and putting the word on each of two sequences would say it twice. The consequence is that
+a reader has to walk the tree to see it — a tool that only reads BDC property lists will not — and for
+an accessibility feature that is the right trade.
+
+**The page-break case is the one that needed real work, and it is not exotic.** A paragraph split at a
+hyphen has the hyphen drawn by one renderer on one page and the rest of the word drawn by another
+renderer on the next. The second renderer has no line ending in a soft hyphen and would never learn
+that its first leaves finish a word begun elsewhere, so it left the tail outside the span — and a span
+saying "demonstrate" with the tail still outside it extracts as "demonstratestrate", which is worse
+than doing nothing at all. `FindBrokenWords` therefore looks in two places: at every line's end, and
+before the first line's start. `AWordBrokenAcrossAPageIsStillOneWord` fails with one mark instead of
+two if that second look is removed.
+
+**`AlternativeText` went on `Shape`, not on `Image`.** A chart needs one for the same reason and to the
+same effect: to a reader who cannot see it, axis labels read out in drawing order say nothing about the
+shape they describe. `TextFrame` inherits it and ignores it, because a text frame holds paragraphs and
+tables that describe themselves.
+
+## Still to do
+
+- **`/ActualText` for ligatures.** There are no ligatures to disagree about until shaping lands —
+  `docs/specs/text-shaping-and-bidi.md`, gap G3 — because a string still goes to the page one
+  character at a time. When it does land, the shaper's cluster indices are what say which characters a
+  glyph stands for, and this is where they are spent. Hyphenation breaks, the only case that exists
+  today, are done.
+- **Reading `/ActualText` back.** `PdfSharpCore.Pdf.Extraction.PdfTextExtractor` ignores marked
+  content entirely, so this library still extracts its own hyphenated word as two fragments. Honouring
+  the tree means resolving the page's `/StructParents` through the parent tree to reach the element,
+  and it is the natural next piece of `docs/specs/text-extraction.md` rather than of this — tagged
+  extraction is listed there as the reason to have an extractor here at all.
+- **veraPDF in CI.** Without it every conformance claim here is self-certified, which is worth little.
+  `PdfUaValidator` lists what it does and does not check, and the largest thing it cannot check is that
+  no content sits outside the tree, which needs a content-stream pass it does not make. This remains
+  the single most valuable next step and it is still a Java/Docker step added to a build that is
+  currently pure .NET plus Ghostscript.
+- **Nested lists.** MigraDoc has no list object — a list is however many consecutive paragraphs happen
+  to carry a `ListInfo`, so the tagger reads a run of one kind as one `/L` and a change of kind as a
+  new one. That matches what the page looks like and cannot see a nested list as nested, because
+  nothing in the DOM says it is.
+- **A link in a running header** is not reachable from the tree, because the header is an artifact and
+  nothing inside one is tagged. `PdfUaValidator` reports it rather than hiding it.
+- **`Footnote` → `/Note`** is in the mapping below and is moot: `MigraDocCore.Rendering` never draws a
+  footnote. There is a DOM type and no renderer for it.
+- **Heading levels are not checked for skips**, and PDF/UA cares. `Heading1` followed by `Heading3` is
+  written as `/H1` then `/H3`.
 
 ---
 
@@ -161,48 +303,77 @@ This is where the value is. Hand-tagging is a feature; **not having to** is the 
 `MigraDocCore.Rendering` knows the semantics already — it is rendering a `Paragraph` with a `Heading1`
 style, it just throws that away on the way to the page. The mapping:
 
+The mapping, as built:
+
 | DOM | structure type | notes |
 |---|---|---|
-| `Paragraph` | `/P` | `/H1`…`/H6` when the style is a heading style |
-| `Table` | `/Table` → `/TR` → `/TH` \| `/TD` | header rows become `/TH` with `/Scope /Column`; needs `Row.HeadingFormat`, which exists |
-| `ListInfo` | `/L` → `/LI` → `/Lbl` + `/LBody` | the bullet or number is the `/Lbl` |
-| `Image` | `/Figure` with `/Alt` | requires item 5 |
-| `Hyperlink` | `/Link` with an `/OBJR` | the link annotation is structure content too, not just a rectangle |
-| `Footnote` | `/Note` | |
-| `TextFrame`, `Shape` | `/Figure` or artifact | depends on whether it carries meaning |
-| `HeaderFooter` | **artifact** | never content |
-| Cell borders, rules, shading | **artifact** | decoration |
+| `Section` | `/Sect` | one per section, under a single `/Document` |
+| `Paragraph` | `/P` | `/H1`…`/H6` from `Format.OutlineLevel`, which is what a heading style sets; MigraDoc's levels 7–9 land on `/H6` |
+| `Table` | `/Table` → `/TR` → `/TH` \| `/TD` | heading rows become `/TH` with `/Scope /Column`; a merged cell gets `/ColSpan` and `/RowSpan`; `Table.Summary` becomes `/Summary` |
+| `ListInfo` | `/L` → `/LI` → `/Lbl` + `/LBody` | the bullet or number is the `/Lbl`; a run of consecutive paragraphs of one list type is one `/L` |
+| `Image` | `/Figure` with `/Alt`, or **artifact** | which one is decided by `Shape.AlternativeText` |
+| `Chart` | `/Figure` with `/Alt`, or **artifact** | the same, and for the same reason |
+| `Hyperlink` | `/Link` with an `/OBJR` per annotation | one element however many lines the text runs over; the annotation also gets `/Contents` |
+| a word broken at a soft hyphen | `/Span` with `/ActualText` | one element over both fragments and the hyphen between them, across a page break if that is where it falls |
+| `TextFrame` | `/Sect` | it holds paragraphs and tables that describe themselves |
+| `HeaderFooter` | **artifact** | never content, and nothing inside one is tagged either |
+| Cell borders and shading, paragraph borders and shading, shape fills and outlines | **artifact** | decoration |
+| `Footnote` | — | `MigraDocCore.Rendering` never draws one |
 
-`docs/specs/repeating-table-headings` and the existing `Row.HeadingFormat` mean the header/body
-distinction is already modelled, which is lucky — table tagging is otherwise the hardest part, because
-`/TH` scope and the header/data association is what actually makes a table navigable.
+`Row.HeadingFormat` means the header/body distinction was already modelled, which is lucky — table
+tagging is otherwise the hardest part, because `/TH` scope and the header/data association is what
+actually makes a table navigable.
 
-Item 5 adds two DOM properties, `Image.AlternativeText` and `Table.Summary`. These are generated
-properties, so the source generator under `MigraDocCore.DocumentObjectModel.Generators` carries the
-cost, and `MigraDocCore.DocumentObjectModel.Generators.Tests` covers the generation.
+Item 5 adds two DOM properties. `Table.Summary` is where the proposal put it; `AlternativeText` went on
+`Shape` rather than on `Image`, so that a chart gets one too. Both are generated properties, so the
+source generator under `MigraDocCore.DocumentObjectModel.Generators` carries the cost.
 
-**The break worth taking:** make tagging the *default* for MigraDoc rendering rather than an opt-in.
-An untagged document should be the thing you ask for.
+**The break, taken:** `PdfDocumentRenderer.TagContent` and `DocumentRenderer.TagContent` default to
+`true`. An untagged document is the thing you ask for. What that costs is set out under "What Stages B
+and C settled" above — chiefly that `PdfPage.Resize` refuses a tagged document, and MigraDoc output now
+is one.
 
 ---
 
 ## Stage C — PDF/UA conformance
 
 Tagging a document and *conforming* are not the same, and the gap is mostly rules that are cheap to
-check and easy to violate:
+check and easy to violate. `PdfDocumentOptions.UAConformance = PdfUAConformance.PdfUA1` is the claim,
+and it is enforced rather than stamped on.
 
-- The PDF/UA-1 identifier in XMP — **depends on `docs/specs/pdf-a-conformance.md`**, which builds the
-  XMP writer.
-- No content outside the structure tree, and no structure element with no content.
-- `/ActualText` wherever the marks and the text disagree: ligatures, and hyphenation breaks if
-  pattern-based hyphenation ever lands.
-- `/Tabs /S` on every page, so tab order follows structure rather than the order annotations happen to
-  sit in the array.
-- Every annotation reachable from the structure tree; every link with `/Contents` alternate text.
-- Fonts embedded (already true here) and every glyph reachable through `/ToUnicode` (already true).
+Two of these the writer settles rather than demands, because there is only one right answer and
+refusing over it would teach nobody anything: `/ViewerPreferences <</DisplayDocTitle true>>` follows
+from the claim, and `/Tabs /S` follows from a page being tagged at all — so the second is written for
+every tagged page whether or not any claim is made.
 
-A `PdfUaValidator` should run before the bytes are written and throw naming the specific rule, because
-a validator that runs afterwards teaches nobody anything.
+Everything else `PdfUaValidator` throws over, naming the rule, before a byte is written:
+
+| rule | checked |
+|---|---|
+| The document is tagged | yes |
+| A title, in the information dictionary | yes |
+| `/ViewerPreferences /DisplayDocTitle` | yes — and set, so it only fires on a hand-built document |
+| A natural language on the catalog | yes |
+| Every page in the tree, with `/StructParents` | yes |
+| `/Tabs /S` on every page | yes — and set, as above |
+| Every `/Figure` has `/Alt` or `/ActualText` | yes |
+| Every link annotation has `/Contents` | yes |
+| Every link annotation reachable from the tree | yes |
+| No content outside the structure tree | **no** — needs a content-stream pass |
+| No structure element with no content | **no** |
+| Headings do not skip a level | **no** |
+| `/ActualText` where the marks and the text disagree | **no** — written at every hyphenation break, but nothing checks that one is missing |
+| Fonts embedded, every glyph reachable through `/ToUnicode` | not checked, and true of everything this library writes |
+
+The PDF/UA-1 identifier goes into the XMP packet that `docs/specs/pdf-a-conformance.md` built —
+`pdfuaid:part 1`, and no `pdfuaid:conformance`, because UA-1 has parts and no levels where PDF/A has
+both. It is the only place a PDF/UA claim can be made: unlike PDF/A there is no dictionary entry for
+it, so a document with a perfect tree and no identifier claims nothing at all. The two claims are
+independent and a document may carry both.
+
+A validator that runs after the file is written tells somebody who is no longer in a position to do
+anything about it, which is why this one runs during `PrepareForSave`. It is also public, so a caller
+may ask the question at a moment of their own choosing.
 
 ---
 
@@ -217,21 +388,30 @@ a validator that runs afterwards teaches nobody anything.
 - **Reading order different from drawing order.** The structure tree defines reading order, so this
   falls out for MigraDoc. For hand-drawn pages the caller controls it by scope order and is on their
   own.
-- **Interaction with `PdfPage.Resize`.** `docs/specs/page-resize.md` currently refuses tagged
-  documents. Once this library *produces* them, that refusal stops being an edge case and becomes the
-  common path — the structure tree survives a resize untouched (marks move with the content into the
-  form XObject), but that needs proving, not assuming.
+- **Making the structure tree survive `PdfPage.Resize`.** The proposal guessed that it would survive
+  untouched, because the marks move into the form XObject along with the content. That guess is wrong
+  in the way that matters: the identifiers move with them, but the page's `/StructParents` indexes the
+  *page's* marks, and marks inside a form XObject are indexed by the form's own `/StructParents`
+  instead. So the mapping has to be rebuilt, not merely preserved. `PdfPageResizer` goes on refusing,
+  which is now the common path rather than an edge case — see above.
 
 ## Tests
 
-`MigraDocCore.Rendering.Tests` is the right home: it covers MigraDoc's own layout, links the
-content-stream readers out of `PdfSharpCore.Test/Helpers`, and **deliberately rasterizes nothing**, so
-it needs neither Ghostscript nor ImageMagick. Structure assertions are exactly that shape — save,
-reopen, walk `/StructTreeRoot`, assert the tree.
+`MigraDocCore.Rendering.Tests` is the right home, as the proposal said: it covers MigraDoc's own
+layout, links the content-stream readers out of `PdfSharpCore.Test/Helpers`, and **deliberately
+rasterizes nothing**, so it needs neither Ghostscript nor ImageMagick. Structure assertions are exactly
+that shape — save, reopen, walk `/StructTreeRoot`, assert the tree — and `Helpers/Structure.cs` is what
+turns a walk of `/K` into something a test can say a sentence about.
 
-Stage C needs an outside opinion, and that means **veraPDF in CI** as a container step. CI is Linux-only
-already, which makes it cheap, but it does add a Java dependency to a build that is currently pure .NET
-plus Ghostscript. That is a real cost and a deliberate decision.
+Two of them are worth pointing at. `ARunningHeadIsFurnitureAndNotSomethingToReadOut` counts the whole
+tree rather than looking for the header in it, because the bug it caught was the header being present
+and correct-looking. `TaggingDrawsTheSameTextInTheSameOrder`, over in `PdfSharpCore.Test`, is the other
+half of the layout pin: see above for why it compares glyph runs and not bytes.
+
+Stage C still needs an outside opinion, and that means **veraPDF in CI** as a container step. CI is
+Linux-only already, which makes it cheap, but it does add a Java dependency to a build that is
+currently pure .NET plus Ghostscript. That is a real cost and a deliberate decision, and until it is
+paid every claim this makes is self-certified.
 
 ## Related
 

@@ -188,7 +188,11 @@ public class TextStateOperatorTests
 
         var page = PageShowing("abc", UnicodeFont, format);
 
-        TextOperators.TJRunCounts(page).Should().Equal(1);
+        // A word spacing asked for and no space to pay it out at, so nothing has to be displaced
+        // and the array a displacement would need is not written at all - the same economy
+        // AUnicodeRunWithNoWordSpacingIsStillDrawnInOneGo asks for, and which this case used to
+        // miss by writing a TJ of one run and no adjustments.
+        TextOperators.ShowTextOperators(page).Should().Equal(OpCodeName.Tj);
         TextOperators.TJAdjustments(page).Should().BeEmpty();
     }
 

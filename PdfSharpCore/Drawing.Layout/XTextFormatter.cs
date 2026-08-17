@@ -30,8 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using PdfSharpCore.Drawing.Layout.enums;
+using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Text;
 
 namespace PdfSharpCore.Drawing.Layout;
 
@@ -140,6 +143,18 @@ public class XTextFormatter
     /// Gets or sets the vertical alignment of the text.
     /// </summary>
     public XVerticalAlignment VerticalAlignment { get; set; } = XVerticalAlignment.Top;
+
+    /// <summary>
+    /// Gets or sets which way the paragraph runs. The default is
+    /// <see cref="BidiParagraphDirection.Automatic"/>, which reads it off the text itself.
+    /// </summary>
+    /// <remarks>
+    /// Worth setting for a right-to-left paragraph rather than leaving to be guessed, because the
+    /// guess is made per line: rules P2 and P3 take the direction from the first strong character,
+    /// and a paragraph of Arabic with a line that happens to begin with a Latin word or a number
+    /// would have that one line laid out the other way round from the rest of it.
+    /// </remarks>
+    public BidiParagraphDirection TextDirection { get; set; } = BidiParagraphDirection.Automatic;
 
     /// <summary>
     /// Set vertical and horizontal alignment
@@ -484,9 +499,13 @@ public class XTextFormatter
                     var gapSize = gaps > 0
                         ? (lineWidth - indent - lineBlocks.Select(l => l.Width).Sum()) / gaps
                         : 0;
-                    foreach (var block in lineBlocks)
+
+                    var wordFormat = XStringFormats.TopLeft;
+                    wordFormat.TextDirection = TextDirection;
+
+                    foreach (var block in InVisualOrder(lineBlocks))
                     {
-                        _gfx.DrawString(block.Text.Trim(), font, brush, locationX, lineY, XStringFormats.TopLeft);
+                        _gfx.DrawString(block.Text.Trim(), font, brush, locationX, lineY, wordFormat);
                         locationX += block.Width + gapSize;
                     }
                 }
@@ -1190,18 +1209,93 @@ public class XTextFormatter
 
     private XStringFormat GetXStringFormat()
     {
+        // Every one of these builds a new format rather than handing out a shared one, which is
+        // what makes it safe to say something about the text on it.
+        XStringFormat format;
         switch (Alignment)
         {
             case XParagraphAlignment.Center:
-                return XStringFormats.TopCenter;
+                format = XStringFormats.TopCenter;
+                break;
             case XParagraphAlignment.Right:
-                return XStringFormats.TopRight;
+                format = XStringFormats.TopRight;
+                break;
             case XParagraphAlignment.Default:
             case XParagraphAlignment.Justify:
             case XParagraphAlignment.Left:
             default:
-                return XStringFormats.TopLeft;
+                format = XStringFormats.TopLeft;
+                break;
         }
+
+        format.TextDirection = TextDirection;
+        return format;
+    }
+
+    /// <summary>
+    /// The blocks of one line in the order they are drawn, leftmost first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only justified lines need this. Every other alignment joins the line back into one string
+    /// and draws it in one go, so the renderer reorders it and the formatter never has to know:
+    /// see <c>docs/specs/text-shaping-and-bidi.md</c>. Justifying cannot do that, because each word
+    /// has to be placed at an x of its own for the extra room to go between them - so the order the
+    /// words are placed in is the formatter's to get right.
+    /// </para>
+    /// <para>
+    /// A block is ordered by the leftmost position any of its characters ends up at, rather than by
+    /// the position of its first character, because the first character of a right-to-left word is
+    /// its rightmost. That also gets the case the naive rule loses: an English phrase of several
+    /// words inside an Arabic sentence keeps its own words in their own order, where reversing the
+    /// line would turn them round.
+    /// </para>
+    /// </remarks>
+    private Block[] InVisualOrder(Block[] lineBlocks)
+    {
+        if (lineBlocks.Length < 2)
+            return lineBlocks;
+
+        // The line as one string, laid out exactly as the joined form the other alignments draw,
+        // so that both branches resolve the same text.
+        var line = new StringBuilder();
+        var starts = new int[lineBlocks.Length];
+        for (int idx = 0; idx < lineBlocks.Length; idx++)
+        {
+            if (idx > 0)
+                line.Append(' ');
+            starts[idx] = line.Length;
+            line.Append(lineBlocks[idx].Text);
+        }
+
+        var resolved = BidiAlgorithm.Resolve(line.ToString(), TextDirection);
+        if (!resolved.Runs().Any(run => run.Direction == XTextDirection.RightToLeft))
+            return lineBlocks;
+
+        // Where each character ended up, which is the inverse of the order the algorithm answers.
+        var placed = new int[line.Length];
+        for (int idx = 0; idx < placed.Length; idx++)
+            placed[idx] = int.MaxValue;
+        for (int at = 0; at < resolved.VisualOrder.Count; at++)
+            placed[resolved.VisualOrder[at]] = at;
+
+        var keys = new int[lineBlocks.Length];
+        for (int idx = 0; idx < lineBlocks.Length; idx++)
+        {
+            int leftmost = int.MaxValue;
+            for (int ch = starts[idx]; ch < starts[idx] + lineBlocks[idx].Text.Length; ch++)
+                leftmost = Math.Min(leftmost, placed[ch]);
+
+            // A block of nothing but bidirectional controls has no position of its own - they are
+            // removed before anything is ordered - so it stays beside whatever it followed.
+            keys[idx] = leftmost == int.MaxValue && idx > 0 ? keys[idx - 1] : leftmost;
+        }
+
+        return lineBlocks
+            .Select((block, idx) => (block, key: keys[idx]))
+            .OrderBy(pair => pair.key)
+            .Select(pair => pair.block)
+            .ToArray();
     }
 }
 

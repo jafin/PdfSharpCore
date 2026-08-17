@@ -1,7 +1,7 @@
 The fonts in this directory are used by the tests so that a document is laid
 out the same way on every machine, rather than with whatever the machine
-happens to have installed. Both are licensed under the SIL Open Font License,
-Version 1.1, whose text is reproduced once below and covers both.
+happens to have installed. All of them are licensed under the SIL Open Font
+License, Version 1.1, whose text is reproduced once below and covers them all.
 
 LiberationSans-Regular.ttf, LiberationSans-Bold.ttf,
 LiberationSans-Italic.ttf, LiberationSans-BoldItalic.ttf
@@ -16,6 +16,16 @@ SourceCodePro-Regular.otf
 	and/or other countries.
 	Carried for the sake of its PostScript (CFF) outlines: the Liberation
 	faces are all TrueType, so nothing else here exercises that path.
+
+NotoSansArabic-Regular.ttf
+	Copyright 2022 The Noto Project Authors
+		(https://github.com/notofonts/arabic).
+	Version 2.013, the hinted TrueType build published by the Noto project.
+	Carried for the sake of its script: Arabic letters have initial, medial,
+	final and isolated forms that Unicode does not store, so nothing else
+	here can tell a shaper that joins from one that does not. Its em is
+	1000 units where every Liberation face is 2048, which also keeps the
+	design-unit arithmetic honest.
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

@@ -34,6 +34,7 @@ using PdfSharpCore.Drawing;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.Pdf.Structure;
 
 namespace MigraDocCore.Rendering;
 
@@ -87,32 +88,69 @@ internal class ImageRenderer : ShapeRenderer
 
     internal override void Render()
     {
-        RenderFilling();
+        using (Tagger.Artifact(gfx))
+            RenderFilling();
 
         ImageFormatInfo formatInfo = (ImageFormatInfo)renderInfo.FormatInfo;
         Area contentArea = renderInfo.LayoutInfo.ContentArea;
         XRect destRect = new XRect(contentArea.X, contentArea.Y, formatInfo.Width, formatInfo.Height);
 
-        if (formatInfo.Failure == ImageFailure.None)
+        using (BeginStructure())
         {
-            try
+            if (formatInfo.Failure == ImageFailure.None)
             {
-                XRect srcRect = new XRect(formatInfo.CropX, formatInfo.CropY, formatInfo.CropWidth, formatInfo.CropHeight);
-                using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
-                    gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
+                try
+                {
+                    XRect srcRect = new XRect(formatInfo.CropX, formatInfo.CropY, formatInfo.CropWidth, formatInfo.CropHeight);
+                    using (var xImage = XImage.FromImageSource(formatInfo.ImageSource))
+                        gfx.DrawImage(xImage, destRect, srcRect, XGraphicsUnit.Point); //Pixel.
+                }
+                catch (Exception ex) when (!IsUnrecoverable(ex))
+                {
+                    Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source, ex.Message));
+                    formatInfo.Failure = ImageFailure.NotRead;
+                    formatInfo.FailureException = ex;
+                    RenderFailureImage(destRect);
+                }
             }
-            catch (Exception ex) when (!IsUnrecoverable(ex))
-            {
-                Debug.WriteLine(string.Format(AppResources.ImageNotReadable, image.Source, ex.Message));
-                formatInfo.Failure = ImageFailure.NotRead;
-                formatInfo.FailureException = ex;
+            else
                 RenderFailureImage(destRect);
-            }
         }
-        else
-            RenderFailureImage(destRect);
 
-        RenderLine();
+        using (Tagger.Artifact(gfx))
+            RenderLine();
+    }
+
+    /// <summary>
+    /// Opens the scope the image is drawn in: a figure when it has been described, an artifact when
+    /// it has not.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An undescribed figure is worse than no figure. It announces to a reader that something is
+    /// there and then cannot say what, which leaves them knowing only that they have missed
+    /// something. Marked as decoration instead, it is passed over silently — which is right for the
+    /// rule above a letterhead and is at least honest for everything else.
+    /// </para>
+    /// <para>
+    /// So the alternate text is not optional-with-a-default: supplying it makes the image content,
+    /// and not supplying it makes the image furniture. Nothing here guesses at a description. What an
+    /// image is for is a fact about the document rather than about the pixels, and a library inventing
+    /// one would be writing something plausible into the single field a reader cannot check.
+    /// </para>
+    /// </remarks>
+    IDisposable BeginStructure()
+    {
+        if (image.IsNull("AlternativeText") || string.IsNullOrEmpty(image.AlternativeText))
+            return Tagger.Artifact(gfx);
+
+        Tagger.EndList();
+
+        var scope = Tagger.Block(gfx, image, PdfTag.Figure, out var element);
+        if (element != null)
+            element.AlternateText = image.AlternativeText;
+
+        return scope;
     }
 
     /// <summary>

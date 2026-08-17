@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
 using MigraDocCore.DocumentObjectModel.Tables;
+using PdfSharpCore.Text;
 using Xunit;
 
 namespace MigraDocCore.DocumentObjectModel.Tests;
@@ -106,6 +107,7 @@ public class DdlSerializationTests
         format.KeepWithNext = true;
         format.PageBreakBefore = true;
         format.OutlineLevel = OutlineLevel.Level3;
+        format.TextDirection = BidiParagraphDirection.RightToLeft;
 
         var again = (RoundTrip(document).LastSection.Elements[0] as Paragraph).Format;
 
@@ -121,6 +123,7 @@ public class DdlSerializationTests
         again.KeepWithNext.Should().BeTrue();
         again.PageBreakBefore.Should().BeTrue();
         again.OutlineLevel.Should().Be(OutlineLevel.Level3);
+        again.TextDirection.Should().Be(BidiParagraphDirection.RightToLeft);
     }
 
     [Fact]
