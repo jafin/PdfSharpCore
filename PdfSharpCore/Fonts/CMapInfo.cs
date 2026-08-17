@@ -108,7 +108,7 @@ internal class CMapInfo
             int glyphIndex = glyphs[idx].GlyphId;
             GlyphIndices[glyphIndex] = null;
 
-            string characters = CharactersOf(run, idx, text);
+            string characters = TextShaping.CharactersOf(run, idx, text);
             if (characters.Length == 0)
                 continue;
 
@@ -118,51 +118,6 @@ internal class CMapInfo
                 GlyphIndexToCharacters[glyphIndex] = characters;
             }
         }
-    }
-
-    /// <summary>
-    /// The characters of <paramref name="text"/> that the glyph at <paramref name="index"/> stands
-    /// for: from its own cluster up to the next one along the text.
-    /// </summary>
-    /// <remarks>
-    /// "The next one along the text" is not "the next one in the list". A right-to-left run is
-    /// handed over in visual order, so its clusters descend, and the cluster that follows this one
-    /// in the source is found by looking back down the glyphs rather than forward. Several glyphs
-    /// sharing a cluster all answer the same characters, which between them is what they drew.
-    /// </remarks>
-    static string CharactersOf(ShapedRun run, int index, string text)
-    {
-        var glyphs = run.Glyphs;
-        int cluster = glyphs[index].Cluster;
-        if (cluster < 0 || cluster >= text.Length)
-            return string.Empty;
-
-        int end = text.Length;
-        if (run.Direction == XTextDirection.RightToLeft)
-        {
-            for (int idx = index - 1; idx >= 0; idx--)
-            {
-                if (glyphs[idx].Cluster > cluster)
-                {
-                    end = glyphs[idx].Cluster;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            for (int idx = index + 1; idx < glyphs.Count; idx++)
-            {
-                if (glyphs[idx].Cluster > cluster)
-                {
-                    end = glyphs[idx].Cluster;
-                    break;
-                }
-            }
-        }
-
-        end = Math.Min(end, text.Length);
-        return end <= cluster ? string.Empty : text.Substring(cluster, end - cluster);
     }
 
     /// <summary>

@@ -301,4 +301,56 @@ static class TextShaping
 
         return new string(ids);
     }
+
+    /// <summary>
+    /// The characters of <paramref name="text"/> that the glyph at <paramref name="index"/> stands
+    /// for: from its own cluster up to the next one along the text.
+    /// </summary>
+    /// <remarks>
+    /// "The next one along the text" is not "the next one in the list". A right-to-left run is handed
+    /// over in visual order, so its clusters descend, and the cluster that follows this one in the
+    /// source is found by looking back down the glyphs rather than forward. Several glyphs sharing a
+    /// cluster all answer the same characters, which between them is what they drew.
+    /// <para>
+    /// Two callers, and they must agree. <see cref="CMapInfo.AddShapedRun"/> spends this on
+    /// <c>/ToUnicode</c>, so that a ligature extracts as the characters it swallowed, and
+    /// <c>XGraphicsPdfRenderer</c> spends it on <c>/ActualText</c>, so that a reader walking the
+    /// marked content is told the same thing. Two implementations would eventually disagree, and the
+    /// document would then say one thing to a text extractor and another to a screen reader.
+    /// </para>
+    /// </remarks>
+    internal static string CharactersOf(ShapedRun run, int index, string text)
+    {
+        var glyphs = run.Glyphs;
+        int cluster = glyphs[index].Cluster;
+        if (cluster < 0 || cluster >= text.Length)
+            return string.Empty;
+
+        int end = text.Length;
+        if (run.Direction == XTextDirection.RightToLeft)
+        {
+            for (int idx = index - 1; idx >= 0; idx--)
+            {
+                if (glyphs[idx].Cluster > cluster)
+                {
+                    end = glyphs[idx].Cluster;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int idx = index + 1; idx < glyphs.Count; idx++)
+            {
+                if (glyphs[idx].Cluster > cluster)
+                {
+                    end = glyphs[idx].Cluster;
+                    break;
+                }
+            }
+        }
+
+        end = Math.Min(end, text.Length);
+        return end <= cluster ? string.Empty : text.Substring(cluster, end - cluster);
+    }
 }
