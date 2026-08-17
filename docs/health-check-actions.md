@@ -21,11 +21,17 @@ Ground rules that constrain every task below, from `CLAUDE.md`:
 
 ## Severity 0 — Critical
 
-**None.** No defects, no vulnerable packages, no cycles, no dead code, no build failures, no
+**None.** No critical defects, no vulnerable packages, no cycles, no dead code, no build failures, no
 undocumented public API.
 
-Nothing in this repository is broken. The single remaining task raises a B to an A; it does not fix a
-bug. Do not manufacture urgency that the assessment did not find.
+Nothing here is urgent, and the graded task below raises a B to an A rather than fixing a bug. Do not
+manufacture urgency that the assessment did not find. Two things are deliberately open all the same,
+and neither is a reason to stop the world:
+
+| Open | What it is | Where |
+|---|---|---|
+| **F23** | A paragraph with no style is written without a `\paragraph` keyword, so text whose first character needs escaping is read back at section level, where the escape is not honoured. Pinned by a test that asserts the failure; the repair belongs in the serializer rather than the encoder. | `docs/specs/crap-coverage-backlog.md` |
+| **Generator cache granularity** | An edit *anywhere above* a declaration invalidates the cache, because the model holds absolute source positions. Recorded and pinned, not fixed. | `MigraDocCore.DocumentObjectModel.Generators.Tests/IncrementalCachingTests.cs` |
 
 ---
 
@@ -59,8 +65,9 @@ checking whether the containing type was reachable. The compiler-verified figure
 
 Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
 
-**Measured, and the batches are open.** `docs/specs/crap-coverage-backlog.md` now carries a
-"Re-measured at `1d46b2a`" section and **batches 15 to 18**. What remains is writing the tests.
+**Measured, and the batches are worked.** `docs/specs/crap-coverage-backlog.md` now carries a
+"Re-measured at `1d46b2a`" section and **batches 15 to 18**. Every target that could be reached from
+public API has been written; five are deferred on a missing fixture and are listed below.
 
 - [x] Re-measure — done 2026-08-17. 4,049 tests, exit 0, no crash. Methods above the CRAP threshold
       fell from 237 to **172**, and those never executed at all from 109 to **71**.
@@ -103,9 +110,17 @@ Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
       `TextMeasurement.MeasureString` with every unit asserted against the measurement in points; and
       `DocumentRenderer.RenderObject` over all three renderable kinds and its three refusals.
 
-**Batch 18 is complete, and with it every batch in the backlog.** The next coverage work needs a
-fresh CRAP measurement — and that needs the Roslyn analysis server stopped, so the run can be made
-in Debug and compared with the spec's baseline table. See §3.2.
+**Every batch has been worked; five targets inside them are deferred, each on a fixture that does not
+exist yet.** None is blocked on judgement, so any of them can be picked up cold:
+
+| Target | What it needs |
+|---|---|
+| 17.3 `PdfEncoders` hex strings | A PDF fixture carrying a hex string. `PdfEncoders` and `PdfStringFlags` are both `internal`, so the route in is a document, not a call. |
+| 17.4, 17.5 | Paragraphs continuing across lines. Wants a batch built from multi-line MDDDL fixtures rather than one test each. |
+| 18.6 vertical metrics | A font with a `vmtx` table. `Assets/Fonts` has none. |
+| Debug re-measure (§3.2) | The Roslyn analysis server stopped, so a Debug run can be compared against the spec's baseline table. |
+
+**Standing requirement, not a one-off task:**
 - [ ] Any test that scans malformed input carries `[Fact(Timeout = …)]` **with** the `Task.Run`
       wrapper — xUnit honours a timeout only on an `async` test, and a lexer change hangs the host
       rather than failing it.

@@ -32,6 +32,13 @@ namespace PdfSharpCore.Test.Pdfs;
 ///   path matters most and is the one the old checks bracketed: importing pages renumbers every
 ///   object, and two objects sharing a number is a corrupt file rather than a wrong-looking one.
 ///   </para>
+///   <para>
+///   Each entry is followed to the offset it gives rather than merely counted, because counting is
+///   blind to the two ways the table goes wrong while still adding up: an offset that lands
+///   somewhere other than the object's header, and a numbering with a gap in it. The section
+///   declares itself as a single subsection <c>0 n</c>, so an entry stands for the object at its own
+///   position and nothing in the file says so twice.
+///   </para>
 /// </remarks>
 public class CrossReferenceConsistencyTests
 {
@@ -44,13 +51,42 @@ public class CrossReferenceConsistencyTests
             .ToList();
     }
 
-    /// <summary>The object count the xref section declares, which is one more than the objects.</summary>
-    static int DeclaredXrefCount(byte[] pdf)
+    /// <summary>One line of the xref section: where the object is, which generation, and whether
+    /// the entry is in use.</summary>
+    readonly record struct XrefEntry(int Offset, int Generation, char Kind);
+
+    /// <summary>
+    ///   The entries of the xref section, entry zero first. The section declares itself as
+    ///   <c>0 n</c> - one subsection numbering objects consecutively from zero - so an entry's
+    ///   position in the list is the number of the object it points at, and the entry itself never
+    ///   says which object that is. That is the invariant worth checking: nothing in the file
+    ///   restates it, so a writer that numbered objects with a gap would produce a table pointing
+    ///   at the wrong objects and no line of it would look wrong on its own.
+    /// </summary>
+    static IReadOnlyList<XrefEntry> XrefEntriesIn(byte[] pdf)
     {
         var text = Encoding.Latin1.GetString(pdf);
-        var match = Regex.Match(text, @"(?m)^xref\r?\n0 (\d+)\b");
-        match.Success.Should().BeTrue("the file has to have an xref section to be a PDF");
-        return int.Parse(match.Groups[1].Value);
+        var section = Regex.Match(text, @"(?m)^xref\r?\n0 (\d+)\r?\n");
+        section.Success.Should().BeTrue("the file has to have an xref section to be a PDF");
+
+        var count = int.Parse(section.Groups[1].Value);
+        var at = section.Index + section.Length;
+
+        // Acrobat is pedantic about this and so is the writer: exactly 20 bytes per line.
+        (at + 20 * count).Should().BeLessThanOrEqualTo(text.Length,
+            "the section declares " + count + " entries, so the file has to hold them");
+
+        var entries = new List<XrefEntry>();
+        for (var index = 0; index < count; index++, at += 20)
+        {
+            var line = Regex.Match(text.Substring(at, 20), @"^(\d{10}) (\d{5}) ([nf]) ");
+            line.Success.Should().BeTrue(
+                "entry " + index + " has to be the fixed-width line the format defines");
+            entries.Add(new XrefEntry(int.Parse(line.Groups[1].Value),
+                int.Parse(line.Groups[2].Value), line.Groups[3].Value[0]));
+        }
+
+        return entries;
     }
 
     static byte[] Save(PdfDocument document)
@@ -70,6 +106,7 @@ public class CrossReferenceConsistencyTests
 
     static void ShouldBeConsistent(byte[] pdf)
     {
+        var text = Encoding.Latin1.GetString(pdf);
         var numbers = ObjectNumbersIn(pdf);
 
         numbers.Should().NotBeEmpty("a written document defines objects");
@@ -78,8 +115,26 @@ public class CrossReferenceConsistencyTests
             "object zero is the free-list head and is never defined"));
 
         // The xref declares 0..n, so it counts one more entry than there are objects.
-        DeclaredXrefCount(pdf).Should().Be(numbers.Count + 1,
+        var entries = XrefEntriesIn(pdf);
+        entries.Should().HaveCount(numbers.Count + 1,
             "the xref has to account for exactly the objects the file defines");
+        entries[0].Kind.Should().Be('f', "entry zero is the head of the free list");
+        entries[0].Generation.Should().Be(65535, "which is the generation the format gives it");
+
+        // Counting alone would pass a table whose offsets point at the wrong objects, or one whose
+        // numbering has a gap the count cannot show. Each entry is followed to where it says the
+        // object is, and the header found there has to name the object the entry stands for.
+        for (var number = 1; number < entries.Count; number++)
+        {
+            var entry = entries[number];
+            entry.Kind.Should().Be('n', "object " + number + " is defined, so its entry is in use");
+
+            var header = number + " " + entry.Generation + " obj";
+            entry.Offset.Should().BeInRange(0, text.Length - header.Length,
+                "the entry for object " + number + " has to point inside the file");
+            text.Substring(entry.Offset, header.Length).Should().Be(header,
+                "the entry for object " + number + " has to point at that object");
+        }
     }
 
     [Fact]
