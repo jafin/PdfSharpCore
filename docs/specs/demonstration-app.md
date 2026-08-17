@@ -10,8 +10,9 @@ before the work rather than after it, so the status column tracks progress.
 | 2 | Fonts that are the same on every machine | done |
 | 3 | The source of each demo, printed from the file that ran | done |
 | 4 | Thirteen demos, one PDF each, covering the drawing surface | done |
-| 5 | A smoke test so a broken demo fails the build | done, 34 tests |
+| 5 | A smoke test so a broken demo fails the build | done, 74 tests |
 | 6 | Three more, covering the interactive layer: forms, annotations, outlines | done |
+| 7 | Six more, covering what landed after the drawing surface was demonstrated | done |
 
 ---
 
@@ -362,6 +363,82 @@ inventory — ten items, including the ones the demos worked around rather than 
 The first two are the same shape as the four gaps item 4 found: no exception, no warning, a
 property that reads back exactly as it was set, and a file that quietly does not contain it.
 
+## Item 7 — the features that landed after the app did
+
+Items 4 and 6 demonstrated the drawing surface and the interactive layer. Everything built since —
+text shaping and bidi, tagged output and PDF/UA, PDF/A, signing, text extraction, incremental
+update — had no demonstration at all, which is the state item 4 was written to end. Six more, on the
+same terms: one PDF each, enrolled in the smoke test by being added to the registry.
+
+| name | shows |
+|---|---|
+| `International` | Hebrew and Arabic reordered with no shaper needed for it, an English word inside a right-to-left sentence, `TextDirection` on `XStringFormat` and `XTextFormatter`, Arabic joined through `PdfSharpCore.HarfBuzz`, U+200C asking it not to, and `FontFallback` drawing Arabic in a document that asked for a Latin face |
+| `Accessibility` | `TagContent`, headings becoming `/H1`…`/H6` from `OutlineLevel`, a heading row becoming `/TH` with `/Scope /Column`, `Table.Summary`, `Image.AlternativeText` deciding between a described `/Figure` and an artifact, and the four PDF/UA-1 refusals |
+| `Archive` | `PdfAConformance` across all three parts, the XMP packet read back out of a probe's own bytes, `CustomizeMetadata` and `AdditionalDescriptions`, the output intent, and the five PDF/A refusals |
+| `Signing` | `PdfSigner`, `Pkcs7Signer`, a caller-drawn appearance, `PdfSignatures.InDocument`, and `PdfSignatureVerifier` answering `IsIntact` and `CoversWholeDocument` separately |
+| `Extract` | `PdfTextExtractor.ExtractText` and `ExtractRuns` over a document the demo wrote, saved and opened again, including a two-column page coming back interleaved |
+| `Revise` | `SaveIncremental` against `Save`, `PdfDocumentOpenMode.Append`, the `/Prev` chain counted in the bytes, and the trap of appending into the file it was read from |
+
+`Compress` gained the setting its own summary already promised — `CrossReferenceFormat`, measured
+twice, because one page of drawing is the shape an object stream has least to offer and a table
+showing only that number teaches the opposite of what is true.
+
+### Three demos now report what the library said, rather than quoting it
+
+`Accessibility`, `Archive` and `Signing` all build throwaway documents, ask them to save, and print
+the exception that came back. Nine refusal messages reach the page that way, and none of them is a
+string literal in the demo. A quotation goes stale the day a message is reworded and nothing says so;
+a caught message cannot. Where a rule stops being enforced the page prints *"This document saved. The
+rule is no longer enforced"* in place of the message — said rather than asserted, because a demo is
+not a test and a silent stale quotation is the failure worth avoiding.
+
+### `Save` is now overridable, for the two demos saving would break
+
+`PdfDemo.Run` built a document and called `document.Save(path)`. That is right for thirty-four demos
+and destroys the output of two. `Save` writes a file afresh from the object model: it renumbers the
+objects and drops the bytes the document was read from, which invalidates every signature on the file
+and discards every earlier revision. Signing and incremental update are precisely the two features
+whose output cannot survive it, so `PdfDemo.Save(PdfDocument, string)` is `virtual` and those two
+write their own bytes — `PdfSigner.Sign` into the file for one, `SaveIncremental` into it for the
+other.
+
+Both outputs are the real thing rather than a picture of it. `Signing.pdf` verifies: one signature,
+`/ETSI.CAdES.detached`, intact and covering the whole document. `Revise.pdf` carries three
+`startxref` markers, three `%%EOF`s and two `/Prev` entries.
+
+### Two more project references, and two more seams registered
+
+`PdfSharpCore.HarfBuzz` and `PdfSharpCore.Signing`, both for one demo each. Neither is a dependency
+the library forces on anyone — that is the point of both being packages of their own — and writing
+them into the project file is how a reader can see what the two demos actually cost.
+
+`Backends.EnsureRegistered` now fills all five static seams rather than three. The two new ones are
+the two whose unset state is not an error, so they are registered with `??=` and a demo that finds
+them null is not broken. They are registered there for the same reason as the other three and it
+matters more here: `TextShaper` and `FontFallback` are process-wide, the smoke test runs demos inside
+a host shared with every other test in the assembly, and nothing calls `EnsureRegistered` from there.
+So under test `International` draws its Arabic unshaped — which is exactly what a caller who takes no
+shaper gets — and its page count does not depend on either seam. Its pages read the seams and say
+which way they were drawn.
+
+A fourth font came with it: Noto Sans Arabic, because none of the other three has a single Arabic
+glyph, and a fallback demo needs a face to fall back *to*. SIL OFL like the rest, and covered by the
+same `LICENSE.txt`.
+
+### The right-to-left source problem, and what it cost
+
+`International` needs Hebrew and Arabic in a C# file, and a source file mixing right-to-left text
+with left-to-right code is one no editor renders the way anybody means — the quotation marks appear
+on the wrong side of the string and a reader cannot see where the text ends and the code begins.
+Escapes are the usual answer. This file instead builds every string from code points:
+
+```csharp
+string hebrew = From(0x05E9, 0x05DC, 0x05D5, 0x05DD);
+```
+
+so the file is provably ASCII throughout, which no review of escapes can establish by eye. It is
+also, unlike escapes, robust against a tool that writes the literal character back.
+
 ---
 
 ## Deliberately not done
@@ -375,5 +452,15 @@ property that reads back exactly as it was set, and a file that quietly does not
   not — splitting, concatenating, protecting, exporting images — and that is a separate piece of
   work. `TextLayout.md`, which documents an overload that no longer exists, is worth fixing on its
   own account.
-- **No charting demo.** `PdfSharpCore.Charting` is in the solution and would deserve one, but the
-  brief was the drawing surface and adding it would mean a fourth project reference for one page.
+- ~~**No charting demo.**~~ This held while the brief was the drawing surface. `Charts` exists now,
+  and the fourth project reference it was going to cost turned out to be one MigraDoc already
+  carried — the reference is written out in the project file so a reader can see it rather than
+  inherit it.
+- **No demo of the A levels of PDF/A.** `PdfAConformance` carries only the B levels, because A
+  additionally requires a full tagged structure tree; `Archive` claims PDF/A-3b and `Accessibility`
+  claims PDF/UA-1, and a document claiming both is a third thing neither demo builds.
+- **No timestamped signature.** PAdES B-T needs a token from a time-stamping authority, which is not
+  implemented and would need a network call from a sample app in any case. `Signing` says on the page
+  that its claimed time is the producer's own clock and proves nothing.
+- **No veraPDF in the loop.** Both conformance demos say plainly that a successful save is not a
+  validator's verdict. Making it one is a CI question rather than a demo one.

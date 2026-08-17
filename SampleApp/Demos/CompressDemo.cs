@@ -27,6 +27,7 @@ internal sealed class CompressDemo : PdfDemo
         "FlateEncodeMode - the trade between how long a save takes and how small it comes out",
         "UseFlateDecoderForJpegImages, Always against Automatic, measured on a real photograph",
         "ColorMode RGB against CMYK, and what changes in the file when it is switched",
+        "CrossReferenceFormat - Classic against Stream, measured where it helps and where it does not",
         "A page whose whole subject is the byte counts, because nothing else here is visible",
     };
 
@@ -135,6 +136,37 @@ internal sealed class CompressDemo : PdfDemo
             options.CompressContentStreams = true;
             options.ColorMode = PdfColorMode.Cmyk;
         });
+        long xrefStream = Measure(options =>
+        {
+            options.CompressContentStreams = true;
+            options.CrossReferenceFormat = PdfCrossReferenceFormat.Stream;
+        });
+
+        // A page of drawing is mostly one large content stream and a handful of objects, which is
+        // the shape a cross-reference stream has least to offer. Measured again over a document that
+        // is mostly objects - a hundred nearly empty pages - because that is where the setting is
+        // worth reaching for, and a table showing only the first number would teach the opposite of
+        // what is true.
+        long ManyObjects(PdfCrossReferenceFormat format)
+        {
+            using PdfDocument probe = new PdfDocument();
+            probe.Options.CompressContentStreams = true;
+            probe.Options.CrossReferenceFormat = format;
+
+            for (int number = 1; number <= 100; number++)
+            {
+                PdfPage page = probe.AddPage();
+                using XGraphics gfx = XGraphics.FromPdfPage(page);
+                gfx.DrawString($"Page {number}", body, XBrushes.Black, new XPoint(50, 60));
+            }
+
+            using MemoryStream buffer = new MemoryStream();
+            probe.Save(buffer, false);
+            return buffer.Length;
+        }
+
+        long manyClassic = ManyObjects(PdfCrossReferenceFormat.Classic);
+        long manyStream = ManyObjects(PdfCrossReferenceFormat.Stream);
 
         // ----- the document the demo hands back -----
 
@@ -169,6 +201,7 @@ internal sealed class CompressDemo : PdfDemo
                 ("UseFlateDecoderForJpegImages.Always", jpegFlate, "Flate over the already-compressed JPEG, whatever it costs"),
                 ("UseFlateDecoderForJpegImages.Automatic", jpegAuto, "The same, kept only if it turned out smaller"),
                 ("ColorMode.Cmyk", cmyk, "Four components per colour instead of three"),
+                ("CrossReferenceFormat.Stream", xrefStream, "Barely moves a page that is mostly one content stream"),
             };
 
             double y = 145;
@@ -226,6 +259,35 @@ internal sealed class CompressDemo : PdfDemo
                 + "the colours are converted on the way out, so a document built in RGB and saved "
                 + "as CMYK is not the same colours, only the nearest ones.",
                 body, XBrushes.Black, new XRect(50, y + 235, 495, 45));
+
+            gfx.DrawString("The one setting this page measures unfairly", label, XBrushes.Black,
+                new XPoint(50, y + 290));
+
+            prose.DrawString(
+                "CrossReferenceFormat.Stream gathers the objects that may be gathered into object "
+                + "streams and compresses them together, and it has almost nothing to work on here: "
+                + "one page of drawing is a single large content stream and a dozen objects. "
+                + "Measured over a document that is mostly objects instead - a hundred nearly empty "
+                + "pages - the same setting reads differently:",
+                body, XBrushes.Black, new XRect(50, y + 304, 495, 58));
+
+            gfx.DrawString("Classic, 100 pages", mono, XBrushes.Black, new XPoint(50, y + 372));
+            gfx.DrawString($"{manyClassic:N0}", body, XBrushes.Black, new XPoint(280, y + 372));
+
+            gfx.DrawString("Stream, 100 pages", mono, XBrushes.Black, new XPoint(50, y + 388));
+            gfx.DrawString($"{manyStream:N0}", body, XBrushes.Black, new XPoint(280, y + 388));
+            gfx.DrawString(
+                $"{(manyStream > manyClassic ? "+" : "")}{manyStream - manyClassic:N0}",
+                body, manyStream > manyClassic ? XBrushes.Firebrick : XBrushes.SeaGreen,
+                new XPoint(350, y + 388));
+
+            prose.DrawString(
+                "It costs a reader that understands PDF 1.5, which by now is all of them, and it is "
+                + "the one option here PDF/A-1 refuses outright - a cross-reference stream is a PDF "
+                + "1.5 construction and PDF/A-1 is defined against 1.4. MaxObjectsPerObjectStream "
+                + "trades the other way: a reader has to decompress a whole object stream to reach "
+                + "any one object in it, so a larger number is a smaller file and a slower open.",
+                body, XBrushes.Black, new XRect(50, y + 404, 495, 62));
         }
         #endregion
 
