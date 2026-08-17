@@ -65,6 +65,14 @@
       library writes with line feeds while the literal itself carries whatever line endings the
       checkout gave the file - which is how the gradient pin came to fail on Windows and pass on CI.
     -->
+    <!--
+      The Unicode Bidirectional Algorithm conformance suites, gzipped: 1.7 MB here against
+      14.8 MB unpacked. Checked in rather than downloaded because a conformance claim that
+      depends on the network is not one the build can make.
+    -->
+    <None Update="Assets\Unicode\*.gz">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\Layout\*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
