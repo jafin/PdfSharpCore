@@ -36,6 +36,11 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
     /// </summary>
     const string EmbeddedFiles = "/EmbeddedFiles";
 
+    /// <summary>
+    /// What ISO 19005-3 says to write as an attachment's media type when the real one is not known.
+    /// </summary>
+    const string UnknownMediaType = "application/octet-stream";
+
     readonly PdfDocument _document;
 
     internal PdfAttachments(PdfDocument document)
@@ -102,8 +107,11 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
 
         var embedded = new PdfEmbeddedFile(_document, bytes);
 
-        if (!string.IsNullOrEmpty(mimeType))
-            embedded.MimeType = mimeType;
+        // Always said, and said as octet-stream when the caller had nothing to say. PDF/A-3 requires
+        // the media type of every attachment, and the standard names this value for "unknown" —
+        // so leaving the entry out to be honest about not knowing produces a file that conforms to
+        // nothing, where writing it says exactly as much and conforms.
+        embedded.MimeType = string.IsNullOrEmpty(mimeType) ? UnknownMediaType : mimeType;
 
         // Stamped rather than left out. PDF/A-3 requires it of an attachment, and an archive that
         // cannot say how old the thing it is keeping is has lost half the point of keeping it — the
@@ -120,6 +128,14 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
         // referenced indirectly, and both places it goes below hold a reference to it rather than
         // a copy — which is what keeps them talking about one file instead of two.
         _document._irefTable.Add(specification);
+
+        // An attachment is written with entries later than the header this library defaults to: /UF
+        // is PDF 1.7 and /AF later still, and a document announcing 1.4 while carrying them tells a
+        // reader it may ignore exactly the parts that make the attachment findable. A PDF/A-3 claim
+        // raises the same floor, so this is what the document that makes no claim was missing.
+        // Raised rather than set, so a document that has already asked for more keeps it.
+        if (_document._version < 17)
+            _document._version = 17;
 
         Associate(specification);
         Register(fileName, specification);

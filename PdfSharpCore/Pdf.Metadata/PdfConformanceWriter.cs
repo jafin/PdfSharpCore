@@ -129,16 +129,17 @@ internal static class PdfConformanceWriter
     }
 
     /// <summary>
-    /// The two rules PDF/A-3 adds by permitting attachments at all: each has to say what it is to
-    /// the document, and each has to be attached <em>to</em> something rather than merely present.
+    /// The rules PDF/A-3 adds by permitting attachments at all: each has to be attached <em>to</em>
+    /// something rather than merely present, each has to say what it is to the document, and each has
+    /// to say what kind of file it is.
     /// </summary>
     /// <remarks>
-    /// Both are refused rather than repaired, and the difference from the other rules here is worth
-    /// stating. A missing relationship could be written as <c>/Unspecified</c> and a loose file
-    /// could be associated with the document, and either would be this code deciding what an
-    /// attachment means — which is the one thing it does not know. <see cref="PdfAttachments"/>
-    /// settles both at the point the caller does know, which is why a document built through it
-    /// never reaches these throws.
+    /// All three are refused rather than repaired, and the difference from the other rules here is
+    /// worth stating. A loose file could be associated with the document, a missing relationship could
+    /// be written as <c>/Unspecified</c>, and a missing media type as <c>application/octet-stream</c> —
+    /// and every one of those would be this code deciding what an attachment means, which is the one
+    /// thing it does not know. <see cref="PdfAttachments"/> settles all three at the point the caller
+    /// does know, which is why a document built through it never reaches these throws.
     /// </remarks>
     static void EnforceAssociation(PdfDocument document, List<PdfFileSpecification> attachments)
     {
@@ -163,6 +164,13 @@ internal static class PdfConformanceWriter
                     + "hybrid e-invoice wants, and " + nameof(PdfAFRelationship) + "."
                     + nameof(PdfAFRelationship.Unspecified) + " is the honest answer when there is "
                     + "nothing more precise to say.");
+
+            if (string.IsNullOrEmpty(attachment.EmbeddedFile.MimeType))
+                throw new InvalidOperationException(
+                    "PDF/A-3 requires every attachment to say what kind of file it is, and '"
+                    + attachment.FileName + "' does not. Set the embedded file's MimeType — "
+                    + "'application/octet-stream' is what the standard names for a file whose type is "
+                    + "not known, which Attachments.Add writes when it is given none.");
         }
     }
 

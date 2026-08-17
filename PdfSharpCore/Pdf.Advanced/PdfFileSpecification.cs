@@ -112,21 +112,34 @@ public class PdfFileSpecification : PdfDictionary
     }
 
     /// <summary>Gets or sets the embedded file this specification points at.</summary>
+    /// <remarks>
+    /// The <c>/EF</c> dictionary may name the stream under either <c>/F</c> or <c>/UF</c> — its keys
+    /// mirror the ones the specification itself carries. This library writes <c>/F</c>, and reads both,
+    /// because a producer that wrote only <c>/UF</c> has still embedded a file and answering null for
+    /// it would leave that file invisible to everything downstream: to a caller asking what a document
+    /// carries, and to the PDF/A check that refuses an embedded file under PDF/A-1.
+    /// </remarks>
     public PdfEmbeddedFile EmbeddedFile
     {
         get
         {
             var files = Elements.GetDictionary(Keys.EF);
+            if (files == null)
+                return null;
 
             // Transformed rather than cast. Read back out of a document the stream is a plain
             // dictionary, and a cast would answer null for an attachment that is plainly there.
-            return EmbeddedFileOf(files?.Elements[Keys.F]);
+            return EmbeddedFileOf(files.Elements[Keys.F]) ?? EmbeddedFileOf(files.Elements[Keys.UF]);
         }
         set
         {
             if (value == null)
             {
-                Elements.GetDictionary(Keys.EF)?.Elements.Remove(Keys.F);
+                // Both, or clearing a specification read from a document that used the other key
+                // would leave the stream still attached.
+                var files = Elements.GetDictionary(Keys.EF);
+                files?.Elements.Remove(Keys.F);
+                files?.Elements.Remove(Keys.UF);
             }
             else
             {

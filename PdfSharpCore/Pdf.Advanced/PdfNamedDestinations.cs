@@ -63,7 +63,7 @@ internal static class PdfNamedDestinations
 
         PdfDictionary names = catalog.Elements.GetDictionary("/Names");
         if (names != null)
-            found = Search(names.Elements.GetDictionary("/Dests"), text, 0);
+            found = Search(names.Elements.GetDictionary("/Dests"), text, 0, new HashSet<PdfDictionary>());
 
         if (found == null)
         {
@@ -79,10 +79,15 @@ internal static class PdfNamedDestinations
     /// <summary>
     /// Searches a node of a name tree, and the nodes below it, for the name given.
     /// </summary>
-    static PdfItem Search(PdfDictionary node, string name, int depth)
+    /// <remarks>
+    /// <paramref name="seen"/> is what bounds the work, not <paramref name="depth"/>: a node listing
+    /// itself twice among its kids doubles the search at every level, so the depth cap alone lets a
+    /// tiny malformed document cost billions of visits. A name tree is a tree, so a node reached twice
+    /// holds nothing the first visit did not already look at. See <see cref="PdfNameTree.MaxDepth"/>.
+    /// </remarks>
+    static PdfItem Search(PdfDictionary node, string name, int depth, HashSet<PdfDictionary> seen)
     {
-        // The cap is what keeps a tree that leads back into itself from being walked forever.
-        if (node == null || depth > MaxDepth)
+        if (node == null || depth > MaxDepth || !seen.Add(node))
             return null;
 
         // A node says which names lie below it, so one the name is outside can be passed over.
@@ -116,7 +121,7 @@ internal static class PdfNamedDestinations
             int count = kids.Elements.Count;
             for (int idx = 0; idx < count; idx++)
             {
-                PdfItem found = Search(kids.Elements.GetDictionary(idx), name, depth + 1);
+                PdfItem found = Search(kids.Elements.GetDictionary(idx), name, depth + 1, seen);
                 if (found != null)
                     return found;
             }

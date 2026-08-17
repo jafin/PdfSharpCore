@@ -142,7 +142,7 @@ discover from a validator, or from their customer, that it does not conform. So 
 | No transparency, no JPXDecode | **A-1 only** | must be enforced — the repo has soft masks and transparency groups |
 | No `/Interpolate true` on images | all parts | must be enforced |
 | No embedded files | **A-1 outright; A-2 unless the file is itself PDF/A**; A-3 permits any | refused for A-1 and A-2 |
-| Every attachment associated, and saying what it is | **A-3 only** — the other parts carry none | item 4 |
+| Every attachment associated, and saying what it is and what type it is | **A-3 only** — the other parts carry none | item 4 |
 
 PDF/A-2's embedded-file rule is the one place this is stricter than the standard, and deliberately.
 A-2 permits an embedded file that is itself PDF/A, and nothing here can establish that a given
@@ -192,12 +192,24 @@ would help nobody.
 **`Unspecified` is written, not omitted.** PDF/A-3 wants the entry present, and "nothing more precise
 to say" is a legal value where silence is a broken file.
 
-**Permitting attachments brought two rules, and both refuse rather than repair.** Every attachment of
-a PDF/A-3 document has to be associated, and every one has to carry a relationship. Either could be
-patched up at save time — associate the loose file, write `/Unspecified` over the missing name — and
-both would be the writer deciding what an attachment *means*, which is the one thing it cannot know.
-A document built through `Attachments` never reaches either throw; one built by hand does, and the
-message names the file and the property to set.
+**Permitting attachments brought three rules, and all of them refuse rather than repair.** Every
+attachment of a PDF/A-3 document has to be associated, has to carry a relationship, and has to say
+what kind of file it is. Each could be patched up at save time — associate the loose file, write
+`/Unspecified` over the missing relationship, `application/octet-stream` over the missing media type
+— and every one of those would be the writer deciding what an attachment *means*, which is the one
+thing it cannot know. A document built through `Attachments` never reaches any of the three throws;
+one built by hand does, and the message names the file and the property to set.
+
+`Add` writes `application/octet-stream` when the caller names no media type, which is the value the
+standard reserves for a file whose type is not known. Leaving the entry out instead — to be honest
+about not knowing — produces a document that conforms to nothing, where writing it says exactly as
+much and conforms.
+
+**Attaching anything raises the version floor to 1.7.** `/UF` is a PDF 1.7 entry and `/AF` later
+still, and a document announcing 1.4 while carrying them tells a reader it may ignore precisely the
+entries that make the attachment findable. A PDF/A-3 claim already raised that floor, so this is what
+the document making no claim was missing. Raised rather than set, so a document that has asked for
+more keeps it.
 
 **Associating is separable from attaching**, through `Attachments.Associate`. A file hanging off a
 `PdfFileAttachmentAnnotation` is already in the document and wants one more mention, not a second
@@ -214,6 +226,17 @@ than to naming a file kept elsewhere.
 
 Reading `Attachments` builds nothing — it looks at the catalog — so a document that never attaches
 anything is written exactly as it was before, which `AttachmentTests` pins by length.
+
+**One name-tree walk, in `PdfNameTree`, and it enters each node once.** `/Dests` and `/EmbeddedFiles`
+are the same shape, so the walk that read the first now reads both. The guard it carries is worth
+knowing about, because the obvious one is not enough: a depth cap bounds how far down a path goes and
+says nothing about how many paths there are, so a node listing itself twice among its own `/Kids`
+doubles the walk at every level and a document of a few hundred bytes costs 2^32 node visits before a
+cap of 32 stops it. That is a hang rather than a refusal. What bounds the work is a set of the nodes
+already entered — a name tree is a tree, so a node reached twice holds nothing the first visit missed
+— and the cap is kept only for the honest tree that is absurdly deep. Both the enumerating walk and
+the searching one carry it, and both are pinned by a test with a timeout, because a regression there
+stops a test run rather than failing it.
 
 `PdfSharpCore.EInvoice` is then thin: attach the XML with the right filename and relationship, emit the
 ZUGFeRD XMP extension schema (profile, version, conformance level), set the conformance mode. Only the

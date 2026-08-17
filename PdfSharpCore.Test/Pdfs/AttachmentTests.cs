@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
@@ -99,6 +100,110 @@ public class AttachmentTests
         attachment.Description.Should().Be("Factur-X invoice");
         attachment.EmbeddedFile.Should().NotBeNull();
         attachment.EmbeddedFile.MimeType.Should().Be("/text/xml");
+    }
+
+    [Fact]
+    public void AnAttachmentNobodyNamedATypeForIsStillTyped()
+    {
+        // PDF/A-3 requires the media type of every attachment, and the standard names this value for
+        // one that is not known. Leaving the entry out to be honest about not knowing writes a file
+        // that conforms to nothing; writing this says exactly as much and conforms.
+        var reread = SaveAndReopen(document =>
+            document.Attachments.Add("mystery.bin", new byte[] { 1, 2, 3 }));
+
+        reread.Attachments.Single().EmbeddedFile.MimeType
+            .Should().Be("/application/octet-stream");
+    }
+
+    [Fact]
+    public void PdfA3RefusesAnAttachmentThatWillNotSayWhatKindOfFileItIs()
+    {
+        var saving = () => Save(document =>
+        {
+            Conforming(PdfAConformance.PdfA3B)(document);
+            var attachment = Attach(document, PdfAFRelationship.Data);
+            attachment.EmbeddedFile.Elements.Remove("/Subtype");
+        });
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*what kind of file*factur-x.xml*MimeType*");
+    }
+
+    [Fact]
+    public void ADocumentCarryingAnAttachmentSaysItIsNewEnoughToHaveOne()
+    {
+        // /UF is PDF 1.7 and /AF later still. A document announcing 1.4 while carrying them tells a
+        // reader it may ignore exactly the entries that make the attachment findable. A PDF/A-3 claim
+        // raises the same floor, so this is what the document making no claim was missing.
+        var bytes = Save(document => Attach(document, PdfAFRelationship.Data));
+
+        Latin1(bytes).Should().StartWith("%PDF-1.7");
+    }
+
+    [Fact]
+    public void AnAttachmentRaisesTheVersionRatherThanSettingIt()
+    {
+        var bytes = Save(document =>
+        {
+            document.Options.CrossReferenceFormat = PdfCrossReferenceFormat.Stream;
+            Attach(document, PdfAFRelationship.Data);
+        });
+
+        Latin1(bytes).Should().StartWith("%PDF-1.7",
+            "a cross-reference stream asks for 1.5 and an attachment for 1.7, and the higher wins");
+    }
+
+    [Fact]
+    public void AnEmbeddedFileNamedOnlyByTheUnicodeKeyIsStillFound()
+    {
+        // The /EF dictionary mirrors the keys the specification carries, so a producer may name the
+        // stream under /UF instead of /F. Reading only /F would answer null for a file that is
+        // plainly there - and then the PDF/A-1 refusal, which asks exactly that question, would let
+        // the document through.
+        var document = new PdfDocument();
+        document.AddPage();
+        var attachment = document.Attachments.Add("elsewhere.txt", new byte[] { 1, 2, 3 });
+
+        var files = attachment.Elements.GetDictionary("/EF");
+        var stream = files.Elements["/F"];
+        files.Elements.Remove("/F");
+        files.Elements["/UF"] = stream;
+
+        attachment.EmbeddedFile.Should().NotBeNull();
+        attachment.EmbeddedFile.Stream.UnfilteredValue.Should().Equal(new byte[] { 1, 2, 3 });
+    }
+
+    [Fact]
+    public void PdfA1StillRefusesAFileNamedOnlyByTheUnicodeKey()
+    {
+        var saving = () => Save(document =>
+        {
+            Conforming(PdfAConformance.PdfA1B)(document);
+            var attachment = document.Attachments.Add("elsewhere.txt", new byte[] { 1 });
+
+            var files = attachment.Elements.GetDictionary("/EF");
+            var stream = files.Elements["/F"];
+            files.Elements.Remove("/F");
+            files.Elements["/UF"] = stream;
+        });
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*may not carry an embedded file*elsewhere.txt*");
+    }
+
+    [Fact]
+    public void ClearingAnEmbeddedFileClearsItUnderEitherKey()
+    {
+        var document = new PdfDocument();
+        document.AddPage();
+        var attachment = document.Attachments.Add("elsewhere.txt", new byte[] { 1 });
+
+        var files = attachment.Elements.GetDictionary("/EF");
+        files.Elements["/UF"] = files.Elements["/F"];
+
+        attachment.EmbeddedFile = null;
+
+        attachment.EmbeddedFile.Should().BeNull("a specification cleared under one key is not cleared");
     }
 
     [Fact]
@@ -271,6 +376,84 @@ public class AttachmentTests
         reread.Attachments.Single().FileName.Should().Be("legacy.txt");
     }
 
+    // ── A tree that is not a tree ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    ///   A depth cap reads as though it bounds the work of a walk, and it does not: it bounds how far
+    ///   down one path goes, not how many paths there are. A node listing itself twice among its own
+    ///   kids doubles the walk at every level, so a document of a few hundred bytes costs 2^32 node
+    ///   visits before a cap of 32 stops it — which is a hang, not a refusal. What bounds the work is
+    ///   entering each node once.
+    /// </summary>
+    /// <remarks>
+    ///   Wrapped in <see cref="Task.Run"/> because xUnit honours a timeout only on an async test, and
+    ///   a timeout is the whole point here: without one a regression stops the run instead of failing
+    ///   it, and a stopped run is the failure mode this repository already has to be careful about.
+    /// </remarks>
+    [Fact(Timeout = 30000)]
+    public async Task ANameTreeThatLeadsBackIntoItselfIsGivenUpOnRatherThanWalkedForever()
+    {
+        await Task.Run(() =>
+        {
+            var document = new PdfDocument();
+            document.AddPage();
+            document.Attachments.Add("real.txt", new byte[] { 1 });
+
+            var tree = document.Internals.Catalog.Elements.GetDictionary("/Names")
+                .Elements.GetDictionary("/EmbeddedFiles");
+
+            // A node cannot hold a reference to itself until it is reachable by reference at all.
+            document.Internals.AddObject(tree);
+
+            var kids = new PdfArray(document);
+            kids.Elements.Add(tree.Reference);
+            kids.Elements.Add(tree.Reference);
+            tree.Elements.SetObject("/Kids", kids);
+
+            // Twice, so that a walk without a visited set would branch rather than merely recurse.
+            document.Attachments.Count.Should().Be(1, "the one real name, read once");
+        });
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task ADestinationTreeThatLeadsBackIntoItselfIsGivenUpOnToo()
+    {
+        // The same shape on the lookup path, which searches rather than enumerates and had the same
+        // cap doing the same not-quite-enough job.
+        await Task.Run(() =>
+        {
+            var document = new PdfDocument();
+            var page = document.AddPage();
+
+            var dests = new PdfDictionary(document);
+            document.Internals.AddObject(dests);
+
+            var kids = new PdfArray(document);
+            kids.Elements.Add(dests.Reference);
+            kids.Elements.Add(dests.Reference);
+            dests.Elements.SetObject("/Kids", kids);
+
+            var names = new PdfDictionary(document);
+            names.Elements["/Dests"] = dests.Reference;
+            document.Internals.Catalog.Elements["/Names"] = names;
+
+            // A link naming a destination the tree does not hold is what sends the search all the way
+            // down every path there is.
+            var annotation = new PdfLinkAnnotation(document);
+            annotation.Elements.SetName("/Subtype", "/Link");
+            var action = new PdfDictionary(document);
+            action.Elements.SetName("/S", "/GoTo");
+            action.Elements.SetString("/D", "nowhere");
+            annotation.Elements["/A"] = action;
+            page.Annotations.Add(annotation);
+
+            using var output = new MemoryStream();
+            document.Save(output, false);
+
+            output.Length.Should().BeGreaterThan(0, "the document is written rather than hung over");
+        });
+    }
+
     // ── What the archival profiles make of it ───────────────────────────────────────────────────
 
     [Theory]
@@ -388,6 +571,11 @@ public class AttachmentTests
     private static PdfFileSpecification AttachToAnAnnotation(PdfDocument document)
     {
         var embedded = new PdfEmbeddedFile(document, Encoding.UTF8.GetBytes("attached"));
+
+        // Set by hand, because building a specification by hand is what leaves it out — which is the
+        // whole reason PDF/A-3 is held to it here rather than trusted to have been thought about.
+        embedded.MimeType = "text/plain";
+
         var specification = new PdfFileSpecification(document, "attached.txt", embedded);
 
         var annotation = new PdfFileAttachmentAnnotation(document) { File = specification };

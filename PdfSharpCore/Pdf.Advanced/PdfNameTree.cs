@@ -17,9 +17,16 @@ namespace PdfSharpCore.Pdf.Advanced;
 internal static class PdfNameTree
 {
     /// <summary>
-    /// How far down a tree to go before giving up on it. The cap is what keeps a tree that leads
-    /// back into itself from being walked forever.
+    /// How far down a tree to go before giving up on it.
     /// </summary>
+    /// <remarks>
+    /// A depth cap alone is not enough to make a walk terminate cheaply, and it is worth saying why,
+    /// because it reads as though it is. Depth bounds how far down a path goes; it does not bound how
+    /// many paths there are. A node listing itself twice among its own kids doubles the work at every
+    /// level, so a document of a few hundred bytes reaches 2^32 node visits before the cap stops it —
+    /// which is a hang rather than a refusal. What bounds the work is entering each node once; the cap
+    /// is kept for the honest tree that is merely absurdly deep.
+    /// </remarks>
     internal const int MaxDepth = 32;
 
     /// <summary>
@@ -40,15 +47,23 @@ internal static class PdfNameTree
         var root = Root(document, kind);
         return root == null
             ? Enumerable.Empty<KeyValuePair<string, PdfItem>>()
-            : Walk(root, 0);
+            : Walk(root, 0, new HashSet<PdfDictionary>());
     }
 
     /// <summary>
     /// Every name a node holds and every name the nodes below it hold, in the order written.
     /// </summary>
-    internal static IEnumerable<KeyValuePair<string, PdfItem>> Walk(PdfDictionary node, int depth)
+    /// <param name="node">The node to read.</param>
+    /// <param name="depth">How far down the tree this node is.</param>
+    /// <param name="seen">
+    /// The nodes already entered. A name tree is a tree, so a node reached twice is a malformed
+    /// document rather than a shared subtree — and reading it a second time would at best repeat every
+    /// name below it and at worst never finish. See <see cref="MaxDepth"/>.
+    /// </param>
+    internal static IEnumerable<KeyValuePair<string, PdfItem>> Walk(PdfDictionary node, int depth,
+        HashSet<PdfDictionary> seen)
     {
-        if (node == null || depth > MaxDepth)
+        if (node == null || depth > MaxDepth || !seen.Add(node))
             yield break;
 
         PdfArray leaves = node.Elements.GetArray("/Names");
@@ -69,7 +84,7 @@ internal static class PdfNameTree
 
         for (int idx = 0; idx < kids.Elements.Count; idx++)
         {
-            foreach (var entry in Walk(kids.Elements.GetDictionary(idx), depth + 1))
+            foreach (var entry in Walk(kids.Elements.GetDictionary(idx), depth + 1, seen))
                 yield return entry;
         }
     }
