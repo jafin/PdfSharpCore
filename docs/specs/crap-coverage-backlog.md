@@ -178,24 +178,66 @@ never run.
 
 | # | target | CC | cov | retires | status |
 |---|---|---|---|---|---|
-| 16.1 | `EquatableArray<T>.Equals(EquatableArray<T>)` — `Model/EquatableArray.cs:29` | 14 | 0% | 196 | |
-| 16.2 | `EquatableArray<T>.GetHashCode()` — `Model/EquatableArray.cs:45` | — | 0% | — | |
+| 16.1 | `EquatableArray<T>.Equals(EquatableArray<T>)` — `Model/EquatableArray.cs:29` | 14 | 0% | 196 | **done**, 0% → 62.5%, below the threshold |
+| 16.2 | `EquatableArray<T>.GetHashCode()` — `Model/EquatableArray.cs:45` | — | 0% | — | **left**, never called |
 
 This is what makes the incremental generator's models comparable, so it decides whether a pipeline
 step is re-run or served from cache. Wrong `Equals` is not a cosmetic bug: too eager and the
 generator emits stale source, too shy and incremental caching stops working.
 
-Read it before writing the tests — two things look wrong:
+**There is no direct route to it.** `EquatableArray`, `DomMemberModel`, `ParsedMember`, `ParsedType`
+and `DiagnosticInfo` are all `internal`, and this repository has no `InternalsVisibleTo`. What is
+observable is the consequence, through the public `DomValueModelGenerator` and Roslyn's own step
+tracking: run the generator over one compilation, run it again over a second parsed separately from
+the same or different text, and ask the driver why the source-output step ran. The two compilations
+share no syntax tree and no symbol, so a driver answering `Cached` can only have got there by
+comparing the models by value.
 
-- The element comparison is `array[i].Equals(other.array[i])`, which throws
-  `NullReferenceException` for a null element of a reference type. `EqualityComparer<T>.Default`
-  is the usual answer and handles null on both sides.
-- `Equals` and `GetHashCode` must agree. Assert the pair together — equal arrays hash equally —
-  rather than each alone.
+10 tests in `IncrementalCachingTests`, with the two-run mechanics in `IncrementalCachingProbe`.
+They are worth more than the score says: **nothing had ever tested that the caching works at all**,
+and it is the whole reason the models are shaped the way they are.
 
-Cover: both null, one null, different lengths, equal contents, differing contents, an empty array
-against a null one, and a null element if the fix admits one. 16.2 is on the list with 16.1 because
-they are one contract and testing either alone proves little.
+Three things learned, and the last two are why 16.1 stops at 62.5% rather than going further.
+
+**Only one `EquatableArray` is ever compared.** `DomTypeModel` holds an
+`EquatableArray<DomMemberModel>` and declares `IEquatable<DomTypeModel>`, but it is built inside the
+`RegisterSourceOutput` callback — downstream of every cache — so nothing compares it, ever. The one
+that travels through the pipeline is `DiagnosticInfo.MessageArgs`, an `EquatableArray<string>`, and
+that is the only route to `Equals`. Not a defect, but it means the value equality on `DomTypeModel`
+is inert, and it is why the method sat at 0% despite the type being central to the design.
+
+**The remaining branches have no public route**, checked rather than assumed:
+
+- The null-array branch needs `default(EquatableArray<T>)`. The only constructor assigns from
+  `ToArray()`, and nothing in the generator creates a default one.
+- The length-mismatch branch needs two `DiagnosticInfo`s with the same descriptor and different
+  argument counts. A record compares its members in declaration order, so `Descriptor` is compared
+  first and a differing one returns before `MessageArgs` is reached — and every call site uses a
+  fixed number of arguments per descriptor (`NotPartial` one, `NotADocumentObject` and
+  `RefOnlyOnValueType` two, `NotAnInstanceMember` and `UnsupportedMemberType` three). So the two
+  conditions cannot both hold.
+- `Equals(object)`, `GetHashCode()` and the non-generic `GetEnumerator()` are never called: the
+  pipeline compares through `IEquatable<T>` and never hashes a model.
+
+**A latent hazard, recorded rather than fixed.** `Equals` compares elements with
+`array[i].Equals(other.array[i])` and `GetHashCode` calls `item.GetHashCode()`, both of which throw
+`NullReferenceException` on a null element of a reference type — and `T` is `string` or
+`DomMemberModel`, both reference types. It is unreachable today: every `DiagnosticInfo.Create` call
+site passes symbol names, and `DomMemberModel`s come from a parse that cannot yield null.
+`EqualityComparer<T>.Default` would handle it on both sides. Left alone because nothing can reach
+it, and a change to a comparison this central wants a demonstrated failure behind it rather than a
+guess — the same reasoning as `Table.SetEdge` under F4.
+
+One more thing pinned that surprised the batch: **an edit anywhere above a declaration invalidates
+the cache**, comment or blank line included. `ParsedMember.DeclarationOrder` is
+`TargetNode.GetLocation().SourceSpan.Start` and `LocationInfo` carries the spans, so inserting
+anything higher up the file moves both and the whole emit re-runs. `DomModels.cs` already says
+Location "costs nothing in cache terms that DeclarationOrder does not already cost", which is true —
+the cost was already there. Recorded rather than fixed: the obvious cheaper key, an ordinal index
+within the type, is not available to `ForAttributeWithMetadataName`, which sees one member at a time
+and never its siblings. `AnEditAboveADeclarationIsNotServedFromTheCacheEvenWhenItChangesNothing`
+pins it, with `AnEditBelowEveryDeclarationIsServedFromTheCache` beside it to show the cause is
+position rather than trivia.
 
 ## Batch 17 — text encoders and the DDL scanner's readers
 

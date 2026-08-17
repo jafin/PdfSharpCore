@@ -110,9 +110,14 @@ internal static class GeneratorHarness
     /// <summary>The path the snippet is parsed under, so a test can assert where a diagnostic points.</summary>
     public const string SnippetPath = "Snippet.cs";
 
-    public static Result Run(string source)
-    {
-        CSharpCompilation compilation = CSharpCompilation.Create(
+    /// <summary>
+    /// The preamble and <paramref name="source"/> as one compilation. Every call parses afresh, so
+    /// two calls with the same text produce structurally identical compilations that share no syntax
+    /// tree or symbol - which is what a caching test needs in order to be about value equality
+    /// rather than about reference equality.
+    /// </summary>
+    public static CSharpCompilation CreateCompilation(string source) =>
+        CSharpCompilation.Create(
             "GeneratorTests",
             new[]
             {
@@ -121,6 +126,10 @@ internal static class GeneratorHarness
             },
             References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    public static Result Run(string source)
+    {
+        CSharpCompilation compilation = CreateCompilation(source);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new DomValueModelGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out _);

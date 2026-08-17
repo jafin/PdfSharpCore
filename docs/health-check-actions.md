@@ -74,9 +74,15 @@ Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
       `ArgumentNullException`-for-`""` question was settled by leaving it: changing it would break a
       caller catching that type and buys nothing, and the fix moved the behaviour of no input that
       previously worked.
-- [ ] **Then batch 16.** `EquatableArray<T>.Equals` is the generator's cache key and has never run;
-      it compares elements with `array[i].Equals(…)`, which throws on a null element of a reference
-      type. Wrong `Equals` here means stale generated source or lost incremental caching.
+- [x] **Batch 16 — done.** `IncrementalCachingTests`, 10 tests, taking `EquatableArray.Equals` from
+      0% to 62.5% and below the CRAP threshold. No direct route existed — every model type is
+      `internal` — so they assert the consequence through the public generator and Roslyn's step
+      tracking: two separately parsed compilations, and whether the driver says `Cached`.
+      **Nothing had tested that incremental caching works at all**, which is worth more than the
+      score. Three things recorded rather than fixed: the `EquatableArray` in `DomTypeModel` sits
+      downstream of every cache and is never compared; the remaining branches of `Equals` have no
+      public route (checked, not assumed); and an edit *anywhere above* a declaration invalidates
+      the cache, because the model holds absolute source positions.
 - [ ] Then 17 and 18. Route each test by the rules in that spec: DOM-only targets go to
       `MigraDocCore.DocumentObjectModel.Tests`, layout to `MigraDocCore.Rendering.Tests`, charting to
       `PdfSharpCore.Charting.Tests`, everything in the core package to `PdfSharpCore.Test`.
