@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -258,20 +258,18 @@ public class ShapedFontEmbeddingTests
 
     // ----- and the whole of it, in Arabic ---------------------------------------------------------
 
-    const string ArabicFamily = "Noto Sans Arabic";
+    // Served by PinnedFontResolver itself. See the note on ArabicFamilyName: a family registered on
+    // first use means whatever the first caller in the assembly made it mean.
+    const string ArabicFamily = PinnedFontResolver.ArabicFamilyName;
 
     // The word "arabi", whose letters join and two of whose dots are marks the font places against
     // the letter they belong to. Escapes rather than literals, so that a source file mixing
     // right-to-left text with left-to-right code cannot be misread.
     const string ArabicSentinel = "\u0639\u0631\u0628\u064A";
 
-    static void RegisterArabic() => PinnedFontResolver.Register(ArabicFamily, File.ReadAllBytes(
-        Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "NotoSansArabic-Regular.ttf")));
-
     [Fact]
     public void ArabicIsWrittenWithItsMarksPlacedAndItsLettersStillReadable()
     {
-        RegisterArabic();
 
         using var shaper = new OnlyFor(ArabicSentinel);
         using var _ = new Installed(shaper);
@@ -305,7 +303,6 @@ public class ShapedFontEmbeddingTests
     [Fact]
     public void ShapedRightToLeftTextIsDrawnJoinedUpAndInTheOrderItIsRead()
     {
-        RegisterArabic();
 
         using var shaper = new OnlyFor(Salam);
         using var _ = new Installed(shaper);

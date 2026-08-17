@@ -32,7 +32,9 @@ namespace PdfSharpCore.Test.Fonts;
 [Collection(TextShapingCollection.Name)]
 public class ItemizedTextTests
 {
-    const string ArabicFamily = "Noto Sans Arabic";
+    // Served by PinnedFontResolver itself. See the note on ArabicFamilyName: a family registered on
+    // first use means whatever the first caller in the assembly made it mean.
+    const string ArabicFamily = PinnedFontResolver.ArabicFamilyName;
 
     // "salam", four letters, none of them carrying a mark - so with no shaper registered it is
     // four characters and four glyphs, and the only thing that can differ is their order.
@@ -48,13 +50,7 @@ public class ItemizedTextTests
 
     static XFont Latin() => new XFont("Arial", 20);
 
-    static XFont Arabic()
-    {
-        PinnedFontResolver.Register(ArabicFamily, File.ReadAllBytes(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "NotoSansArabic-Regular.ttf")));
-
-        return new XFont(ArabicFamily, 20);
-    }
+    static XFont Arabic() => new XFont(ArabicFamily, 20);
 
     static int[] Glyphs(string text, XFont font) => DrawnText.Glyphs(DrawnText.Page(text, font));
 
