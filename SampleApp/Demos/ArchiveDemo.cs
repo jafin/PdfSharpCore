@@ -294,7 +294,7 @@ internal sealed class ArchiveDemo : PdfDemo
     /// </summary>
     static IEnumerable<string> PacketOfAProbe(byte[] profile)
     {
-        PdfDocument probe = new PdfDocument();
+        using PdfDocument probe = new PdfDocument();
         probe.AddPage();
         probe.Info.Title = "A probe";
         probe.Info.Author = "PdfSharpCore sample app";
@@ -362,7 +362,7 @@ internal sealed class ArchiveDemo : PdfDemo
     static (string Broken, string Message) Refusal(string broken, byte[] profile,
         Action<PdfDocument> breakARule)
     {
-        PdfDocument probe = new PdfDocument();
+        using PdfDocument probe = new PdfDocument();
         probe.AddPage();
         probe.Info.Title = "A probe";
         probe.Options.Conformance = PdfAConformance.PdfA2B;

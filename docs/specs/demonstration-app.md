@@ -380,8 +380,8 @@ same terms: one PDF each, enrolled in the smoke test by being added to the regis
 | `Revise` | `SaveIncremental` against `Save`, `PdfDocumentOpenMode.Append`, the `/Prev` chain counted in the bytes, and the trap of appending into the file it was read from |
 
 `Compress` gained the setting its own summary already promised — `CrossReferenceFormat`, measured
-twice, because one page of drawing is the shape an object stream has least to offer and a table
-showing only that number teaches the opposite of what is true.
+twice on a third page of its own, because one page of drawing is the shape an object stream has
+least to offer and a table showing only that number teaches the opposite of what is true.
 
 ### Three demos now report what the library said, rather than quoting it
 

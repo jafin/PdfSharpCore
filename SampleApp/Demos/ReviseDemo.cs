@@ -51,7 +51,7 @@ internal sealed class ReviseDemo : PdfDemo
 
         // ----- revision one: an ordinary document, saved the ordinary way --------------------------
 
-        PdfDocument original = new PdfDocument();
+        using PdfDocument original = new PdfDocument();
         original.Info.Title = "Revise";
         original.Info.Author = "PdfSharpCore sample app";
 
@@ -144,7 +144,7 @@ internal sealed class ReviseDemo : PdfDemo
         // ----- revision two: opened for appending, a page added ------------------------------------
 
         revisionOne.Position = 0;
-        PdfDocument appended = PdfReader.Open(revisionOne, PdfDocumentOpenMode.Append);
+        using PdfDocument appended = PdfReader.Open(revisionOne, PdfDocumentOpenMode.Append);
 
         // Changing something that was already there, as well as adding. The title is in the
         // information dictionary, which is an object like any other: the appended revision carries a
@@ -224,11 +224,12 @@ internal sealed class ReviseDemo : PdfDemo
                 ("Revision one", Format(sizeOfOne) + " bytes"),
                 ("After revision two", Format(afterTwo.Length) + " bytes"),
                 ("Appended by revision two", Format(afterTwo.Length - sizeOfOne) + " bytes"),
-                ("startxref markers", Count(afterTwo, "startxref").ToString(CultureInfo.InvariantCulture)
-                    + " - one per revision"),
-                ("/Prev entries", Count(afterTwo, "/Prev").ToString(CultureInfo.InvariantCulture)
-                    + " - each pointing at the section before it"),
-                ("%%EOF markers", Count(afterTwo, "%%EOF").ToString(CultureInfo.InvariantCulture)),
+                ("startxref, at a line start", CountAtLineStart(afterTwo, "startxref")
+                    .ToString(CultureInfo.InvariantCulture) + " - one per revision"),
+                ("%%EOF, at a line start", CountAtLineStart(afterTwo, "%%EOF")
+                    .ToString(CultureInfo.InvariantCulture) + " - one per revision"),
+                ("/Prev, anywhere in the bytes", Count(afterTwo, "/Prev")
+                    .ToString(CultureInfo.InvariantCulture) + " - one fewer, and rightly so"),
                 ("This file", "one revision deeper again"),
             };
 
@@ -240,7 +241,27 @@ internal sealed class ReviseDemo : PdfDemo
                 y += 16;
             }
 
-            gfx.DrawString("Reading it back", label, XBrushes.Black, 50, y + 22);
+            gfx.DrawString("Why /Prev is one short, and why two rows say where", label,
+                XBrushes.Firebrick, 50, y + 22);
+
+            prose.DrawString(
+                "Two revisions have two startxrefs and one /Prev, not two. Every revision writes a "
+                + "cross-reference section; every section but the first points at the one before it, "
+                + "and the first has nothing behind it to point at. So the chain has one fewer link "
+                + "than it has sections, and a file with a /Prev per revision would be one with a "
+                + "link into nothing.",
+                body, XBrushes.Black, new XRect(50, y + 36, 495, 62));
+
+            prose.DrawString(
+                "The other caveat is how these were counted. A byte scan cannot tell a marker in a "
+                + "trailer from the same characters inside a compressed stream or an embedded font, "
+                + "and this file carries both - so the first two rows count the marker only where it "
+                + "begins a line, which is where a trailer puts it and where a stream almost never "
+                + "does. The third is a plain count and is worth exactly that much. Structure is what "
+                + "a reader parses for; this page is looking at the file rather than reading it.",
+                body, XBrushes.Black, new XRect(50, y + 104, 495, 76));
+
+            gfx.DrawString("Reading it back", label, XBrushes.Black, 50, y + 192);
 
             prose.DrawString(
                 "Nothing special is needed. A reader that understands PDF at all understands an "
@@ -248,9 +269,9 @@ internal sealed class ReviseDemo : PdfDemo
                 + "sections have always been chained - a linearised file has more than one section "
                 + "too. Open the finished PDF in anything and it is a four page document; the three "
                 + "revisions are visible only to something looking at the bytes.",
-                body, XBrushes.Black, new XRect(50, y + 36, 495, 62));
+                body, XBrushes.Black, new XRect(50, y + 206, 495, 62));
 
-            gfx.DrawString("What an earlier revision still holds", label, XBrushes.Black, 50, y + 112);
+            gfx.DrawString("What an earlier revision still holds", label, XBrushes.Black, 50, y + 282);
 
             prose.DrawString(
                 "Everything it ever said. Redacting a document by drawing a black rectangle over a "
@@ -258,16 +279,16 @@ internal sealed class ReviseDemo : PdfDemo
                 + "revision back - and tools that recover it are not sophisticated. Redaction means "
                 + "rewriting, which means Save, which means any signature goes with it. That "
                 + "tension is real and has no trick to it: the two features want opposite things.",
-                body, XBrushes.Black, new XRect(50, y + 126, 495, 76));
+                body, XBrushes.Black, new XRect(50, y + 296, 495, 76));
 
-            gfx.DrawString("Where this meets signing", label, XBrushes.Black, 50, y + 216);
+            gfx.DrawString("Where this meets signing", label, XBrushes.Black, 50, y + 386);
 
             prose.DrawString(
                 "PdfSigner does exactly what this page does - it appends a revision - and that is "
                 + "the whole reason signing a document that was already signed does not destroy the "
                 + "first signature. See the Signing demo, whose output is one revision written the "
                 + "same way with a hole patched into it.",
-                body, XBrushes.Black, new XRect(50, y + 230, 495, 48));
+                body, XBrushes.Black, new XRect(50, y + 400, 495, 48));
         }
         #endregion
 
@@ -294,12 +315,17 @@ internal sealed class ReviseDemo : PdfDemo
     static string Format(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
     /// <summary>
-    ///   How many times a marker appears in the raw bytes.
+    ///   How many times a marker appears anywhere in the raw bytes, stream data included.
     /// </summary>
     /// <remarks>
     ///   Latin-1 rather than UTF-8, because a PDF is a byte string throughout - the lexer reads one
     ///   character per byte - and decoding it as UTF-8 would turn a compressed stream into
     ///   replacement characters and lose count.
+    ///   <para>
+    ///   This counts occurrences and nothing more. Five bytes reading <c>/Prev</c> inside a flate
+    ///   stream or an embedded font look exactly like five bytes reading <c>/Prev</c> in a trailer,
+    ///   and a scanner cannot tell them apart. The page saying so is the honest way to use this.
+    ///   </para>
     /// </remarks>
     static int Count(byte[] bytes, string marker)
     {
@@ -310,6 +336,27 @@ internal sealed class ReviseDemo : PdfDemo
         while (at >= 0)
         {
             found++;
+            at = text.IndexOf(marker, at + marker.Length, StringComparison.Ordinal);
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    ///   How many times a marker begins a line, which is where a trailer puts <c>startxref</c> and
+    ///   <c>%%EOF</c> and where compressed data almost never does.
+    /// </summary>
+    static int CountAtLineStart(byte[] bytes, string marker)
+    {
+        string text = Encoding.Latin1.GetString(bytes);
+
+        int found = 0;
+        int at = text.IndexOf(marker, StringComparison.Ordinal);
+        while (at >= 0)
+        {
+            if (at == 0 || text[at - 1] == '\n' || text[at - 1] == '\r')
+                found++;
+
             at = text.IndexOf(marker, at + marker.Length, StringComparison.Ordinal);
         }
 

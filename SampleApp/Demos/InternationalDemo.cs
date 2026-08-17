@@ -104,20 +104,34 @@ internal sealed class InternationalDemo : PdfDemo
 
             // Automatic takes the direction from the first strong character, which is right far more
             // often than not and wrong exactly where it matters: a right-to-left line opening with a
-            // brand name, a quotation, or a number.
+            // brand name, a part number, or a quotation.
             XStringFormat declared = new XStringFormat();
             declared.TextDirection = BidiParagraphDirection.RightToLeft;
 
+            // A default XStringFormat is not the default DrawString uses. The overload without one
+            // passes XStringFormats.Default, whose LineAlignment is BaseLine; a new XStringFormat
+            // leaves LineAlignment at its zero value, Near, which measures from the top of the box
+            // instead - so the y below would mean two different things on the two lines.
+            declared.LineAlignment = XLineAlignment.BaseLine;
+
+            // A digit is not a strong character but a Latin letter is, so this line's first strong
+            // character is the A of ACME and Automatic resolves it left to right. That is the case
+            // worth showing: with "2026" in front of the Hebrew instead, the first strong character
+            // is still the Hebrew, Automatic already answers right to left, and declaring it changes
+            // nothing at all.
+            string branded = "ACME " + hebrew;
+
             gfx.DrawString("Guessed from the text, then declared right to left:", label, XBrushes.Black, 50, 500);
-            gfx.DrawString("2026 " + hebrew, sample, XBrushes.Black, 50, 527);
-            gfx.DrawString("2026 " + hebrew, sample, XBrushes.Black, 50, 557, declared);
+            gfx.DrawString(branded, sample, XBrushes.Black, 50, 527);
+            gfx.DrawString(branded, sample, XBrushes.Black, 50, 557, declared);
 
             Note(gfx, label, body, 50, 590,
-                "The year moves, and the letters do not.",
-                "A digit is not a strong character, so the first line reads left to right and puts the",
-                "year on the left. Declaring the paragraph right to left puts it where a Hebrew reader",
-                "expects it. Neither line reverses its own characters; what changes is where the",
-                "neutral run lands, which is exactly what the paragraph level decides.");
+                "The name moves, and the letters do not.",
+                "The first line opens with a Latin word, so the paragraph is guessed left to right and",
+                "the name is laid down first, at the left. Declaring it right to left lays the same",
+                "first word down at the right-hand end instead, where a Hebrew reader begins, and the",
+                "Hebrew after it - reading leftwards. Neither line reverses its own characters; what",
+                "changes is which end the line is built from, which is what the paragraph level says.");
         }
 
         // ----- page two: the letters themselves ----------------------------------------------------

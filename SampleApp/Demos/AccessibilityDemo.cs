@@ -328,7 +328,7 @@ internal sealed class AccessibilityDemo : PdfDemo
         arrangeRenderer(renderer);
         renderer.RenderDocument();
 
-        PdfDocument document = renderer.PdfDocument;
+        using PdfDocument document = renderer.PdfDocument;
         document.Info.Title = "A probe";
         document.Options.UAConformance = PdfUAConformance.PdfUA1;
         arrangeDocument(document);

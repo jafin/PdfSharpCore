@@ -50,7 +50,7 @@ internal sealed class ExtractDemo : PdfDemo
 
         // ----- pages one and two: the text that will be read back ----------------------------------
 
-        PdfDocument source = new PdfDocument();
+        using PdfDocument source = new PdfDocument();
         source.Info.Title = "Extract";
 
         PdfPage first = source.AddPage();
@@ -260,12 +260,21 @@ internal sealed class ExtractDemo : PdfDemo
 
             gfx.DrawString("The scaled line proves the point", label, XBrushes.Black, 50, y + 96);
 
+            // Reported rather than assumed. If the run cannot be found the sentence says so instead
+            // of printing a nought as though it were a measurement - the same rule the refusal pages
+            // in the Archive and Accessibility demos follow.
+            double? scaled = SizeOfScaledRun(runs);
+
             prose.DrawString(
-                "The line drawn under a twofold scale reports a size of "
-                + Number(SizeOfScaledRun(runs)).Trim() + " rather than 9, and a width to match. Both are "
-                + "measured through the same matrix, and they have to be: the run is reported in "
-                + "user space, so leaving the current transformation out of one of them would give a "
-                + "width in text space and a size in user space, which disagree with each other.",
+                (scaled.HasValue
+                    ? "The line drawn under a twofold scale reports a size of "
+                      + Number(scaled.Value).Trim() + " rather than 9, and a width to match. "
+                    : "The line drawn under a twofold scale is not among the runs above, so the "
+                      + "measurement this paragraph was going to quote is not there to quote. ")
+                + "Both are measured through the same matrix, and they have to be: the run is "
+                + "reported in user space, so leaving the current transformation out of one of them "
+                + "would give a width in text space and a size in user space, which disagree with "
+                + "each other.",
                 body, XBrushes.Black, new XRect(50, y + 110, 495, 62));
 
             gfx.DrawString(
@@ -278,8 +287,15 @@ internal sealed class ExtractDemo : PdfDemo
         return document;
     }
 
-    /// <summary>The size the doubled run reported, which is the one measurement worth naming.</summary>
-    static double SizeOfScaledRun(IReadOnlyList<PdfTextRun> runs)
+    /// <summary>
+    ///   The size the doubled run reported, or null if that run is not among them.
+    /// </summary>
+    /// <remarks>
+    ///   Nullable rather than nought, because nought is a plausible size and the page prints this
+    ///   number as a fact about its own output. A demo that quietly quotes a default is a demo that
+    ///   goes on claiming something after it has stopped being true.
+    /// </remarks>
+    static double? SizeOfScaledRun(IReadOnlyList<PdfTextRun> runs)
     {
         foreach (PdfTextRun run in runs)
         {
@@ -287,7 +303,7 @@ internal sealed class ExtractDemo : PdfDemo
                 return run.FontSize;
         }
 
-        return 0;
+        return null;
     }
 
     static string Number(double value) =>

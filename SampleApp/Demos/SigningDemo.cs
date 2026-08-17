@@ -278,7 +278,7 @@ internal sealed class SigningDemo : PdfDemo
     /// </summary>
     Rehearsal Rehearse()
     {
-        PdfDocument probe = new PdfDocument();
+        using PdfDocument probe = new PdfDocument();
         probe.Info.Title = "A rehearsal";
         probe.AddPage();
 
@@ -386,7 +386,10 @@ internal sealed class SigningDemo : PdfDemo
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, critical: true));
 
-        X509Certificate2 certificate = request.CreateSelfSigned(
+        // Disposed once it has been exported. It is the one carrying the ephemeral key the round
+        // trip below exists to get rid of, and holding a native key handle open for the life of the
+        // process to no purpose is how a demo teaches a habit worth not having.
+        using X509Certificate2 ephemeral = request.CreateSelfSigned(
             DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
 
         // Round-tripped through PKCS#12 on purpose. A certificate straight out of CreateSelfSigned
@@ -394,7 +397,7 @@ internal sealed class SigningDemo : PdfDemo
         // it was never put in - "Keyset does not exist", from a certificate that plainly has one.
         const string password = "pdfsharpcore";
         return new X509Certificate2(
-            certificate.Export(X509ContentType.Pfx, password), password,
+            ephemeral.Export(X509ContentType.Pfx, password), password,
             X509KeyStorageFlags.Exportable);
     }
 
