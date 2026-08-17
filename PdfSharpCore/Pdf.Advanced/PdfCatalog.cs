@@ -403,11 +403,24 @@ public sealed class PdfCatalog : PdfDictionary
         public const string Perms = "/Perms";
 
         /// <summary>
-        /// (Optional; PDF 1.5) A dictionary containing attestations regarding the content of a 
+        /// (Optional; PDF 1.5) A dictionary containing attestations regarding the content of a
         /// PDF document, as it relates to the legality of digital signatures.
         /// </summary>
         [KeyInfo("1.5", KeyType.Dictionary | KeyType.Optional)]
         public const string Legal = "/Legal";
+
+        /// <summary>
+        /// (Optional; PDF 2.0, and required by ISO 19005-3 of every attachment a PDF/A-3 document
+        /// carries) An array of file specification dictionaries for the files associated with the
+        /// document as a whole. This is what makes an attachment part of the document rather than
+        /// merely present in it: PDF/A-3 requires every embedded file to be associated somewhere,
+        /// and each specification listed here to say how, through its <c>/AFRelationship</c>.
+        /// <para>
+        /// Reached through <see cref="PdfDocument.Attachments"/> rather than by hand.
+        /// </para>
+        /// </summary>
+        [KeyInfo("1.7", KeyType.Array | KeyType.Optional)]
+        public const string AF = "/AF";
 
         /// <summary>
         /// Gets the KeysMeta for these keys.
