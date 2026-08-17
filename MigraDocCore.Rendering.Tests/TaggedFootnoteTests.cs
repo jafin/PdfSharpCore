@@ -154,6 +154,32 @@ public class TaggedFootnoteTests
     }
 
     [Fact]
+    public void SavingTwiceIndexesTheIdentifiersOnceRatherThanTwice()
+    {
+        // Saving to a stream and then to a file is an ordinary thing to do, and the index is written
+        // at save time. A fresh /IDTree each time would leave the earlier one in the cross-reference
+        // table with nothing pointing at it - an orphan written into the file, and one more with
+        // every save.
+        var renderer = new PdfDocumentRenderer(true) { Document = WithOneNote() };
+        renderer.RenderDocument();
+        var pdf = renderer.PdfDocument;
+
+        using var once = new System.IO.MemoryStream();
+        pdf.Save(once, false);
+        var first = pdf.Internals.Catalog.Elements.GetDictionary("/StructTreeRoot")
+            .Elements.GetDictionary("/IDTree");
+
+        using var twice = new System.IO.MemoryStream();
+        pdf.Save(twice, false);
+        var again = pdf.Internals.Catalog.Elements.GetDictionary("/StructTreeRoot")
+            .Elements.GetDictionary("/IDTree");
+
+        again.Should().BeSameAs(first, "the tree written last time is filled in again, not replaced");
+        again.Elements.GetArray("/Names").Elements.Count.Should().Be(2,
+            "one name and the element it names, not both twice over");
+    }
+
+    [Fact]
     public void ADocumentWithNoNotesInItHasNoIdentifierIndex()
     {
         var document = Document(out Section section);

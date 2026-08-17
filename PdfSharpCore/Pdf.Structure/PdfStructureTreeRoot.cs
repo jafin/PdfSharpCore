@@ -50,6 +50,12 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
     /// footnote has no way to find it. One flat leaf, however many entries: nesting exists so a
     /// reader can binary-search thousands without loading them all, and the elements that need a
     /// name are the few something points at rather than every node of the tree.
+    /// <para>
+    /// Called once per save, and a document may be saved more than once — to a stream and then to a
+    /// file is an ordinary thing to do. So the tree written last time is filled in again rather than
+    /// replaced: a fresh dictionary each time would leave the earlier ones in the cross-reference
+    /// table with nothing pointing at them, written into the file as orphans.
+    /// </para>
     /// </remarks>
     internal void SetIdTree(IReadOnlyList<KeyValuePair<string, PdfStructureElement>> named)
     {
@@ -68,10 +74,15 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
             leaves.Elements.Add(pair.Value.Reference);
         }
 
-        var root = new PdfDictionary(Owner);
+        var root = Elements.GetDictionary(Keys.IDTree);
+        if (root == null)
+        {
+            root = new PdfDictionary(Owner);
+            Owner._irefTable.Add(root);
+            Elements[Keys.IDTree] = root.Reference;
+        }
+
         root.Elements.SetObject("/Names", leaves);
-        Owner._irefTable.Add(root);
-        Elements[Keys.IDTree] = root.Reference;
     }
 
     /// <summary>

@@ -19,7 +19,8 @@ namespace PdfSharpCore.Pdf.Structure;
 /// <b>What is checked.</b> The document is tagged; it has a title, in the information dictionary and
 /// declared as the thing to show in the title bar; it declares a language; every page is in the
 /// structure tree and orders its tabs by structure; every figure has alternate text; every note has an
-/// identifier; every link annotation has a description and is reachable from the tree.
+/// identifier and no two elements share one; every link annotation has a description and is reachable
+/// from the tree.
 /// </para>
 /// <para>
 /// <b>What is not.</b> That no content sits outside the structure tree — the marks would have to be
@@ -48,6 +49,7 @@ public static class PdfUaValidator
         RequirePagesInTheTree(document);
         RequireAlternateTextOnFigures(document);
         RequireIdentifiedNotes(document);
+        RequireDistinctIdentifiers(document);
         RequireDescribedLinks(document);
     }
 
@@ -150,6 +152,34 @@ public static class PdfUaValidator
                     + "note exists to be pointed at from the mark that cited it, and an element with "
                     + "no identifier cannot be pointed at. Set PdfStructureElement.Id. A footnote "
                     + "rendered by MigraDoc is given one automatically.");
+        }
+    }
+
+    /// <summary>
+    /// An identifier has to name one element, or it names none.
+    /// </summary>
+    /// <remarks>
+    /// The same condition the structure builder refuses while it assembles the <c>/IDTree</c>, asked
+    /// here so that a caller can find out by asking rather than by saving. The builder runs first and
+    /// so it is the builder that speaks during a save; what this adds is an answer at a moment of the
+    /// caller's own choosing, which is what the validator is public for. A caller setting identifiers
+    /// of their own alongside the generated <c>note1</c>, <c>note2</c> — the obvious names to reach
+    /// for — collides easily.
+    /// </remarks>
+    static void RequireDistinctIdentifiers(PdfDocument document)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var element in Elements(document))
+        {
+            var id = element.Elements.GetString(PdfStructureElement.Keys.ID);
+            if (string.IsNullOrEmpty(id))
+                continue;
+
+            if (!seen.Add(id))
+                throw new InvalidOperationException(
+                    "Two structure elements share the identifier '" + id + "'. An identifier is what "
+                    + "something else points at, so it has to name one element — the second of the "
+                    + "two is unreachable. Give one of them an identifier of its own.");
         }
     }
 
