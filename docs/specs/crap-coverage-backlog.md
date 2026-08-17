@@ -363,10 +363,10 @@ No shared fixture, so take these in rank order and stop when the return drops. A
 | 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | **left**, unreachable |
 | 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | **done**, all four overloads |
 | 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | **left**, wants a font with `vmtx` |
-| 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | |
-| 18.8 | `LineFormat.Serialize(Serializer)` — `Shapes/LineFormat.cs:127` | DOM | |
-| 18.9 | `TextMeasurement.MeasureString(string, UnitType)` — `TextMeasurement.cs:58` | Rendering | |
-| 18.10 | `DocumentRenderer.RenderObject(…)` — `DocumentRenderer.cs:261` | Rendering | |
+| 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | **done** |
+| 18.8 | `LineFormat.Serialize(Serializer)` — `Shapes/LineFormat.cs:127` | DOM | **done** |
+| 18.9 | `TextMeasurement.MeasureString(string, UnitType)` — `TextMeasurement.cs:58` | Rendering | **done** |
+| 18.10 | `DocumentRenderer.RenderObject(…)` — `DocumentRenderer.cs:261` | Rendering | **done** |
 
 18.1 is the largest single return left that is not already recorded as left — the text extractor's
 operator walker, at 60% over forty-four branches. Every content operator it does not handle is an
@@ -436,6 +436,34 @@ and then replaces the content stream outright.
 - **`TD` sets the leading as a side effect**, and the test asserts a third run positioned by a
   following `T*` rather than the second run's position — otherwise it would be testing the movement
   and not the side effect.
+
+### 18.7 to 18.10 — the last four, and one lesson about which reader to use
+
+7 tests in `MigraDocCore.DocumentObjectModel.Tests/TableCloneAndLineFormatTests` and 15 in
+`MigraDocCore.Rendering.Tests/TextMeasurementAndRenderObjectTests`.
+
+`Table.DeepCopy` is `protected override` and reached through the public `Clone`. It clones five
+children by hand — columns, rows, format, borders and shading — so the assertion that matters is
+independence, the way `Chart.DeepCopy` got it in batch 5.2: mutate the original afterwards and check
+the copy did not follow, in both directions. The reparenting half is not directly observable, so it
+is checked by putting the copy in a document of its own and writing it.
+
+`LineFormat.Serialize` has five guarded attributes and is reached by writing a document containing a
+shape. Both sides are pinned: everything set is written, and an untouched line format contributes no
+attributes rather than a row of defaults. Note in passing that `LineStyle` has exactly one member,
+`Single`, so the `Style` attribute can only ever say one thing.
+
+`TextMeasurement.MeasureString` and `DocumentRenderer.RenderObject` are both public, both need a real
+font, and so both go in `MigraDocCore.Rendering.Tests` rather than the DOM suite. Each unit
+conversion is asserted against the measurement in points rather than against a number typed in, so
+the tests say what the unit means and stay true whatever the font measures.
+
+**The lesson, which cost a run:** `Glyphs` is the right reader for the rest of that suite and the
+wrong one here. It reads glyph identifiers because `PdfDocumentRenderer` embeds its fonts as
+Identity-H — but `RenderObject` draws onto an `XGraphics` the caller made, which is the whole point
+of it, and that path writes the string as characters. The first version of these tests read "Framed"
+as `{18034, 24941, 25956}`, which is the characters two at a time. `TextOperators.ShownStrings` is
+the reader for a page that was not written by the document renderer.
 
 The last row is the review of the pull request the rest of this was raised in. It moves neither
 number, which is the point of recording it: three more defects (F18–F20) and four tests that were

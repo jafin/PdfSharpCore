@@ -98,10 +98,14 @@ Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
       has no caller anywhere, `DictionaryElements.CreateValue` is private with no caller, and
       `PdfCrossReferenceTable.CheckConsistence` carries `[Conditional("DEBUG_")]` — a symbol never
       defined — so it is compiled out of Debug and Release alike. 18.6 needs a font with `vmtx`.
-- [ ] Batch 18.7 to 18.10 remain — two DOM, two rendering. Route each test by the rules in that spec:
-      DOM-only targets go to `MigraDocCore.DocumentObjectModel.Tests`, layout to
-      `MigraDocCore.Rendering.Tests`, charting to `PdfSharpCore.Charting.Tests`, everything in the
-      core package to `PdfSharpCore.Test`.
+- [x] **Batch 18.7 to 18.10 — done.** 22 more tests. `Table.DeepCopy` asserted for independence in
+      both directions rather than for coming back non-null; `LineFormat.Serialize` pinned both ways;
+      `TextMeasurement.MeasureString` with every unit asserted against the measurement in points; and
+      `DocumentRenderer.RenderObject` over all three renderable kinds and its three refusals.
+
+**Batch 18 is complete, and with it every batch in the backlog.** The next coverage work needs a
+fresh CRAP measurement — and that needs the Roslyn analysis server stopped, so the run can be made
+in Debug and compared with the spec's baseline table. See §3.2.
 - [ ] Any test that scans malformed input carries `[Fact(Timeout = …)]` **with** the `Task.Run`
       wrapper — xUnit honours a timeout only on an `async` test, and a lexer change hangs the host
       rather than failing it.
