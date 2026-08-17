@@ -83,7 +83,15 @@ Coverage is **78.3% lines / 73.9% branches** over 3,897 tests. An A needs 90%.
       downstream of every cache and is never compared; the remaining branches of `Equals` have no
       public route (checked, not assumed); and an edit *anywhere above* a declaration invalidates
       the cache, because the model holds absolute source positions.
-- [ ] Then 17 and 18. Route each test by the rules in that spec: DOM-only targets go to
+- [x] **Batch 17 — 17.1 and 17.2 done**, both encoders 0%/37% → **100%**. `DdlEncoderTests`,
+      45 tests. Two findings: **F22** (fixed) — `StringToText` escaped only the first slash of each
+      `//` pair, so `"///"` came out as `\///`, an escaped slash followed by a comment that swallowed
+      the rest of the line; and **F23** (pinned, not fixed) — a paragraph with no style is written
+      without a `\paragraph` keyword, so text whose first character needs escaping is read at section
+      level where the escape is not honoured. 17.3 left (needs a hex-string PDF fixture; `PdfEncoders`
+      and `PdfStringFlags` are both internal). 17.4 and 17.5 left and deliberately unmoved — they are
+      about paragraphs continuing across lines and want a batch built from multi-line fixtures.
+- [ ] Then 18. Route each test by the rules in that spec: DOM-only targets go to
       `MigraDocCore.DocumentObjectModel.Tests`, layout to `MigraDocCore.Rendering.Tests`, charting to
       `PdfSharpCore.Charting.Tests`, everything in the core package to `PdfSharpCore.Test`.
 - [ ] Any test that scans malformed input carries `[Fact(Timeout = …)]` **with** the `Task.Run`

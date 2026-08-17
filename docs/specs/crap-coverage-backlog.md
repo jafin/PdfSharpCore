@@ -245,19 +245,110 @@ position rather than trivia.
 
 | # | target | CC | cov | retires | status |
 |---|---|---|---|---|---|
-| 17.1 | `DdlEncoder.StringToLiteral(string)` — `DdlEncoder.cs:102` | 10 | 0% | 100 | |
-| 17.2 | `DdlEncoder.StringToText(string)` — `DdlEncoder.cs:55` | 18 | 37% | 82 | |
-| 17.3 | `PdfEncoders.ToHexStringLiteral(string, PdfStringEncoding, PdfStandardSecurityHandler)` — `Pdf.Internal/PdfEncoders.cs:139` | 10 | 0% | 100 | |
-| 17.4 | `DdlScanner.MoveToNextParagraphContentLine(…)` — `DdlScanner.cs:628` | 18 | 35% | 89 | |
-| 17.5 | `DdlScanner.ReadText(…)` — `DdlScanner.cs:385` | 30 | 59% | 62 | |
+| 17.1 | `DdlEncoder.StringToLiteral(string)` — `DdlEncoder.cs:102` | 10 | 0% | 100 | **done**, 0% → 100% |
+| 17.2 | `DdlEncoder.StringToText(string)` — `DdlEncoder.cs:55` | 18 | 37% | 82 | **done**, 37% → 100%, findings F22 and F23 |
+| 17.3 | `PdfEncoders.ToHexStringLiteral(string, PdfStringEncoding, PdfStandardSecurityHandler)` — `Pdf.Internal/PdfEncoders.cs:139` | 10 | 0% | 100 | **left**, wants a fixture |
+| 17.4 | `DdlScanner.MoveToNextParagraphContentLine(…)` — `DdlScanner.cs:628` | 18 | 35% | 89 | **left**, its own batch |
+| 17.5 | `DdlScanner.ReadText(…)` — `DdlScanner.cs:385` | 30 | 59% | 62 | **left**, its own batch |
 
 17.1 and 17.2 are the two halves of one job — escaping a string for DDL — and share a fixture, which
 is why they are together rather than one per rank. The round trip is the assertion worth making:
 encode, read back through `DdlReader`, and check the string survives. Escapes, braces, backslashes
 and a string that needs no escaping at all are where the branches are.
 
-17.3 has never run and is the hex half of PDF string writing; its sibling `ToStringLiteral` is
-covered, so compare the two as you go.
+45 tests in `MigraDocCore.DocumentObjectModel.Tests/DdlEncoderTests`, taking both encoders to 100%
+and both below the threshold. **Two findings, F22 and F23**, and only the first is fixed.
+
+The two methods escape different things, which is deliberate and is now pinned as such: paragraph
+text escapes the backslash, both braces and the comment marker, because all of those end the text
+early; a quoted literal escapes the backslash and the quote and nothing else, because inside quotes
+nothing else means anything. They also disagree about null — `StringToText` hands it straight back
+and `StringToLiteral` answers `""` — which is pinned rather than reconciled, since either could
+otherwise look like the mistake.
+
+**17.3 was left.** `PdfEncoders` is `internal` and so is `PdfStringFlags`, so there is no public way
+to construct a `PdfString` that carries the `HexLiteral` flag: the flag only ever arrives from the
+parser having read a `<…>` literal out of a file. Covering it therefore needs a PDF fixture that
+already contains a hex string, and the byte-level surgery to make one out of a document this library
+wrote shifts every xref offset. It is a fixture item rather than a test item, and it belongs with
+whatever batch next needs a hand-built PDF. Note that `LexerHexStringTests` already covers the
+reading side.
+
+**17.4 and 17.5 were left**, and were not moved by this batch — `ReadText` is still at 59.1% and
+`MoveToNextParagraphContentLine` at 35.0% after all 45 tests. That is the right answer rather than a
+disappointment: both are about a paragraph *continuing across lines*, and every test here is a
+single-line paragraph. They want a batch of their own, built from multi-line paragraphs, blank-line
+separation and the indentation rules — which is a fixture and a subject, not a fixture these
+happened to share.
+
+### F22 — three slashes in a row came out as a comment
+
+`StringToText` escapes `//` because it would otherwise begin a comment. It escaped only the first
+slash of each pair, and consumed the second:
+
+```csharp
+case '/':
+  if (index < length - 1 && str[index + 1] == '/')
+  {
+    strb.Append("\\//");
+    ++index;
+  }
+  else
+    strb.Append("/");
+  break;
+```
+
+For exactly two slashes that is right: `\//` reads back as an escaped slash and then a plain one.
+For three it is not. `"///"` came out as `\///`, which the scanner reads as one escaped slash
+followed by `//` — the start of a comment — so the rest of the line, including the brace closing the
+paragraph, was swallowed and the document would not read back at all:
+
+```text
+"///"  ->  \///  ->  DdlParserException: End of file expected.
+```
+
+Any odd run of three or more slashes does it, and a Windows UNC path or a URL in a paragraph is
+enough to produce one. The fix escapes every slash that begins a pair and lets the loop reach the
+next one, which is also simpler than what it replaces — no index to skip:
+
+```csharp
+case '/':
+  if (index < length - 1 && str[index + 1] == '/')
+    strb.Append("\\/");
+  else
+    strb.Append("/");
+  break;
+```
+
+`"//"` still encodes to `\//`, so nothing that worked changes. `"///"` now encodes to `\/\//` and
+`"////"` to `\/\/\//`, both of which read back as themselves. Pinned by the escaping table and, end
+to end, by `TextSurvivesBeingWrittenAndReadAgain` over `a///b` and `a////b`.
+
+### F23 — text beginning with an escaped character cannot be read back
+
+Found while fixing F22, and left recorded rather than fixed because the repair is in the serializer
+rather than the encoder.
+
+A paragraph carrying no style or format of its own is written as bare text inside its section,
+without a `\paragraph` keyword around it. The escapes in that text are only honoured once the
+scanner is reading paragraph content, and what gets it there is the first plain character. So text
+whose *first* character needs escaping is encoded correctly and then read at section level, where
+`\{` is a keyword rather than an escaped brace: the brace nesting goes wrong and the reader gives up.
+
+```text
+"{}"   ->  \{\}   ->  DdlParserException: End of file expected.
+"//"   ->  \//    ->  DdlParserException: End of file expected.
+"a{b}c" ->  a\{b\}c  ->  reads back as itself
+```
+
+A single letter in front of it is the difference. Both halves are pinned — the round-trip theory
+asserts the working case, and `TextBeginningWithAnEscapedCharacterCannotBeReadBack` asserts the
+broken one — so a fix shows up as a failing test rather than silently.
+
+Not fixed here because the encoder is not what is wrong: it produced exactly the right escape. The
+repair is for the paragraph serializer to emit `\paragraph{…}` when its text begins with a character
+it had to escape, and that changes the shape of documents this library writes, which is a decision
+of its own rather than a coverage item.
 
 ## Batch 18 — never executed, one apiece
 
@@ -393,6 +484,8 @@ what pins it now. Numbered in the order they were found, which is the order of t
 | F19 | `GetMatrix` refused the literal that `SetMatrix` and its own create branch write, so **no matrix this library wrote could be read back** | yes |
 | F20 | A check box whose single widget is a child of its own ignored `Checked = true` entirely | yes |
 | F21 | `LeftPosition.Parse` and `TopPosition.Parse` tested for emptiness before trimming, so a string of nothing but whitespace read `value[0]` off the end — `IndexOutOfRangeException` from a public API, identically in both copies | yes |
+| F22 | `DdlEncoder.StringToText` escaped only the first slash of each `//` pair and consumed the second, so `"///"` came out as `\///` — an escaped slash followed by the start of a comment, which swallowed the rest of the line and the brace ending the paragraph | yes |
+| F23 | A paragraph with no style of its own is written without a `\paragraph` keyword, so text whose first character needs escaping is read at section level where the escape is not honoured, and the document will not read back | no — pinned |
 
 Eighteen of the twenty are fixed. F3 is recorded rather than fixed because fixing it changes what
 the reader accepts, which is a decision rather than a repair. F1 is half fixed: the unreachable
