@@ -35,6 +35,223 @@ Re-measured the same way after each batch. Every batch is done.
 Every run exit 0, and every total checked against `dotnet test --list-tests` rather than read off
 the word `Passed`.
 
+## Re-measured at `1d46b2a`, 2026-08-17
+
+Every batch above being done, the list was re-measured to find the next one. **4,049 tests, exit 0,
+no test-host crash** — 152 more than the last row above.
+
+**The percentages from this run are not comparable to the table above, and are deliberately not
+added to it.** The run had to be made in Release: the Roslyn analysis server holds
+`MigraDocCore.DocumentObjectModel.Generators/bin/Debug/netstandard2.0/…Generators.dll` open, so the
+Debug build cannot complete on a machine running it. Release reports 70.4% of lines and 54.6% of
+branches over eight assemblies, against the 78.3%/73.9% over six above — a different configuration
+over a different denominator, so the difference says nothing about whether coverage moved. Anyone
+re-measuring for the table must stop the analysis server first and build Debug.
+
+Two things about the run *are* comparable, because they count methods rather than lines, and both
+say the backlog worked:
+
+| | baseline `d0d36e5` | now `1d46b2a` |
+|---|---|---|
+| methods above the CRAP threshold of 30 | 237 | **172** |
+| of those, never executed at all | 109 | **71** |
+| methods measured | 7,287 | 7,527 |
+
+Retirable points now stand at about **8,700**, against the 17,900 the original list opened with.
+
+A note for whoever measures next, because it cost an hour here. ReportGenerator emits no risk
+hotspots for these reports, and coverlet writes `crapScore="0"` on every method, so the score has to
+be computed — `cc² × (1 − cov)³ + cc` — from each method's `cyclomaticComplexity` and
+`sequenceCoverage` attributes in the OpenCover XML. Use `sequenceCoverage`; do **not** compute
+coverage by unioning sequence points by hand. A multi-line `||` chain short-circuits, so its later
+sequence points never execute even when the method is fully exercised, and a hand-rolled union
+reports `AnsiEncoding.IsAnsi1252Char` at 57% when it is at 100%. The four methods in the
+"Out of scope — already covered" table below are the check: any method that reads them at less than
+100% has a broken measurement, not a coverage gap.
+
+## Batch 15 — one method, two copies, again
+
+`MigraDocCore.DocumentObjectModel.Tests`. The highest-value shape in this list, and the third time
+it has come up.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 15.1 | `LeftPosition.Parse(string)` — `Shapes/LeftPosition.cs:207` | 10 | 0% | 100 | **done**, finding F21 |
+| 15.2 | `TopPosition.Parse(string)` — `Shapes/TopPosition.cs:203` | 10 | 0% | 100 | **done**, finding F21 |
+
+`public static`, and the two bodies are identical character for character apart from the type name:
+trim, look at the first character, and either hand the string to `Unit.Parse` or to
+`Enum.Parse(typeof(ShapePosition), …)`. Neither has ever run.
+
+Write one table of strings and assert both against it, the way `ExtractPageNumberParityTests` holds
+the two `ExtractPageNumber` copies to one answer — that is the arrangement that makes them agree
+rather than merely testing them separately. F6, F12 and F18 were all one half of a near-copy pair
+having a guard its twin lacked, so a divergence here is a finding, not a test to bend around.
+
+One thing to settle rather than pin blindly. Both open with
+
+```csharp
+if (value == null || value.Length == 0)
+    throw new ArgumentNullException("value");
+```
+
+which answers `ArgumentNullException` for `""`. That is the wrong exception for an empty string and
+the argument name is a literal rather than `nameof`. Decide whether the empty case becomes
+`ArgumentException` — it is a public API change, so it wants saying out loud — and pin whichever
+answer is chosen.
+
+Cover: a signed number, an unsigned number, a unit with a suffix, each `ShapePosition` member,
+wrong case, surrounding whitespace, a name that is not a member, `""` and null.
+
+**They agree, and they were wrong together** — see F21, which is the same shape as F12. 58 tests in
+`MigraDocCore.DocumentObjectModel.Tests/LeftAndTopPositionParityTests`, of which 24 hold both
+implementations to one table.
+
+Two things learned rather than assumed, and pinned as such:
+
+- **Nothing in the repository calls either method.** `git grep` finds no caller outside the new
+  tests; the DDL parser and the DOM set `Left` and `Top` through `INullableValue.SetValue`, which is
+  a different path with its own copy of the enum-or-unit decision. That is why both sat at 0%. They
+  are `public static` and this is a library, so unlike batch 12.1 they are not unreachable — they
+  are public API with no internal caller, and the defect below was consumer-facing.
+- **The asymmetry is deliberate and had to be pinned separately.** The two share one
+  `ShapePosition` enum and admit different members of it — `Left`, `Right`, `Center`, `Inside`,
+  `Outside` against `Top`, `Bottom`, `Center` — so each must *refuse* the names the other takes.
+  The refusal is not in `Parse` at all: it happens in the private constructor the implicit
+  conversion runs, which is why reading `Parse` alone makes the two look interchangeable.
+  `Undefined` is the one name that parses to an empty position rather than throwing, because both
+  constructors admit it by name.
+
+The `ArgumentNullException`-for-`""` question the batch raised was **settled by leaving it**. It is
+the wrong exception by BCL convention, and the argument name is a literal rather than `nameof` — but
+`""` already answered `ArgumentNullException` before this work, changing it would break a caller
+catching that type specifically, and it buys nothing a caller can use. The fix below therefore
+changes the behaviour of no input that previously worked: the only inputs whose answer moved are the
+ones that previously crashed.
+
+### F21 — a position of nothing but whitespace read off the end of the string
+
+Both copies opened by testing the string they were given, and trimming it afterwards:
+
+```csharp
+if (value == null || value.Length == 0)
+    throw new ArgumentNullException("value");
+
+value = value.Trim();
+char ch = value[0];
+```
+
+`"   "` has a length of three, so it passed the guard; `Trim()` then left nothing, and `value[0]`
+threw `IndexOutOfRangeException` — out of a public API, with nothing in the message to say what was
+wrong. Demonstrated against both before fixing, over `"   "`, `"\t"`, `" \t "` and `"\r\n"`:
+
+```text
+LeftPosition.Parse("   ")  ->  IndexOutOfRangeException
+TopPosition.Parse("   ")   ->  IndexOutOfRangeException
+```
+
+The fix is the order of the two steps, in both:
+
+```csharp
+if (value == null)
+    throw new ArgumentNullException("value");
+
+value = value.Trim();
+if (value.Length == 0)
+    throw new ArgumentNullException("value");
+
+char ch = value[0];
+```
+
+Pinned by `WhitespaceAloneIsRefusedTheSameWayAsNothingAtAll`, which ran red with
+`IndexOutOfRangeException` against the unfixed code before it ran green — the four whitespace cases
+failed and the other 54 tests passed, so the pin is known to be capable of failing.
+
+This is F12's shape exactly: a guard testing the wrong side of a bound, copied identically into both
+halves of a near-copy pair, so neither had the guard the other lacked and the parity test found it
+by agreeing rather than by disagreeing.
+
+## Batch 16 — the generator's cache key
+
+`MigraDocCore.DocumentObjectModel.Generators.Tests`. Highest-scoring method in the tree that has
+never run.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 16.1 | `EquatableArray<T>.Equals(EquatableArray<T>)` — `Model/EquatableArray.cs:29` | 14 | 0% | 196 | |
+| 16.2 | `EquatableArray<T>.GetHashCode()` — `Model/EquatableArray.cs:45` | — | 0% | — | |
+
+This is what makes the incremental generator's models comparable, so it decides whether a pipeline
+step is re-run or served from cache. Wrong `Equals` is not a cosmetic bug: too eager and the
+generator emits stale source, too shy and incremental caching stops working.
+
+Read it before writing the tests — two things look wrong:
+
+- The element comparison is `array[i].Equals(other.array[i])`, which throws
+  `NullReferenceException` for a null element of a reference type. `EqualityComparer<T>.Default`
+  is the usual answer and handles null on both sides.
+- `Equals` and `GetHashCode` must agree. Assert the pair together — equal arrays hash equally —
+  rather than each alone.
+
+Cover: both null, one null, different lengths, equal contents, differing contents, an empty array
+against a null one, and a null element if the fix admits one. 16.2 is on the list with 16.1 because
+they are one contract and testing either alone proves little.
+
+## Batch 17 — text encoders and the DDL scanner's readers
+
+`MigraDocCore.DocumentObjectModel.Tests` for the DDL items, `PdfSharpCore.Test` for the encoder.
+
+| # | target | CC | cov | retires | status |
+|---|---|---|---|---|---|
+| 17.1 | `DdlEncoder.StringToLiteral(string)` — `DdlEncoder.cs:102` | 10 | 0% | 100 | |
+| 17.2 | `DdlEncoder.StringToText(string)` — `DdlEncoder.cs:55` | 18 | 37% | 82 | |
+| 17.3 | `PdfEncoders.ToHexStringLiteral(string, PdfStringEncoding, PdfStandardSecurityHandler)` — `Pdf.Internal/PdfEncoders.cs:139` | 10 | 0% | 100 | |
+| 17.4 | `DdlScanner.MoveToNextParagraphContentLine(…)` — `DdlScanner.cs:628` | 18 | 35% | 89 | |
+| 17.5 | `DdlScanner.ReadText(…)` — `DdlScanner.cs:385` | 30 | 59% | 62 | |
+
+17.1 and 17.2 are the two halves of one job — escaping a string for DDL — and share a fixture, which
+is why they are together rather than one per rank. The round trip is the assertion worth making:
+encode, read back through `DdlReader`, and check the string survives. Escapes, braces, backslashes
+and a string that needs no escaping at all are where the branches are.
+
+17.3 has never run and is the hex half of PDF string writing; its sibling `ToStringLiteral` is
+covered, so compare the two as you go.
+
+## Batch 18 — never executed, one apiece
+
+No shared fixture, so take these in rank order and stop when the return drops. All are `CC 10` at
+0%, worth 100 retirable points each, unless noted.
+
+| # | target | suite | status |
+|---|---|---|---|
+| 18.1 | `PdfTextExtractor.Walker.Execute(COperator)` — `Pdf.Extraction/PdfTextExtractor.cs:132` — CC 44, 60%, **124 points** | Core | |
+| 18.2 | `PdfPages.FindPage(PdfObjectID)` — `Pdf/PdfPages.cs:84` | Core | |
+| 18.3 | `PdfCrossReferenceTable.CheckConsistence()` — `Pdf.Advanced/PdfCrossReferenceTable.cs:249` | Core | |
+| 18.4 | `DictionaryElements.CreateValue(Type, PdfDictionary)` — `Pdf/PdfDictionary.cs:1077` | Core | |
+| 18.5 | `XTextSegmentFormatter.CalculateTextSize(…)` — `Drawing.Layout/XTextSegmentFormatter.cs:149` | Core | |
+| 18.6 | `VerticalMetricsTable.Read()` — `Fonts.OpenType/OpenTypeFontTables.cs:536` | Core | |
+| 18.7 | `Table.DeepCopy()` — `Tables/Table.cs:73` | DOM | |
+| 18.8 | `LineFormat.Serialize(Serializer)` — `Shapes/LineFormat.cs:127` | DOM | |
+| 18.9 | `TextMeasurement.MeasureString(string, UnitType)` — `TextMeasurement.cs:58` | Rendering | |
+| 18.10 | `DocumentRenderer.RenderObject(…)` — `DocumentRenderer.cs:261` | Rendering | |
+
+18.1 is the largest single return left that is not already recorded as left — the text extractor's
+operator walker, at 60% over forty-four branches. Every content operator it does not handle is an
+uncovered branch, and `text-extraction.md` is the spec to read first.
+
+18.7 wants the assertion `Chart.DeepCopy` got in batch 5.2: mutate the original after copying and
+check the copy did not move. A deep copy that returns non-null proves nothing.
+
+18.9 is in `MigraDocCore.Rendering.Tests` and needs a real font, so it cannot go in the DOM suite —
+`NamedFontsOnly.cs` serves a name and throws if asked for a face.
+
+Three that look like this batch and are **not** on it, checked before listing: `DataMatrixSymbol
+.SmallestSizeFor` (barcodes are a fork-inherited corner with no other coverage and no spec — its own
+decision), `OpenTypeDescriptor..ctor` (reached only through font loading, so it is covered
+incidentally the moment 18.6 is), and `LineFormatRenderer..ctor(XGraphics, LineFormat, double)`,
+which batch 13.3 records as done and which now reads 0% — worth a look on its own account, because
+either the batch-13 test stopped reaching it or the two-argument overload no longer chains to it.
+
 The last row is the review of the pull request the rest of this was raised in. It moves neither
 number, which is the point of recording it: three more defects (F18–F20) and four tests that were
 not asserting what they said they were, none of it visible in a coverage percentage. The lines were
@@ -133,6 +350,7 @@ what pins it now. Numbered in the order they were found, which is the order of t
 | F18 | The UTF-16 half of the literal string scanner had F16's fault and did not get F16's fix | yes |
 | F19 | `GetMatrix` refused the literal that `SetMatrix` and its own create branch write, so **no matrix this library wrote could be read back** | yes |
 | F20 | A check box whose single widget is a child of its own ignored `Checked = true` entirely | yes |
+| F21 | `LeftPosition.Parse` and `TopPosition.Parse` tested for emptiness before trimming, so a string of nothing but whitespace read `value[0]` off the end — `IndexOutOfRangeException` from a public API, identically in both copies | yes |
 
 Eighteen of the twenty are fixed. F3 is recorded rather than fixed because fixing it changes what
 the reader accepts, which is a decision rather than a repair. F1 is half fixed: the unreachable
