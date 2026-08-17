@@ -43,6 +43,43 @@ public class CLexerTests
         tokens.Should().Contain(token => token.Symbol == expected);
     }
 
+    /// <summary>
+    ///   A dictionary ends at the <c>&gt;&gt;</c> that matches, which is not the same as the first
+    ///   <c>&gt;</c> that comes along. Ending at the first one left the rest of the dictionary to be
+    ///   read as operators and the stray <c>&gt;</c> then stopped the whole content stream — which is
+    ///   what <c>/Span &lt;&lt;/ActualText &lt;FEFF0066&gt;&gt;&gt; BDC</c> did, the sequence that says
+    ///   a ligature stands for several characters.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData("<</ActualText <FEFF00660069>>> BDC", "<</ActualText <FEFF00660069>>>")]
+    [InlineData("<</Outer <</Inner 1>> >> BDC", "<</Outer <</Inner 1>> >>")]
+    [InlineData("<</Desc (a > b)>> BDC", "<</Desc (a > b)>>")]
+    [InlineData("<</Desc (escaped \\) and > )>> BDC", "<</Desc (escaped \\) and > )>>")]
+    [InlineData("<</Desc (nested (pair) > )>> BDC", "<</Desc (nested (pair) > )>>")]
+    public async Task ScanNextToken_readsADictionaryToTheAngleBracketsThatMatch(
+        string content, string expected)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.Dictionary).Should().Equal(expected);
+
+        // And the operator after it is still found, which is what says the reader was left in the
+        // right place rather than somewhere inside what it had just read.
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("BDC");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ScanNextToken_readsAPlainDictionaryExactlyAsItAlwaysDid()
+    {
+        // The shape every tagged page is full of. Whatever else changes about scanning a dictionary,
+        // this one has to come back the same or every marked-content sequence stops being readable.
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("/P <</MCID 0>> BDC")));
+
+        TokensOf(tokens, CSymbol.Dictionary).Should().Equal("<</MCID 0>>");
+        TokensOf(tokens, CSymbol.Name).Should().Equal("/P");
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("BDC");
+    }
+
     [Fact(Timeout = 5000)]
     public async Task ScanNextToken_terminatesForATruncatedUnicodeString()
     {

@@ -215,25 +215,115 @@ public class CLexer
     /// Scans a dictionary. Not implemented: it clears the token and reports an operator, which is why
     /// <see cref="CSymbol.Dictionary"/> notes that <c>&lt;&lt; … &gt;&gt;</c> is taken as a string.
     /// </summary>
+    /// <summary>
+    /// Scans a dictionary as one opaque token, from its opening <c>&lt;&lt;</c> to the
+    /// <c>&gt;&gt;</c> that closes it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The closing <c>&gt;&gt;</c> is the one that matches, which is not the same as the first
+    /// <c>&gt;</c> that comes along. Three things put a <c>&gt;</c> inside a dictionary before its
+    /// own end: a hex string, another dictionary, and a hex string inside another dictionary. Ending
+    /// at the first one leaves the rest of the dictionary to be read as operators, and the stray
+    /// <c>&gt;</c> then stops the whole content stream — which is what
+    /// <c>/Span &lt;&lt;/ActualText &lt;FEFF00660069&gt;&gt;&gt; BDC</c> did, the sequence that says
+    /// a ligature stands for several characters.
+    /// </para>
+    /// <para>
+    /// A literal string is stepped over as well, for the same reason one character further on: a
+    /// <c>&gt;</c> may appear inside one, and so may an escaped closing parenthesis, so the escapes
+    /// have to be honoured to find where the string ends.
+    /// </para>
+    /// </remarks>
     protected CSymbol ScanDictionary()
     {
         ClearToken();
+
+        // Both angle brackets of the opening '<<', taken before the loop starts. Left to the loop the
+        // second of them reads as the start of a hex string, and everything up to the next '>' is
+        // then skipped as if it were hex digits.
         _token.Append(_currChar);
-        char ch;
+        _token.Append(ScanNextChar());
+
+        // One for the '<<' being opened here. A dictionary nested inside this one adds another, and
+        // only the '>>' that takes the count back to nothing ends the token.
+        int depth = 1;
+
         while (true)
         {
-            ch = ScanNextChar();
-            // A truncated dictionary never sees its closing '>>', so give up at the end of
-            // the content rather than appending Chars.EOF for ever.
+            char ch = ScanNextChar();
+
+            // A truncated dictionary never sees its closing '>>', so give up at the end of the
+            // content rather than appending Chars.EOF for ever.
             if (ch == Chars.EOF)
                 return CSymbol.Dictionary;
 
             _token.Append(ch);
-            if (ch == '>')
+
+            switch (ch)
             {
-                _token.Append(ch = ScanNextChar());
-                ScanNextChar();
-                return CSymbol.Dictionary;
+                case '<':
+                    if (_nextChar == '<')
+                    {
+                        _token.Append(ScanNextChar());
+                        depth++;
+                    }
+                    else
+                    {
+                        // A hex string. Its '>' is not this dictionary's, so read past it.
+                        while (true)
+                        {
+                            ch = ScanNextChar();
+                            if (ch == Chars.EOF)
+                                return CSymbol.Dictionary;
+
+                            _token.Append(ch);
+                            if (ch == '>')
+                                break;
+                        }
+                    }
+                    break;
+
+                case '(':
+                    // A literal string, which ends at the parenthesis that balances this one -
+                    // counting the nested pairs it is allowed to hold, and skipping whatever a
+                    // backslash escapes so that an escaped parenthesis does not close it.
+                    int parentheses = 1;
+                    while (parentheses > 0)
+                    {
+                        ch = ScanNextChar();
+                        if (ch == Chars.EOF)
+                            return CSymbol.Dictionary;
+
+                        _token.Append(ch);
+
+                        if (ch == '\\')
+                        {
+                            ch = ScanNextChar();
+                            if (ch == Chars.EOF)
+                                return CSymbol.Dictionary;
+                            _token.Append(ch);
+                        }
+                        else if (ch == '(')
+                            parentheses++;
+                        else if (ch == ')')
+                            parentheses--;
+                    }
+                    break;
+
+                case '>':
+                    if (_nextChar != '>')
+                        break;
+
+                    _token.Append(ScanNextChar());
+                    if (--depth == 0)
+                    {
+                        // Left standing on the character after the dictionary, which is where every
+                        // other scan leaves the reader.
+                        ScanNextChar();
+                        return CSymbol.Dictionary;
+                    }
+                    break;
             }
         }
     }
