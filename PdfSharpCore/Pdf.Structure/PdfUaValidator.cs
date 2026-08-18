@@ -20,12 +20,12 @@ namespace PdfSharpCore.Pdf.Structure;
 /// declared as the thing to show in the title bar; it declares a language; every page is in the
 /// structure tree and orders its tabs by structure; every figure has alternate text; every note has an
 /// identifier and no two elements share one; every link annotation has a description and is reachable
-/// from the tree.
+/// from the tree; and headings descend a level at a time rather than skipping one.
 /// </para>
 /// <para>
 /// <b>What is not.</b> That no content sits outside the structure tree — the marks would have to be
 /// walked and matched against the tree, which is a content-stream pass this does not make. That
-/// reading order is sensible, which no machine can decide. That headings do not skip a level. That
+/// reading order is sensible, which no machine can decide. That
 /// every glyph maps back through <c>/ToUnicode</c>, which is true of everything this library embeds
 /// but not of an imported page. A page imported from an untagged document passes every rule here and
 /// conforms to nothing, which is why the last word belongs to veraPDF and not to this.
@@ -51,6 +51,7 @@ public static class PdfUaValidator
         RequireIdentifiedNotes(document);
         RequireDistinctIdentifiers(document);
         RequireDescribedLinks(document);
+        RequireHeadingsNotToSkipALevel(document);
     }
 
     static void RequireStructureTree(PdfDocument document)
@@ -213,6 +214,120 @@ public static class PdfUaValidator
                         + "as a rectangle is found by a reader hit-testing the page and by nothing "
                         + "else. Join it with PdfStructureBuilder.AddAnnotation.");
             }
+        }
+    }
+
+    /// <summary>
+    /// A heading may go one level deeper than the last, never two.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ISO 14289-1 7.4.2. The heading levels are how a reader builds the outline it lets somebody
+    /// jump around by, and a document that goes from <c>/H1</c> to <c>/H3</c> has a hole in that
+    /// outline: the reader is told there is a section three levels deep with nothing two levels deep
+    /// containing it. Descending one at a time is the rule; coming back up any distance is not a
+    /// skip, because <c>/H3</c> to <c>/H1</c> closes two sections rather than inventing one.
+    /// </para>
+    /// <para>
+    /// Read in reading order rather than in the order the shared walk happens to yield, which is why
+    /// this walk is its own. It is the only rule here that cares what came before, so it is the only
+    /// one that has to pay for the ordering.
+    /// </para>
+    /// <para>
+    /// MigraDoc reaches this through <c>ParagraphFormat.OutlineLevel</c>, which is what a heading
+    /// style sets — so the fix is nearly always to the styles rather than to any code that draws.
+    /// </para>
+    /// </remarks>
+    static void RequireHeadingsNotToSkipALevel(PdfDocument document)
+    {
+        int previous = 0;
+
+        foreach (var element in ElementsInReadingOrder(document))
+        {
+            int level = HeadingLevelOf(element.Elements.GetName(PdfStructureElement.Keys.S));
+            if (level == 0)
+                continue;
+
+            if (level > previous + 1)
+            {
+                throw new InvalidOperationException(
+                    "A heading of level " + level + " follows one of level " + previous + ", which "
+                    + "skips " + (previous + 1 == level - 1
+                        ? "level " + (previous + 1)
+                        : "levels " + (previous + 1) + " to " + (level - 1))
+                    + ". PDF/UA requires the heading levels to descend one at a time, because they "
+                    + "are the outline a reader lets somebody jump around by and a missing level is "
+                    + "a hole in it. From MigraDoc this is ParagraphFormat.OutlineLevel, which a "
+                    + "heading style sets — so it is usually the styles that need fixing rather "
+                    + "than anything that draws.");
+            }
+
+            previous = level;
+        }
+    }
+
+    /// <summary>
+    /// The level of a heading structure type: 1 to 6 for <c>/H1</c> to <c>/H6</c>, and 0 for
+    /// anything that is not a numbered heading.
+    /// </summary>
+    /// <remarks>
+    /// <c>/H</c> without a number is deliberately not a heading here. It means "a heading at
+    /// whatever depth the tree already is", so it cannot skip a level and there is nothing to check.
+    /// This library never writes one.
+    /// </remarks>
+    static int HeadingLevelOf(string structureType)
+    {
+        if (string.IsNullOrEmpty(structureType) || structureType.Length != 3
+            || structureType[0] != '/' || structureType[1] != 'H')
+        {
+            return 0;
+        }
+
+        int level = structureType[2] - '0';
+        return level >= 1 && level <= 6 ? level : 0;
+    }
+
+    /// <summary>
+    /// Every element of the tree, depth first and in the order the kids are written — which is the
+    /// order the document is read in.
+    /// </summary>
+    /// <remarks>
+    /// The shared walk below pushes each element's kids onto a stack, so siblings come back off it
+    /// backwards. That costs the other rules nothing, because none of them cares what came before,
+    /// and it is exactly what a heading level cannot be read out of.
+    /// </remarks>
+    static IEnumerable<PdfDictionary> ElementsInReadingOrder(PdfDocument document)
+    {
+        return Descend(document.Structure.Root.Elements[PdfStructureTreeRoot.Keys.K]);
+
+        IEnumerable<PdfDictionary> Descend(PdfItem kids)
+        {
+            foreach (var child in ChildrenOf(kids))
+            {
+                yield return child;
+
+                foreach (var descendant in Descend(child.Elements[PdfStructureElement.Keys.K]))
+                    yield return descendant;
+            }
+        }
+    }
+
+    /// <summary>The child elements of a kids entry, in the order they are written.</summary>
+    static IEnumerable<PdfDictionary> ChildrenOf(PdfItem kids)
+    {
+        switch (Resolve(kids))
+        {
+            case PdfArray array:
+                foreach (var item in array.Elements)
+                {
+                    if (Resolve(item) is PdfDictionary child && IsElement(child))
+                        yield return child;
+                }
+                break;
+
+            case PdfDictionary single when IsElement(single):
+                yield return single;
+                break;
         }
     }
 
