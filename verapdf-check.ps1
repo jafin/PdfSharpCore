@@ -13,6 +13,9 @@
     have one - costs more than a container does. The image is pinned so that a validator release
     cannot change the answer underneath a build; raise it deliberately.
 
+    This gates. It reported without failing for exactly as long as the corpus did not conform, which
+    was the three defects the first run found - all since fixed, all with tests of their own.
+
     Flavour detection is left automatic, which is why every document in the corpus makes a claim.
     veraPDF reads the claim out of each file's own metadata and holds it to that profile. A file
     claiming nothing would be held to the fallback flavour instead and fail for saying nothing rather
@@ -21,10 +24,10 @@
 .PARAMETER Corpus
     Where to write the corpus and validate from. Defaults to artifacts/conformance-corpus.
 
-.PARAMETER Gate
-    Return a failing exit code when a document does not conform. Off by default: the corpus does not
-    conform today, for three reasons recorded in docs/specs/verapdf-validation.md, and a step that
-    always fails is a step everybody learns to ignore. Turn this on once they are fixed.
+.PARAMETER NoGate
+    Report the verdict without failing. The corpus conforms, so a failure means something regressed
+    and the default is to say so with an exit code; this is for looking at a failure rather than
+    being stopped by it.
 
 .PARAMETER SkipBuild
     Validate the corpus already on disk instead of rebuilding it. For iterating on a validation
@@ -35,16 +38,16 @@
 
 .EXAMPLE
     ./verapdf-check.ps1
-    Build the corpus, validate it, print a summary. Never fails the build.
+    Build the corpus, validate it, print a summary, and fail if anything does not conform.
 
 .EXAMPLE
-    ./verapdf-check.ps1 -Gate
-    The same, but exit non-zero if anything does not conform.
+    ./verapdf-check.ps1 -NoGate
+    The same, but always succeed - for reading a failure rather than being stopped by it.
 #>
 [CmdletBinding()]
 param(
     [string] $Corpus = (Join-Path 'artifacts' 'conformance-corpus'),
-    [switch] $Gate,
+    [switch] $NoGate,
     [switch] $SkipBuild,
     [string] $Image = 'verapdf/cli:v1.30.2'
 )
@@ -78,9 +81,17 @@ if (-not (Test-Docker)) {
     Write-Host ''
     Write-Host 'Nothing was validated.' -ForegroundColor Yellow
 
-    # Not an error unless this was meant to be a gate. A developer who has not installed Docker has
-    # not broken anything, and telling them so by failing their build teaches the wrong lesson.
-    exit ($Gate ? 1 : 0)
+    # A developer who has not installed Docker has not broken anything, and telling them so by
+    # failing their build teaches the wrong lesson. On a runner it is the opposite: a validation step
+    # that quietly validates nothing is how a claim goes back to being self-certified without anyone
+    # deciding that it should, so there it is an error. CI is set by GitHub Actions and by every
+    # other runner worth the name.
+    if ($env:CI) {
+        Write-Host 'This is CI, where a validator that cannot run is a failure.' -ForegroundColor Red
+        exit 1
+    }
+
+    exit 0
 }
 
 if (-not $SkipBuild) {
@@ -155,11 +166,11 @@ if ($failed.Count -eq 0) {
 }
 
 Write-Host ''
-if ($Gate) {
-    Write-Host 'Failing, because -Gate was given.' -ForegroundColor Red
-    exit 1
+if ($NoGate) {
+    Write-Host 'Not failing, because -NoGate was given.' -ForegroundColor Yellow
+    exit 0
 }
 
-Write-Host 'Not failing the build: this step reports, and does not yet gate.' -ForegroundColor Yellow
-Write-Host 'See docs/specs/verapdf-validation.md for what is known to be wrong and why.' -ForegroundColor Yellow
-exit 0
+Write-Host 'The corpus conformed when this was written, so a failure here is a regression.' -ForegroundColor Red
+Write-Host 'See docs/specs/verapdf-validation.md for what each clause is about.' -ForegroundColor Red
+exit 1
