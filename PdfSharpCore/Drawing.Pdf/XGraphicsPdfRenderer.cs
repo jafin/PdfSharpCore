@@ -2022,6 +2022,180 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// </remarks>
     string SegmentOperators(string text, ShapedRun run, XFont font, XStringFormat format)
     {
+        int ligature = FirstLigature(text, run, 0);
+
+        // Nothing swallowed anything, which is every run of every document written before there was
+        // a shaper and nearly every run written since. Straight through, byte for byte as before.
+        if (ligature < 0)
+            return PlacedOperators(text, run, font, format, 0, run.Glyphs.Count);
+
+        return LigatureOperators(text, run, font, format, ligature);
+    }
+
+    /// <summary>
+    /// The operators for a run some of whose glyphs stand for more than one character, with each such
+    /// glyph wrapped in a marked-content sequence saying which characters it stands for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>/ToUnicode</c> already says the same thing, and says it to a text extractor. This says it
+    /// to everything that reads marked content instead — which is what assistive technology reads,
+    /// and what PDF/UA asks for. The two have to agree, so both are answered from
+    /// <see cref="TextShaping.CharactersOf"/>.
+    /// </para>
+    /// <para>
+    /// <b>The sequence stays inside the text object</b>, which is the opposite of what
+    /// <see cref="BeginMarkedContent"/> does and is deliberate. A structural sequence carries an
+    /// <c>/MCID</c> and has to be able to contain a whole text object, so it is written in graphic
+    /// mode. This one carries no identifier and is not a structure element at all: it has to wrap one
+    /// show-text operator and nothing else, because what it claims is true of one glyph. Ending the
+    /// text object around each ligature would also restart the pen from the origin, which is the trap
+    /// the tagging path already documents.
+    /// </para>
+    /// <para>
+    /// A ligature is not always one glyph, so the span covers every glyph sharing the cluster. And the
+    /// glyphs either side of it are shown separately, which costs one show-text operator per ligature
+    /// rather than one per run — the price of saying anything at all about a glyph in the middle.
+    /// </para>
+    /// </remarks>
+    string LigatureOperators(string text, ShapedRun run, XFont font, XStringFormat format, int first)
+    {
+        var shaped = run.Glyphs;
+        var parts = new StringBuilder();
+        int at = 0;
+
+        for (int ligature = first; ligature >= 0; ligature = FirstLigature(text, run, at))
+        {
+            // Whatever lies between the last ligature and this one is shown as it always was.
+            if (ligature > at)
+            {
+                parts.Append(PlacedOperators(text, run, font, format, at, ligature));
+                parts.Append('\n');
+            }
+
+            int end = ClusterEnd(run, ligature);
+
+            // Null for the security handler: a string inside a content stream is not encrypted on its
+            // own, because the stream around it already is.
+            parts.Append("/Span <</ActualText ");
+            parts.Append(PdfEncoders.ToStringLiteral(
+                LigatureTextOf(run, ligature, text), PdfStringEncoding.Unicode, null));
+            parts.Append(">> BDC\n");
+            parts.Append(PlacedOperators(text, run, font, format, ligature, end));
+            parts.Append("\nEMC\n");
+
+            at = end;
+        }
+
+        if (at < shaped.Count)
+            parts.Append(PlacedOperators(text, run, font, format, at, shaped.Count));
+
+        return parts.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>
+    /// The first glyph at or after <paramref name="from"/> that swallowed a character — that is, whose
+    /// cluster is drawn with fewer glyphs than it has characters — or -1 if there is none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Fewer glyphs than characters is the whole test</b>, and neither half of it alone will do.
+    /// Counting only the characters calls every cluster of more than one character a ligature, and the
+    /// commonest such cluster is a base and the marks attached to it: Devanagari <c>कि</c> and an
+    /// Arabic letter carrying a vowel sign are each two characters drawn with two glyphs, nothing
+    /// swallowed anything, and <c>/ToUnicode</c> already says what each glyph stands for. Wrapping
+    /// those would put a marked-content sequence and its own show-text operator around every syllable
+    /// of a page of Hindi, where the run used to be a single <c>Tj</c>.
+    /// </para>
+    /// <para>
+    /// Whole clusters are stepped over rather than single glyphs, so that what comes back is always
+    /// the first glyph of its cluster. Reported from the middle of one, the span that follows would
+    /// cover the tail of a ligature and leave its head outside — saying of some of the glyphs what is
+    /// only true of all of them together.
+    /// </para>
+    /// </remarks>
+    static int FirstLigature(string text, ShapedRun run, int from)
+    {
+        var shaped = run.Glyphs;
+        for (int idx = from; idx < shaped.Count;)
+        {
+            int end = ClusterEnd(run, idx);
+            if (LigatureTextOf(run, idx, text).Length > end - idx)
+                return idx;
+
+            idx = end;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// One past the last glyph sharing the cluster of the glyph at <paramref name="from"/>.
+    /// </summary>
+    /// <remarks>
+    /// Equality rather than an ordering, so that it holds for a right-to-left run too: those glyphs
+    /// come back in visual order and their clusters descend.
+    /// </remarks>
+    static int ClusterEnd(ShapedRun run, int from)
+    {
+        var shaped = run.Glyphs;
+        int end = from + 1;
+        while (end < shaped.Count && shaped[end].Cluster == shaped[from].Cluster)
+            end++;
+
+        return end;
+    }
+
+    /// <summary>
+    /// What a glyph would have to report as its <c>/ActualText</c>: the characters of its cluster,
+    /// without the joining controls among them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The controls come out for two reasons that point the same way. U+200C and U+200D are zero width
+    /// by definition and <c>TextShaping.Unshaped</c> already draws no glyph for either, so a
+    /// reader told that a glyph spells "letter, zero-width joiner" is being told about a character
+    /// nothing on the page stands for.
+    /// </para>
+    /// <para>
+    /// And a joining control is what makes a cluster span two characters without anything having been
+    /// ligated: a letter followed by one is a single letter that was told how to join, not a pair that
+    /// became one glyph. Counting it would wrap most of a word of Arabic in a sequence claiming a
+    /// ligature that is not there — and would split a run that has been one show-text operator since
+    /// before there was a shaper.
+    /// </para>
+    /// </remarks>
+    static string LigatureTextOf(ShapedRun run, int index, string text)
+    {
+        var characters = TextShaping.CharactersOf(run, index, text);
+
+        var controls = 0;
+        for (int idx = 0; idx < characters.Length; idx++)
+        {
+            if (Text.UnicodeProperties.IsJoiningControl(characters[idx]))
+                controls++;
+        }
+
+        if (controls == 0)
+            return characters;
+
+        var kept = new StringBuilder(characters.Length - controls);
+        for (int idx = 0; idx < characters.Length; idx++)
+        {
+            if (!Text.UnicodeProperties.IsJoiningControl(characters[idx]))
+                kept.Append(characters[idx]);
+        }
+
+        return kept.ToString();
+    }
+
+    /// <summary>
+    /// Glyphs <paramref name="from"/> up to <paramref name="to"/> of a run, with the room a word
+    /// spacing asks for and the displacements the shaper asked for.
+    /// </summary>
+    string PlacedOperators(string text, ShapedRun run, XFont font, XStringFormat format,
+        int from, int to)
+    {
         string glyphs = TextShaping.GlyphIds(run);
         Debug.Assert(run.Glyphs.Count == glyphs.Length, "One character of the glyph run per glyph.");
 
@@ -2034,29 +2208,29 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             : 0;
 
         bool displacedSideways = false, displacedUpwards = false;
-        for (int idx = 0; idx < shaped.Count; idx++)
+        for (int idx = from; idx < to; idx++)
         {
             displacedSideways |= shaped[idx].OffsetX != 0;
             displacedUpwards |= shaped[idx].OffsetY != 0;
         }
 
         if (wordSpacing == 0 && !displacedSideways && !displacedUpwards)
-            return GlyphRunToHexString(glyphs) + " Tj";
+            return GlyphRunToHexString(glyphs.Substring(from, to - from)) + " Tj";
 
         if (!displacedUpwards || fontSize <= 0)
-            return ShownGlyphs(text, run, glyphs, fontSize, wordSpacing, 0, shaped.Count);
+            return ShownGlyphs(text, run, glyphs, fontSize, wordSpacing, from, to);
 
         // Where the graphics state already has the rise, and where it has to be left.
         double baseline = format.TextRise;
 
         var parts = new StringBuilder();
         double realized = baseline;
-        int start = 0;
-        while (start < shaped.Count)
+        int start = from;
+        while (start < to)
         {
             double rise = Rise(shaped[start], run, fontSize, baseline);
             int end = start + 1;
-            while (end < shaped.Count && Rise(shaped[end], run, fontSize, baseline) == rise)
+            while (end < to && Rise(shaped[end], run, fontSize, baseline) == rise)
                 end++;
 
             if (rise != realized)

@@ -22,6 +22,7 @@ whoever owns that call before the work started, and the choice taken is recorded
 | 7 | `FootnoteLocation.BeneathText` | done, both values |
 | 8 | Notes inside a table cell, a text frame or a header | **refused**, by decision |
 | 9 | Tests | done, 24 |
+| 10 | Tagged output — `/Reference` in the body, `/Note` at the foot | done, see `docs/specs/tagged-pdf-accessibility.md` |
 | 10 | A `Footnotes` panel in the demonstration app | done, 5 pages |
 
 **The fixed point turned out not to be needed.** The design below argued that reserving room for

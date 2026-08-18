@@ -73,6 +73,7 @@ internal static class Structure
         {
             AlternateText = element.Elements.GetString("/Alt"),
             ActualText = element.Elements.GetString("/ActualText"),
+            Id = element.Elements.GetString("/ID"),
             Summary = element.Elements.GetString("/Summary"),
             Scope = Bare(attributes?.Elements.GetName("/Scope")),
             ColumnSpan = attributes?.Elements.GetInteger("/ColSpan") ?? 1,
@@ -141,6 +142,11 @@ internal sealed class StructureNode
 
     /// <summary>What this element's marks really spell, when the glyphs disagree with the text.</summary>
     internal string ActualText { get; init; }
+
+    /// <summary>
+    ///   The name this element can be pointed at by. PDF/UA requires one of every <c>Note</c>.
+    /// </summary>
+    internal string Id { get; init; }
 
     internal string Summary { get; init; }
     internal string Scope { get; init; }

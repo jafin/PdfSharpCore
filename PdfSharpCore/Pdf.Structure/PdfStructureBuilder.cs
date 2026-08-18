@@ -158,6 +158,7 @@ public sealed class PdfStructureBuilder
         // revision adding to the tree starts counting from. Derived from the page count it could
         // name a key that is already in use.
         Root.Elements.SetInteger(PdfStructureTreeRoot.Keys.ParentTreeNextKey, _nextParentKey);
+        Root.SetIdTree(NamedElements());
         Root.PrepareForSave();
 
         var catalog = _document.Catalog;
@@ -172,6 +173,76 @@ public sealed class PdfStructureBuilder
         if (!string.IsNullOrEmpty(Language))
             catalog.Elements.SetString(PdfCatalog.Keys.Lang, Language);
     }
+
+    /// <summary>
+    /// Every element that carries an <see cref="PdfStructureElement.Id"/>, sorted by it, ready to be
+    /// written as the <c>/IDTree</c>.
+    /// </summary>
+    /// <remarks>
+    /// Found by walking the tree rather than recorded as identifiers are handed out, so that an
+    /// identifier a caller set themselves is indexed exactly like one this library generated. The
+    /// alternative — a registration call beside the property — is a call somebody will forget, and
+    /// forgetting it writes an element nothing can look up.
+    /// </remarks>
+    List<KeyValuePair<string, PdfStructureElement>> NamedElements()
+    {
+        var named = new List<KeyValuePair<string, PdfStructureElement>>();
+        Collect(Root.Elements[PdfStructureTreeRoot.Keys.K], named, 0);
+
+        // Ordinal, because a reader is entitled to binary-search the tree and compares the keys as
+        // bytes.
+        named.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+
+        for (int idx = 1; idx < named.Count; idx++)
+        {
+            // Two elements under one name make the index ambiguous, and the loser is silently
+            // unreachable. Refused rather than resolved, because which of the two a reader should
+            // land on is a question about the document.
+            if (string.CompareOrdinal(named[idx - 1].Key, named[idx].Key) == 0)
+                throw new InvalidOperationException(
+                    "Two structure elements share the identifier '" + named[idx].Key + "'. An "
+                    + "identifier is what something else points at, so it has to name one element — "
+                    + "give one of them an identifier of its own.");
+        }
+
+        return named;
+    }
+
+    /// <summary>
+    /// Walks the kids of an element, collecting the named ones. Kids hold three different things, and
+    /// only a structure element can carry an identifier or have kids of its own.
+    /// </summary>
+    static void Collect(PdfItem item, List<KeyValuePair<string, PdfStructureElement>> named, int depth)
+    {
+        // The same guard the readers of a name tree carry, for the same reason: an element made its
+        // own ancestor would otherwise be walked forever.
+        if (item == null || depth > MaxTreeDepth)
+            return;
+
+        if (item is PdfReference reference)
+            item = reference.Value;
+
+        if (item is PdfArray array)
+        {
+            for (int idx = 0; idx < array.Elements.Count; idx++)
+                Collect(array.Elements[idx], named, depth + 1);
+            return;
+        }
+
+        if (item is not PdfStructureElement element)
+            return;
+
+        var id = element.Id;
+        if (!string.IsNullOrEmpty(id))
+            named.Add(new KeyValuePair<string, PdfStructureElement>(id, element));
+
+        Collect(element.Elements[PdfStructureElement.Keys.K], named, depth + 1);
+    }
+
+    /// <summary>
+    /// How deep into the structure tree to go before giving up on it.
+    /// </summary>
+    const int MaxTreeDepth = 256;
 
     /// <summary>
     /// What one page contributes to the parent tree: the key it is filed under, and the elements

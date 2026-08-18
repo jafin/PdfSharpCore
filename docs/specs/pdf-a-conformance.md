@@ -32,11 +32,25 @@ XObject, not for a page), and `/Interpolate true` on images. A successful save i
 validator's verdict, and `Enforce` says so in its own remarks rather than leaving silence to imply
 otherwise.
 
-**veraPDF is not in CI.** Without it the conformance claim is self-certified, which is worth little.
-That remains the right next step and it is still a Java/Docker step added to a build that is
-currently pure .NET plus Ghostscript. It is now wanted by two features rather than one — see
-`docs/specs/tagged-pdf-accessibility.md`, whose PDF/UA claim is self-certified in the same way and
-for the same reason.
+**veraPDF is now in CI**, and the claim is no longer self-certified — see
+`docs/specs/verapdf-validation.md`, which covers this spec and
+`docs/specs/tagged-pdf-accessibility.md` together, as both said it should. It reports rather than
+gates, because the first run found three defects and a step that always fails is a step everybody
+learns to ignore.
+
+Two of those three are this spec's: **a stream `/Length` that does not match the bytes between
+`stream` and `endstream`**, on the XMP metadata stream this feature wrote, failing every PDF/A
+document; and **a missing `/CIDSet`** on a subset CIDFont's descriptor, which PDF/A-1 requires and
+PDF/A-2 dropped. The third — a missing `/CIDToGIDMap` — is the font writer's and fails everything,
+archival and accessible alike.
+
+The associated-file work of item 4 came back clean: the PDF/A-3 document carrying an attachment fails
+exactly what the one without it fails and nothing more, so the relationship, the catalog `/AF` array
+and the name tree are all right.
+
+**The ICC decision is still unmade.** The corpus builds an sRGB profile in code rather than shipping
+one, which sidesteps the question of what the repository distributes rather than answering it. A
+caller still has to supply their own.
 
 ## What was added afterwards
 

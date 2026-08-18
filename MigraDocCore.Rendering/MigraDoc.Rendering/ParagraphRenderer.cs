@@ -2253,7 +2253,15 @@ internal class ParagraphRenderer : Renderer
         }
 
         XFont xFont = FontHandler.ToSubSuperFont(CurrentFont);
-        gfx.DrawString(mark, xFont, CurrentBrush, currentXPosition, FootnoteMarkBaseline);
+
+        // Opened here rather than around the whole of RenderFootnote, so that the probing walk above
+        // neither marks anything nor builds an element: the line is walked twice and only the second
+        // walk draws. The scope also builds the note's own element, at the point the note is cited
+        // rather than at the foot of the page where it is drawn - see StructureTagger.
+        using (Tagger.FootnoteReference(gfx, footnote))
+        {
+            gfx.DrawString(mark, xFont, CurrentBrush, currentXPosition, FootnoteMarkBaseline);
+        }
 
         RealizeHyperlink(width);
         currentXPosition += width;

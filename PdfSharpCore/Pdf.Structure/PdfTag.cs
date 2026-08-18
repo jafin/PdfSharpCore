@@ -93,8 +93,24 @@ public readonly struct PdfTag : IEquatable<PdfTag>
     /// <summary>A link. The annotation belongs to the structure as well as to the page.</summary>
     public static PdfTag Link => new("/Link");
 
-    /// <summary>A note, such as a footnote.</summary>
+    /// <summary>
+    /// A note, such as a footnote. ISO 14289-1 requires one to carry an
+    /// <see cref="PdfStructureElement.Id"/>, so that the <see cref="Reference"/> citing it has
+    /// something to point at.
+    /// </summary>
     public static PdfTag Note => new("/Note");
+
+    /// <summary>
+    /// A citation of something elsewhere in the document — the raised mark in the body text that
+    /// names a footnote, rather than the note itself.
+    /// </summary>
+    /// <remarks>
+    /// Worth telling apart from <see cref="Lbl"/>, which is the label of a list item. Both are a
+    /// short mark standing in front of something, and a reader announces them differently: a label
+    /// is read as part of the list it numbers, where a reference is read as a pointer somewhere else
+    /// and can be offered as a jump.
+    /// </remarks>
+    public static PdfTag Reference => new("/Reference");
 
     /// <summary>A span of text within a paragraph.</summary>
     public static PdfTag Span => new("/Span");

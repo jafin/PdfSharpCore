@@ -41,6 +41,51 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
     }
 
     /// <summary>
+    /// Writes the index from an element's <see cref="PdfStructureElement.Id"/> back to the element,
+    /// given the named elements in the order their names sort.
+    /// </summary>
+    /// <remarks>
+    /// ISO 32000-1 requires this the moment any element carries an <c>/ID</c> — an identifier
+    /// nothing can be looked up by is a name with no directory, and a reader offered a jump to a
+    /// footnote has no way to find it. One flat leaf, however many entries: nesting exists so a
+    /// reader can binary-search thousands without loading them all, and the elements that need a
+    /// name are the few something points at rather than every node of the tree.
+    /// <para>
+    /// Called once per save, and a document may be saved more than once — to a stream and then to a
+    /// file is an ordinary thing to do. So the tree written last time is filled in again rather than
+    /// replaced: a fresh dictionary each time would leave the earlier ones in the cross-reference
+    /// table with nothing pointing at them, written into the file as orphans.
+    /// </para>
+    /// </remarks>
+    internal void SetIdTree(IReadOnlyList<KeyValuePair<string, PdfStructureElement>> named)
+    {
+        if (named.Count == 0)
+        {
+            Elements.Remove(Keys.IDTree);
+            return;
+        }
+
+        var leaves = new PdfArray(Owner);
+        foreach (var pair in named)
+        {
+            // Raw for the same reason the /ID itself is: the key and the identifier it stands for are
+            // compared byte by byte, so both have to be the same bytes.
+            leaves.Elements.Add(new PdfString(pair.Key, PdfStringEncoding.RawEncoding));
+            leaves.Elements.Add(pair.Value.Reference);
+        }
+
+        var root = Elements.GetDictionary(Keys.IDTree);
+        if (root == null)
+        {
+            root = new PdfDictionary(Owner);
+            Owner._irefTable.Add(root);
+            Elements[Keys.IDTree] = root.Reference;
+        }
+
+        root.Elements.SetObject("/Names", leaves);
+    }
+
+    /// <summary>
     /// Writes out the role map, if there is one. Left to save time because entries may be added at
     /// any point before then.
     /// </summary>
@@ -88,6 +133,13 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
         /// <summary>(Optional) The next free key of the parent tree.</summary>
         [KeyInfo(KeyType.Integer | KeyType.Optional)]
         public const string ParentTreeNextKey = "/ParentTreeNextKey";
+
+        /// <summary>
+        /// (Required if any structure element has an ID) A name tree from an element's ID back to the
+        /// element, which is how anything that names an element is resolved.
+        /// </summary>
+        [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
+        public const string IDTree = "/IDTree";
 
         /// <summary>(Optional) Non-standard structure types explained in terms of standard ones.</summary>
         [KeyInfo(KeyType.Dictionary | KeyType.Optional)]

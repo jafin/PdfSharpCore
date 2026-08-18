@@ -96,6 +96,35 @@ public class PdfUaConformanceTests
     }
 
     [Fact]
+    public void TwoElementsUnderOneIdentifierAreRefused()
+    {
+        // An identifier is what something else points at, so it has to name one element - and the
+        // loser of a collision is reported by nothing, it is simply unreachable. A caller naming
+        // elements of their own alongside the generated note1, note2 collides easily, which is why
+        // this is worth a rule rather than being left to the save.
+        //
+        // Asked of the validator rather than of a save, and deliberately: saving refuses it too, but
+        // from the structure builder, which runs first. What this pins is that a caller can find out
+        // by asking - which is the whole point of the validator being public.
+        var renderer = Claiming();
+        var structure = renderer.PdfDocument.Structure;
+
+        var first = structure.CreateElement(PdfSharpCore.Pdf.Structure.PdfTag.Note);
+        var second = structure.CreateElement(PdfSharpCore.Pdf.Structure.PdfTag.Note);
+        first.Id = "note1";
+        second.Id = "note1";
+
+        // Set by the conformance writer during a save, so it has to be set by hand to reach the rule
+        // this test is about rather than the one before it.
+        renderer.PdfDocument.ViewerPreferences.DisplayDocTitle = true;
+
+        var validating = () => PdfSharpCore.Pdf.Structure.PdfUaValidator.Validate(renderer.PdfDocument);
+
+        validating.Should().Throw<InvalidOperationException>()
+            .WithMessage("*share the identifier*note1*");
+    }
+
+    [Fact]
     public void ADocumentThatMeetsTheRulesIsWritten()
     {
         var saved = Save(Claiming());

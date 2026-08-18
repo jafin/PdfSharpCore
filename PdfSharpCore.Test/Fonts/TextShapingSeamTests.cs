@@ -105,6 +105,18 @@ public class TextShapingSeamTests
 
     static IReadOnlyList<int[]> GlyphRuns(PdfPage page) => DrawnText.GlyphRuns(page);
 
+    /// <summary>
+    ///   Every glyph the page shows, whichever show-text operators they were written in.
+    /// </summary>
+    /// <remarks>
+    ///   For the tests whose subject is <em>which</em> glyphs a shaper chose rather than how many
+    ///   operators they arrived in. A glyph standing for several characters is now wrapped in a
+    ///   marked-content sequence carrying its <c>/ActualText</c>, which cuts the run around it — and
+    ///   the fixtures here hand back fewer glyphs than there are characters, so most of them contain
+    ///   such a glyph by construction. Flattening keeps those tests about the one thing they name.
+    /// </remarks>
+    static int[] AllGlyphs(PdfPage page) => GlyphRuns(page).SelectMany(run => run).ToArray();
+
     static PdfPage Drawn(string text, XStringFormat format = null)
         => DrawnText.Page(text, Font(), format);
 
@@ -139,7 +151,7 @@ public class TextShapingSeamTests
     public void AShaperDecidesWhichGlyphsAreDrawn()
     {
         const string text = "seam-glyphs";
-        var unshaped = GlyphRuns(Drawn(text)).Single();
+        var unshaped = AllGlyphs(Drawn(text));
 
         using var _ = Installed(new SelectiveShaper(text, font => new[]
         {
@@ -147,7 +159,7 @@ public class TextShapingSeamTests
             new ShapedGlyph(42, 1, 500),
         }));
 
-        var shaped = GlyphRuns(Drawn(text)).Single();
+        var shaped = AllGlyphs(Drawn(text));
 
         shaped.Should().Equal(new[] { 41, 42 }, "the seam says what glyphs a string draws as");
         shaped.Should().NotEqual(unshaped, "and it said something different from the cmap");
@@ -179,7 +191,7 @@ public class TextShapingSeamTests
             new ShapedGlyph(8, 3, f.UnitsPerEm / 2),
         }));
 
-        GlyphRuns(Drawn(text)).Single().Should().HaveCount(2);
+        AllGlyphs(Drawn(text)).Should().HaveCount(2);
         MeasuredWidth(text).Should().BeApproximately(Font().Size, 1e-9);
     }
 
@@ -285,9 +297,14 @@ public class TextShapingSeamTests
 
         var runs = GlyphRuns(Drawn(text, format));
 
-        runs.Should().HaveCount(2, "a TJ array of two runs with the room written between them");
-        runs[0].Should().Equal(new[] { 70, 3 }, "up to and including the space");
-        runs[1].Should().Equal(new[] { 70, 71 }, "and the rest after it");
+        // Three, not two: the ab ligature is one glyph standing for two characters, so it is shown
+        // inside a sequence of its own carrying /ActualText (ab). What the test is about survives that
+        // intact - the room still falls after the space rather than inside "cd", which is the whole
+        // point, and it is the boundary between the last two runs that says so.
+        runs.Should().HaveCount(3);
+        runs[0].Should().Equal(new[] { 70 }, "the ligature, wrapped in what says it spells ab");
+        runs[1].Should().Equal(new[] { 3 }, "up to and including the space");
+        runs[2].Should().Equal(new[] { 70, 71 }, "and the rest after the room the space paid for");
     }
 
     [Fact]
@@ -333,7 +350,11 @@ public class TextShapingSeamTests
 
         var content = Content(Drawn(text));
 
-        content.Should().Contain("<000A> -250 <000B> 250",
+        // The displacement and nothing about what precedes it. The second glyph stands for the rest of
+        // this fixture's text, so it is wrapped in a sequence carrying its /ActualText and the first
+        // glyph is shown separately - which is a fact about the fixture rather than about the
+        // mechanism under test, and asserting the two glyphs were adjacent would be asserting it.
+        content.Should().Contain("-250 <000B> 250",
             "a TJ number moves the pen back, so moving right is negative - and the displacement "
             + "is taken off again after the glyph, so that what follows is not carried with it");
     }

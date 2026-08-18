@@ -361,6 +361,106 @@ internal sealed class StructureTagger
     }
 
     /// <summary>
+    /// Marks the raised mark in the body text as the citation of a footnote, and builds the note's own
+    /// element beside it so that the note reads where it is cited rather than where it is drawn.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A footnote is drawn in two places by two different renderers: the mark by
+    /// <c>ParagraphRenderer</c>, in the middle of a line, and the note itself by
+    /// <c>FootnoteRenderer</c>, in a band at the foot of the page. Where the <c>/Note</c> is created
+    /// decides where a screen reader hears it, and drawing order would put every note after all the
+    /// body text, severed from the sentence that cited it. So it is created here, at the citation,
+    /// as a sibling of the <c>/Reference</c> and a child of the paragraph — both are inline-level
+    /// structure types, which is exactly where ISO 32000-1 puts them — and
+    /// <see cref="FootnoteFor"/> hands the same element back to the other renderer later.
+    /// </para>
+    /// <para>
+    /// Three elements keyed by one <see cref="Footnote"/>, which is what the slots are for. The key
+    /// has to outlive the renderer: a paragraph split across a page break is drawn by a renderer
+    /// built afresh for each page, and anything belonging to the renderer would file the second half
+    /// under a new element.
+    /// </para>
+    /// </remarks>
+    internal IDisposable FootnoteReference(XGraphics gfx, Footnote footnote)
+    {
+        if (!CanTagContent(gfx))
+            return Nothing;
+
+        var parent = ParentFor(footnote);
+        var reference = Element(footnote, PdfTag.Reference, parent, ReferenceSlot);
+
+        // Built now rather than when the note is drawn, and built before the scope is entered so that
+        // it hangs off the paragraph beside the reference rather than inside it.
+        NoteFor(footnote, parent);
+
+        return Marks(gfx, reference);
+    }
+
+    /// <summary>
+    /// The element for a footnote's own content, as created at the point the note was cited. Null when
+    /// nothing is being tagged.
+    /// </summary>
+    /// <remarks>
+    /// A note whose mark was suppressed — a caller can set <see cref="Footnote.Reference"/> to an empty
+    /// string — was never cited anywhere, so there is no citation to hang it from and it is built here
+    /// against whatever is current instead. That is the honest answer rather than a good one: a note
+    /// nothing refers to has no place in the reading order, because nothing reads to it.
+    /// </remarks>
+    internal PdfStructureElement FootnoteFor(XGraphics gfx, Footnote footnote)
+        => !CanTagContent(gfx) ? null : NoteFor(footnote, ParentFor(footnote));
+
+    /// <summary>
+    /// The footnote's element, made on first ask and given the identifier ISO 14289-1 requires of a
+    /// note. Handed back unchanged afterwards, however many times either renderer asks.
+    /// </summary>
+    PdfStructureElement NoteFor(Footnote footnote, PdfStructureElement parent)
+    {
+        var identity = new ElementKey(footnote, NoteSlot);
+        if (_elements.TryGetValue(identity, out var existing))
+            return existing;
+
+        var note = Element(footnote, PdfTag.Note, parent, NoteSlot);
+        if (note != null)
+        {
+            // Numbered from one in the order the notes are cited, which is the order they are built
+            // in. The prefix keeps them clear of any identifier a caller has set themselves; two
+            // elements under one name is refused when the identifier tree is written.
+            note.Id = "note" + ++_notes;
+        }
+
+        return note;
+    }
+
+    /// <summary>
+    /// Marks the note's own mark, drawn in the gutter at the foot of the page, as the label of the
+    /// note it belongs to.
+    /// </summary>
+    /// <remarks>
+    /// A label rather than a second <see cref="PdfTag.Reference"/>: this mark points nowhere, it names
+    /// the note it sits beside. The one in the body text is the pointer.
+    /// </remarks>
+    internal IDisposable FootnoteLabel(XGraphics gfx, Footnote footnote, PdfStructureElement note)
+    {
+        if (!CanTagContent(gfx) || note == null)
+            return Nothing;
+
+        return Marks(gfx, Element(footnote, PdfTag.Lbl, note, LabelSlot));
+    }
+
+    /// <summary>Which of a footnote's elements is which. See <see cref="Element"/> on slots.</summary>
+    const int ReferenceSlot = 0;
+
+    const int NoteSlot = 1;
+
+    const int LabelSlot = 2;
+
+    /// <summary>
+    /// How many notes have been given an identifier, which is what makes the next one unique.
+    /// </summary>
+    int _notes;
+
+    /// <summary>
     /// Joins a link annotation to its element, so that the link is reachable by a reader walking the
     /// structure and not only by one hit-testing rectangles.
     /// </summary>

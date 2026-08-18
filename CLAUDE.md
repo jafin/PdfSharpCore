@@ -11,10 +11,23 @@ dotnet test -f net10.0                   # one framework; the test project targe
 dotnet test --filter "FullyQualifiedName~CLexerTests"                  # one class
 dotnet test --filter "FullyQualifiedName~CLexerTests.ScanNextToken"    # one test
 ./ci-build.ps1                           # what CI builds: clean + Release build
+./verapdf-check.ps1                      # conformance corpus + veraPDF; needs Docker, never fails
+./verapdf-check.ps1 -Gate                # the same, but non-zero when a document does not conform
 ```
 
 CI (`.github/workflows/build.yml`) runs on Linux only, builds with `ci-build.ps1`, installs
 Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
+
+**veraPDF runs the same script CI does**, and it **reports rather than gates** — the corpus does not
+conform today and a step that always fails is one everybody learns to ignore. `ConformanceCorpus`
+writes one PDF per claim the library can make into `artifacts/conformance-corpus`; each document
+*makes* a claim, because flavour detection is automatic and a file claiming nothing would be held to
+the fallback flavour and fail for saying nothing. Three known defects, all in the writer:
+`/CIDToGIDMap` missing on Type 2 CIDFonts (fails every profile including PDF/UA), a stream `/Length`
+that disagrees with the bytes on the XMP metadata stream, and no `/CIDSet` on a subset font under
+PDF/A-1. Turning the step into a gate is one flag once those are fixed.
+`docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is built in code
+rather than checked in.
 
 There is no lint or format step in the build or in CI.
 
