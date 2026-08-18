@@ -147,18 +147,23 @@ public sealed class PdfStructureElement : PdfDictionary
     /// it takes the child and everything under it out of the tree.
     /// </para>
     /// </remarks>
-    internal void RemoveLastMarkedContent(int mcid)
+    /// <returns>
+    /// True when the content item was found last and removed. False leaves the element untouched,
+    /// which is what the caller needs to know: the identifier is not this element's to give back, so
+    /// nothing else may be given back on its behalf either.
+    /// </returns>
+    internal bool RemoveLastMarkedContent(int mcid)
     {
         var kids = Elements[Keys.K] as PdfArray;
         if (kids == null || kids.Elements.Count == 0)
-            return;
+            return false;
 
         var last = kids.Elements[kids.Elements.Count - 1];
 
         if (last is PdfInteger integer && integer.Value == mcid)
         {
             kids.Elements.RemoveAt(kids.Elements.Count - 1);
-            return;
+            return true;
         }
 
         if (last is PdfDictionary reference
@@ -166,7 +171,10 @@ public sealed class PdfStructureElement : PdfDictionary
             && reference.Elements.GetInteger(MarkedContentKeys.MCID) == mcid)
         {
             kids.Elements.RemoveAt(kids.Elements.Count - 1);
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>

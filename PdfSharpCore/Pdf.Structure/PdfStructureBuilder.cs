@@ -104,11 +104,13 @@ public sealed class PdfStructureBuilder
         if (!ReferenceEquals(marks.Elements[last], element))
             return;
 
-        // The index into the page's marks is the identifier, so removing the last entry is what
-        // makes the next one reuse the number - and the element is told which number to look for
-        // rather than told to drop whatever it has last.
-        marks.Elements.RemoveAt(last);
-        element.RemoveLastMarkedContent(last);
+        // Both or neither. The index into the page's marks is the identifier, so removing that entry
+        // is what makes the next sequence reuse the number - but taking it out while the element
+        // still names it would leave the element pointing at a mark that has become somebody else's.
+        // The element is asked first, and told which number to look for rather than told to drop
+        // whatever it has last.
+        if (element.RemoveLastMarkedContent(last))
+            marks.Elements.RemoveAt(last);
     }
 
     /// <summary>

@@ -206,11 +206,28 @@ internal class CMap12 : OpenTypeFontTable
             language = _fontData.ReadULong();
             numGroups = _fontData.ReadULong();
 
-            // A malformed or hostile face could otherwise ask for an array of four billion
-            // structures before a single group has been read. Each group is 12 bytes and the
-            // subtable declares its own length, so the count has to fit inside it.
-            if (numGroups > (length - 16) / 12)
-                throw new InvalidOperationException("The cmap format 12 subtable declares more groups than it has room for.");
+            // A malformed or hostile face could otherwise ask for an array of four billion structures
+            // before a single group has been read, and the resulting OutOfMemoryException is one
+            // Unrecoverable.Is deliberately refuses to wrap - it would come out of the font reader as
+            // a process-level failure rather than as "this font is broken".
+            //
+            // Checked against both numbers that bound it, because either alone can be lied about. The
+            // subtable's own declared length is checked first - and checked for being long enough to
+            // hold the header at all, since 16 bytes have already been read and an unsigned length
+            // below that would wrap to something enormous rather than go negative. Then the bytes the
+            // file actually has, because a subtable is free to declare a length running off the end.
+            const int headerLength = 16;
+            const int groupLength = 12;
+
+            long available = _fontData.FontSource.Bytes.Length - (long)_fontData.Position;
+
+            if (length < headerLength
+                || numGroups > (length - headerLength) / groupLength
+                || (long)numGroups * groupLength > available)
+            {
+                throw new InvalidOperationException(
+                    "The cmap format 12 subtable declares more groups than it has room for.");
+            }
 
             groups = new Group[numGroups];
             for (int idx = 0; idx < numGroups; idx++)

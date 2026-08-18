@@ -1517,7 +1517,16 @@ public sealed class XGraphics : IDisposable
                 "Marked content can only be written to a PDF page, not to a form.");
 
         var structure = page.Owner.Structure;
-        var element = structure.CreateElement(tag, _markedContent.Count > 0 ? _markedContent.Peek() : null);
+        var parent = _markedContent.Count > 0 ? _markedContent.Peek() : null;
+
+        // Suspended before the child element is created, not after. Closing the parent may take its
+        // last content item back, and what "last" means has to be the identifier this sequence was
+        // opened with rather than whatever the parent's kids happen to end with - creating the child
+        // first puts the child element there instead.
+        if (parent != null)
+            CloseMarkedContent(renderer, page, parent);
+
+        var element = structure.CreateElement(tag, parent);
         if (alternateText != null)
             element.AlternateText = alternateText;
 
@@ -1525,7 +1534,7 @@ public sealed class XGraphics : IDisposable
         renderer.BeginMarkedContent(tag.Name, mcid);
         _markedContent.Push(element);
 
-        return new MarkedContentScope(this, true);
+        return new MarkedContentScope(this, true, parent != null);
     }
 
     /// <summary>

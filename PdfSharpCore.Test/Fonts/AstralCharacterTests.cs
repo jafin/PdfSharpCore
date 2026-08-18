@@ -135,12 +135,16 @@ public class AstralCharacterTests
         // Measuring and drawing go through the same seam, so a width that still counted two
         // .notdef would put every following word in the wrong place.
         var font = WithFormat12();
+        double one = DrawnText.MeasuredWidth(Text(Lock), font);
 
-        DrawnText.MeasuredWidth(Text(Lock), font).Should().BeApproximately(
-            DrawnText.MeasuredWidth(Text(Lock), font), 1e-9);
+        one.Should().BeGreaterThan(0, "one character has one advance, and it is not a zero one");
 
-        DrawnText.MeasuredWidth(Text(Lock) + Text(Lock), font).Should().BeApproximately(
-            2 * DrawnText.MeasuredWidth(Text(Lock), font), 1e-9,
+        // The assertion that would have caught the old behaviour: two .notdef per character made a
+        // surrogate pair measure as two glyphs, so this was never the width of one character.
+        one.Should().BeApproximately(DrawnText.MeasuredWidth("A", font), 0.5 * one,
+            "one astral character is about as wide as one ordinary one, not twice");
+
+        DrawnText.MeasuredWidth(Text(Lock) + Text(Lock), font).Should().BeApproximately(2 * one, 1e-9,
             "two of the same character are twice one of them");
     }
 
@@ -238,6 +242,137 @@ public class AstralCharacterTests
         Regex.Matches(content, @"/F\d+ [\d.]+ Tf")
             .Select(match => match.Value).Distinct()
             .Should().HaveCount(1, "Source Code Pro has the character, so nothing is fallen back to");
+    }
+
+    // ----- a face that lies about its own tables ------------------------------------------------------
+
+    [Fact]
+    public void AFormat12SubtableClaimingMoreGroupsThanItsOwnLengthIsRefused()
+    {
+        // The count is checked against the subtable's own declared length, which is the cheap half.
+        var bytes = WithGroupCount(0x7FFFFFFF);
+
+        Reading(bytes, "more groups than the declared length holds").Should().Throw<Exception>()
+            .And.Should().NotBeOfType<OutOfMemoryException>();
+    }
+
+    [Fact]
+    public void AFormat12SubtableWhoseLengthRunsPastTheFileIsRefused()
+    {
+        // The half the declared length cannot answer for, because the subtable declares that too: a
+        // length of 256MB makes room for twenty million groups by its own arithmetic, and the file is
+        // 280KB. The allocation is the danger rather than the parse - the largest a 32-bit length can
+        // authorise is 4.3GB of groups, and the OutOfMemoryException that raises is one
+        // Unrecoverable.Is deliberately refuses to wrap, so it would come out of the font reader as a
+        // process-level failure rather than as "this font is broken".
+        //
+        // What this pins is that such a file is refused. It does not distinguish the available-bytes
+        // check from the declared-length one, because a count big enough to be caught only by the
+        // former is a count big enough to exhaust the machine if the guard is ever removed - which is
+        // not a thing to do in a test run. Only AFormat12SubtableShorterThanItsOwnHeaderIsRefused
+        // fails without the guard it was written for.
+        var bytes = WithDeclaredLength(0x10000000);
+        WriteFormat12GroupCount(bytes, 0x00FFFFFF);
+
+        Reading(bytes, "a length running past the end of the file").Should().Throw<Exception>()
+            .And.Should().NotBeOfType<OutOfMemoryException>();
+    }
+
+    static Action Reading(byte[] bytes, string why)
+        => () => new XFont(RegisterCorrupt(bytes, why), 20).GetHeight();
+
+    [Fact]
+    public void AFormat12SubtableShorterThanItsOwnHeaderIsRefused()
+    {
+        // The unsigned subtraction that made this worth a test of its own: a declared length below
+        // the 16-byte header used to wrap to something enormous rather than go negative, so the
+        // bound computed from it let everything through.
+        var bytes = WithDeclaredLength(4);
+
+        Action reading = () => new XFont(RegisterCorrupt(bytes, "short length"), 20).GetHeight();
+
+        reading.Should().Throw<Exception>()
+            .And.Should().NotBeOfType<OutOfMemoryException>();
+    }
+
+    /// <summary>The Devanagari face with its format 12 group count overwritten.</summary>
+    static byte[] WithGroupCount(uint groups) => WithFormat12Field(12, groups);
+
+    /// <summary>Overwrites the group count of an already-corrupted copy, in place.</summary>
+    static void WriteFormat12GroupCount(byte[] bytes, uint groups) => SetFormat12Field(bytes, 12, groups);
+
+    /// <summary>The Devanagari face with its format 12 declared length overwritten.</summary>
+    static byte[] WithDeclaredLength(uint length) => WithFormat12Field(4, length);
+
+    /// <summary>
+    ///   A real face with one 32-bit field of its format 12 subtable overwritten, at the given
+    ///   offset from the start of that subtable.
+    /// </summary>
+    /// <remarks>
+    ///   Built from a real font rather than from a hand-made one, so that everything the reader looks
+    ///   at before it reaches this field is genuine and the test is about the field.
+    /// </remarks>
+    static byte[] WithFormat12Field(int offset, uint value)
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(
+            AppContext.BaseDirectory, "Assets", "Fonts", "NotoSansDevanagari-Regular.ttf"));
+
+        SetFormat12Field(bytes, offset, value);
+        return bytes;
+    }
+
+    static void SetFormat12Field(byte[] bytes, int offset, uint value)
+    {
+        int cmap = TableOffset(bytes, "cmap");
+        int subtables = (bytes[cmap + 2] << 8) | bytes[cmap + 3];
+
+        for (int idx = 0; idx < subtables; idx++)
+        {
+            int record = cmap + 4 + idx * 8;
+            int platform = (bytes[record] << 8) | bytes[record + 1];
+            int encoding = (bytes[record + 2] << 8) | bytes[record + 3];
+            if (platform != 3 || encoding != 10)
+                continue;
+
+            int at = cmap + (int)ReadUInt32(bytes, record + 4);
+            WriteUInt32(bytes, at + offset, value);
+            return;
+        }
+
+        throw new InvalidOperationException("The face has no format 12 subtable to corrupt.");
+    }
+
+    static int TableOffset(byte[] bytes, string tag)
+    {
+        int count = (bytes[4] << 8) | bytes[5];
+        for (int idx = 0; idx < count; idx++)
+        {
+            int record = 12 + idx * 16;
+            if (Encoding.ASCII.GetString(bytes, record, 4) == tag)
+                return (int)ReadUInt32(bytes, record + 8);
+        }
+
+        throw new InvalidOperationException("No " + tag + " table.");
+    }
+
+    static uint ReadUInt32(byte[] bytes, int at)
+        => ((uint)bytes[at] << 24) | ((uint)bytes[at + 1] << 16)
+           | ((uint)bytes[at + 2] << 8) | bytes[at + 3];
+
+    static void WriteUInt32(byte[] bytes, int at, uint value)
+    {
+        bytes[at] = (byte)(value >> 24);
+        bytes[at + 1] = (byte)(value >> 16);
+        bytes[at + 2] = (byte)(value >> 8);
+        bytes[at + 3] = (byte)value;
+    }
+
+    /// <summary>Registers the given bytes under a family name of their own and returns it.</summary>
+    static string RegisterCorrupt(byte[] bytes, string why)
+    {
+        var family = "Corrupt " + why;
+        PinnedFontResolver.Register(family, bytes);
+        return family;
     }
 
     // ----- what must not have changed ----------------------------------------------------------------
