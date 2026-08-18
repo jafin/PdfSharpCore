@@ -9,7 +9,7 @@ two of them, and this is that decision.
 |---|---|---|
 | 1 | A corpus of documents that each claim a profile | done |
 | 2 | veraPDF over the corpus, in CI and locally, one script | done |
-| 3 | Gate the build on the verdict | **not yet — reports only**, see below |
+| 3 | Gate the build on the verdict | done — **all five documents conform** |
 
 ## Why this was worth doing
 
@@ -74,16 +74,34 @@ parses a profile, so a legible stand-in makes those assertions clearer and says 
 not colour-management tests. A validator does parse it, and reads the colour space out of the header
 to check the output intent agrees.
 
-## What it found
+## What it found, and what was done about it
 
-Three defects, each hitting several profiles, none of them reachable by any test in this repository.
-**All three are in the writer, not in the corpus.**
+Three defects on the first run, each hitting several profiles, none of them reachable by any test in
+this repository. **All three were in the writer, not in the corpus, and all three are now fixed** —
+the corpus conforms and the step gates.
 
-| clause | what | which documents |
-|---|---|---|
-| PDF/A-1 6.3.3.2-1, PDF/A-2/3 6.2.11.3.2-1, PDF/UA 7.21.3.2-1 | A Type 2 CIDFont has no `/CIDToGIDMap`. ISO 32000-1 Table 117 requires the entry — a stream, or the name `Identity` — on every embedded CIDFontType2 | **all five** |
-| PDF/A-1 6.1.7-1, PDF/A-2/3 6.1.7.1-1 | A stream's `/Length` does not match the bytes actually between `stream` and `endstream`. The context names the XMP metadata stream | all four PDF/A |
-| PDF/A-1 6.3.5-3 | A subset CIDFont has no `/CIDSet` in its font descriptor. Required by PDF/A-1 only; PDF/A-2 dropped it | `pdfa-1b` |
+| clause | what | documents | fix |
+|---|---|---|---|
+| PDF/A-1 6.3.3.2-1, PDF/A-2/3 6.2.11.3.2-1, PDF/UA 7.21.3.2-1 | A Type 2 CIDFont has no `/CIDToGIDMap`. ISO 32000-1 Table 117 makes the entry optional with a default of `Identity`; PDF/A and PDF/UA require it written out | **all five** | `PdfCIDFont.PrepareForSave` writes `/Identity` for a Type 2 CIDFont and removes the entry for a Type 0, where it is meaningless |
+| PDF/A-1 6.1.7-1, PDF/A-2/3 6.1.7.1-1 | A stream's `/Length` disagrees with the bytes between `stream` and `endstream` | all four PDF/A | `PdfWriter` now writes the end-of-line marker before `endstream` unconditionally |
+| PDF/A-1 6.3.5-3 | A subset CIDFont has no `/CIDSet` in its font descriptor | `pdfa-1b` | `PdfCIDFont` writes one when the document claims PDF/A-1 |
+
+### The `/Length` one is the interesting defect
+
+The writer wrote its end-of-line marker before `endstream` **only when the stream data did not
+already end with a newline**. ISO 32000-1 7.3.8.1 counts `/Length` over the data alone and puts that
+marker after it, outside the count — so when the data ended with a newline, the data's own last byte
+was left serving as the separator and the file declared one byte more than it appeared to hold.
+
+Nothing here noticed because this library's own reader takes `/Length` at its word and gets the right
+bytes either way, which is exactly the shape of defect an outside opinion is for. It went unseen for
+as long as it did because most streams are compressed and end on whatever byte the compressor stopped
+at; the XMP packet, uncompressed by design and ending with a newline by construction, is what
+exposed it.
+
+`StreamLengthTests` pins it by reading the raw bytes rather than going through `PdfReader` —
+the reader would agree with the file whatever the file said. `CidFontConformanceTests` pins the other
+two, including that `/CIDSet` is written for PDF/A-1 and for nothing else.
 
 Two results are worth reading the other way round, as the things that came back clean:
 
@@ -103,27 +121,29 @@ and produce a file that opens perfectly and conforms to nothing.
 veraPDF also warns `Nested MCID` four times on the tagged document. It is a warning rather than a
 failed check and no rule turns on it; it is written down here because it has not been looked into.
 
-## Why it reports rather than gates
+## It gates
 
-The corpus does not conform today, and a step that always fails is a step everybody learns to ignore
-— so it prints the verdict and returns success. `continue-on-error` on the CI step is belt to that
-braces, and covers the other case: a validator that will not start is not a reason to fail a build it
-is only reporting on.
+It reported without failing for exactly as long as the corpus did not conform, which was the three
+defects above. They are fixed, so it gates: a non-conforming document fails the run, in CI and
+locally alike, and `-NoGate` is there for reading a failure rather than being stopped by it. The CI
+step carries no `continue-on-error`, because a step that cannot fail is a step that is not checking
+anything.
 
-**Turning it into a gate is one flag.** Pass `-Gate` to the script, in CI or locally, and a
-non-conforming document fails the run. That is the whole of the change, and it should happen once the
-three defects above are fixed rather than on a schedule.
+**A validator that will not start fails the build too**, but only on a runner — the script checks
+`CI`. Locally, a developer who has not installed Docker has not broken anything and is told what to
+install. On a runner the opposite holds: a validation step that quietly validates nothing is how a
+claim goes back to being self-certified without anybody deciding that it should.
 
-The alternative considered and rejected was baselining the current failures into an allow-list and
-gating on anything new. It catches regressions a day sooner and costs a second mechanism that has to
-be kept honest — and with three known defects, all in one place, the list would be obsolete about as
-soon as it was written.
+The alternative considered and rejected was baselining the failures into an allow-list and gating on
+anything new. It would have caught regressions a day sooner at the cost of a second mechanism to keep
+honest — and with three defects, all in one place, the list would have been obsolete about as soon as
+it was written. Fixing them was cheaper than describing them.
 
 ## Running it
 
 ```powershell
-./verapdf-check.ps1                 # build the corpus, validate, summarise. Never fails.
-./verapdf-check.ps1 -Gate           # the same, but exit non-zero if anything does not conform
+./verapdf-check.ps1                 # build the corpus, validate, summarise, fail if it does not conform
+./verapdf-check.ps1 -NoGate         # the same, but always succeed - for reading a failure
 ./verapdf-check.ps1 -SkipBuild      # validate what is already on disk, for iterating on a failure
 ./verapdf-check.ps1 -Image verapdf/cli:latest   # try a different validator release
 ```
@@ -136,8 +156,12 @@ artifact so a failure can be read without reproducing it.
 
 ## Deliberately not done
 
-- **Fixing the three defects.** They are findings, and each is a change to the writer with its own
-  tests. Recorded here so that whoever picks one up knows what the validator said.
+- **A whole-embedded CFF font still wears a subset name.** `PdfType0Font` gives every CID font the
+  six-letter `ABCDEF+` tag, including one with PostScript outlines, which cannot be subsetted and is
+  embedded entire. The name says subset and the program is not one. No document in the corpus has a
+  CFF font so nothing failed on it, and the honest fix — do not tag what was not subsetted — changes
+  the font name in every document that embeds one, which is more than this branch should carry.
+  Worth a corpus document of its own first.
 - **A policy file.** veraPDF takes `--policyfile` for a schematron narrowing what counts as a
   failure. That is the machinery an allow-list would be built on, and it is not wanted yet.
 - **PDF/A-1a, 2a, 3a and PDF/UA-2.** The `A` levels need a full tagged tree alongside the archival

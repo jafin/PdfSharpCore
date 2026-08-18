@@ -60,16 +60,16 @@ jobs:
       # remarks which rules it cannot reach. This is the outside opinion, and it is the same script a
       # developer runs locally - one behaviour to understand rather than two.
       #
-      # It reports and does not yet gate. The corpus does not conform today, for three reasons set out
-      # in docs/specs/verapdf-validation.md, and a step that always fails is a step everybody learns
-      # to ignore. Pass -Gate here once they are fixed; that flip is the whole of the change.
+      # This gates, and no continue-on-error: a step that cannot fail is a step that is not checking
+      # anything. It reported without failing for exactly as long as the corpus did not conform,
+      # which was the three defects the first run found - all since fixed, all with tests of their
+      # own, and docs/specs/verapdf-validation.md says what each of them was.
       #
-      # continue-on-error is belt to the script's braces: the script exits 0 without -Gate, and this
-      # says that a validator that will not start - a pull failure, a daemon that is not there - is
-      # also not a reason to fail a build it is only reporting on.
+      # A validator that will not start fails this too, because CI is set here: a validation step
+      # that quietly validates nothing is how a claim goes back to being self-certified without
+      # anybody deciding that it should.
       - name: veraPDF conformance
         shell: pwsh
-        continue-on-error: true
         run: ./verapdf-check.ps1
       - name: Upload veraPDF reports
         uses: actions/upload-artifact@v7

@@ -434,8 +434,16 @@ internal class PdfWriter
                     bytes = _securityHandler.EncryptBytes(bytes);
                 }
                 Write(bytes);
-                if (_lastCat != CharCat.NewLine)
-                    WriteRaw('\n');
+
+                // Unconditionally, even when the data already ends with one. /Length counts the
+                // data and nothing else, and ISO 32000-1 7.3.8.1 puts this end-of-line marker
+                // *after* those bytes, outside the count — so a validator finds the data by taking
+                // Length bytes and expects a separator before "endstream". Written only when the
+                // data did not end with a newline, the data's own last byte has to serve as that
+                // separator, and the file then declares one byte more than it appears to hold.
+                // veraPDF fails it under PDF/A-1 6.1.7 and PDF/A-2/3 6.1.7.1; the XMP packet, which
+                // ends with a newline by construction, was the case that showed it up.
+                WriteRaw('\n');
             }
         }
         WriteRaw("endstream\n");

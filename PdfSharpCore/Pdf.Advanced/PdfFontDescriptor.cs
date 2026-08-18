@@ -307,11 +307,23 @@ public sealed class PdfFontDescriptor : PdfDictionary
         public const string FontFile2 = "/FontFile2";
 
         /// <summary>
-        /// (Optional; PDF 1.2) A stream containing a font program whose format is specified 
+        /// (Optional; PDF 1.2) A stream containing a font program whose format is specified
         /// by the Subtype entry in the stream dictionary.
         /// </summary>
         [KeyInfo(KeyType.Stream | KeyType.Optional)]
         public const string FontFile3 = "/FontFile3";
+
+        /// <summary>
+        /// (Optional) A stream saying which CIDs are present in an embedded CIDFont subset, as a bit
+        /// array with the highest-order bit of the first byte standing for CID 0.
+        /// </summary>
+        /// <remarks>
+        /// Optional in ISO 32000-1 and required by PDF/A-1 of every subset CIDFont — clause 6.3.5,
+        /// which PDF/A-2 then dropped as redundant. So it is written only for a document claiming
+        /// PDF/A-1, which is the one profile that asks for it.
+        /// </remarks>
+        [KeyInfo(KeyType.Stream | KeyType.Optional)]
+        public const string CIDSet = "/CIDSet";
 
         /// <summary>
         /// (Optional; meaningful only in Type 1 fonts; PDF 1.1) A string listing the character

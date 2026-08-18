@@ -94,12 +94,75 @@ internal class PdfCIDFont : PdfFont
         // The subtype cannot be settled in the constructor: which outlines the font has is only
         // known once its face has been read. CIDFontType2 means glyf outlines, CIDFontType0
         // means CFF ones, and a viewer reading the program is entitled to be told which.
-        Elements.SetName(Keys.Subtype,
-            FontDescriptor._descriptor.FontFace.IsPostscriptOutlines ? "/CIDFontType0" : "/CIDFontType2");
+        bool postscriptOutlines = FontDescriptor._descriptor.FontFace.IsPostscriptOutlines;
+        Elements.SetName(Keys.Subtype, postscriptOutlines ? "/CIDFontType0" : "/CIDFontType2");
+
+        if (postscriptOutlines)
+        {
+            // Meaningless for CFF outlines, where the font program maps CIDs to glyphs itself, and
+            // ISO 32000-1 Table 117 allows the entry on a Type 2 CIDFont only.
+            Elements.Remove(Keys.CIDToGIDMap);
+        }
+        else
+        {
+            // Identity, and said out loud rather than left to the default. This library writes the
+            // glyph indices themselves as the character codes — that is what Identity-H encoding
+            // means here — so a CID *is* a glyph index and no mapping stream is called for. ISO
+            // 32000-1 makes the entry optional with exactly this default, but PDF/A and PDF/UA both
+            // require it to be present: a reader must not have to know the default to know which
+            // glyph a code draws. veraPDF fails a document without it under PDF/A-1 6.3.3.2,
+            // PDF/A-2 and PDF/A-3 6.2.11.3.2, and PDF/UA-1 7.21.3.2 alike.
+            Elements.SetName(Keys.CIDToGIDMap, "/Identity");
+        }
 
         // CID fonts must always be embedded. A font with CFF outlines is embedded whole,
         // because it cannot be subsetted; only TrueType outlines are subsetted first.
         EmbedFontProgram(true);
+
+        if (!postscriptOutlines && Owner.Options.Conformance == PdfAConformance.PdfA1B)
+            EmbedCidSet();
+    }
+
+    /// <summary>
+    /// Writes the descriptor's <c>/CIDSet</c>: a bit per CID, set when the subset holds it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// PDF/A-1 clause 6.3.5 asks every subset CIDFont for one, and every CID font this library
+    /// writes is a subset by name — the base font is always given the six-letter tag. PDF/A-2
+    /// dropped the requirement as redundant, which is why this is written for PDF/A-1 alone rather
+    /// than for every document: it is bytes in the file that only one profile has a use for, and
+    /// nothing else reads it.
+    /// </para>
+    /// <para>
+    /// A CID here is a glyph index, because the encoding is Identity — the same fact that lets
+    /// <c>/CIDToGIDMap</c> be <c>/Identity</c> above. CID 0 is set whether or not anything drew it:
+    /// <c>.notdef</c> is in every font program by construction, and the set describes what the
+    /// program holds rather than what the page used.
+    /// </para>
+    /// </remarks>
+    void EmbedCidSet()
+    {
+        var cids = CMapInfo.GetGlyphIndices();
+        int highest = 0;
+        foreach (var cid in cids)
+        {
+            if (cid > highest)
+                highest = cid;
+        }
+
+        // The highest CID has to land inside the array, so the length is that index's byte plus one.
+        var bits = new byte[highest / 8 + 1];
+        bits[0] |= 0x80;
+
+        foreach (var cid in cids)
+            bits[cid / 8] |= (byte)(0x80 >> (cid % 8));
+
+        var set = new PdfDictionary(Owner);
+        Owner.Internals.AddObject(set);
+        set.CreateStream(bits);
+
+        FontDescriptor.Elements[PdfFontDescriptor.Keys.CIDSet] = set.Reference;
     }
 
     /// <summary>
