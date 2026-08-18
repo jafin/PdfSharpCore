@@ -32,7 +32,7 @@ public static class Program
         // The corpus draws text and reads no images, but the image seam is registered anyway: it is
         // one line, and a document added later that draws one would otherwise fail here for a reason
         // that has nothing to do with conformance.
-        GlobalFontSettings.FontResolver = new SkiaFontResolver();
+        GlobalFontSettings.FontResolver = new CffFontResolver();
         ImageSource.ImageSourceImpl = new SkiaImageSource();
 
         Directory.CreateDirectory(output);

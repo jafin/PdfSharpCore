@@ -21,7 +21,7 @@ Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 **veraPDF runs the same script CI does, and it gates.** `ConformanceCorpus` writes one PDF per claim
 the library can make into `artifacts/conformance-corpus`; each document *makes* a claim, because
 flavour detection is automatic and a file claiming nothing would be held to the fallback flavour and
-fail for saying nothing. All five conform, so a failure is a regression.
+fail for saying nothing. All six conform, so a failure is a regression.
 
 Its first run found three defects, all in the writer and none reachable by any test here — worth
 knowing because two of them are easy to reintroduce. **`/Length` counts the stream data alone**: the
@@ -31,6 +31,10 @@ data's last byte to serve as the separator. **A Type 2 CIDFont says `/CIDToGIDMa
 loud**, because PDF/A and PDF/UA require what ISO 32000-1 leaves to a default. And **`/CIDSet` is
 written for PDF/A-1 alone**, the one profile that asks for it. `StreamLengthTests` and
 `CidFontConformanceTests` pin all three.
+
+A sixth document sets a page in a face with **PostScript outlines**, which is the one path where a
+CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
+as a subset, both the opposite of every other document.
 
 `docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is built in code
 rather than checked in.

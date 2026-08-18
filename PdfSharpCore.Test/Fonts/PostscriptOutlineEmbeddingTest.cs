@@ -85,8 +85,44 @@ public class PostscriptOutlineEmbeddingTest
     }
 
     /// <summary>
-    /// TrueType fonts must be unaffected: still subsetted, still '/FontFile2'.
+    /// A font embedded whole does not wear the tag that says it was cut down.
     /// </summary>
+    /// <remarks>
+    /// ISO 32000-1 9.6.4 makes the six-letter 'ABCDEF+' prefix a statement of fact: it marks a
+    /// program holding only some of the face's glyphs, and exists so that two subsets of one face -
+    /// same name, different glyphs - cannot be mistaken for each other. This font is embedded
+    /// entire, because CFF outlines cannot be subsetted, so it has nothing to be distinguished from
+    /// and the tag claims something untrue of it. No validator objects, which is why this went
+    /// unnoticed; a tool merging two documents is nonetheless entitled to believe two
+    /// differently-tagged programs differ, and to keep both.
+    /// </remarks>
+    [Fact]
+    public void AFontEmbeddedWholeIsNotNamedAsASubset()
+    {
+        PdfDocument saved = DrawAndReopen(PdfFontEncoding.Unicode);
+
+        var name = FontDescriptorOf(saved).Elements.GetName("/FontName");
+
+        name.Should().NotBeEmpty();
+        name.Should().NotContain("+", "nothing was left out, so there is no subset to tag");
+
+        // The descendant and the descriptor have to agree; they are the same name written twice.
+        DescendantFontsOf(saved).Single().Elements.GetName("/BaseFont").Should().Be(name);
+    }
+
+    /// <summary>
+    /// TrueType fonts must be unaffected: still subsetted, still tagged, still '/FontFile2'.
+    /// </summary>
+    [Fact]
+    public void ASubsettedFontIsStillNamedAsOne()
+    {
+        PdfDocument saved = DrawAndReopen(PdfFontEncoding.Unicode, "Arial");
+
+        // Six upper-case letters and a plus, which is the form the standard fixes.
+        FontDescriptorOf(saved).Elements.GetName("/FontName")
+            .Should().MatchRegex(@"^/[A-Z]{6}\+");
+    }
+
     [Fact]
     public void ATrueTypeFontIsStillSubsettedIntoAFontFile2()
     {

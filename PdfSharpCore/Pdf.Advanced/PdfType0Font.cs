@@ -44,6 +44,27 @@ internal sealed class PdfType0Font : PdfFont
         : base(document)
     { }
 
+    /// <summary>
+    /// Whether the font program about to be embedded will be a subset of the face it came from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The six-letter <c>ABCDEF+</c> tag on a base font name is a statement of fact, not decoration:
+    /// ISO 32000-1 9.6.4 says it marks a font program holding only some of the face's glyphs, and the
+    /// tag exists so that two subsets of one face, with the same name and different glyphs, cannot be
+    /// mistaken for each other. A font embedded whole has nothing to distinguish it from, and wearing
+    /// the tag claims something untrue of it — a tool merging documents is entitled to believe two
+    /// differently-tagged programs differ, and to keep both.
+    /// </para>
+    /// <para>
+    /// Only TrueType outlines are subsetted here. CFF outlines are embedded entire because this
+    /// library cannot cut them down, which is what <see cref="PdfFont.EmbedFontProgram"/> decides on
+    /// the same question — so the two have to agree, and both ask the face.
+    /// </para>
+    /// </remarks>
+    static bool IsSubsetted(OpenTypeDescriptor descriptor)
+        => !descriptor.FontFace.IsPostscriptOutlines;
+
     public PdfType0Font(PdfDocument document, XFont font, bool vertical)
         : base(document)
     {
@@ -66,8 +87,11 @@ internal sealed class PdfType0Font : PdfFont
         Elements.Add(Keys.ToUnicode, _toUnicode);
 
         BaseFont = font.GlyphTypeface.GetBaseName();
-        // CID fonts are always embedded
-        BaseFont = CreateEmbeddedFontSubsetName(BaseFont);
+
+        // CID fonts are always embedded, but not always subsetted, and the tag says which. Only
+        // TrueType outlines are cut down; CFF ones go in whole because they cannot be subsetted.
+        if (IsSubsetted(ttDescriptor))
+            BaseFont = CreateEmbeddedFontSubsetName(BaseFont);
 
         FontDescriptor.FontName = BaseFont;
         _descendantFont.BaseFont = BaseFont;
@@ -102,8 +126,9 @@ internal sealed class PdfType0Font : PdfFont
         //BaseFont = ttDescriptor.FontName.Replace(" ", "");
         BaseFont = ttDescriptor.FontName;
 
-        // CID fonts are always embedded
-        if (!BaseFont.Contains("+"))  // HACK in PdfType0Font
+        // As above, and the "+" test stays: this constructor is handed font bytes by a caller, and a
+        // name that already carries a tag came from a font that was already a subset when it arrived.
+        if (IsSubsetted(ttDescriptor) && !BaseFont.Contains("+"))
             BaseFont = CreateEmbeddedFontSubsetName(BaseFont);
 
         FontDescriptor.FontName = BaseFont;
