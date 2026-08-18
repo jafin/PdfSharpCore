@@ -14,7 +14,7 @@ Gap **G2** of the competitive gap analysis. **All three stages are built.**
 | 6 | PDF/UA-1 identifier in XMP, `/Tabs /S`, a pre-save validator | C | done |
 | 6b | `/ActualText` at a hyphenation break | C | done |
 | 6c | `/ActualText` for ligatures | C | done |
-| 7 | veraPDF in CI | C | done, **reports rather than gates** |
+| 7 | veraPDF in CI | C | done, **and it gates** |
 
 Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs` for Stage A, and
 `MigraDocCore.Rendering.Tests/TaggedOutputTests.cs` and `PdfUaConformanceTests.cs` for B and C.
@@ -258,13 +258,15 @@ tables that describe themselves.
   the parent tree to reach the element, and it is the natural next piece of
   `docs/specs/text-extraction.md` rather than of this — tagged extraction is listed there as the
   reason to have an extractor here at all.
-- **veraPDF is now in CI** — `docs/specs/verapdf-validation.md`. The tagged corpus document passes
-  **105 of its 106 PDF/UA-1 rules**, and the one failure is a missing `/CIDToGIDMap` on a Type 2
-  CIDFont, which is a font dictionary rather than anything structural and fails the archival documents
-  too. Nothing about the structure tree failed, which includes the `/Lbl` and body paragraphs nested
-  inside an inline-level `/Note` that the footnote work produces: veraPDF does not object to it. That
-  is the outside opinion the tagging was missing. It reports rather than gates for now, and veraPDF
-  also warns `Nested MCID` four times without failing a rule, which has not been looked into.
+- **veraPDF is in CI and it gates** — `docs/specs/verapdf-validation.md`. The tagged corpus document
+  passes **all 106 of its PDF/UA-1 rules**. The one rule it first failed was a missing `/CIDToGIDMap`
+  on a Type 2 CIDFont — a font dictionary rather than anything structural, and it failed the archival
+  documents too; `PdfCIDFont.PrepareForSave` now writes `/Identity` and `CidFontConformanceTests` pins
+  it. Nothing about the structure tree ever failed, which includes the `/Lbl` and body paragraphs
+  nested inside an inline-level `/Note` that the footnote work produces: veraPDF does not object to
+  it. That is the outside opinion the tagging was missing, and a failure is now a regression rather
+  than a backlog. veraPDF still warns `Nested MCID` four times without failing a rule, which has not
+  been looked into.
 - **Nested lists.** MigraDoc has no list object — a list is however many consecutive paragraphs happen
   to carry a `ListInfo`, so the tagger reads a run of one kind as one `/L` and a change of kind as a
   new one. That matches what the page looks like and cannot see a nested list as nested, because
