@@ -14,7 +14,7 @@ Gap **G2** of the competitive gap analysis. **All three stages are built.**
 | 6 | PDF/UA-1 identifier in XMP, `/Tabs /S`, a pre-save validator | C | done |
 | 6b | `/ActualText` at a hyphenation break | C | done |
 | 6c | `/ActualText` for ligatures | C | done |
-| 7 | veraPDF in CI | C | not started |
+| 7 | veraPDF in CI | C | done, **reports rather than gates** |
 
 Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs` for Stage A, and
 `MigraDocCore.Rendering.Tests/TaggedOutputTests.cs` and `PdfUaConformanceTests.cs` for B and C.
@@ -258,11 +258,13 @@ tables that describe themselves.
   the parent tree to reach the element, and it is the natural next piece of
   `docs/specs/text-extraction.md` rather than of this — tagged extraction is listed there as the
   reason to have an extractor here at all.
-- **veraPDF in CI.** Without it every conformance claim here is self-certified, which is worth little.
-  `PdfUaValidator` lists what it does and does not check, and the largest thing it cannot check is that
-  no content sits outside the tree, which needs a content-stream pass it does not make. This remains
-  the single most valuable next step and it is still a Java/Docker step added to a build that is
-  currently pure .NET plus Ghostscript.
+- **veraPDF is now in CI** — `docs/specs/verapdf-validation.md`. The tagged corpus document passes
+  **105 of its 106 PDF/UA-1 rules**, and the one failure is a missing `/CIDToGIDMap` on a Type 2
+  CIDFont, which is a font dictionary rather than anything structural and fails the archival documents
+  too. Nothing about the structure tree failed, which includes the `/Lbl` and body paragraphs nested
+  inside an inline-level `/Note` that the footnote work produces: veraPDF does not object to it. That
+  is the outside opinion the tagging was missing. It reports rather than gates for now, and veraPDF
+  also warns `Nested MCID` four times without failing a rule, which has not been looked into.
 - **Nested lists.** MigraDoc has no list object — a list is however many consecutive paragraphs happen
   to carry a `ListInfo`, so the tagger reads a run of one kind as one `/L` and a change of kind as a
   new one. That matches what the page looks like and cannot see a nested list as nested, because
@@ -489,10 +491,9 @@ tree rather than looking for the header in it, because the bug it caught was the
 and correct-looking. `TaggingDrawsTheSameTextInTheSameOrder`, over in `PdfSharpCore.Test`, is the other
 half of the layout pin: see above for why it compares glyph runs and not bytes.
 
-Stage C still needs an outside opinion, and that means **veraPDF in CI** as a container step. CI is
-Linux-only already, which makes it cheap, but it does add a Java dependency to a build that is
-currently pure .NET plus Ghostscript. That is a real cost and a deliberate decision, and until it is
-paid every claim this makes is self-certified.
+Stage C's outside opinion is now **veraPDF as a container step**, run by `verapdf-check.ps1` in CI and
+on a developer's machine alike — `docs/specs/verapdf-validation.md`. The Java dependency it was going
+to cost turned out to cost nothing beyond Docker, which is what running it in a container was for.
 
 ## Related
 
