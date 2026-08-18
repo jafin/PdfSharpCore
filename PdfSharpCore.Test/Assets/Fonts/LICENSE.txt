@@ -27,6 +27,18 @@ NotoSansArabic-Regular.ttf
 	1000 units where every Liberation face is 2048, which also keeps the
 	design-unit arithmetic honest.
 
+NotoSansDevanagari-Regular.ttf
+	Copyright 2024 The Noto Project Authors
+		(https://github.com/notofonts/devanagari).
+	Version 2.006, the googlefonts TrueType build published by the Noto
+	project.
+	Carried for the sake of what its script does that Arabic does not. An
+	Arabic cluster is one character; a Devanagari one is not. A conjunct
+	joins several consonants into a single glyph, and a vowel sign can be
+	drawn to the left of the consonant it is written after - so this is the
+	only face here that can tell a shaper that reorders from one that does
+	not, and the only one whose clusters span more than one character.
+
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.
 
