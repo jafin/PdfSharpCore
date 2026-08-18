@@ -291,6 +291,39 @@ internal sealed class OpenTypeDescriptor : FontDescriptor
     }
 
     /// <summary>
+    /// Maps a Unicode code point to the index of the corresponding glyph, reaching past the basic
+    /// multilingual plane when the face carries a <c>cmap</c> format 12 subtable.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A code point inside the basic multilingual plane is answered out of the format 4 subtable
+    /// exactly as it always was, even when the face has a format 12 one as well. Format 12 is a
+    /// superset in principle and the two agree in practice, but "in practice" is not a reason to
+    /// change which glyph every existing document draws, so it is consulted only where format 4
+    /// cannot answer at all.
+    /// </para>
+    /// <para>
+    /// A face with no format 12 subtable answers <c>.notdef</c> for an astral code point, which is
+    /// what this library has always done - the difference is that it now says so once for the
+    /// character rather than twice for the two halves of its surrogate pair.
+    /// </para>
+    /// </remarks>
+    public int CharCodeToGlyphIndex(int codePoint)
+    {
+        if (codePoint <= 0xFFFF)
+            return CharCodeToGlyphIndex((char)codePoint);
+
+        CMap12 cmap12 = FontFace.cmap.cmap12;
+        return cmap12 == null ? 0 : cmap12.CharCodeToGlyphIndex(codePoint);
+    }
+
+    /// <summary>
+    /// Whether the face can draw the given code point at all - that is, whether it maps to
+    /// anything other than <c>.notdef</c>.
+    /// </summary>
+    public bool HasGlyph(int codePoint) => CharCodeToGlyphIndex(codePoint) != 0;
+
+    /// <summary>
     /// Converts the width of a glyph identified by its index to PDF design units.
     /// </summary>
     public int GlyphIndexToPdfWidth(int glyphIndex)

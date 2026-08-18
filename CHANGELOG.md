@@ -12,6 +12,31 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Added
 
+- **Characters above the basic multilingual plane are drawn.** The font reader now reads the `cmap`
+  format 12 subtable, which is the only one that reaches past U+FFFF. An emoji used to be three
+  failures at once: a surrogate pair drew `.notdef` *twice* because each half was looked up
+  separately, coverage could not answer for an astral character, and so font fallback could not be
+  offered one either. All three went through `OpenTypeDescriptor.CharCodeToGlyphIndex` and all three
+  are fixed together — including fallback, so a face that has the character can now rescue one that
+  does not.
+
+  A code point inside the basic multilingual plane is still answered out of format 4 even where the
+  face carries both subtables. The two agree in practice, but that is not a reason to change which
+  glyph an existing document draws.
+
+- **Bold simulation is decided per face rather than once per string.** A family with no bold file has
+  its boldness stroked and widened on; that is a property of the face, and a string that fell back is
+  drawn out of more than one. A fallback with a real bold used to be stroked and widened anyway.
+  Measuring agrees, so a line is laid out at the width the page draws.
+
+- **Headings claiming PDF/UA-1 may not skip a level** (ISO 14289-1 7.4.2). `/H1` followed by `/H3` is
+  refused at save time, naming the level that was skipped. Coming back up any distance is not a skip.
+  From MigraDoc the level is `ParagraphFormat.OutlineLevel`, which is what a heading style sets.
+
+- **`Footnote.Identifier`** — the `/ID` a note is known by in a tagged document, for when it has to
+  mean something outside the document. Unset, the renderer generates `note1`, `note2` in citation
+  order as before.
+
 - **`XTextFormatter` flows text around things the caller puts in the block.** Give it obstacles and
   the lines whose band they stand in are narrowed around them, on either side, in any column.
 
@@ -257,6 +282,28 @@ This file starts at the entry below. Changes before that point are recorded only
   `docs/specs/demonstration-app.md`.
 
 ### Changed
+
+- **BREAKING:** `IFontFallback.FamiliesFor` takes an `int` code point where it took a `char`.
+  Anyone who has written an implementation of that interface has to change the signature; the body
+  usually needs no change, because a `char` widens to an `int` and the values below U+10000 are the
+  same numbers.
+
+  ```diff
+  - public IEnumerable<string> FamiliesFor(char character, bool isBold, bool isItalic)
+  + public IEnumerable<string> FamiliesFor(int codePoint, bool isBold, bool isItalic)
+  ```
+
+  The reason is the point of the change rather than a detail of it: neither half of a surrogate pair
+  is a character and no `cmap` maps one, so a `char`-shaped question about an astral character could
+  only ever be answered "nobody". The interface's own documentation used to say so. `FontFallbackList`
+  and everything else in this repository are updated.
+
+- **A tagged document no longer nests one marked-content sequence inside another.** A sequence
+  carrying an MCID is a content item of exactly one structure element, so nesting two made the inner
+  glyphs belong to both — a footnote mark was claimed by its `/Reference` and by the `/P` around it,
+  with nothing to say which a reader should announce. The outer sequence is now suspended and resumed
+  instead, which an element supports because it may own several content items. Content streams of
+  tagged documents differ accordingly; the structure tree does not.
 
 - **BREAKING:** a page with `PdfPage.TrimMargins` set is saved with different page boxes. The three
   areas now nest as the PDF specification describes them — `/MediaBox` ⊇ `/BleedBox` ⊇ `/TrimBox` —

@@ -49,7 +49,16 @@ internal sealed class PinnedFontResolver : IFontResolver
     /// </remarks>
     public const string ArabicFamilyName = "Noto Sans Arabic";
 
+    /// <summary>
+    ///   The family the Devanagari face answers to. Served from here for the same reason the Arabic
+    ///   one is: a family registered on first use means whatever the first caller in the assembly
+    ///   made it mean, and this resolver answers every family it does not know with Liberation Sans.
+    /// </summary>
+    public const string DevanagariFamilyName = "Noto Sans Devanagari";
+
     private const string ArabicFaceName = "NotoSansArabic-Regular.ttf";
+
+    private const string DevanagariFaceName = "NotoSansDevanagari-Regular.ttf";
 
     /// <summary>
     ///   Families a test builds the bytes for itself. The resolver is installed once for the
@@ -85,6 +94,12 @@ internal sealed class PinnedFontResolver : IFontResolver
             return new FontResolverInfo(ArabicFaceName);
         }
 
+        if (string.Equals(familyName, DevanagariFamilyName, StringComparison.OrdinalIgnoreCase))
+        {
+            // No style simulation, for the same reason as the Arabic face above.
+            return new FontResolverInfo(DevanagariFaceName);
+        }
+
         if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
         {
             // A regular face is all that is shipped for this family, so a bold or an italic has
@@ -113,7 +128,8 @@ internal sealed class PinnedFontResolver : IFontResolver
     /// </summary>
     private static string AssetPathOf(string faceName)
     {
-        if (faceName == CffFaceName || faceName == ArabicFaceName)
+        if (faceName == CffFaceName || faceName == ArabicFaceName
+            || faceName == DevanagariFaceName)
             return PathHelper.GetInstance().GetAssetPath("Fonts", faceName);
 
         return PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + faceName + ".ttf");

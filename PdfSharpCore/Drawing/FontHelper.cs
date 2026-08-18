@@ -41,6 +41,33 @@ namespace PdfSharpCore.Drawing;
 static class FontHelper
 {
     /// <summary>
+    /// Whether this face is having its boldness simulated because the family had no bold file.
+    /// </summary>
+    /// <remarks>
+    /// A property of the face rather than of the string, which is the whole point of asking it
+    /// this way: a string that fell back is drawn out of more than one face, and the face the
+    /// caller named having no bold says nothing about whether the face that rescued it has one.
+    /// </remarks>
+    internal static bool SimulatesBold(XFont font)
+        => (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation)
+           == XStyleSimulations.BoldSimulation;
+
+    /// <summary>
+    /// The extra character spacing bold simulation costs on this face, which is zero unless it is
+    /// being simulated.
+    /// </summary>
+    /// <remarks>
+    /// Simulation strokes the glyphs and widens them by a character spacing of its own, so it
+    /// counts exactly the way <see cref="XStringFormat.CharacterSpacing"/> does - and the caller's
+    /// spacing is added to it rather than replaced by it, or asking for a spacing on a
+    /// simulated-bold font would quietly un-bolden it. Read by the measuring path, by
+    /// <c>PdfGraphicsState.RealizeFont</c> and by the renderer's per-segment fallback writer,
+    /// which have to agree or a line is drawn at a width nothing measured.
+    /// </remarks>
+    internal static double BoldSimulationSpacing(XFont font)
+        => SimulatesBold(font) ? font.Size * Const.BoldEmphasis : 0;
+
+    /// <summary>
     /// Measure string directly from font data.
     /// </summary>
     public static XSize MeasureString(string text, XFont font, XStringFormat stringFormat)
@@ -58,21 +85,31 @@ static class FontHelper
 
             XStringFormat format = stringFormat ?? XStringFormats.Default;
 
-            // Bold simulation strokes the glyphs and widens them by a character spacing of its own
-            // (see PdfGraphicsState.RealizeFont), so it counts the same way CharacterSpacing does.
             // Unsure how to deal with white space. Currently count as regular character.
-            double boldSimulation =
-                (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) == XStyleSimulations.BoldSimulation
-                    ? font.Size * Const.BoldEmphasis
-                    : 0;
-            double characterSpacing = format.CharacterSpacing + boldSimulation;
             double wordSpacing = format.WordSpacing;
 
             // A glyph advances by its own width plus the character spacing, and a space by the word
             // spacing on top of that; the horizontal scaling then applies to the lot. PDF 32000-1
             // section 9.4.4.
-            double LineWidth(double points, int glyphs, int spaces)
-                => points + glyphs * characterSpacing + spaces * wordSpacing;
+            //
+            // The character spacing is asked per segment rather than once for the string, because
+            // bold simulation is a property of the face and a string that fell back is drawn out of
+            // more than one. Measuring the whole line at the first face's simulation would widen
+            // glyphs a fallback with a real bold is not widened by, and the line would be laid out
+            // at a width the page does not draw.
+            double SegmentWidth(ShapedSegment segment)
+                => segment.Run.WidthAt(segment.Font.Size)
+                   + segment.Run.Glyphs.Count
+                     * (format.CharacterSpacing + BoldSimulationSpacing(segment.Font));
+
+            double LineWidth(ShapedText shaped, int spaces)
+            {
+                double points = 0;
+                for (int idx = 0; idx < shaped.Segments.Count; idx++)
+                    points += SegmentWidth(shaped.Segments[idx]);
+
+                return points + spaces * wordSpacing;
+            }
 
             // What the line is really as wide as, asked of the shaping seam rather than counted
             // one character-width at a time. With no shaper registered the answer is the same sum
@@ -85,7 +122,7 @@ static class FontHelper
             double MeasureLine(ReadOnlySpan<char> line, int spaces)
             {
                 var shaped = TextShaping.ShapeText(line, font, descriptor, format.TextDirection);
-                return LineWidth(shaped.Width, shaped.GlyphCount, spaces);
+                return LineWidth(shaped, spaces);
             }
 
             int length = text.Length;

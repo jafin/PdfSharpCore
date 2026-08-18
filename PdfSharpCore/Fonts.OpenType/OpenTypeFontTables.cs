@@ -50,7 +50,19 @@ internal enum PlatformId
 /// </summary>
 internal enum WinEncodingId
 {
-    Symbol, Unicode
+    Symbol = 0,
+
+    /// <summary>
+    /// Unicode BMP only. A <c>cmap</c> subtable under this encoding is format 4 and stops at
+    /// U+FFFF.
+    /// </summary>
+    Unicode = 1,
+
+    /// <summary>
+    /// Unicode beyond the basic multilingual plane. A subtable under this encoding is format 12,
+    /// and it is the only place a face says which glyph draws an astral character.
+    /// </summary>
+    UnicodeUcs4 = 10
 }
 
 /// <summary>
@@ -143,6 +155,130 @@ internal class CMap4 : OpenTypeFontTable
 }
 
 /// <summary>
+/// CMap format 12: Segmented coverage. The only format that reaches past U+FFFF.
+/// </summary>
+/// <remarks>
+/// Read in addition to <see cref="CMap4"/> rather than instead of it. Format 4 is what every face
+/// has and what every existing document was measured against; format 12 is consulted only for a
+/// code point above the basic multilingual plane, so a face carrying both answers exactly as it
+/// always did for the characters it always could draw.
+/// </remarks>
+internal class CMap12 : OpenTypeFontTable
+{
+    /// <summary>
+    /// One group: a run of consecutive code points whose glyphs are also consecutive.
+    /// </summary>
+    internal readonly struct Group
+    {
+        public Group(uint startCharCode, uint endCharCode, uint startGlyphId)
+        {
+            StartCharCode = startCharCode;
+            EndCharCode = endCharCode;
+            StartGlyphId = startGlyphId;
+        }
+
+        public uint StartCharCode { get; }
+        public uint EndCharCode { get; }
+        public uint StartGlyphId { get; }
+    }
+
+    public ushort format;   // Format number is set to 12.
+    public ushort reserved; // Set to zero.
+    public uint length;     // Byte length of this subtable including the header.
+    public uint language;
+    public uint numGroups;
+    public Group[] groups;  // [numGroups] / sorted by start char code, ascending.
+
+    public CMap12(OpenTypeFontface fontData)
+        : base(fontData, "----")
+    {
+        Read();
+    }
+
+    internal void Read()
+    {
+        try
+        {
+            format = _fontData.ReadUShort();
+            Debug.Assert(format == 12, "Only format 12 expected.");
+            reserved = _fontData.ReadUShort();
+            length = _fontData.ReadULong();
+            language = _fontData.ReadULong();
+            numGroups = _fontData.ReadULong();
+
+            // A malformed or hostile face could otherwise ask for an array of four billion structures
+            // before a single group has been read, and the resulting OutOfMemoryException is one
+            // Unrecoverable.Is deliberately refuses to wrap - it would come out of the font reader as
+            // a process-level failure rather than as "this font is broken".
+            //
+            // Checked against both numbers that bound it, because either alone can be lied about. The
+            // subtable's own declared length is checked first - and checked for being long enough to
+            // hold the header at all, since 16 bytes have already been read and an unsigned length
+            // below that would wrap to something enormous rather than go negative. Then the bytes the
+            // file actually has, because a subtable is free to declare a length running off the end.
+            const int headerLength = 16;
+            const int groupLength = 12;
+
+            long available = _fontData.FontSource.Bytes.Length - (long)_fontData.Position;
+
+            if (length < headerLength
+                || numGroups > (length - headerLength) / groupLength
+                || (long)numGroups * groupLength > available)
+            {
+                throw new InvalidOperationException(
+                    "The cmap format 12 subtable declares more groups than it has room for.");
+            }
+
+            groups = new Group[numGroups];
+            for (int idx = 0; idx < numGroups; idx++)
+            {
+                uint startCharCode = _fontData.ReadULong();
+                uint endCharCode = _fontData.ReadULong();
+                uint startGlyphId = _fontData.ReadULong();
+                groups[idx] = new Group(startCharCode, endCharCode, startGlyphId);
+            }
+        }
+        catch (Exception ex) when (!Unrecoverable.Is(ex))
+        {
+            throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
+        }
+    }
+
+    /// <summary>
+    /// The glyph for a code point, or 0 if this subtable does not cover it.
+    /// </summary>
+    /// <remarks>
+    /// Binary search rather than a walk. The groups are required to be sorted by start code and a
+    /// face covering the emoji planes has hundreds of them, so this is asked once per astral
+    /// character drawn.
+    /// </remarks>
+    public int CharCodeToGlyphIndex(int codePoint)
+    {
+        if (groups == null || codePoint < 0)
+            return 0;
+
+        uint value = (uint)codePoint;
+        int low = 0;
+        int high = groups.Length - 1;
+
+        while (low <= high)
+        {
+            int middle = low + ((high - low) >> 1);
+            Group group = groups[middle];
+
+            if (value < group.StartCharCode)
+                high = middle - 1;
+            else if (value > group.EndCharCode)
+                low = middle + 1;
+            else
+                return (int)(group.StartGlyphId + (value - group.StartCharCode));
+        }
+
+        return 0;
+    }
+}
+
+/// <summary>
 /// This table defines the mapping of character codes to the glyph index values used in the font.
 /// It may contain more than one subtable, in order to support more than one character encoding scheme.
 /// </summary>
@@ -161,6 +297,13 @@ internal class CMapTable : OpenTypeFontTable
     public CMap4 cmap4;
 
     /// <summary>
+    /// The format 12 subtable, or null when the face has none. Only a face carrying one can draw a
+    /// character above the basic multilingual plane; every other face answers <c>.notdef</c> for
+    /// one, exactly as this library always did.
+    /// </summary>
+    public CMap12 cmap12;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="CMapTable"/> class.
     /// </summary>
     public CMapTable(OpenTypeFontface fontData)
@@ -177,47 +320,86 @@ internal class CMapTable : OpenTypeFontTable
 
             version = _fontData.ReadUShort();
             numTables = _fontData.ReadUShort();
-            bool success = false;
+
+            // The whole record list is walked now rather than stopped at the first usable subtable,
+            // because two are wanted and they arrive in no guaranteed order: the format 4 subtable
+            // that answers for the basic multilingual plane, and the format 12 one that is the only
+            // thing that answers above it. Which format 4 subtable is chosen is unchanged - the
+            // first record that would have ended the old loop is the first that sets it here, and
+            // nothing later overwrites it - so a face with no format 12 is read exactly as before
+            // and every existing document keeps the glyphs it had.
+            int cmap4Offset = -1;
+            bool cmap4IsSymbol = false;
+            int cmap12Offset = -1;
+
             for (int idx = 0; idx < numTables; idx++)
             {
                 PlatformId platformId = (PlatformId)_fontData.ReadUShort();
                 int encodingId = _fontData.ReadUShort();
                 int offset = _fontData.ReadLong();
 
-                int currentPosition = _fontData.Position;
-
-                // Just read Windows stuff.
-                if (platformId == PlatformId.Win && ((WinEncodingId)encodingId == WinEncodingId.Symbol || (WinEncodingId)encodingId == WinEncodingId.Unicode))
+                if (cmap4Offset < 0)
                 {
-                    symbol = (WinEncodingId)encodingId == WinEncodingId.Symbol;
-
-                    _fontData.Position = tableOffset + offset;
-                    cmap4 = new CMap4(_fontData, (WinEncodingId)encodingId);
-                    _fontData.Position = currentPosition;
-                    // We have found what we are looking for, so break.
-                    success = true;
-                    break;
+                    // Just read Windows stuff.
+                    if (platformId == PlatformId.Win && ((WinEncodingId)encodingId == WinEncodingId.Symbol || (WinEncodingId)encodingId == WinEncodingId.Unicode))
+                    {
+                        cmap4Offset = offset;
+                        cmap4IsSymbol = (WinEncodingId)encodingId == WinEncodingId.Symbol;
+                    }
+                    else if (platformId == PlatformId.Apple && (AppleEncodingId)encodingId == AppleEncodingId.Unicode20BmpOnly)
+                    {
+                        cmap4Offset = offset;
+                        cmap4IsSymbol = false;
+                    }
                 }
-                                        
-                if (platformId == PlatformId.Apple && (AppleEncodingId)encodingId == AppleEncodingId.Unicode20BmpOnly)
-                {
-                    symbol = false;
 
-                    _fontData.Position = tableOffset + offset;
-                    cmap4 = new CMap4(_fontData, WinEncodingId.Unicode);
-                    _fontData.Position = currentPosition;
-                    // We have found what we are looking for, so break.
-                    success = true;
-                    break;
+                if (cmap12Offset < 0 && IsFullUnicode(platformId, encodingId))
+                    cmap12Offset = offset;
+            }
+
+            if (cmap4Offset < 0)
+                throw new InvalidOperationException("Font has no usable platform or encoding ID. It cannot be used with PdfSharpCore.");
+
+            symbol = cmap4IsSymbol;
+            _fontData.Position = tableOffset + cmap4Offset;
+            cmap4 = new CMap4(_fontData, cmap4IsSymbol ? WinEncodingId.Symbol : WinEncodingId.Unicode);
+
+            // The encoding identifier says a subtable reaches past U+FFFF; it does not say the
+            // subtable is format 12. Checking the format itself rather than trusting the record is
+            // what keeps a face that files something else under that encoding from being read as a
+            // format 12 table and answering nonsense.
+            if (cmap12Offset >= 0)
+            {
+                _fontData.Position = tableOffset + cmap12Offset;
+                if (_fontData.ReadUShort() == 12)
+                {
+                    _fontData.Position = tableOffset + cmap12Offset;
+                    cmap12 = new CMap12(_fontData);
                 }
             }
-            if (!success)
-                throw new InvalidOperationException("Font has no usable platform or encoding ID. It cannot be used with PdfSharpCore.");
         }
         catch (Exception ex) when (!Unrecoverable.Is(ex))
         {
             throw new InvalidOperationException(PSSR.ErrorReadingFontData, ex);
         }
+    }
+
+    /// <summary>
+    /// Whether a subtable record claims to cover the whole of Unicode rather than the basic
+    /// multilingual plane alone.
+    /// </summary>
+    static bool IsFullUnicode(PlatformId platformId, int encodingId)
+    {
+        if (platformId == PlatformId.Win)
+            return (WinEncodingId)encodingId == WinEncodingId.UnicodeUcs4;
+
+        if (platformId == PlatformId.Apple)
+        {
+            AppleEncodingId apple = (AppleEncodingId)encodingId;
+            return apple == AppleEncodingId.Unicode20 || apple == AppleEncodingId.FullUnicode;
+        }
+
+        return false;
     }
 }
 

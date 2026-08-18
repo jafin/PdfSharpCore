@@ -194,6 +194,31 @@ public partial class Footnote : DocumentObject, IVisitable
     internal string style;
 
     /// <summary>
+    /// Gets or sets the identifier this note is known by in a tagged document.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What a tagged document writes as the <c>/ID</c> of the <c>/Note</c> element, which ISO
+    /// 14289-1 7.9 requires of every note: a note exists to be pointed at from the mark that cited
+    /// it, and an element with no identifier cannot be pointed at.
+    /// </para>
+    /// <para>
+    /// Left unset the renderer generates one — <c>note1</c>, <c>note2</c>, in the order the notes are
+    /// cited — which is what most documents want. Set it where the identifier has to mean something
+    /// outside this document, because something else refers to it. It has to be unique across the
+    /// whole document: two elements under one name is refused when the identifier tree is written,
+    /// and the generated names are the obvious ones to collide with.
+    /// </para>
+    /// </remarks>
+    public string Identifier
+    {
+        get => identifier ?? "";
+        set => identifier = value;
+    }
+    [DV]
+    internal string identifier;
+
+    /// <summary>
     /// Gets the format of the footnote.
     /// </summary>
     public ParagraphFormat Format
@@ -228,6 +253,8 @@ public partial class Footnote : DocumentObject, IVisitable
             serializer.WriteSimpleAttribute("Reference", Reference);
         if ((style ?? "") != string.Empty)
             serializer.WriteSimpleAttribute("Style", Style);
+        if ((identifier ?? "") != string.Empty)
+            serializer.WriteSimpleAttribute("Identifier", Identifier);
 
         if (!IsNull("Format"))
             format.Serialize(serializer, "Format", null);

@@ -1517,7 +1517,16 @@ public sealed class XGraphics : IDisposable
                 "Marked content can only be written to a PDF page, not to a form.");
 
         var structure = page.Owner.Structure;
-        var element = structure.CreateElement(tag, _markedContent.Count > 0 ? _markedContent.Peek() : null);
+        var parent = _markedContent.Count > 0 ? _markedContent.Peek() : null;
+
+        // Suspended before the child element is created, not after. Closing the parent may take its
+        // last content item back, and what "last" means has to be the identifier this sequence was
+        // opened with rather than whatever the parent's kids happen to end with - creating the child
+        // first puts the child element there instead.
+        if (parent != null)
+            CloseMarkedContent(renderer, page, parent);
+
+        var element = structure.CreateElement(tag, parent);
         if (alternateText != null)
             element.AlternateText = alternateText;
 
@@ -1525,7 +1534,7 @@ public sealed class XGraphics : IDisposable
         renderer.BeginMarkedContent(tag.Name, mcid);
         _markedContent.Push(element);
 
-        return new MarkedContentScope(this, true);
+        return new MarkedContentScope(this, true, parent != null);
     }
 
     /// <summary>
@@ -1559,11 +1568,24 @@ public sealed class XGraphics : IDisposable
             ?? throw new InvalidOperationException(
                 "Marked content can only be written to a PDF page, not to a form.");
 
+        // A structural sequence already open is closed before this one opens and reopened after it,
+        // rather than this one being nested inside it. Two marked-content sequences each carrying an
+        // MCID, one inside the other, claim the same glyphs for two structure elements: the marks of
+        // a link inside a paragraph belong to the link and to the paragraph both, and a reader has no
+        // way to decide which. veraPDF warns "Nested MCID" about exactly this.
+        //
+        // Reopening is what keeps the paragraph whole. An element may own as many content items as it
+        // likes - that is already how a paragraph broken over two pages is one paragraph - so the
+        // text before the link and the text after it are two items of the same element.
+        bool suspendedParent = _markedContent.Count > 0;
+        if (suspendedParent)
+            CloseMarkedContent(renderer, page, _markedContent.Peek());
+
         var mcid = page.Owner.Structure.AddMarkedContent(page, element);
         renderer.BeginMarkedContent(element.Tag.Name, mcid);
         _markedContent.Push(element);
 
-        return new MarkedContentScope(this, true);
+        return new MarkedContentScope(this, true, suspendedParent);
     }
 
     /// <summary>
@@ -1585,6 +1607,34 @@ public sealed class XGraphics : IDisposable
         _renderer as Drawing.Pdf.XGraphicsPdfRenderer
         ?? throw new InvalidOperationException(message);
 
+    /// <summary>
+    /// Closes a structural sequence, and gives its identifier back when the renderer found it empty
+    /// and removed it - or the tree would name marks the content stream does not hold.
+    /// </summary>
+    static void CloseMarkedContent(Drawing.Pdf.XGraphicsPdfRenderer renderer, PdfPage page,
+        PdfStructure.PdfStructureElement element)
+    {
+        if (renderer.EndMarkedContent())
+            return;
+
+        if (page != null && element != null)
+            page.Owner.Structure.RemoveLastMarkedContent(page, element);
+    }
+
+    /// <summary>
+    /// Opens another content item for an element whose sequence was suspended around a nested one.
+    /// </summary>
+    void ResumeMarkedContent(PdfStructure.PdfStructureElement element)
+    {
+        var renderer = PdfRenderer("Marked content can only be written to a PDF page.");
+        var page = renderer._page;
+        if (page == null)
+            return;
+
+        var mcid = page.Owner.Structure.AddMarkedContent(page, element);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid, removableIfEmpty: true);
+    }
+
     readonly Stack<PdfStructure.PdfStructureElement> _markedContent = new();
 
     /// <summary>
@@ -1595,12 +1645,14 @@ public sealed class XGraphics : IDisposable
     {
         readonly XGraphics _gfx;
         readonly bool _isStructural;
+        readonly bool _resumesParent;
         bool _closed;
 
-        public MarkedContentScope(XGraphics gfx, bool isStructural)
+        public MarkedContentScope(XGraphics gfx, bool isStructural, bool resumesParent = false)
         {
             _gfx = gfx;
             _isStructural = isStructural;
+            _resumesParent = resumesParent;
         }
 
         public void Dispose()
@@ -1613,8 +1665,15 @@ public sealed class XGraphics : IDisposable
 
             if (_isStructural)
             {
-                _gfx._markedContent.Pop();
-                renderer.EndMarkedContent();
+                var element = _gfx._markedContent.Pop();
+                CloseMarkedContent(renderer, renderer._page, element);
+
+                // The sequence this one interrupted picks up where it left off, in a content item of
+                // its own. Left unresumed, everything the parent draws after its child would be
+                // outside the structure tree altogether, which is a PDF/UA failure rather than a
+                // warning.
+                if (_resumesParent && _gfx._markedContent.Count > 0)
+                    _gfx.ResumeMarkedContent(_gfx._markedContent.Peek());
             }
             else
             {

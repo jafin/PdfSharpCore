@@ -130,6 +130,54 @@ public sealed class PdfStructureElement : PdfDictionary
     }
 
     /// <summary>
+    /// Takes back the content item naming <paramref name="mcid"/>, because the marks it named were
+    /// never written.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A sequence that is opened and closed with nothing drawn inside it is removed from the content
+    /// stream rather than written empty, and its identifier has to go with it: a content item naming
+    /// marks that are not in the stream is a hole in the tree, and a reader following it finds
+    /// nothing.
+    /// </para>
+    /// <para>
+    /// The identifier is checked rather than the last kid simply dropped, because kids hold three
+    /// different things and only one of them is a content item. An element that has since acquired a
+    /// child element - a note acquires a label and a paragraph - has that child last, and dropping
+    /// it takes the child and everything under it out of the tree.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// True when the content item was found last and removed. False leaves the element untouched,
+    /// which is what the caller needs to know: the identifier is not this element's to give back, so
+    /// nothing else may be given back on its behalf either.
+    /// </returns>
+    internal bool RemoveLastMarkedContent(int mcid)
+    {
+        var kids = Elements[Keys.K] as PdfArray;
+        if (kids == null || kids.Elements.Count == 0)
+            return false;
+
+        var last = kids.Elements[kids.Elements.Count - 1];
+
+        if (last is PdfInteger integer && integer.Value == mcid)
+        {
+            kids.Elements.RemoveAt(kids.Elements.Count - 1);
+            return true;
+        }
+
+        if (last is PdfDictionary reference
+            && reference.Elements.GetName(Keys.Type) == "/MCR"
+            && reference.Elements.GetInteger(MarkedContentKeys.MCID) == mcid)
+        {
+            kids.Elements.RemoveAt(kids.Elements.Count - 1);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Points this element at an annotation, which is content as much as anything drawn is — a link
     /// is unreachable to a screen reader that only walks the marks.
     /// </summary>

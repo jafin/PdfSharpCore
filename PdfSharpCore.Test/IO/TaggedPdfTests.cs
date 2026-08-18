@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text;
 using AwesomeAssertions;
 using PdfSharpCore.Drawing;
@@ -282,6 +284,92 @@ public class TaggedPdfTests
         var roleMap = TreeRoot(bytes).Elements.GetDictionary(PdfStructureTreeRoot.Keys.RoleMap);
 
         roleMap.Elements.GetName("/Invoice").Should().Be("/Sect");
+    }
+
+    /// <summary>
+    ///   Two sequences opened through the tag overload are not nested one inside the other.
+    /// </summary>
+    /// <remarks>
+    ///   The same rule the element overload follows, and it has to be the same rule: a sequence
+    ///   carrying an MCID is a content item of exactly one element, so nesting two makes the inner
+    ///   glyphs belong to both. This is the overload a caller tagging a page by hand uses, so fixing
+    ///   only the one MigraDoc happens to call would leave the documented manual API doing the very
+    ///   thing the other was changed to stop doing.
+    /// </remarks>
+    [Fact]
+    public void NestedTagScopesAreNotNestedInTheContentStream()
+    {
+        var document = new PdfDocument();
+        var gfx = XGraphics.FromPdfPage(document.AddPage());
+
+        using (gfx.BeginMarkedContent(PdfTag.P))
+        {
+            gfx.DrawString("before", Font, XBrushes.Black, 40, 100);
+
+            using (gfx.BeginMarkedContent(PdfTag.Span))
+                gfx.DrawString("inside", Font, XBrushes.Black, 100, 100);
+
+            gfx.DrawString("after", Font, XBrushes.Black, 160, 100);
+        }
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        var content = ContentOf(output.ToArray());
+
+        DeepestNesting(content).Should().Be(1,
+            "the paragraph is suspended around the span rather than wrapped round it");
+
+        // Suspending is only safe because the sequence is resumed: without it "after" would be
+        // outside the structure tree altogether.
+        Occurrences(content, "BDC").Should().Be(3, "the paragraph either side of the span, and the span");
+        Occurrences(content, "EMC").Should().Be(3);
+    }
+
+    /// <summary>
+    ///   A tag scope that draws nothing after a nested one still writes no empty pair, and hands its
+    ///   identifier back rather than leaving the tree naming a mark that is not in the stream.
+    /// </summary>
+    [Fact]
+    public void ATagScopeEndingInANestedOneLeavesNoGapInTheIdentifiers()
+    {
+        var document = new PdfDocument();
+        var gfx = XGraphics.FromPdfPage(document.AddPage());
+
+        using (gfx.BeginMarkedContent(PdfTag.P))
+        {
+            gfx.DrawString("before", Font, XBrushes.Black, 40, 100);
+
+            using (gfx.BeginMarkedContent(PdfTag.Span))
+                gfx.DrawString("inside", Font, XBrushes.Black, 100, 100);
+        }
+
+        using var output = new MemoryStream();
+        document.Save(output, false);
+        var content = ContentOf(output.ToArray());
+
+        var identifiers = Regex.Matches(content, @"/MCID (\d+)")
+            .Select(match => int.Parse(match.Groups[1].Value))
+            .OrderBy(id => id)
+            .ToArray();
+
+        identifiers.Should().Equal(Enumerable.Range(0, identifiers.Length),
+            "an identifier handed out for a sequence that was then removed leaves a gap");
+    }
+
+    /// <summary>How deep the marked-content nesting in a content stream ever gets.</summary>
+    static int DeepestNesting(string content)
+    {
+        int depth = 0, deepest = 0;
+        foreach (Match match in Regex.Matches(content, @"\b(BDC|BMC|EMC)\b"))
+        {
+            if (match.Value == "EMC")
+                depth--;
+            else
+                deepest = Math.Max(deepest, ++depth);
+        }
+
+        depth.Should().Be(0, "every sequence opened has to be closed");
+        return deepest;
     }
 
     [Fact]

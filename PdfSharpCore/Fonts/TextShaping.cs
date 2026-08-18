@@ -97,17 +97,17 @@ static class TextShaping
             // The trailing half of a surrogate pair is not a character and has no face of its own.
             // Asked separately it would be a lone surrogate, which no cmap covers, and a cut here
             // would put the two halves of one character in two fonts. It goes wherever its leading
-            // half went.
-            //
-            // That leading half is asked about as a UTF-16 code unit rather than as the code point
-            // the pair spells, which is as much as this library can currently do with a
-            // supplementary character: the cmap reader handles format 4 alone, so nothing above the
-            // BMP resolves to a glyph in any face and there is no coverage answer to be had. See
-            // docs/specs/text-shaping-and-bidi.md.
+            // half went - so the pair is asked about once, at its leading half, as the one code
+            // point it spells.
             if (idx > start && char.IsLowSurrogate(whole[idx]) && char.IsHighSurrogate(whole[idx - 1]))
                 continue;
 
-            var wanted = FontFallbackResolution.FontFor(whole[idx], font, descriptor);
+            int codePoint = char.IsHighSurrogate(whole[idx]) && idx + 1 < end
+                            && char.IsLowSurrogate(whole[idx + 1])
+                ? char.ConvertToUtf32(whole[idx], whole[idx + 1])
+                : whole[idx];
+
+            var wanted = FontFallbackResolution.FontFor(codePoint, font, descriptor);
 
             // No opinion, or the same opinion as the piece being built: nothing to cut.
             if (wanted == null || ReferenceEquals(wanted, piece))
@@ -214,10 +214,15 @@ static class TextShaping
     /// <remarks>
     /// <para>
     /// Kept faithful to the old behaviour down to its limits, because every existing document
-    /// depends on them. A surrogate pair is two lookups on the two halves, which finds nothing and
-    /// draws <c>.notdef</c> twice; a symbol face has its code points shifted into the range the
-    /// face actually encodes. Both are wrong and neither is this method's to fix - the fix is a
-    /// real shaper.
+    /// depends on them: a symbol face has its code points shifted into the range the face actually
+    /// encodes, which is wrong and is not this method's to fix - the fix is a real shaper.
+    /// </para>
+    /// <para>
+    /// One limit is gone. A surrogate pair used to be two lookups on its two halves, neither of
+    /// which any <c>cmap</c> maps, so an astral character drew <c>.notdef</c> twice. It is now one
+    /// character, one lookup and one glyph, answered out of the face's <c>cmap</c> format 12
+    /// subtable where it has one and <c>.notdef</c> - once - where it has not. The cluster stays the
+    /// index of the high surrogate, so the pair is recovered whole by <c>/ToUnicode</c>.
     /// </para>
     /// <para>
     /// One thing it does do that no <c>cmap</c> lookup can: a right-to-left run comes back
@@ -249,10 +254,16 @@ static class TextShaping
         // zero width by definition, so whatever glyph the face happens to map it to is not a glyph
         // to put on the page, and .notdef least of all.
         int drawn = 0;
-        for (int idx = 0; idx < text.Length; idx++)
+        for (int idx = 0; idx < text.Length; )
         {
-            if (!UnicodeProperties.IsJoiningControl(text[idx]))
-                drawn++;
+            if (UnicodeProperties.IsJoiningControl(text[idx]))
+            {
+                idx++;
+                continue;
+            }
+
+            drawn++;
+            idx += CharacterLengthAt(text, idx);
         }
 
         if (drawn == 0)
@@ -260,27 +271,63 @@ static class TextShaping
 
         bool rightToLeft = direction == XTextDirection.RightToLeft;
         var glyphs = new ShapedGlyph[drawn];
-        for (int idx = 0, position = 0; idx < text.Length; idx++)
+        for (int idx = 0, position = 0; idx < text.Length; )
         {
             char ch = text[idx];
             if (UnicodeProperties.IsJoiningControl(ch))
+            {
+                idx++;
                 continue;
+            }
 
-            // Used | rather than + because of http://PdfSharpCore.codeplex.com/workitem/15954.
-            if (symbol)
-                ch = (char)(ch | symbolBase);
+            int length = CharacterLengthAt(text, idx);
+            int codePoint;
+            if (length == 2)
+            {
+                // An astral character. A symbol face never encodes one, so the shift below does not
+                // apply and would corrupt the code point if it did.
+                codePoint = char.ConvertToUtf32(ch, text[idx + 1]);
+            }
+            else if (symbol)
+            {
+                // Used | rather than + because of http://PdfSharpCore.codeplex.com/workitem/15954.
+                codePoint = ch | symbolBase;
+            }
+            else
+            {
+                codePoint = ch;
+            }
 
-            int glyphIndex = descriptor.CharCodeToGlyphIndex(ch);
+            int glyphIndex = descriptor.CharCodeToGlyphIndex(codePoint);
 
             // The cluster stays the index of the character it came from; only the position in the
-            // list changes, so a right-to-left run's clusters descend exactly as a shaper's do.
+            // list changes, so a right-to-left run's clusters descend exactly as a shaper's do. For
+            // a surrogate pair it is the index of the high surrogate, and the next glyph's cluster
+            // is two further on, which is how the reader recovers both code units.
             int at = rightToLeft ? drawn - 1 - position : position;
             glyphs[at] = new ShapedGlyph((ushort)glyphIndex, idx, descriptor.GlyphIndexToWidth(glyphIndex));
             position++;
+            idx += length;
         }
 
         return new ShapedRun(glyphs, descriptor.UnitsPerEm, direction);
     }
+
+    /// <summary>
+    /// How many <see cref="char"/> the character at <paramref name="index"/> occupies: two for a
+    /// well-formed surrogate pair and one for everything else, an unpaired surrogate included.
+    /// </summary>
+    /// <remarks>
+    /// Both loops in <c>Unshaped</c> step through the text with this, and they have to agree - one
+    /// counts the glyphs and the other fills them in, so a disagreement is an array of the wrong
+    /// size or a hole left in the middle of it.
+    /// </remarks>
+    static int CharacterLengthAt(ReadOnlySpan<char> text, int index)
+        => char.IsHighSurrogate(text[index])
+           && index + 1 < text.Length
+           && char.IsLowSurrogate(text[index + 1])
+            ? 2
+            : 1;
 
     /// <summary>
     /// The glyph identifiers of a run, one <see cref="char"/> per glyph, in drawing order - the

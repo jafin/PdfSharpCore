@@ -423,10 +423,16 @@ internal sealed class StructureTagger
         var note = Element(footnote, PdfTag.Note, parent, NoteSlot);
         if (note != null)
         {
-            // Numbered from one in the order the notes are cited, which is the order they are built
-            // in. The prefix keeps them clear of any identifier a caller has set themselves; two
-            // elements under one name is refused when the identifier tree is written.
-            note.Id = "note" + ++_notes;
+            // The caller's own identifier where they set one, because a note whose name has to mean
+            // something outside this document cannot be given a generated one. Otherwise numbered
+            // from one in the order the notes are cited, which is the order they are built in. The
+            // prefix keeps the generated names clear of a caller's; two elements under one name is
+            // refused when the identifier tree is written, whichever of them chose it.
+            //
+            // The counter advances either way, so that setting one note's identifier does not
+            // renumber the notes around it.
+            int generated = ++_notes;
+            note.Id = footnote.Identifier.Length > 0 ? footnote.Identifier : "note" + generated;
         }
 
         return note;

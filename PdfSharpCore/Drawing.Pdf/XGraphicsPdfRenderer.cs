@@ -392,7 +392,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         //bool bold = (font.Style & XFontStyle.Bold) != 0;
         //bool italic = (font.Style & XFontStyle.Italic) != 0;
         bool italicSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.ItalicSimulation) != 0;
-        bool boldSimulation = (font.GlyphTypeface.StyleSimulations & XStyleSimulations.BoldSimulation) != 0;
+        bool boldSimulation = FontHelper.SimulatesBold(font);
         // The format's decoration wins; leaving it at None keeps whatever the font's style asks
         // for, which is where underlining lived before the format could carry it.
         XTextDecoration underline = format.Underline != XTextDecoration.None
@@ -402,7 +402,28 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             ? format.Strikeout
             : (font.Style & XFontStyle.Strikeout) != 0 ? XTextDecoration.Single : XTextDecoration.None;
 
-        Realize(font, brush, pen, boldSimulation, format);
+        // Shaped before the font is realized rather than after, because what the text state has to
+        // be set up for depends on every face the string is drawn with and not only on the one that
+        // was asked for. A face with no bold file has its boldness simulated by stroking, and a
+        // string that fell back may be part simulated and part not - so the stroking colour and
+        // width have to be ready if any segment needs them, and only the mode and spacing then vary
+        // per segment. The descriptor is the one the measuring path uses, from the same cache,
+        // because measuring and drawing shaping the string differently is the one thing that must
+        // not happen.
+        ShapedText shaped = null;
+        bool anySimulatesBold = boldSimulation;
+        if (font.Unicode)
+        {
+            var shapingDescriptor = FontDescriptorCache.GetOrCreateDescriptorFor(font) as OpenTypeDescriptor;
+            shaped = TextShaping.ShapeText(s.AsSpan(), font, shapingDescriptor, format.TextDirection);
+
+            for (int idx = 0; idx < shaped.Segments.Count && !anySimulatesBold; idx++)
+                anySimulatesBold = FontHelper.SimulatesBold(shaped.Segments[idx].Font);
+        }
+
+        // Identical to boldSimulation whenever the string is all one face, which is every string
+        // that needed no fallback - so the common path realizes exactly what it always did.
+        Realize(font, brush, pen, anySimulatesBold, format);
 
         // The same arithmetic XGraphicsPath.AddString places its glyphs by, so that a string added
         // to a path lands where the same string drawn here lands.
@@ -421,13 +442,11 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         string text = null;
         if (font.Unicode)
         {
-            // Asked of the shaping seam rather than looked up one character at a time, so that the
-            // glyphs drawn are the glyphs MeasureString measured. With no shaper registered this
-            // is the same cmap lookup per character it has always been - except that a
-            // right-to-left run comes back in the order it is drawn rather than the order it was
-            // written.
-            var shaped = TextShaping.ShapeText(s.AsSpan(), font, descriptor, format.TextDirection);
-
+            // Shaped above, before the font was realized. Asked of the shaping seam rather than
+            // looked up one character at a time, so that the glyphs drawn are the glyphs
+            // MeasureString measured. With no shaper registered this is the same cmap lookup per
+            // character it has always been - except that a right-to-left run comes back in the
+            // order it is drawn rather than the order it was written.
             if (shaped.IsAllOneFont(font))
             {
                 // The glyphs the run really drew, rather than the ones the characters would have
@@ -441,7 +460,7 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             }
             else
             {
-                text = FallenBackTextOperators(s, shaped, font, format);
+                text = FallenBackTextOperators(s, shaped, font, brush, pen, format);
             }
         }
         else
@@ -1747,12 +1766,31 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// nest, which is not allowed. Every <c>Realize</c> overload orders it this way already.
     /// </para>
     /// </remarks>
-    internal void BeginMarkedContent(string tag, int mcid)
+    /// <param name="tag">The structure type of the element the sequence belongs to.</param>
+    /// <param name="mcid">The identifier this sequence is known by within the page.</param>
+    /// <param name="removableIfEmpty">
+    /// Whether the sequence may be taken back again if nothing is drawn inside it. True only for one
+    /// resumed around a nested sequence: a paragraph whose last leaf is a link resumes after the link
+    /// and is closed immediately, and an empty pair of operators there would put a content item into
+    /// the tree covering no content at all. A sequence the caller opened is never taken back, empty
+    /// or not - it is the caller's statement that something on the page belongs to that element, and
+    /// silently dropping it is how an unopened scope comes to look like a balanced one.
+    /// </param>
+    internal void BeginMarkedContent(string tag, int mcid, bool removableIfEmpty = false)
     {
         BeginPage();
         BeginGraphicMode();
+        _markedContentStarts.Push(removableIfEmpty ? _content.Length : NotRemovable);
         _content.Append(tag).Append(" <</MCID ").Append(mcid).Append(">> BDC\n");
     }
+
+    /// <summary>
+    /// Where in the content stream each open structural sequence began, or <see cref="NotRemovable"/>
+    /// for one that is to be written whether or not anything is drawn inside it.
+    /// </summary>
+    readonly Stack<int> _markedContentStarts = new Stack<int>();
+
+    const int NotRemovable = -1;
 
     /// <summary>
     /// Opens an artifact sequence: content that is on the page but is not part of what the page
@@ -1774,11 +1812,35 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Closes the innermost marked-content sequence.
     /// </summary>
-    internal void EndMarkedContent()
+    /// <summary>
+    /// Closes the innermost structural sequence, or removes it when nothing was drawn inside it.
+    /// </summary>
+    /// <returns>
+    /// True when an <c>EMC</c> was written, false when the sequence was taken back instead. The
+    /// caller needs to know because a sequence that was never written cannot have been the one a
+    /// suspended parent is resuming after.
+    /// </returns>
+    internal bool EndMarkedContent()
     {
         BeginPage();
         BeginGraphicMode();
+
+        if (_markedContentStarts.Count > 0)
+        {
+            var start = _markedContentStarts.Pop();
+            if (start != NotRemovable)
+            {
+                var opened = _content.ToString(start, _content.Length - start);
+                if (opened.IndexOf("BDC\n", StringComparison.Ordinal) == opened.Length - 4)
+                {
+                    _content.Length = start;
+                    return false;
+                }
+            }
+        }
+
         _content.Append("EMC\n");
+        return true;
     }
 
     /// <summary>
@@ -1950,23 +2012,62 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// at all.
     /// </para>
     /// <para>
-    /// Style simulation is not reconsidered per face: a caller whose primary face has no bold file
-    /// gets bold simulated across the whole string, including the parts drawn by a fallback that
-    /// may well have a real bold. Reconsidering it would mean a rendering mode and a character
-    /// spacing per segment, and both are text state that the measuring path would then have to
-    /// agree with.
+    /// Style simulation <em>is</em> reconsidered per face, which is why the rendering mode and the
+    /// character spacing are written per segment here. A caller whose primary face has no bold file
+    /// gets bold simulated - stroked and widened - but a fallback that has a real bold does not,
+    /// and used to be stroked and widened anyway for no better reason than that the face beside it
+    /// needed it. The stroking colour and width are realized once, before any of this, for whichever
+    /// faces turn out to need them; only the mode and the spacing vary here, and both are text state
+    /// that costs one short operator to change.
+    /// </para>
+    /// <para>
+    /// Both are put back to what <see cref="PdfGraphicsState"/> believes before this returns, for
+    /// the same reason the face is: this writes into the middle of a content stream that the
+    /// graphics state goes on keeping track of, and a state that has been lied to writes the wrong
+    /// thing for the next string rather than for this one, which is far harder to find.
+    /// <see cref="Drawing.FontHelper.BoldSimulationSpacing"/> is the one rule the measuring path
+    /// reads too, so a line is drawn at the width it was laid out at.
     /// </para>
     /// </remarks>
-    string FallenBackTextOperators(string text, ShapedText shaped, XFont font, XStringFormat format)
+    string FallenBackTextOperators(string text, ShapedText shaped, XFont font, XBrush brush,
+        XPen pen, XStringFormat format)
     {
         const string sizeFormat = Config.SignificantFigures3;
+        const string numberFormat = Config.SignificantFigures3;
 
         var parts = new StringBuilder();
         XFont selected = font;
 
+        // What the graphics state believes the stream has been told, and so what has to be true
+        // again by the end of it.
+        int stateMode = _gfxState.RealizedRenderingMode;
+        double stateCharSpace = _gfxState.RealizedCharSpace;
+        int mode = stateMode;
+        double charSpace = stateCharSpace;
+
         foreach (var segment in shaped.Segments)
         {
             string name = GetFontName(segment.Font, out var pdfFont);
+
+            // Whether this face is having its boldness simulated, which decides both whether its
+            // glyphs are stroked as well as filled and how far apart they sit.
+            int wantedMode = PdfGraphicsState.TextRenderingMode(
+                brush, pen, FontHelper.SimulatesBold(segment.Font));
+            double wantedCharSpace =
+                format.CharacterSpacing + FontHelper.BoldSimulationSpacing(segment.Font);
+
+            if (wantedMode != mode)
+            {
+                parts.AppendFormat(CultureInfo.InvariantCulture, "{0} Tr\n", wantedMode);
+                mode = wantedMode;
+            }
+
+            if (wantedCharSpace != charSpace)
+            {
+                parts.AppendFormat(CultureInfo.InvariantCulture,
+                    "{0:" + numberFormat + "} Tc\n", wantedCharSpace);
+                charSpace = wantedCharSpace;
+            }
 
             if (!ReferenceEquals(segment.Font, selected))
             {
@@ -1979,6 +2080,15 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
             pdfFont.AddShapedRun(segment.Run, of);
             parts.Append(SegmentOperators(of, segment.Run, segment.Font, format));
             parts.Append('\n');
+        }
+
+        if (mode != stateMode)
+            parts.AppendFormat(CultureInfo.InvariantCulture, "{0} Tr\n", stateMode);
+
+        if (charSpace != stateCharSpace)
+        {
+            parts.AppendFormat(CultureInfo.InvariantCulture,
+                "{0:" + numberFormat + "} Tc\n", stateCharSpace);
         }
 
         if (!ReferenceEquals(selected, font))

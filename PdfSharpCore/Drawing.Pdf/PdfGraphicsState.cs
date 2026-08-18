@@ -477,6 +477,21 @@ internal sealed class PdfGraphicsState : ICloneable
     double _realizedFontSize;
     int _realizedRenderingMode;  // Reference: TABLE 5.2  Text state operators / Page 398
     double _realizedCharSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
+
+    /// <summary>
+    /// The text rendering mode the content stream has been told about.
+    /// </summary>
+    /// <remarks>
+    /// Read by the renderer when a string is drawn out of more than one face and the faces do not
+    /// agree about bold simulation, so that it can vary the mode per segment and put back what
+    /// this state believes at the end. Telling this state what happened instead would be one more
+    /// thing to keep in step, and it would have to be undone again for the next string.
+    /// </remarks>
+    internal int RealizedRenderingMode => _realizedRenderingMode;
+
+    /// <summary>The character spacing the content stream has been told about.</summary>
+    /// <inheritdoc cref="RealizedRenderingMode" path="/remarks"/>
+    internal double RealizedCharSpace => _realizedCharSpace;
     double _realizedWordSpace;  // Reference: TABLE 5.2  Text state operators / Page 398
     double _realizedTextRise;  // Reference: TABLE 5.2  Text state operators / Page 398
 
@@ -541,6 +556,7 @@ internal sealed class PdfGraphicsState : ICloneable
         double charSpace = format.CharacterSpacing;
         if (boldSimulation)
             charSpace += font.Size * Const.BoldEmphasis;
+
         if (_realizedCharSpace != charSpace)
         {
             _renderer.AppendFormatDouble("{0:" + numberFormat + "} Tc\n", charSpace);
