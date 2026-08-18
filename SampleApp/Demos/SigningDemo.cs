@@ -51,8 +51,18 @@ internal sealed class SigningDemo : PdfDemo
     ///   Nothing about this demo depends on the certificate being believed - a reader will show a
     ///   yellow warning over this file, correctly, because the signature is intact and the identity
     ///   behind it is nobody's.
+    ///   <para>
+    ///     Held for one run and no longer. It is made during <c>Build</c>, so that the pages can
+    ///     print what a real signature said, and used again in <c>Save</c> - and then let go, because
+    ///     it carries a private key and a native handle to go with it. A demo registry holds one
+    ///     instance of every demo for the life of the process, which is why this is cleared rather
+    ///     than merely disposed: a second run makes a fresh certificate instead of signing with a
+    ///     disposed one.
+    ///   </para>
     /// </remarks>
-    readonly Lazy<X509Certificate2> _certificate = new Lazy<X509Certificate2>(SelfSigned);
+    X509Certificate2? _certificate;
+
+    X509Certificate2 Certificate() => _certificate ??= SelfSigned();
 
     protected override PdfDocument Build(DemoContext context)
     {
@@ -265,8 +275,19 @@ internal sealed class SigningDemo : PdfDemo
         document.Save(unsigned, false);
         unsigned.Position = 0;
 
-        using FileStream output = new FileStream(path, FileMode.Create, FileAccess.Write);
-        PdfSigner.Sign(unsigned, output, Signer(), OptionsFor(drawAppearance: true));
+        try
+        {
+            using FileStream output = new FileStream(path, FileMode.Create, FileAccess.Write);
+            PdfSigner.Sign(unsigned, output, Signer(), OptionsFor(drawAppearance: true));
+        }
+        finally
+        {
+            // The last use of the certificate, and so where the native key handle behind it is let
+            // go of. SelfSigned disposes the ephemeral certificate for exactly this reason; the one
+            // it hands back carries an imported key and has earned the same treatment.
+            _certificate?.Dispose();
+            _certificate = null;
+        }
     }
 
     /// <summary>Where the visible signature goes, in the coordinates XGraphics draws in.</summary>
@@ -336,7 +357,7 @@ internal sealed class SigningDemo : PdfDemo
             });
     }
 
-    IPdfSigner Signer() => new Pkcs7Signer(_certificate.Value, PdfSignatureFormat.Pades);
+    IPdfSigner Signer() => new Pkcs7Signer(Certificate(), PdfSignatureFormat.Pades);
 
     PdfSignatureOptions OptionsFor(bool drawAppearance)
     {

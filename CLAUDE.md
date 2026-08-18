@@ -98,10 +98,10 @@ its page count fails the build.
 
 Three rules there are load-bearing rather than stylistic, all explained in
 `docs/specs/demonstration-app.md`: **a demo never registers a backend** (the smoke test runs demos
-inside a test host that has already installed `PinnedFontResolver`, and `GlobalFontSettings
-.FontResolver` throws once a font has been used — which is also why `Backends.EnsureRegistered`
-rather than a demo sets `TextShaper` and `FontFallback`, and why no demo's page count may depend on
-either); **its fonts, images and sources are embedded resources, not content files** (a referenced
+inside a test host that has already installed `PinnedFontResolver`, and
+`GlobalFontSettings.FontResolver` throws once a font has been used — which is also why
+`Backends.EnsureRegistered` rather than a demo sets `TextShaper` and `FontFallback`, and why no
+demo's page count may depend on either); **its fonts, images and sources are embedded resources, not content files** (a referenced
 project's content items do not reach the referencing project's output directory); and **a demo whose
 output `Save` would destroy overrides `PdfDemo.Save`** — `Save` rewrites a file from the object
 model, which invalidates every signature and discards every earlier revision, so `Signing` writes

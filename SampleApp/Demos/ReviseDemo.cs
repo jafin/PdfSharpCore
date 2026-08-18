@@ -170,8 +170,10 @@ internal sealed class ReviseDemo : PdfDemo
             (string What, string Value)[] facts =
             {
                 ("Revision one", Format(sizeOfOne) + " bytes"),
-                ("Objects it defined", appended.Internals.GetAllObjects().Length
-                    .ToString(CultureInfo.InvariantCulture) + " reachable at this point"),
+                // Counted after the page above was added, so this is both revisions' objects and
+                // not revision one's. Named for what it counts rather than for the row above it.
+                ("Objects reachable now", appended.Internals.GetAllObjects().Length
+                    .ToString(CultureInfo.InvariantCulture) + " across both revisions"),
                 ("Pages before this one", "2"),
                 ("Changed as well as added", "/Info /Subject, which revision one had left empty"),
             };
