@@ -38,7 +38,20 @@ public sealed class BundledFontResolver : IFontResolver
     /// </summary>
     public const string MonoFamily = "Source Code Pro";
 
+    /// <summary>
+    ///   The Arabic family, and the only one here that none of the other three can stand in for.
+    /// </summary>
+    /// <remarks>
+    ///   Liberation and Source Code Pro between them have no Arabic glyph at all, so this is what
+    ///   the International demo falls back <em>to</em> - and what it shapes, because Arabic is the
+    ///   script where the difference between shaped and unshaped is a different set of letters
+    ///   rather than a different fit. Only a regular face ships.
+    /// </remarks>
+    public const string ArabicFamily = "Noto Sans Arabic";
+
     const string MonoFace = "SourceCodePro-Regular.otf";
+
+    const string ArabicFace = "NotoSansArabic-Regular.ttf";
 
     static readonly ConcurrentDictionary<string, byte[]> Loaded =
         new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -51,6 +64,14 @@ public sealed class BundledFontResolver : IFontResolver
 
     public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
     {
+        if (Matches(familyName, ArabicFamily))
+        {
+            // One face, and no simulation asked for either. A stroked or skewed Arabic letter is
+            // not a bold or an italic one - those are not distinctions this script makes, and
+            // faking them would draw something no reader of it would recognise.
+            return new FontResolverInfo(ArabicFace);
+        }
+
         if (Matches(familyName, MonoFamily))
         {
             // One face for the whole family, so a bold or an italic has to be drawn on rather than

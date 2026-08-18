@@ -34,6 +34,24 @@ internal sealed class PinnedFontResolver : IFontResolver
     private const string CffFaceName = "SourceCodePro-Regular.otf";
 
     /// <summary>
+    ///   The one family here with a glyph Liberation Sans has not got, which is what makes it the
+    ///   family every fallback and shaping test falls back <em>to</em>.
+    /// </summary>
+    /// <remarks>
+    ///   Answered here rather than registered by whichever test gets there first, and that is the
+    ///   whole point of it being here. Every family this resolver does not know is answered with
+    ///   Liberation Sans, so a family that is registered lazily means something different depending
+    ///   on whether the registration or the first draw won the race - and the library caches the
+    ///   first answer, so the loser is stuck with it for the rest of the run. That is not
+    ///   hypothetical: it turned four Arabic tests into four <c>.notdef</c> boxes the day a demo in
+    ///   the sample app started naming this family too, and it did it on some runs and not others.
+    ///   A family the resolver knows from the start cannot be raced for.
+    /// </remarks>
+    public const string ArabicFamilyName = "Noto Sans Arabic";
+
+    private const string ArabicFaceName = "NotoSansArabic-Regular.ttf";
+
+    /// <summary>
     ///   Families a test builds the bytes for itself. The resolver is installed once for the
     ///   whole assembly, so a test that needs a font of its own adds one here rather than
     ///   replacing the resolver under every other test running beside it.
@@ -60,6 +78,13 @@ internal sealed class PinnedFontResolver : IFontResolver
         if (Registered.TryGetValue(familyName, out string testFaceName))
             return new FontResolverInfo(testFaceName);
 
+        if (string.Equals(familyName, ArabicFamilyName, StringComparison.OrdinalIgnoreCase))
+        {
+            // No style simulation. A stroked or skewed Arabic letter is not a bold or an italic
+            // one, and only a regular face ships.
+            return new FontResolverInfo(ArabicFaceName);
+        }
+
         if (string.Equals(familyName, CffFamilyName, StringComparison.OrdinalIgnoreCase))
         {
             // A regular face is all that is shipped for this family, so a bold or an italic has
@@ -79,10 +104,19 @@ internal sealed class PinnedFontResolver : IFontResolver
 
     public byte[] GetFont(string faceName)
     {
-        return Fonts.GetOrAdd(faceName, name => File.ReadAllBytes(
-            name == CffFaceName
-                ? PathHelper.GetInstance().GetAssetPath("Fonts", CffFaceName)
-                : PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + name + ".ttf")));
+        return Fonts.GetOrAdd(faceName, name => File.ReadAllBytes(AssetPathOf(name)));
+    }
+
+    /// <summary>
+    ///   Where a face name's file is. The two named faces are files in their own right; every
+    ///   other name is one of Liberation Sans's four styles.
+    /// </summary>
+    private static string AssetPathOf(string faceName)
+    {
+        if (faceName == CffFaceName || faceName == ArabicFaceName)
+            return PathHelper.GetInstance().GetAssetPath("Fonts", faceName);
+
+        return PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + faceName + ".ttf");
     }
 
     private static string FaceNameOf(bool isBold, bool isItalic)

@@ -1,6 +1,6 @@
 The fonts in this directory are carried by the demonstration app so that the PDFs
 it produces are laid out the same way on every machine, rather than with whatever
-the machine happens to have installed. All three families are licensed under the
+the machine happens to have installed. All four families are licensed under the
 SIL Open Font License, Version 1.1, whose text is reproduced once below and
 covers all of them.
 
@@ -26,6 +26,17 @@ SourceCodePro-Regular.otf
 	library and one that cannot be subsetted. Only a regular face ships, so a
 	request for bold or italic comes back simulated - which the Fonts demo
 	shows deliberately.
+
+NotoSansArabic-Regular.ttf
+	Copyright 2022 The Noto Project Authors
+	(https://github.com/notofonts/arabic), with Reserved Font Name 'Noto'.
+	Carried because none of the three families above has a single Arabic
+	glyph, and the International demo is about text the Latin faces cannot
+	draw: letters that change shape according to what they sit between, a
+	line that reads right to left, and a character falling back to the face
+	that has it. Shaped through PdfSharpCore.HarfBuzz - without a shaper the
+	letters appear in their isolated forms, which the demo also shows,
+	because that contrast is the point.
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

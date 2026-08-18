@@ -96,12 +96,20 @@ machinery. The two do not overlap.
 demos are covered by `PdfSharpCore.Test/Demos/DemoSmokeTests.cs`, so a demo that throws or changes
 its page count fails the build.
 
-Two rules there are load-bearing rather than stylistic, both explained in
+Three rules there are load-bearing rather than stylistic, all explained in
 `docs/specs/demonstration-app.md`: **a demo never registers a backend** (the smoke test runs demos
-inside a test host that has already installed `PinnedFontResolver`, and `GlobalFontSettings
-.FontResolver` throws once a font has been used), and **its fonts, images and sources are embedded
-resources, not content files** (a referenced project's content items do not reach the referencing
-project's output directory).
+inside a test host that has already installed `PinnedFontResolver`, and
+`GlobalFontSettings.FontResolver` throws once a font has been used — which is also why
+`Backends.EnsureRegistered` rather than a demo sets `TextShaper` and `FontFallback`, and why no
+demo's page count may depend on either); **its fonts, images and sources are embedded resources, not content files** (a referenced
+project's content items do not reach the referencing project's output directory); and **a demo whose
+output `Save` would destroy overrides `PdfDemo.Save`** — `Save` rewrites a file from the object
+model, which invalidates every signature and discards every earlier revision, so `Signing` writes
+through `PdfSigner.Sign` and `Revise` through `SaveIncremental`.
+
+`SampleApp` references `PdfSharpCore.HarfBuzz` and `PdfSharpCore.Signing` for one demo each. Neither
+is a dependency the library forces on a consumer, and both are written out in the project file so
+that what those two demos cost is visible.
 
 The core package deliberately carries no imaging or font dependency. All five seams are static, and
 the first three throw a descriptive `InvalidOperationException` when read unset:

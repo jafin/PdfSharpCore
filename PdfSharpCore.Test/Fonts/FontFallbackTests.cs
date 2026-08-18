@@ -34,7 +34,12 @@ namespace PdfSharpCore.Test.Fonts;
 [Collection(TextShapingCollection.Name)]
 public class FontFallbackTests
 {
-    const string ArabicFamily = "Noto Sans Arabic";
+    // Served by PinnedFontResolver itself rather than registered here. It used to be registered on
+    // first use, and a family registered on first use means whatever the first caller made it mean:
+    // anything else in the assembly drawing this family beforehand got Liberation Sans, which has no
+    // Arabic at all, and the library cached that answer for the rest of the run. These tests then
+    // drew four .notdef boxes and blamed the shaper.
+    const string ArabicFamily = PinnedFontResolver.ArabicFamilyName;
 
     // "arabi" - four Arabic letters, none of which Liberation Sans has any glyph for.
     const string Arabic = "\u0639\u0631\u0628\u064A";
@@ -44,14 +49,7 @@ public class FontFallbackTests
 
     static XFont Latin() => new XFont("Arial", 20);
 
-    static XFont ArabicFont()
-    {
-        RegisterArabic();
-        return new XFont(ArabicFamily, 20);
-    }
-
-    static void RegisterArabic() => PinnedFontResolver.Register(ArabicFamily, File.ReadAllBytes(
-        Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "NotoSansArabic-Regular.ttf")));
+    static XFont ArabicFont() => new XFont(ArabicFamily, 20);
 
     /// <summary>
     ///   A fallback that answers only for the characters given to it, so that installing it cannot
@@ -150,7 +148,6 @@ public class FontFallbackTests
     public void BothFacesAreEmbeddedAndBothAreSelected()
     {
         using var _ = new Installed(new Only(Arabic, ArabicFamily));
-        RegisterArabic();
 
         var content = DrawnText.ContentOf(DrawnText.Page("Hi " + Arabic, Latin()));
         var selections = Regex.Matches(content, @"/F\d+ [\d.]+ Tf");
@@ -165,7 +162,6 @@ public class FontFallbackTests
     public void TheFaceTheCallerAskedForIsSelectedAgainAtTheEnd()
     {
         using var _ = new Installed(new Only(Arabic, ArabicFamily));
-        RegisterArabic();
 
         var content = DrawnText.ContentOf(DrawnText.Page("Hi " + Arabic, Latin()));
         var selections = Regex.Matches(content, @"/F\d+ [\d.]+ Tf")
@@ -219,7 +215,6 @@ public class FontFallbackTests
         // bytes of a font with no Arabic in it would answer glyph numbers belonging to the wrong
         // file, which is the worst of the three possible failures because the page would look
         // plausible and be nonsense.
-        RegisterArabic();
 
         using var shaper = new ShapesOnly(Arabic);
         GlobalFontSettings.TextShaper = shaper;
@@ -272,7 +267,6 @@ public class FontFallbackTests
     [Fact]
     public void SpacesDoNotCutTheRunTheySitIn()
     {
-        RegisterArabic();
 
         // Liberation Sans has a space and the Arabic face has a space, so a space could be claimed
         // by either - and claiming it would break a sentence of Arabic into one run per word,
@@ -286,7 +280,6 @@ public class FontFallbackTests
     [Fact]
     public void AJoiningControlDoesNotCutTheRunEither()
     {
-        RegisterArabic();
 
         // The control is there to say how the letters on either side of it join, and it is read by
         // the face those letters are drawn from. Giving it a face of its own would put the
@@ -301,7 +294,6 @@ public class FontFallbackTests
     [Fact]
     public void ASurrogatePairIsNotSplitBetweenTwoFaces()
     {
-        RegisterArabic();
 
         // The two halves of a supplementary character are not characters. Asked about separately -
         // which is what a loop over UTF-16 code units does - each is a lone surrogate, and a face

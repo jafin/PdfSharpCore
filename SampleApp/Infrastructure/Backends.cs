@@ -2,15 +2,16 @@ using System;
 using System.Threading;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.HarfBuzz;
 using PdfSharpCore.Skia;
 using PdfSharpCore.Utils;
 
 namespace SampleApp.Infrastructure;
 
 /// <summary>
-///   The three static seams PdfSharpCore leaves for a host to fill: a font resolver, an image
-///   source, and a glyph outline provider. The core package carries neither an imaging nor a font
-///   dependency of its own.
+///   The five static seams PdfSharpCore leaves for a host to fill: a font resolver, an image
+///   source, a glyph outline provider, a text shaper and a font fallback. The core package carries
+///   neither an imaging nor a font dependency of its own.
 /// </summary>
 /// <remarks>
 ///   <para>
@@ -47,6 +48,19 @@ public static class Backends
         // Wanted by XGraphicsPath.AddString alone, which the Magazine demo uses for its title.
         if (!GlyphOutlineProviderIsSet())
             GlobalFontSettings.GlyphOutlineProvider = new SkiaGlyphOutlineProvider();
+
+        // The two seams whose unset state is not an error: read either before it is set and the
+        // answer is null, which means "do what this library always did". They are registered here
+        // rather than by the demo that wants them for the reason in the remarks above - the smoke
+        // test runs demos inside a host shared with every other test in the assembly, and these are
+        // application-wide settings. Nothing calls this method from there, so under test the
+        // International demo draws its Arabic unshaped and .notdef, which is exactly what a caller
+        // who takes no shaper gets and is why its page count does not depend on either of these.
+        GlobalFontSettings.TextShaper ??= new HarfBuzzTextShaper();
+
+        // Liberation Sans has no Arabic in it at all, so a document that names the sans and then
+        // writes Arabic gets empty boxes unless something says where else to look.
+        GlobalFontSettings.FontFallback ??= new FontFallbackList(BundledFontResolver.ArabicFamily);
     }
 
     /// <summary>

@@ -93,6 +93,17 @@ public abstract class PdfDemo
     /// <summary>Builds the document. The base class saves it.</summary>
     protected abstract PdfDocument Build(DemoContext context);
 
+    /// <summary>Writes the built document to the path the runner chose.</summary>
+    /// <remarks>
+    ///   Overridden by the two demos for which saving the document again is not a way of writing it
+    ///   out but a way of destroying what they made. <c>Save</c> rewrites a file from the object
+    ///   model: it renumbers, it drops the bytes the document was read from, and it therefore
+    ///   invalidates every signature on it and discards every earlier revision. Signing and
+    ///   incremental update are precisely the two features whose output cannot survive that, so they
+    ///   write their own bytes here instead.
+    /// </remarks>
+    protected virtual void Save(PdfDocument document, string path) => document.Save(path);
+
     public DemoResult Run(DemoContext context)
     {
         if (context is null)
@@ -105,7 +116,7 @@ public abstract class PdfDemo
         using (PdfDocument document = Build(context))
         {
             pages = document.PageCount;
-            document.Save(path);
+            Save(document, path);
         }
         stopwatch.Stop();
 

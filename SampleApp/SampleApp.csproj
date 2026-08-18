@@ -33,6 +33,22 @@
       MigraDoc, and a reference a reader cannot see in the project file is one they cannot rely on.
     -->
     <ProjectReference Include="..\PdfSharpCore.Charting\PdfSharpCore.Charting.csproj" />
+    <!--
+      The shaper, for the International demo. A package of its own rather than part of a backend,
+      so taking it does not oblige a choice of imaging backend - see docs/specs/text-shaping-and-bidi.md.
+      It is registered in Backends beside the other seams and nowhere else: a demo that set
+      GlobalFontSettings.TextShaper itself would be changing a setting shared with every test
+      running beside it in the smoke-test host.
+    -->
+    <ProjectReference Include="..\PdfSharpCore.HarfBuzz\PdfSharpCore.HarfBuzz.csproj" />
+    <!--
+      The cryptography, for the Signing demo. The core package holds all the PDF machinery of a
+      signature - the placeholder, the byte range, the patching - and no cryptography at all, behind
+      the IPdfSigner seam; this is the package that carries the dependency the core refuses. It is
+      also the one shipped package that does not target netstandard2.1, which is why signing is a
+      package of its own and not part of the core.
+    -->
+    <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
