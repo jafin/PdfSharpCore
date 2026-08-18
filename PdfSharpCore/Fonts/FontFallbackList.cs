@@ -48,5 +48,5 @@ public sealed class FontFallbackList : IFontFallback
     public IReadOnlyList<string> Families => _families;
 
     /// <inheritdoc/>
-    public IEnumerable<string> FamiliesFor(char character, bool isBold, bool isItalic) => _families;
+    public IEnumerable<string> FamiliesFor(int codePoint, bool isBold, bool isItalic) => _families;
 }

@@ -33,8 +33,8 @@ static class FontFallbackResolution
     // on the family name asked for, because two families resolving to one file have one answer
     // between them. A miss is worth remembering as firmly as a hit - it is the answer that costs a
     // walk down the whole candidate list.
-    static ConcurrentDictionary<(string Face, char Character, XFontStyle Style), string> _decided
-        = new ConcurrentDictionary<(string, char, XFontStyle), string>();
+    static ConcurrentDictionary<(string Face, int CodePoint, XFontStyle Style), string> _decided
+        = new ConcurrentDictionary<(string, int, XFontStyle), string>();
 
     // Resolved fonts, so that the same fallback is the same object every time and a caller can
     // tell two adjacent characters want the same face by reference.
@@ -50,12 +50,12 @@ static class FontFallbackResolution
     /// </summary>
     internal static void Forget()
     {
-        _decided = new ConcurrentDictionary<(string, char, XFontStyle), string>();
+        _decided = new ConcurrentDictionary<(string, int, XFontStyle), string>();
         _fonts = new ConcurrentDictionary<(string, double, XFontStyle, PdfFontEncoding), XFont>();
     }
 
     /// <summary>
-    /// Which font should draw <paramref name="character"/>: the one that was asked for, another
+    /// Which font should draw <paramref name="codePoint"/>: the one that was asked for, another
     /// one, or null for "no opinion - put it with its neighbours".
     /// </summary>
     /// <remarks>
@@ -78,16 +78,16 @@ static class FontFallbackResolution
     /// shaping across the boundary and buy an identical <c>.notdef</c>.</item>
     /// </list>
     /// </remarks>
-    internal static XFont FontFor(char character, XFont requested, OpenTypeDescriptor descriptor)
+    internal static XFont FontFor(int codePoint, XFont requested, OpenTypeDescriptor descriptor)
     {
         var fallback = GlobalFontSettings.FontFallback;
         if (fallback == null || requested == null || descriptor == null)
             return null;
 
-        var key = (descriptor.FontName, character, requested.Style);
+        var key = (descriptor.FontName, codePoint, requested.Style);
         if (!_decided.TryGetValue(key, out string family))
         {
-            family = Decide(fallback, character, requested, descriptor);
+            family = Decide(fallback, codePoint, requested, descriptor);
             _decided[key] = family;
         }
 
@@ -101,20 +101,25 @@ static class FontFallbackResolution
         return Resolved(family, requested) ?? requested;
     }
 
-    static string Decide(IFontFallback fallback, char character, XFont requested,
+    static string Decide(IFontFallback fallback, int codePoint, XFont requested,
         OpenTypeDescriptor descriptor)
     {
-        if (char.IsWhiteSpace(character)
-            || UnicodeProperties.IsJoiningControl(character)
-            || UnicodeProperties.BidiClassOf(character) == BidiClass.NSM)
+        // Whitespace and joining controls are asked about as characters because that is what they
+        // are: every one of them is inside the basic multilingual plane, and there is no astral
+        // code point either test would answer true for.
+        if (codePoint <= 0xFFFF
+            && (char.IsWhiteSpace((char)codePoint) || UnicodeProperties.IsJoiningControl((char)codePoint)))
         {
             return null;
         }
 
-        if (Covers(descriptor, character))
+        if (UnicodeProperties.BidiClassOf(codePoint) == BidiClass.NSM)
+            return null;
+
+        if (Covers(descriptor, codePoint))
             return string.Empty;
 
-        var candidates = fallback.FamiliesFor(character,
+        var candidates = fallback.FamiliesFor(codePoint,
             (requested.Style & XFontStyle.Bold) != 0,
             (requested.Style & XFontStyle.Italic) != 0);
 
@@ -131,7 +136,7 @@ static class FontFallbackResolution
                 continue;
 
             if (FontDescriptorCache.GetOrCreateDescriptorFor(candidate) is OpenTypeDescriptor other
-                && Covers(other, character))
+                && Covers(other, codePoint))
             {
                 return family;
             }
@@ -169,13 +174,18 @@ static class FontFallbackResolution
         return made;
     }
 
-    /// <summary>Whether a face has a glyph of its own for a character.</summary>
-    static bool Covers(OpenTypeDescriptor descriptor, char character)
+    /// <summary>Whether a face has a glyph of its own for a code point.</summary>
+    /// <remarks>
+    /// An astral code point is answered out of the face's <c>cmap</c> format 12 subtable, and a
+    /// face without one answers no - which is the honest answer and the one that sends the
+    /// character on to the next candidate, where before there was no question that could be asked.
+    /// </remarks>
+    static bool Covers(OpenTypeDescriptor descriptor, int codePoint)
     {
         try
         {
             // Glyph 0 is .notdef, which is what a face answers for a character it does not have.
-            return descriptor.CharCodeToGlyphIndex(character) != 0;
+            return descriptor.CharCodeToGlyphIndex(codePoint) != 0;
         }
         catch (Exception)
         {

@@ -57,17 +57,36 @@ public class FontFallbackTests
     /// </summary>
     sealed class Only : IFontFallback
     {
-        readonly HashSet<char> _mine;
+        readonly HashSet<int> _mine;
         readonly string[] _families;
 
+        /// <param name="characters">
+        ///   The characters to answer for, written as a string. Taken by code point rather than by
+        ///   <c>char</c>, so that an astral character written as a surrogate pair in the source is
+        ///   one entry here and matches the one code point the seam is asked about.
+        /// </param>
         internal Only(string characters, params string[] families)
         {
-            _mine = new HashSet<char>(characters);
+            _mine = new HashSet<int>();
+            for (int idx = 0; idx < characters.Length; idx++)
+            {
+                if (char.IsHighSurrogate(characters[idx]) && idx + 1 < characters.Length
+                    && char.IsLowSurrogate(characters[idx + 1]))
+                {
+                    _mine.Add(char.ConvertToUtf32(characters[idx], characters[idx + 1]));
+                    idx++;
+                }
+                else
+                {
+                    _mine.Add(characters[idx]);
+                }
+            }
+
             _families = families;
         }
 
-        public IEnumerable<string> FamiliesFor(char character, bool isBold, bool isItalic)
-            => _mine.Contains(character) ? _families : Enumerable.Empty<string>();
+        public IEnumerable<string> FamiliesFor(int codePoint, bool isBold, bool isItalic)
+            => _mine.Contains(codePoint) ? _families : Enumerable.Empty<string>();
     }
 
     sealed class Installed : IDisposable
@@ -297,15 +316,24 @@ public class FontFallbackTests
 
         // The two halves of a supplementary character are not characters. Asked about separately -
         // which is what a loop over UTF-16 code units does - each is a lone surrogate, and a face
-        // boundary falling between them would draw one character out of two files. Nothing can
-        // draw it at all yet, the cmap reader handling format 4 alone; what is pinned here is that
-        // the pair stays whole on the way past.
+        // boundary falling between them would draw one character out of two files. What is pinned
+        // here is that the pair stays whole on the way past: it is asked about once, as the one
+        // code point it spells, and it gets one glyph whether or not anything can draw it.
         using var _ = new Installed(new Only(Arabic, ArabicFamily));
 
-        // MATHEMATICAL BOLD CAPITAL A, U+1D400, between two runs of Arabic.
-        DrawnText.GlyphRuns(DrawnText.Page(Arabic + "\U0001D400" + Arabic, Latin()))
-            .Should().OnlyContain(run => run.Length != 1,
-                "a run of exactly one glyph would be half of the pair on its own");
+        // MATHEMATICAL BOLD CAPITAL A, U+1D400, between two runs of Arabic. It is bidi class L
+        // between two right-to-left runs, so it is a run of its own however it is drawn - and one
+        // character in a run of its own is one glyph. It used to be two, one .notdef per surrogate,
+        // which is the bug this now pins the absence of.
+        var runs = DrawnText.GlyphRuns(DrawnText.Page(Arabic + "\U0001D400" + Arabic, Latin()));
+
+        runs.Should().ContainSingle(run => run.Length == 1,
+            "the pair is one character and gets one glyph, not one for each half")
+            .Which.Should().Equal(new[] { 0 },
+                "Liberation Sans has no format 12 subtable, so it cannot draw it - once");
+
+        runs.Where(run => run.Length != 1).Should().OnlyContain(run => run.Length == Arabic.Length,
+            "the Arabic either side is untouched");
     }
 
     [Fact]

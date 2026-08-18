@@ -33,13 +33,14 @@ public interface IFontFallback
     /// The families to try, in order of preference, for a character the requested face cannot
     /// draw. An empty sequence means there is nothing to try.
     /// </summary>
-    /// <param name="character">
-    /// The character with no glyph. A <see cref="char"/> rather than a code point because coverage
-    /// is answered out of the same <c>cmap</c> format 4 subtable the rest of this library reads,
-    /// which does not reach beyond the basic multilingual plane - so a character above it is never
-    /// offered for fallback rather than being offered and never satisfiable.
+    /// <param name="codePoint">
+    /// The Unicode code point with no glyph - a code point rather than a <see cref="char"/>, so
+    /// that a character above the basic multilingual plane can be asked about as the one character
+    /// it is rather than as the two surrogates it is spelled with. Neither surrogate is a character
+    /// and no <c>cmap</c> maps one, so asking about them separately could only ever be answered
+    /// "nobody".
     /// </param>
     /// <param name="isBold">Whether a bold face was asked for.</param>
     /// <param name="isItalic">Whether an italic face was asked for.</param>
-    IEnumerable<string> FamiliesFor(char character, bool isBold, bool isItalic);
+    IEnumerable<string> FamiliesFor(int codePoint, bool isBold, bool isItalic);
 }
