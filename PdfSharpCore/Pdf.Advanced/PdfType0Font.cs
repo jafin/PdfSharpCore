@@ -65,6 +65,35 @@ internal sealed class PdfType0Font : PdfFont
     static bool IsSubsetted(OpenTypeDescriptor descriptor)
         => !descriptor.FontFace.IsPostscriptOutlines;
 
+    /// <summary>
+    /// Whether a base font name already carries a subset tag: six upper-case letters and a plus,
+    /// at the front, after any leading solidus.
+    /// </summary>
+    /// <remarks>
+    /// The shape is what makes it a tag. ISO 32000-1 9.6.4 fixes it at exactly six upper-case ASCII
+    /// letters followed by <c>+</c>, and a name is entitled to hold a <c>+</c> anywhere else for
+    /// reasons of its own — so looking for the character rather than the shape mistakes such a name
+    /// for an already-subsetted font and leaves a real subset untagged. That is the same defect as
+    /// tagging a whole font, pointing the other way.
+    /// </remarks>
+    static bool HasSubsetPrefix(string baseFont)
+    {
+        // The getter answers a PDF name, which carries its solidus; a name being assembled here may
+        // not have one yet.
+        int start = baseFont.Length > 0 && baseFont[0] == '/' ? 1 : 0;
+
+        if (baseFont.Length < start + 7 || baseFont[start + 6] != '+')
+            return false;
+
+        for (int index = start; index < start + 6; index++)
+        {
+            if (baseFont[index] < 'A' || baseFont[index] > 'Z')
+                return false;
+        }
+
+        return true;
+    }
+
     public PdfType0Font(PdfDocument document, XFont font, bool vertical)
         : base(document)
     {
@@ -126,9 +155,10 @@ internal sealed class PdfType0Font : PdfFont
         //BaseFont = ttDescriptor.FontName.Replace(" ", "");
         BaseFont = ttDescriptor.FontName;
 
-        // As above, and the "+" test stays: this constructor is handed font bytes by a caller, and a
-        // name that already carries a tag came from a font that was already a subset when it arrived.
-        if (IsSubsetted(ttDescriptor) && !BaseFont.Contains("+"))
+        // As above, and this constructor asks a second question: it is handed both the bytes and the
+        // name by a caller, and a name that already carries a tag came from a font that was already
+        // a subset when it arrived. Tagging it twice would say it had been cut down twice.
+        if (IsSubsetted(ttDescriptor) && !HasSubsetPrefix(BaseFont))
             BaseFont = CreateEmbeddedFontSubsetName(BaseFont);
 
         FontDescriptor.FontName = BaseFont;
