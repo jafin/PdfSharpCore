@@ -33,6 +33,7 @@ static class Corpus
         yield return ("pdfa-1b", Drawn(PdfAConformance.PdfA1B, transparency: false));
         yield return ("pdfa-2b", Drawn(PdfAConformance.PdfA2B, transparency: true));
         yield return ("pdfa-3b", Drawn(PdfAConformance.PdfA3B, transparency: true));
+        yield return ("pdfa-2b-cff", Cff());
         yield return ("pdfa-3b-facturx", Invoice());
         yield return ("pdfua-1", Tagged());
     }
@@ -73,6 +74,47 @@ static class Corpus
                 var translucent = new XSolidBrush(XColor.FromArgb(128, 0, 0, 160));
                 gfx.DrawRectangle(translucent, 150, 170, 200, 60);
             }
+        }
+
+        return Bytes(document);
+    }
+
+    /// <summary>
+    /// A page set in a face with PostScript outlines, claiming PDF/A-2b.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CFF outlines take a different path through the writer from every other document here: the
+    /// font is embedded whole because it cannot be subsetted, the descendant is a Type 0 CIDFont
+    /// rather than a Type 2, and so it must carry <em>no</em> <c>/CIDToGIDMap</c> where the others
+    /// must carry one. That branch had nothing exercising it.
+    /// </para>
+    /// <para>
+    /// PDF/A-2b rather than 1b, and not by choice: embedding CFF writes a <c>/FontFile3</c> with
+    /// <c>/Subtype /OpenType</c>, which arrives in PDF 1.6, and PDF/A-1 is defined against PDF 1.4 —
+    /// so the writer refuses that combination outright. Which settles the question this document was
+    /// added to ask. Clause 6.3.5, the one wanting a <c>/CIDSet</c> on a subset CIDFont, is PDF/A-1's
+    /// alone, and a CFF font cannot appear in a PDF/A-1 document from this library at all.
+    /// </para>
+    /// </remarks>
+    static byte[] Cff()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = "Conformance corpus: PostScript outlines";
+        document.Info.Author = "PdfSharpCore conformance corpus";
+
+        document.Options.Conformance = PdfAConformance.PdfA2B;
+        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
+        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
+
+        var page = document.AddPage();
+        using (var gfx = XGraphics.FromPdfPage(page))
+        {
+            var font = new XFont(CffFontResolver.Family, 14, XFontStyle.Regular,
+                new XPdfFontOptions(PdfFontEncoding.Unicode));
+
+            gfx.DrawString("PostScript outlines, embedded whole", font, XBrushes.Black, 50, 70);
+            gfx.DrawString("static void Main(string[] args)", font, XBrushes.Black, 50, 100);
         }
 
         return Bytes(document);

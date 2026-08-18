@@ -31,4 +31,16 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
   </ItemGroup>
 
+  <!--
+    The CFF face the corpus draws one document with, linked from the demonstration app's assets
+    rather than copied: a third copy of the same 128 kB would be three things to keep in step. An
+    embedded resource rather than a content file, because a referenced project's content items do
+    not reach the referencing project's output directory - the same rule SampleApp lives by.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\SampleApp\Assets\Fonts\SourceCodePro-Regular.otf">
+      <LogicalName>ConformanceCorpus.SourceCodePro-Regular.otf</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

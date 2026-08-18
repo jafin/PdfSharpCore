@@ -9,7 +9,7 @@ two of them, and this is that decision.
 |---|---|---|
 | 1 | A corpus of documents that each claim a profile | done |
 | 2 | veraPDF over the corpus, in CI and locally, one script | done |
-| 3 | Gate the build on the verdict | done — **all five documents conform** |
+| 3 | Gate the build on the verdict | done — **all six documents conform** |
 
 ## Why this was worth doing
 
@@ -24,7 +24,8 @@ the argument for it, made in one run.
 ## What it is
 
 **A corpus, built by a program.** `ConformanceCorpus` writes one PDF per claim the library can make:
-PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-3b carrying an associated file, and a tagged PDF/UA-1 document.
+PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-2b set in a face with PostScript outlines, PDF/A-3b carrying
+an associated file, and a tagged PDF/UA-1 document.
 A program rather than a test, because what it produces is an input to something else — a test asserts
 and returns nothing, and these have to exist as files for a validator to open.
 
@@ -103,6 +104,29 @@ exposed it.
 the reader would agree with the file whatever the file said. `CidFontConformanceTests` pins the other
 two, including that `/CIDSet` is written for PDF/A-1 and for nothing else.
 
+### A finding the validator did not make
+
+The corpus later gained a document set in a face with **PostScript outlines**, because CFF takes a
+different path through the writer from everything else here: the font is embedded whole, since it
+cannot be subsetted, the descendant is a Type 0 CIDFont rather than a Type 2, and so it must carry
+*no* `/CIDToGIDMap` where the others must carry one. That last branch had nothing exercising it.
+
+It passed on the first run, and one thing it showed up was still wrong. `PdfType0Font` gave **every**
+CID font the six-letter `ABCDEF+` tag, including one embedded entire. ISO 32000-1 9.6.4 makes that
+tag a statement of fact — it marks a program holding only some of the face's glyphs, and exists so
+two subsets of one face, same name and different glyphs, cannot be mistaken for each other. A font
+embedded whole has nothing to be distinguished from, and the tag claims something untrue of it. No
+rule in any profile checks this, so the validator never objected; a tool merging two documents is
+nonetheless entitled to believe two differently-tagged programs differ, and to keep both. The tag is
+now written only for a font that really was cut down, and
+`PostscriptOutlineEmbeddingTest` pins both halves.
+
+Adding that document also settled a question rather than raising one. Clause 6.3.5, the `/CIDSet`
+rule, is **unreachable for CFF from this library**: embedding those outlines writes a `/FontFile3`
+with `/Subtype /OpenType`, which arrives in PDF 1.6, and the writer refuses a PDF/A-1 claim on a
+document past PDF 1.4. So the CFF document claims PDF/A-2b, not by preference but because the other
+combination cannot be built.
+
 Two results are worth reading the other way round, as the things that came back clean:
 
 **The PDF/UA-1 document passes 105 of 106 rules**, and the one failure is the `/CIDToGIDMap` entry
@@ -156,12 +180,6 @@ artifact so a failure can be read without reproducing it.
 
 ## Deliberately not done
 
-- **A whole-embedded CFF font still wears a subset name.** `PdfType0Font` gives every CID font the
-  six-letter `ABCDEF+` tag, including one with PostScript outlines, which cannot be subsetted and is
-  embedded entire. The name says subset and the program is not one. No document in the corpus has a
-  CFF font so nothing failed on it, and the honest fix — do not tag what was not subsetted — changes
-  the font name in every document that embeds one, which is more than this branch should carry.
-  Worth a corpus document of its own first.
 - **A policy file.** veraPDF takes `--policyfile` for a schematron narrowing what counts as a
   failure. That is the machinery an allow-list would be built on, and it is not wanted yet.
 - **PDF/A-1a, 2a, 3a and PDF/UA-2.** The `A` levels need a full tagged tree alongside the archival
