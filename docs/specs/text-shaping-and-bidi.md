@@ -831,21 +831,40 @@ running beside it — which is how the Arabic end-to-end test reaches the face.
 
 Shaping, reordering, fallback and the plumbing between them are all there, through `XGraphics`,
 `XTextFormatter` and MigraDoc alike, and a page of Arabic is right even when the face it was asked
-for has no Arabic in it. What is left are four smaller gaps of their own.
+for has no Arabic in it. Of the four smaller gaps this section listed, two are closed, one is
+half closed, and one is still a question rather than a task.
 
-1. **A Devanagari face in the test assets**, for the reordering and split vowels Arabic does not
-   exercise. Devanagari is also the case that would test something itemisation gets no exercise of
-   — a line may only be broken at a cluster boundary, and nothing in the line breaker knows that
-   yet. Arabic hides it because its clusters are one character each; a Devanagari conjunct is not.
+1. **A Devanagari face in the test assets** — **done**. Noto Sans Devanagari 2.006, OFL like the
+   rest, covered by `DevanagariShapingTests`. It is the only face here whose clusters span more than
+   one character: a conjunct is three characters and one glyph, and the vowel sign I is written after
+   its consonant and drawn to the left of it, which is reordering inside a left-to-right run that no
+   bidi algorithm can do and only a shaper can. **The line-breaking half of this item is still
+   open**: a line may only be broken at a cluster boundary and nothing in the line breaker knows
+   that. It does not split a conjunct at the widths tested, and a test pins that, so a breaker that
+   starts cutting into clusters is caught here rather than in somebody's document.
 2. **A tabbed line in a right-to-left paragraph**, which is left in the order it was written. Where
    a tab stop belongs when the text runs the other way is a design question before it is an
-   implementation one.
-3. **A `cmap` format 12 reader.** Three separate things want it and all three are stuck behind the
-   format 4 subtable this library has always read: the unshaped path draws two `.notdef` for a
-   surrogate pair, coverage cannot answer for an astral character, and so `IFontFallback` cannot be
-   offered one. An emoji in a document is all three failures at once.
-4. **Style simulation per face**, so that a fallback with a real bold is not given a simulated one
-   because the face the caller asked for had none.
+   implementation one. **Still open, and deliberately: it wants deciding, not building.**
+3. **A `cmap` format 12 reader** — **done**. All three failures went together, because all three go
+   through `OpenTypeDescriptor.CharCodeToGlyphIndex`: a surrogate pair drew `.notdef` twice, coverage
+   could not answer for an astral character, and so font fallback could not be offered one. An emoji
+   was all three at once and now works end to end, including through a fallback.
+
+   Two things about it are load-bearing. **A code point inside the basic multilingual plane is still
+   answered out of format 4** even where the face has both subtables — format 12 is a superset in
+   principle and the two agree in practice, but "in practice" is not a reason to change which glyph
+   every existing document draws. And **`IFontFallback.FamiliesFor` takes a code point rather than a
+   `char`**, which is a breaking change to a public interface and the point of the exercise: neither
+   surrogate is a character and no `cmap` maps one, so asking about them separately could only ever
+   be answered "nobody".
+4. **Style simulation per face** — **done**. A family with no bold file has its boldness stroked and
+   widened on, which is a property of the face; a string that fell back is drawn out of more than
+   one. The rendering mode and the character spacing are written per segment and put back to what
+   `PdfGraphicsState` believes before the string ends. Stroking needs a colour and a width, which are
+   graphics state rather than text state and cannot be varied from inside the built string, so the
+   string is shaped *before* the font is realized and they are set up once for whichever faces turn
+   out to need them. `FontHelper.BoldSimulationSpacing` is the one rule the measuring path reads too,
+   or a line would be laid out at a width the page does not draw.
 
 ## Related
 

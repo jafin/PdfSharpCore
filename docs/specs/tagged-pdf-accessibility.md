@@ -15,6 +15,9 @@ Gap **G2** of the competitive gap analysis. **All three stages are built.**
 | 6b | `/ActualText` at a hyphenation break | C | done |
 | 6c | `/ActualText` for ligatures | C | done |
 | 7 | veraPDF in CI | C | done, **and it gates** |
+| 8 | Heading levels may not skip | C | done |
+| 9 | A note's `/ID` may be chosen | C | done, `Footnote.Identifier` |
+| 10 | No two MCIDs nested one inside the other | C | done |
 
 Covered by `PdfSharpCore.Test/IO/TaggedPdfTests.cs` for Stage A, and
 `MigraDocCore.Rendering.Tests/TaggedOutputTests.cs` and `PdfUaConformanceTests.cs` for B and C.
@@ -265,18 +268,80 @@ tables that describe themselves.
   it. Nothing about the structure tree ever failed, which includes the `/Lbl` and body paragraphs
   nested inside an inline-level `/Note` that the footnote work produces: veraPDF does not object to
   it. That is the outside opinion the tagging was missing, and a failure is now a regression rather
-  than a backlog. veraPDF still warns `Nested MCID` four times without failing a rule, which has not
-  been looked into.
+  than a backlog. It **also warned `Nested MCID` four times** without failing a rule; that has since
+  been looked into and fixed — see below — and the corpus now validates with no warnings at all.
 - **Nested lists.** MigraDoc has no list object — a list is however many consecutive paragraphs happen
   to carry a `ListInfo`, so the tagger reads a run of one kind as one `/L` and a change of kind as a
   new one. That matches what the page looks like and cannot see a nested list as nested, because
-  nothing in the DOM says it is.
+  nothing in the DOM says it is. **Blocked on the DOM rather than on the tagger**: there is nothing to
+  read, so there is nothing the tagger could be taught to read.
 - **A link in a running header** is not reachable from the tree, because the header is an artifact and
-  nothing inside one is tagged. `PdfUaValidator` reports it rather than hiding it.
-- **Heading levels are not checked for skips**, and PDF/UA cares. `Heading1` followed by `Heading3` is
-  written as `/H1` then `/H3`.
-- **A note's `/ID` is generated, not chosen.** `note1`, `note2`, in citation order. A caller who wants
-  their own has to set `PdfStructureElement.Id` afterwards, and nothing exposes the element to them.
+  nothing inside one is tagged. `PdfUaValidator` reports it rather than hiding it, naming the page.
+  **This is where it stays.** The two rules genuinely conflict, and refusing is better than writing a
+  document that claims PDF/UA and quietly contains a link only a reader hit-testing rectangles can
+  find. Whoever put it in the header is the only one who can decide whether it belongs there.
+  `HeaderLinkTests` pins the refusal, and that the same link in the body is fine.
+
+---
+
+## Heading levels, and why the walk is its own
+
+ISO 14289-1 7.4.2 wants heading levels to descend one at a time. They are the outline a reader lets
+somebody jump around by, so `/H1` followed by `/H3` leaves a hole in it: a section three levels deep
+with nothing two levels deep containing it. A document claiming PDF/UA-1 is refused for one.
+
+**Coming back up any distance is not a skip.** `/H3` to `/H1` closes two sections rather than
+inventing one, and a rule written as "the level may not change by more than one" would refuse it
+wrongly. A document *opening* at `/H2` is a skip, because there is nothing before it.
+
+The rule needs the tree in reading order, and the walk the other rules share does not give it: it
+pushes each element's kids onto a stack, so siblings come back off it backwards. That costs the other
+rules nothing, because none of them cares what came before, so the ordered walk is this rule's own
+rather than a change to theirs.
+
+From MigraDoc the level is `ParagraphFormat.OutlineLevel`, which a heading style sets — so the
+message names it, because it is nearly always the styles that need fixing rather than anything that
+draws. The mistake is reaching for `Heading3` because of how it looks.
+
+## A note's identifier
+
+`Footnote.Identifier` on the DOM, beside `Table.Summary` and `Shape.AlternativeText`, and on the DOM
+for the same reason they are: it is something only the author knows.
+
+Left unset the renderer generates one — `note1`, `note2`, in citation order — which is what nearly
+every document wants and stays the default. It is the wrong answer when the identifier has to mean
+something outside the document, because something else refers to it, and until this there was no way
+to say so: nothing exposed the structure element to the caller.
+
+**The counter advances whether or not the name came from it**, so naming one note does not renumber
+the notes around it. Two notes under one name are refused as they always were, including when a
+caller reaches for `note2` and the second note is about to be given it — the prefix makes that
+collision visible rather than preventing it.
+
+## Marked content is suspended, never nested
+
+A marked-content sequence carrying an MCID is a content item of **exactly one** structure element.
+Nest two and the inner glyphs belong to both: a footnote mark inside the paragraph citing it was
+claimed by the `/Reference` and by the `/P`, a hyperlink by the `/Link` and by the `/P`, a list label
+by the `/Lbl` and by the `/LBody`. Nothing in the file says which should read them. veraPDF warned
+`Nested MCID` about exactly this, four times on the corpus document, without failing a rule.
+
+The open sequence is now closed before a nested one opens and reopened after it. That works because
+an element may own as many content items as it likes — already how a paragraph broken over two pages
+is one paragraph and not two — so the text before a link and the text after it are two items of one
+element. **Resuming is the load-bearing half**: without it everything the paragraph drew after its
+link would be outside the structure tree, which is a failure rather than a warning.
+
+A sequence resumed and then closed with nothing drawn in it is taken back rather than written empty,
+and its identifier is given back with it, or the tree names marks the content stream does not hold.
+Two things there are easy to get wrong and both were got wrong first:
+
+- **The identifier is checked, not the last kid dropped.** Kids hold child elements as well as
+  content items, and a note that has since acquired a `/Lbl` and a `/P` loses them instead.
+- **Only a resumed sequence may be taken back.** One the caller opened is their statement that
+  something on the page belongs to that element, and dropping it silently is how a scope that never
+  opened comes to look like a balanced one — which is what
+  `AMarkedContentSequenceIsClosedEvenWhenTheDrawingThrows` exists to catch.
 
 ---
 
