@@ -86,6 +86,32 @@ public sealed class PdfStructureBuilder
     }
 
     /// <summary>
+    /// Takes back the identifier handed out last for this page, because the sequence it named was
+    /// removed from the content stream without ever holding anything.
+    /// </summary>
+    /// <remarks>
+    /// Safe only for the identifier handed out last, which is all this is ever asked for: a sequence
+    /// is taken back the moment it is found to be empty, and nothing can have been tagged in between
+    /// because nothing was drawn. Removing one from the middle would renumber every mark after it,
+    /// and the numbers are already in the content stream.
+    /// </remarks>
+    internal void RemoveLastMarkedContent(PdfPage page, PdfStructureElement element)
+    {
+        if (!_pages.TryGetValue(page, out var marks) || marks.Elements.Count == 0)
+            return;
+
+        var last = marks.Elements.Count - 1;
+        if (!ReferenceEquals(marks.Elements[last], element))
+            return;
+
+        // The index into the page's marks is the identifier, so removing the last entry is what
+        // makes the next one reuse the number - and the element is told which number to look for
+        // rather than told to drop whatever it has last.
+        marks.Elements.RemoveAt(last);
+        element.RemoveLastMarkedContent(last);
+    }
+
+    /// <summary>
     /// Brings a page into the structure tree without tagging anything on it, giving it the
     /// <c>/StructParents</c> and <c>/Tabs</c> that every page of a tagged document needs.
     /// </summary>

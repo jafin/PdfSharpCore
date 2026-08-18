@@ -1766,12 +1766,31 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// nest, which is not allowed. Every <c>Realize</c> overload orders it this way already.
     /// </para>
     /// </remarks>
-    internal void BeginMarkedContent(string tag, int mcid)
+    /// <param name="tag">The structure type of the element the sequence belongs to.</param>
+    /// <param name="mcid">The identifier this sequence is known by within the page.</param>
+    /// <param name="removableIfEmpty">
+    /// Whether the sequence may be taken back again if nothing is drawn inside it. True only for one
+    /// resumed around a nested sequence: a paragraph whose last leaf is a link resumes after the link
+    /// and is closed immediately, and an empty pair of operators there would put a content item into
+    /// the tree covering no content at all. A sequence the caller opened is never taken back, empty
+    /// or not - it is the caller's statement that something on the page belongs to that element, and
+    /// silently dropping it is how an unopened scope comes to look like a balanced one.
+    /// </param>
+    internal void BeginMarkedContent(string tag, int mcid, bool removableIfEmpty = false)
     {
         BeginPage();
         BeginGraphicMode();
+        _markedContentStarts.Push(removableIfEmpty ? _content.Length : NotRemovable);
         _content.Append(tag).Append(" <</MCID ").Append(mcid).Append(">> BDC\n");
     }
+
+    /// <summary>
+    /// Where in the content stream each open structural sequence began, or <see cref="NotRemovable"/>
+    /// for one that is to be written whether or not anything is drawn inside it.
+    /// </summary>
+    readonly Stack<int> _markedContentStarts = new Stack<int>();
+
+    const int NotRemovable = -1;
 
     /// <summary>
     /// Opens an artifact sequence: content that is on the page but is not part of what the page
@@ -1793,11 +1812,35 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Closes the innermost marked-content sequence.
     /// </summary>
-    internal void EndMarkedContent()
+    /// <summary>
+    /// Closes the innermost structural sequence, or removes it when nothing was drawn inside it.
+    /// </summary>
+    /// <returns>
+    /// True when an <c>EMC</c> was written, false when the sequence was taken back instead. The
+    /// caller needs to know because a sequence that was never written cannot have been the one a
+    /// suspended parent is resuming after.
+    /// </returns>
+    internal bool EndMarkedContent()
     {
         BeginPage();
         BeginGraphicMode();
+
+        if (_markedContentStarts.Count > 0)
+        {
+            var start = _markedContentStarts.Pop();
+            if (start != NotRemovable)
+            {
+                var opened = _content.ToString(start, _content.Length - start);
+                if (opened.IndexOf("BDC\n", StringComparison.Ordinal) == opened.Length - 4)
+                {
+                    _content.Length = start;
+                    return false;
+                }
+            }
+        }
+
         _content.Append("EMC\n");
+        return true;
     }
 
     /// <summary>
