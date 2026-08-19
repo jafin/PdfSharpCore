@@ -16,11 +16,24 @@ and `PdfSharpCore.Test/Pdfs/EInvoiceTests.cs`.
 
 ## What is honestly not finished
 
-**No ICC profile ships.** Item 2 embeds the bytes it is given and there are none in the box, so a
-document claiming conformance has to be handed a profile. The proposal assumed an sRGB
-IEC61966-2.1 profile could simply be embedded as a resource; that needs a vetted, redistributable
-asset and a licence check, which is a decision about what the repository ships rather than a piece
-of code. Until then the failure is loud — saving without one throws and the message says so.
+**No ICC profile ships with the library**, and that is still deliberate: item 2 embeds the bytes it
+is given, so a document claiming conformance has to be handed a profile, and which profile is right
+is a decision about the document rather than about the code. The failure is loud — saving without one
+throws and the message says so.
+
+What has changed is that the licence question the proposal flagged has an answer. `SampleApp`
+carries `Assets/Icc/sRGB-v2-micro.icc`, 456 bytes from the Compact ICC Profiles collection, released
+to the public domain under CC0 — a vetted, redistributable asset needing no attribution, whose own
+`cprt` tag reads `CC0`. It is ICC version 2 rather than 4 on purpose, because PDF/A-1 predates
+version 4 and will not take one, so v2 is the version that serves every part. Both demos that claim
+PDF/A embed it, and both of their outputs pass veraPDF.
+
+So the remaining decision is narrower than it was: not *can a profile be shipped* — one is in the
+tree and may be redistributed — but *should the library hand one out by default*, which is a
+different question about encouraging callers to make a colour claim they have not thought about.
+`ConformanceCorpus/SrgbProfile.cs` still builds its own in code and could now link the asset the way
+it already links a font out of `SampleApp/Assets`; that is a change to what CI validates, so it is
+left to be made deliberately.
 
 **Enforcement is partial, and the code says which parts.** These are checked: no encryption, a title
 present, an output intent profile present, embedded files only under PDF/A-3, every attachment of a
@@ -318,10 +331,25 @@ format.
 validation and the country-specific rules are somebody else's library and a permanent maintenance
 liability. Hand `FacturXInvoice` the bytes something else produced.
 
-**No demonstration in `SampleApp`.** A demo would have to claim PDF/A-3 and therefore supply an ICC
-profile, and the only profile in this repository is the one `ConformanceCorpus` builds in code for
-its own use. Shipping one, or copying those 250 lines into the demo app, is the ICC decision above
-rather than a demo — so the corpus document is what there is to look at.
+### The `FacturX` demo, and what it turned up
+
+`SampleApp` has a demo of it: a page a person reads, the same invoice attached as CII XML, and a
+second page reporting what the attachment had to satisfy — read back out of the document rather than
+described, including `FindIn` and `ReadFrom` answering from a reopened file the way a receiving
+system would. It embeds the CC0 sRGB profile above, which is what made a demo possible at all.
+
+Pointing veraPDF at the two demos that claim PDF/A found a real defect, and in the older one.
+**`Archive` was writing a property in a namespace of its own — `sample:demo`, through
+`CustomizeMetadata` — with no extension schema declaring it**, which is clause 6.6.2.3.1 and a hard
+failure. The document opened perfectly in every reader; it had been shipping a PDF/A-3b claim that a
+validator rejects, in the demo whose subject is that claims are checked rather than stamped on. It
+now declares the namespace before using it and passes, and says on the page that this is what PDF/A
+requires — the rule is worth a demo of its own, and it is the same rule `PdfSharpCore.EInvoice`
+exists to get right for the invoice namespace.
+
+That is the argument for the package restated as evidence: the one place in this repository where
+somebody wrote an `AdditionalDescriptions` entry by hand, they got it wrong, and nothing said so for
+as long as nobody validated the output.
 
 ---
 

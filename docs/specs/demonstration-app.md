@@ -378,6 +378,7 @@ same terms: one PDF each, enrolled in the smoke test by being added to the regis
 | `Signing` | `PdfSigner`, `Pkcs7Signer`, a caller-drawn appearance, `PdfSignatures.InDocument`, and `PdfSignatureVerifier` answering `IsIntact` and `CoversWholeDocument` separately |
 | `Extract` | `PdfTextExtractor.ExtractText` and `ExtractRuns` over a document the demo wrote, saved and opened again, including a two-column page coming back interleaved |
 | `Revise` | `SaveIncremental` against `Save`, `PdfDocumentOpenMode.Append`, the `/Prev` chain counted in the bytes, and the trap of appending into the file it was read from |
+| `FacturX` | `FacturXInvoice.AttachTo` — the file name, the `/Data` relationship and the media type the standard fixes; that attaching is what claims PDF/A-3; the XMP extension schema declaring the `fx:` properties; `EInvoiceProfile`'s exact spellings; and `FindIn` / `ReadFrom` as the receiving half |
 
 `Compress` gained the setting its own summary already promised — `CrossReferenceFormat`, measured
 twice on a third page of its own, because one page of drawing is the shape an object stream has
@@ -391,6 +392,32 @@ string literal in the demo. A quotation goes stale the day a message is reworded
 a caught message cannot. Where a rule stops being enforced the page prints *"This document saved. The
 rule is no longer enforced"* in place of the message — said rather than asserted, because a demo is
 not a test and a silent stale quotation is the failure worth avoiding.
+
+### The e-invoice demo, an ICC profile that may be shipped, and a defect in `Archive`
+
+`FacturX` is the seventh of these: a page a person reads, the same invoice attached as UN/CEFACT CII
+XML, and a second page reporting what the attachment had to satisfy — the file name, the
+`/AFRelationship`, the media type and the conformance nobody set, all read back out of the document
+rather than described, then `FacturXInvoice.FindIn` and `ReadFrom` answering from a reopened file the
+way a receiving system would. It costs the seventh project reference, `PdfSharpCore.EInvoice`, which
+carries no dependency of its own.
+
+**It needed an ICC profile, and that is what unblocked it.** A demo claiming PDF/A-3 has to embed an
+output intent, no profile ships with the library, and `Archive` had been building a minimal one in
+code — its own remark said a binary in a sample app "raises a licence question the sample does not
+need". The question has an answer: `Assets/Icc/sRGB-v2-micro.icc`, 456 bytes from the Compact ICC
+Profiles collection, released to the public domain under CC0, with its provenance in
+`Assets/Icc/LICENSE.txt` beside it and its own `cprt` tag reading `CC0`. Both demos now embed it, and
+250 lines of ICC byte-writing left `ArchiveDemo` with them.
+
+**Then veraPDF was pointed at both outputs, and `Archive` failed.** It writes a property in a
+namespace of its own — `sample:demo`, through `CustomizeMetadata` — and PDF/A clause 6.6.2.3.1 admits
+no property whose schema the file has not either predefined or described. There was no extension
+schema, so the file carried a PDF/A-3b claim a validator rejects, in the demo whose whole subject is
+that a claim is checked rather than stamped on. It now declares the namespace in a
+`pdfaExtension:schemas` block before writing the property, passes, and says on the page that this is
+what a namespace of one's own costs. The rule reached the demo the only way it could have: from
+outside.
 
 ### `Save` is now overridable, for the two demos saving would break
 
@@ -462,5 +489,6 @@ also, unlike escapes, robust against a tool that writes the literal character ba
 - **No timestamped signature.** PAdES B-T needs a token from a time-stamping authority, which is not
   implemented and would need a network call from a sample app in any case. `Signing` says on the page
   that its claimed time is the producer's own clock and proves nothing.
-- **No veraPDF in the loop.** Both conformance demos say plainly that a successful save is not a
-  validator's verdict. Making it one is a CI question rather than a demo one.
+- ~~**No veraPDF in the loop.**~~ Still true of the build — the demos are not validated by CI, and
+  `ConformanceCorpus` is what is. But veraPDF was pointed at the two conformance demos' output by
+  hand once it existed, and it found something; see below.

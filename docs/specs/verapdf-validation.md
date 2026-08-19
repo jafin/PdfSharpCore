@@ -56,7 +56,11 @@ get one from somewhere, and the three obvious somewheres are all worse than buil
 
 - A checked-in `.icc` is a binary blob in the repository with a licence of its own to account for.
   That is the decision `docs/specs/pdf-a-conformance.md` records as unmade, and it is still unmade —
-  this sidesteps it rather than settling it.
+  this sidesteps it rather than settling it. **The sidestep is now the only reason left.** The demo
+  app carries `SampleApp/Assets/Icc/sRGB-v2-micro.icc`, 456 bytes released to the public domain
+  under CC0, so the licence half of that bullet has an answer and the corpus could link the file the
+  way it already links a font out of `SampleApp/Assets`. Doing so would delete 250 lines and change
+  the bytes CI validates, which is a change to make deliberately rather than in passing.
 - Downloading one during the build makes validation depend on a third party being up.
 - Skia, already a dependency, parses profiles but does not write them. `SKColorSpace.ToProfile()`
   hands back a structure whose buffer is the bytes it was parsed from, so for a colour space that was

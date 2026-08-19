@@ -49,6 +49,13 @@
       package of its own and not part of the core.
     -->
     <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
+    <!--
+      The hybrid e-invoice helper, for the FacturX demo. Nothing the core could not do - it writes a
+      file specification and a string of RDF/XML - but every part of it is silent when got wrong, so
+      it is a package rather than a paragraph of documentation. It carries no dependency of its own,
+      which is why this line costs the app nothing but a project reference.
+    -->
+    <ProjectReference Include="..\PdfSharpCore.EInvoice\PdfSharpCore.EInvoice.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -81,11 +88,27 @@
     <EmbeddedResource Include="Assets\Images\*.png" LogicalName="Images/%(Filename)%(Extension)" />
 
     <!--
+      The ICC profile the demos that claim PDF/A embed as their output intent. No profile ships with
+      the library, on purpose - which profile is right is a decision about the document - so a demo
+      making the claim has to be given one, and building a fake in code is a worse answer than
+      carrying a real one that may be redistributed. See Assets/Icc/LICENSE.txt for where it came
+      from.
+    -->
+    <EmbeddedResource Include="Assets\Icc\*.icc" LogicalName="Icc/%(Filename)%(Extension)" />
+
+    <!--
       The licence travels with the fonts. The SIL OFL requires its text to be distributed
       with the font software, and embedding the faces without it would ship them stripped of
       the one file that permits shipping them at all.
     -->
     <EmbeddedResource Include="Assets\Fonts\LICENSE.txt" LogicalName="Fonts/LICENSE.txt" />
+
+    <!--
+      The profile's provenance travels with it. CC0 asks for nothing in return, unlike the font
+      licence above, so this is here to answer "where did this binary come from and may we ship it"
+      rather than because shipping it depends on the answer.
+    -->
+    <EmbeddedResource Include="Assets\Icc\LICENSE.txt" LogicalName="Icc/LICENSE.txt" />
   </ItemGroup>
 
 </Project>
