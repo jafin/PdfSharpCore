@@ -6,7 +6,7 @@ Gap **G4** of the competitive gap analysis.
 | item | what | status |
 |---|---|---|
 | 1 | An XMP metadata writer, synchronised with the info dictionary | done, **and PDF/UA now shares it** |
-| 2 | Output intent with an embedded ICC profile | done, **caller supplies the profile** |
+| 2 | Output intent with an embedded ICC profile | done, **and an RGB document is given one** |
 | 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, **partially** |
 | 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | done |
 | 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | done |
@@ -16,25 +16,34 @@ and `PdfSharpCore.Test/Pdfs/EInvoiceTests.cs`.
 
 ## What is honestly not finished
 
-**No ICC profile ships with the library**, and that is still deliberate: item 2 embeds the bytes it
-is given, so a document claiming conformance has to be handed a profile, and which profile is right
-is a decision about the document rather than about the code. The failure is loud — saving without one
-throws and the message says so.
+**An sRGB profile now ships, and an RGB document is given it.** The proposal assumed one could
+simply be embedded as a resource and then found that it needed a vetted, redistributable asset — a
+decision about what the repository ships rather than a piece of code. `assets/icc/sRGB-v2-micro.icc`
+is that asset: 456 bytes from the Compact ICC Profiles collection, released to the public domain
+under CC0, needing no attribution, its own `cprt` tag reading `CC0`. ICC version 2 rather than 4 on
+purpose, because PDF/A-1 predates version 4 and will not take one, so v2 is the version that serves
+every part. The **core package** embeds it and nothing else does — `PdfSharpCore.EInvoice`, the demo
+app and the conformance corpus all reach it through `PdfOutputIntents.SrgbProfile` or simply by not
+setting one.
 
-What has changed is that the licence question the proposal flagged has an answer.
-`assets/icc/sRGB-v2-micro.icc` is 456 bytes from the Compact ICC Profiles collection, released to the
-public domain under CC0 — a vetted, redistributable asset needing no attribution, whose own `cprt`
-tag reads `CC0`. It is ICC version 2 rather than 4 on purpose, because PDF/A-1 predates version 4 and
-will not take one, so v2 is the version that serves every part. Both demos that claim PDF/A embed it,
-**and so does every document in the conformance corpus**, which is what makes veraPDF's verdict a
-verdict on the bytes a user gets rather than on bytes that existed only inside the corpus. It sits in
-a directory belonging to neither project because the corpus gates CI and should not be able to fail
-over how a demo app arranges its assets.
+The objection the proposal raised against a default was real and is answered by narrowing it rather
+than by overruling it. *Which profile is right is a decision about the document* — true of CMYK,
+where the same four numbers are a different colour on every press, and true of
+`PdfColorMode.Undefined`, which writes each colour as the `XColor` gave it so that one document may
+hold both. **It is not true of `PdfColorMode.Rgb`, the default.** Colours written as RGB by a
+library nobody told otherwise are sRGB; that is what every reader already assumes of them. Supplying
+sRGB there is a description, not a guess, so:
 
-So the remaining decision is narrower than it was: not *can a profile be shipped* — one is in the
-tree, may be redistributed, and passes every part of PDF/A from 1b up — but *should the library hand
-one out by default*, which is a different question about encouraging callers to make a colour claim
-they have not thought about. That one is still open.
+- `ColorMode.Rgb` and no profile set → `PdfOutputIntents.SrgbProfile`, with
+  `/OutputConditionIdentifier (sRGB IEC61966-2.1)`.
+- `ColorMode.Cmyk` or `ColorMode.Undefined` and no profile set → refused at save, each with its own
+  message naming what to set and why nothing could be supplied for it.
+- Anything the caller set → used, untouched. A caller who named a *condition* but no profile keeps
+  their name; only the `Custom` placeholder nobody chose gives way.
+
+**Every document in the conformance corpus now sets no profile at all**, so what veraPDF passes is
+the default path a caller gets for writing nothing — all six conform, `pdfa-1b` included, and the
+files are byte-for-byte the size they were when the profile was passed in by hand.
 
 **Enforcement is partial, and the code says which parts.** These are checked: no encryption, a title
 present, an output intent profile present, embedded files only under PDF/A-3, every attachment of a

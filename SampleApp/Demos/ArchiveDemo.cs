@@ -27,7 +27,7 @@ internal sealed class ArchiveDemo : PdfDemo
         "PdfDocumentOptions.Conformance - PdfA1B, PdfA2B and PdfA3B, and what separates them",
         "That the claim is enforced at save time rather than stamped on the file",
         "The XMP packet the document actually carries, printed from its own bytes",
-        "OutputIntentIccProfile - why no profile ships, and what the one embedded here is",
+        "OutputIntentIccProfile and PdfOutputIntents.SrgbProfile, and what a document gets unset",
         "CustomizeMetadata and XmpMetadata.AdditionalDescriptions, the seam the FacturX demo uses",
         "That a namespace PDF/A has not heard of has to be declared in an extension schema first",
         "Five refusal messages, caught from documents built to break one rule each",
@@ -43,11 +43,11 @@ internal sealed class ArchiveDemo : PdfDemo
         XFont body = new XFont(BundledFontResolver.SansFamily, 9);
         XFont mono = new XFont(BundledFontResolver.MonoFamily, 7);
 
-        // The output intent every PDF/A document needs. Carried as an embedded asset rather
-        // than built here: no profile ships with the library, so a demo making the claim has
-        // to be given one, and a real profile that may be redistributed is a better answer
-        // than a convincing fake. assets/icc/LICENSE.txt says where it came from.
-        byte[] profile = Assets.Bytes(Assets.SrgbProfile);
+        // The output intent every PDF/A document needs. Written out rather than left to the
+        // default it now has, because this is the demo of the thing: an RGB document that sets
+        // nothing gets exactly these bytes anyway, which is what the FacturX demo shows by
+        // setting nothing.
+        byte[] profile = PdfOutputIntents.SrgbProfile;
 
         PdfDocument document = new PdfDocument();
 
@@ -253,27 +253,37 @@ internal sealed class ArchiveDemo : PdfDemo
                 + "nothing once the machine that understood it is gone.",
                 body, XBrushes.Black, new XRect(50, 80, 495, 62));
 
-            gfx.DrawString("No profile ships with the library", label, XBrushes.Black, 50, 158);
+            gfx.DrawString("An RGB document is given one, and that is new", label, XBrushes.Black, 50, 158);
 
             prose.DrawString(
-                "Which one is right is a decision about the document rather than about the code - a "
-                + "press wants the one its press was profiled with, and shipping a default would "
-                + "encourage every caller to make a colour claim they had not thought about. So "
-                + "Options.OutputIntentIccProfile has no default and the writer refuses without one.",
-                body, XBrushes.Black, new XRect(50, 172, 495, 48));
+                "Colours written as RGB by a library nobody told otherwise are sRGB - that is what "
+                + "every reader assumes of them - so a PDF/A document whose ColorMode is Rgb and "
+                + "which names no profile of its own is given PdfOutputIntents.SrgbProfile, and the "
+                + "sRGB condition to name it by. That is a description rather than a guess, which is "
+                + "why it can be done at all. Whatever you set yourself always wins.",
+                body, XBrushes.Black, new XRect(50, 172, 495, 62));
 
-            gfx.DrawString("The profile this demo embeds", label, XBrushes.Black, 50, 236);
+            gfx.DrawString("CMYK is still refused, and so is Undefined", label, XBrushes.Firebrick, 50, 244);
 
             prose.DrawString(
-                "A real sRGB profile, carried as an embedded asset of the sample app: 456 bytes from "
-                + "the Compact ICC Profiles collection, released to the public domain under CC0, "
-                + "which is what makes it shippable in a repository at all. It states the true sRGB "
-                + "primaries and approximates the transfer curve with 42 sampled points rather than "
-                + "the parametric form, which is where the size goes. ICC version 2 rather than 4, "
-                + "because PDF/A-1 predates version 4 and will not take one - so a v2 profile is the "
-                + "one that serves every part. A document that matters should still embed the profile "
-                + "its colours were actually made in.",
-                body, XBrushes.Black, new XRect(50, 250, 495, 88));
+                "The same four CMYK numbers are a different colour on every press, so there is "
+                + "nothing true to supply and the writer says so instead - the last refusal on the "
+                + "previous page is that one. ColorMode.Undefined writes each colour as the XColor "
+                + "gave it, so a document may hold RGB and CMYK together and no one profile describes "
+                + "it. Both name what to set.",
+                body, XBrushes.Black, new XRect(50, 258, 495, 62));
+
+            gfx.DrawString("What that profile is", label, XBrushes.Black, 50, 330);
+
+            prose.DrawString(
+                "456 bytes from the Compact ICC Profiles collection, released to the public domain "
+                + "under CC0 - which is what makes it shippable at all. It states the true sRGB "
+                + "primaries and samples the transfer curve at 42 points rather than stating it "
+                + "parametrically, which is where the size goes. ICC version 2 rather than 4, because "
+                + "PDF/A-1 predates version 4 and will not take one, so a v2 profile is the one that "
+                + "serves every part. A document that matters should still embed the profile its "
+                + "colours were actually made in.",
+                body, XBrushes.Black, new XRect(50, 344, 495, 76));
 
             (string Field, string Value)[] facts =
             {
@@ -286,7 +296,7 @@ internal sealed class ArchiveDemo : PdfDemo
                 ("/S", "/GTS_PDFA1, for every part of PDF/A and not only the first"),
             };
 
-            double y = 356;
+            double y = 432;
             foreach ((string Field, string Value) fact in facts)
             {
                 gfx.DrawString(fact.Field, label, XBrushes.Black, 50, y);
@@ -395,8 +405,13 @@ internal sealed class ArchiveDemo : PdfDemo
     {
         yield return Refusal("No title", profile, document => document.Info.Title = "");
 
-        yield return Refusal("No output intent", profile,
-            document => document.Options.OutputIntentIccProfile = null);
+        // Not "no output intent" any more: an RGB document that names no profile is given one.
+        // CMYK is where the writer still has nothing true to say.
+        yield return Refusal("CMYK with no output intent", profile, document =>
+        {
+            document.Options.OutputIntentIccProfile = null;
+            document.Options.ColorMode = PdfColorMode.Cmyk;
+        });
 
         // Setting a password is what raises the security level - assigning the level on its own is
         // refused earlier and by something else, because there would be nothing to encrypt with.

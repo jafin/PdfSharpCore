@@ -1,14 +1,13 @@
-The ICC profile in this directory is carried by the repository because a PDF/A
-document has to embed one and no profile ships with PdfSharpCore itself: which
-profile is right is a decision about the document rather than about the code, so
-the library refuses to save a conformance claim without being given one. Two
-projects need something real to hand it - SampleApp, for the demos that claim
-PDF/A, and ConformanceCorpus, whose documents are what veraPDF validates in CI.
-Both embed this one file, so what a validator passes is what a user gets.
+The ICC profile in this directory is embedded in the PdfSharpCore package and
+handed to any PDF/A document whose colours are RGB and which names no profile of
+its own - see PdfOutputIntents. Every archival document has to embed a profile
+saying what its colours mean, and colours written as RGB by a library nobody told
+otherwise are sRGB, so supplying this one is a description rather than a guess. A
+CMYK document is still refused: only its press knows what those numbers mean.
 
-It sits here rather than inside either of them because the corpus gates the
-build, and an asset kept in the demonstration app would let reorganising a demo
-break a conformance check.
+It sits at the root of the repository rather than inside the library project
+because where a checked-in binary came from, and whether it may be shipped, is a
+fact about the repository - and this is where somebody asking will look.
 
 sRGB-v2-micro.icc
 	456 bytes. sha256

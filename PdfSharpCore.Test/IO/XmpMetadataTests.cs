@@ -130,13 +130,87 @@ public class XmpMetadataTests
     }
 
     [Fact]
-    public void ADocumentWithNoOutputIntentProfileMayNotClaimConformance()
+    public void AnRgbDocumentThatNamesNoProfileIsGivenTheOneThatDescribesIt()
     {
-        // The message has to say what to do, because there is nothing the library can do by itself:
-        // no profile ships with it, and which one is right is a decision about the document.
-        var saving = () => Save(document => document.Options.Conformance = PdfAConformance.PdfA2B);
+        // Colours written as RGB by a library nobody told otherwise are sRGB, so supplying it is a
+        // description rather than a guess — and every caller claiming PDF/A used to have to go and
+        // find a profile before the writer would save anything at all.
+        var bytes = Save(document => document.Options.Conformance = PdfAConformance.PdfA2B);
+
+        var text = Latin1(bytes);
+        text.Should().Contain("/OutputIntent");
+        text.Should().Contain("(sRGB IEC61966-2.1)", "the condition is known, so it is named");
+        text.Should().Contain("acsp", "the profile itself is embedded, not merely referred to");
+    }
+
+    [Fact]
+    public void WhatTheCallerSuppliedIsWhatGoesIn()
+    {
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.OutputIntentIccProfile = SomeProfile;
+        });
+
+        var text = Latin1(bytes);
+        text.Should().Contain("NOT-AN-ICC-PROFILE");
+        text.Should().Contain("(Custom)", "a caller who named no condition is not given one");
+        text.Should().NotContain("sRGB IEC61966-2.1");
+    }
+
+    [Fact]
+    public void ACallerWhoNamedAConditionKeepsTheirName()
+    {
+        // Said something specific, so this is not the place to argue with it — only the placeholder
+        // nobody chose gives way to the condition the built-in profile describes.
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.OutputIntentIdentifier = "Coated FOGRA39";
+        });
+
+        Latin1(bytes).Should().Contain("(Coated FOGRA39)").And.NotContain("(sRGB IEC61966-2.1)");
+    }
+
+    [Fact]
+    public void ACmykDocumentWithNoProfileMayNotClaimConformance()
+    {
+        // The same four numbers are a different colour on every press, so there is nothing true to
+        // supply and the message says what to do instead.
+        var saving = () => Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.ColorMode = PdfColorMode.Cmyk;
+        });
 
         saving.Should().Throw<InvalidOperationException>().WithMessage("*OutputIntentIccProfile*");
+    }
+
+    [Fact]
+    public void AnUndefinedColourModeWithNoProfileMayNotClaimConformanceEither()
+    {
+        // Undefined writes every colour as the XColor gave it, so the document may hold RGB and
+        // CMYK together and no one profile describes it.
+        var saving = () => Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.ColorMode = PdfColorMode.Undefined;
+        });
+
+        saving.Should().Throw<InvalidOperationException>().WithMessage("*Undefined*");
+    }
+
+    [Fact]
+    public void TheProfileHandedOutIsACopy()
+    {
+        // An array is mutable, and a caller who edited a shared one would change what every later
+        // document said about its colours.
+        var first = PdfOutputIntents.SrgbProfile;
+        first[0] = 0xFF;
+
+        PdfOutputIntents.SrgbProfile.Should().NotEqual(first);
+        PdfOutputIntents.SrgbProfile[36..40].Should().Equal(
+            (byte)'a', (byte)'c', (byte)'s', (byte)'p');
     }
 
     [Fact]

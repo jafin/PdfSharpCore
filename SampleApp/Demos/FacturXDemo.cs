@@ -40,7 +40,7 @@ internal sealed class FacturXDemo : PdfDemo
         "The XMP extension schema, which declares the fx: properties the packet then writes",
         "EInvoiceProfile - the exact spelling a receiver reads, spaces and all",
         "FacturXInvoice.FindIn and ReadFrom - the receiving half of the mandate",
-        "An sRGB output-intent profile read from an embedded asset rather than invented",
+        "That an RGB document claiming PDF/A is given an sRGB output intent it never asked for",
     };
 
     public override int PageCount => 2;
@@ -61,11 +61,10 @@ internal sealed class FacturXDemo : PdfDemo
         document.Info.Author = "PdfSharpCore sample app";
         document.Info.Subject = "A Factur-X invoice: the page and the XML are the same invoice";
 
-        // Every PDF/A document using a device colour space embeds a profile saying what its colours
-        // mean, and RGB is one. No profile ships with the library, so the demo carries a real one -
-        // public domain, 456 bytes, provenance in assets/icc/LICENSE.txt.
-        document.Options.OutputIntentIccProfile = Assets.Bytes(Assets.SrgbProfile);
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
+        // Nothing here says anything about colour, and the document still gets the output intent
+        // PDF/A requires: colours written as RGB by a library nobody told otherwise are sRGB, so an
+        // RGB document that names no profile is given PdfOutputIntents.SrgbProfile and the sRGB
+        // condition to name it by. The Archive demo sets it explicitly and gets the same bytes.
 
         // ----- page one: the invoice a person reads ------------------------------------------------
 
@@ -192,8 +191,9 @@ internal sealed class FacturXDemo : PdfDemo
                 ("Description", attached.Description),
                 ("Attached bytes", xml.Length.ToString("N0", Invariant) + " bytes of CII XML"),
                 ("Conformance now claimed", document.Options.Conformance.ToString()),
-                ("Output intent", document.Options.OutputIntentIdentifier + ", "
-                    + document.Options.OutputIntentIccProfile.Length.ToString("N0", Invariant) + " bytes"),
+                ("Output intent", PdfOutputIntents.SrgbIdentifier + ", "
+                    + PdfOutputIntents.SrgbProfile.Length.ToString("N0", Invariant)
+                    + " bytes, supplied by the writer"),
             };
 
             double y = 155;
@@ -305,7 +305,6 @@ internal sealed class FacturXDemo : PdfDemo
         using PdfDocument probe = new PdfDocument();
         probe.AddPage();
         probe.Info.Title = "A probe";
-        probe.Options.OutputIntentIccProfile = Assets.Bytes(Assets.SrgbProfile);
 
         byte[] xml = Encoding.UTF8.GetBytes(CrossIndustryInvoice(3210.00m));
         new FacturXInvoice(xml).AttachTo(probe);

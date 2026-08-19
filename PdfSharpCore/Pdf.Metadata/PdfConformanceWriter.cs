@@ -82,12 +82,26 @@ internal static class PdfConformanceWriter
                 "A PDF/A document has to have a title, in the document information dictionary and "
                 + "in its XMP metadata alike. Set Info.Title.");
 
-        if (options.OutputIntentIccProfile == null || options.OutputIntentIccProfile.Length == 0)
+        // Refused only where nothing true could be supplied. An RGB document with no profile of its
+        // own is given sRGB, because colours written as RGB by a library that was never told
+        // otherwise are sRGB — see PdfOutputIntents. The other two modes are a different question
+        // and get a different answer.
+        if (!HasProfile(options) && options.ColorMode == PdfColorMode.Cmyk)
             throw new InvalidOperationException(
-                "A PDF/A document using a device colour space has to embed an ICC profile as its "
-                + "output intent, and " + options.ColorMode + " is one. Set "
-                + "Options.OutputIntentIccProfile to the bytes of a profile — no profile ships with "
-                + "this library, because which one is right is a decision about the document.");
+                "A PDF/A document has to embed an ICC profile saying what its colours mean, and CMYK "
+                + "numbers mean nothing at all without one — the same four numbers are a different "
+                + "colour on every press. This library supplies sRGB for an RGB document, where the "
+                + "numbers describe themselves, and cannot do the equivalent here. Set "
+                + "Options.OutputIntentIccProfile to the profile your work was made for.");
+
+        if (!HasProfile(options) && options.ColorMode == PdfColorMode.Undefined)
+            throw new InvalidOperationException(
+                "A PDF/A document has to embed an ICC profile saying what its colours mean, and "
+                + "ColorMode is Undefined — which writes every colour as the XColor it came from, so "
+                + "this document may hold RGB and CMYK together and no one profile describes it. "
+                + "Either set Options.ColorMode to Rgb, which is given " + nameof(PdfOutputIntents)
+                + "." + nameof(PdfOutputIntents.SrgbProfile) + " when nothing else is set, or set "
+                + "Options.OutputIntentIccProfile yourself.");
 
         var attachments = EmbeddedFiles(document);
 
@@ -173,6 +187,18 @@ internal static class PdfConformanceWriter
                     + "not known, which Attachments.Add writes when it is given none.");
         }
     }
+
+    /// <summary>Whether the caller supplied a profile of their own.</summary>
+    static bool HasProfile(PdfDocumentOptions options) =>
+        options.OutputIntentIccProfile != null && options.OutputIntentIccProfile.Length != 0;
+
+    /// <summary>
+    /// Whether the output condition identifier is still the placeholder nobody chose, which is what
+    /// makes it safe to replace with the condition the built-in profile describes.
+    /// </summary>
+    static bool IsDefaultIdentifier(string identifier) =>
+        string.IsNullOrEmpty(identifier)
+        || identifier == PdfDocumentOptions.DefaultOutputIntentIdentifier;
 
     static bool IsListedIn(PdfArray associated, PdfFileSpecification attachment)
     {
@@ -291,9 +317,23 @@ internal static class PdfConformanceWriter
     {
         var options = document.Options;
 
+        // Enforce has already refused the modes for which there is no answer, so an unset profile
+        // here means an RGB document that never said which RGB. Written rather than assigned back
+        // onto Options: what a caller set is what a caller reads afterwards, and a save that
+        // rewrites the document's own settings is a surprise nobody asked for.
+        var supplied = HasProfile(options);
+        var bytes = supplied ? options.OutputIntentIccProfile : PdfOutputIntents.SrgbProfile;
+
+        // The identifier goes with the profile. A caller who named a condition but supplied no
+        // profile keeps their name — they said something specific and this is not the place to
+        // argue — but the default, which names nothing, gives way to the condition now known.
+        var identifier = supplied || !IsDefaultIdentifier(options.OutputIntentIdentifier)
+            ? options.OutputIntentIdentifier ?? "Custom"
+            : PdfOutputIntents.SrgbIdentifier;
+
         var profile = new PdfDictionary(document);
         profile.Elements.SetInteger("/N", options.ColorMode == PdfColorMode.Cmyk ? 4 : 3);
-        profile.CreateStream(options.OutputIntentIccProfile);
+        profile.CreateStream(bytes);
         document._irefTable.Add(profile);
 
         var intent = new PdfDictionary(document);
@@ -302,7 +342,7 @@ internal static class PdfConformanceWriter
         // /GTS_PDFA1 for every part of PDF/A, not only the first. The subtype names the family
         // rather than the part — a quirk of the standard that reads like a mistake and is not.
         intent.Elements.SetName(Keys.S, "/GTS_PDFA1");
-        intent.Elements.SetString(Keys.OutputConditionIdentifier, options.OutputIntentIdentifier ?? "Custom");
+        intent.Elements.SetString(Keys.OutputConditionIdentifier, identifier);
         intent.Elements[Keys.DestOutputProfile] = profile.Reference;
         document._irefTable.Add(intent);
 

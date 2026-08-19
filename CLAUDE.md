@@ -36,11 +36,13 @@ A sixth document sets a page in a face with **PostScript outlines**, which is th
 CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
 as a subset, both the opposite of every other document.
 
-`docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is a checked-in
-file rather than built in code — it was built for several months, and the entry worth carrying is
-that **`assets/icc/sRGB-v2-micro.icc` belongs to neither project on purpose**: `SampleApp` embeds it
-for the two demos that claim PDF/A and the corpus embeds it for all six documents, so what veraPDF
-passes is what a user gets, and a demo app reorganising its assets cannot break the gate.
+`docs/specs/verapdf-validation.md` has the rest. The entry worth carrying is that **the corpus sets
+no output intent at all**: `assets/icc/sRGB-v2-micro.icc` is embedded by the *core* package and an
+RGB document claiming PDF/A that names no profile is given it, so what veraPDF passes here is the
+default path rather than a profile the corpus built for itself. It was built in code for several
+months, and `SrgbProfile.cs` is gone. **A CMYK or `Undefined` document is still refused** — the same
+four CMYK numbers are a different colour on every press — and that asymmetry is the whole of the
+rule, in `PdfConformanceWriter.Enforce` and `PdfOutputIntents`.
 
 There is no lint or format step in the build or in CI.
 

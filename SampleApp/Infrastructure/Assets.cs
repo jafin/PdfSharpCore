@@ -17,7 +17,7 @@ namespace SampleApp.Infrastructure;
 ///   about the working directory.
 ///   <para>
 ///     Names are the <c>LogicalName</c> values set in the project file: <c>Fonts/…</c>,
-///     <c>Images/…</c>, <c>Icc/…</c> and <c>Sources/…</c>.
+///     <c>Images/…</c> and <c>Sources/…</c>.
 ///   </para>
 /// </remarks>
 public static class Assets
@@ -26,21 +26,7 @@ public static class Assets
 
     public const string FontPrefix = "Fonts/";
     public const string ImagePrefix = "Images/";
-    public const string IccPrefix = "Icc/";
     public const string SourcePrefix = "Sources/";
-
-    /// <summary>
-    ///   The sRGB profile the demos that claim PDF/A embed as their output intent.
-    /// </summary>
-    /// <remarks>
-    ///   Named here rather than spelled out at each of the two call sites, because it is one file
-    ///   and the demos should differ in what they demonstrate rather than in which profile they
-    ///   picked. It is public domain (CC0) and 456 bytes, and it lives in <c>assets/icc/</c> at the
-    ///   root of the repository rather than in this project, because <c>ConformanceCorpus</c> embeds
-    ///   the same file and that corpus gates CI. <c>assets/icc/LICENSE.txt</c>, embedded beside it,
-    ///   says where it came from and what is in it.
-    /// </remarks>
-    public const string SrgbProfile = IccPrefix + "sRGB-v2-micro.icc";
 
     /// <summary>Opens an embedded asset, or throws naming what is actually there.</summary>
     public static Stream Open(string name)

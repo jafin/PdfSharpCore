@@ -50,10 +50,10 @@ install and nothing fails, because a developer who has not installed Docker has 
 
 ## The ICC profile, which is its own small story
 
-PDF/A needs an output intent, an output intent needs an ICC profile, and **no profile ships with this
-library** — the writer embeds the bytes it is given and says so when given none. So the corpus has to
-get one from somewhere, and where it gets it changed once, which is worth recording because the first
-answer was right at the time.
+PDF/A needs an output intent, an output intent needs an ICC profile, and for most of this feature's
+life **no profile shipped with the library** — the writer embedded the bytes it was given and said so
+when given none. So the corpus had to get one from somewhere, and where it got it changed twice,
+which is worth recording because each answer was right when it was made.
 
 `SrgbProfile` **built** one for its first several months: an ICC v2.1 matrix-shaper display profile
 written out byte by byte, with sRGB's primaries adapted to D50 and a single gamma of 2.2 standing in
@@ -71,19 +71,22 @@ alternatives were worse:
 **Only the first of those was ever about licences rather than about tools, and it now has an
 answer.** `assets/icc/sRGB-v2-micro.icc` is 456 bytes released to the public domain under CC0 — no
 attribution owed, the true sRGB primaries, and the real transfer curve sampled at 42 points instead
-of approximated. `SrgbProfile` reads it, and is nine lines and a remark. The other two bullets are
-untouched by the change and remain the reasons not to fetch or generate one.
+of approximated. The other two bullets are untouched by the change and remain the reasons not to
+fetch or generate one.
 
-Three things were settled with it, and each is the answer to an objection worth raising:
+`SrgbProfile` then disappeared entirely rather than shrinking, because the profile went one step
+further than the corpus: **the core package embeds it**, and an RGB document claiming PDF/A that
+names no profile is given it. So the corpus sets nothing, and what is validated here is the default
+path — the file a caller gets for writing `Options.Conformance = …` and nothing else.
+`docs/specs/pdf-a-conformance.md` has the rule and the two colour modes it deliberately excludes.
 
-- **It lives in `assets/icc/`, belonging to neither project.** `SampleApp` embeds the same file for
-  the demos that claim PDF/A. A corpus that gates CI should not be able to fail because a demo app
-  reorganised its assets, which is what linking it out of `SampleApp` — the way the CFF font is
-  linked — would have allowed.
+Two things were settled along the way, each the answer to an objection worth raising:
+
 - **`*.icc` is `binary` in `.gitattributes`.** A profile that has been through line-ending
   normalisation still embeds and still looks like a file; what it produces is every document here
-  failing on its output intent at once, which reads as a regression in the writer. `SrgbProfile`
-  additionally checks the `acsp` signature every profile carries at byte 36 and says so by name.
+  failing on its output intent at once, which reads as a regression in the writer.
+  `PdfOutputIntents` additionally checks the `acsp` signature every profile carries at byte 36 and
+  says so by name.
 - **A binary cannot be read in a diff, and that is the real cost.** The code could be checked against
   the sRGB specification by reading it. The mitigation is the hash in `assets/icc/LICENSE.txt` and
   the fact that veraPDF parses the profile on every run, which is a stronger check than review was.

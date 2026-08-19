@@ -55,9 +55,10 @@ static class Corpus
         document.Info.Title = "Conformance corpus: " + conformance;
         document.Info.Author = "PdfSharpCore conformance corpus";
 
+        // The output intent is not set, and that is the point of not setting it: an RGB document
+        // claiming PDF/A is given PdfOutputIntents.SrgbProfile and the sRGB condition to name it,
+        // so what veraPDF passes here is what a caller gets for writing nothing at all.
         document.Options.Conformance = conformance;
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
@@ -105,8 +106,6 @@ static class Corpus
         document.Info.Author = "PdfSharpCore conformance corpus";
 
         document.Options.Conformance = PdfAConformance.PdfA2B;
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
@@ -153,10 +152,9 @@ static class Corpus
         document.Info.Title = "Conformance corpus: invoice with an associated file";
         document.Info.Author = "PdfSharpCore conformance corpus";
 
-        // Not set here: attaching the invoice claims PDF/A-3, which is the only profile that may
-        // carry one.
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
+        // Nothing about conformance is set here at all: attaching the invoice claims PDF/A-3, the
+        // only profile that may carry one, and the output intent an RGB document needs comes with
+        // the claim.
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
