@@ -405,10 +405,12 @@ carries no dependency of its own.
 **It needed an ICC profile, and that is what unblocked it.** A demo claiming PDF/A-3 has to embed an
 output intent, no profile ships with the library, and `Archive` had been building a minimal one in
 code — its own remark said a binary in a sample app "raises a licence question the sample does not
-need". The question has an answer: `Assets/Icc/sRGB-v2-micro.icc`, 456 bytes from the Compact ICC
+need". The question has an answer: `assets/icc/sRGB-v2-micro.icc`, 456 bytes from the Compact ICC
 Profiles collection, released to the public domain under CC0, with its provenance in
-`Assets/Icc/LICENSE.txt` beside it and its own `cprt` tag reading `CC0`. Both demos now embed it, and
-250 lines of ICC byte-writing left `ArchiveDemo` with them.
+`assets/icc/LICENSE.txt` beside it and its own `cprt` tag reading `CC0`. Both demos now embed it, and
+250 lines of ICC byte-writing left `ArchiveDemo` with them. It sits at the root of the repository
+rather than in this project because `ConformanceCorpus` embeds the same file and that corpus gates
+CI — an asset kept here would let reorganising a demo break a conformance check.
 
 **Then veraPDF was pointed at both outputs, and `Archive` failed.** It writes a property in a
 namespace of its own — `sample:demo`, through `CustomizeMetadata` — and PDF/A clause 6.6.2.3.1 admits

@@ -91,10 +91,13 @@
       The ICC profile the demos that claim PDF/A embed as their output intent. No profile ships with
       the library, on purpose - which profile is right is a decision about the document - so a demo
       making the claim has to be given one, and building a fake in code is a worse answer than
-      carrying a real one that may be redistributed. See Assets/Icc/LICENSE.txt for where it came
-      from.
+      carrying a real one that may be redistributed.
+
+      It lives outside this project because ConformanceCorpus embeds the same file, and the corpus
+      gates CI: a profile kept in this app's asset folder would make reorganising the demos able to
+      break a conformance check. See ../assets/icc/LICENSE.txt for where it came from.
     -->
-    <EmbeddedResource Include="Assets\Icc\*.icc" LogicalName="Icc/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\assets\icc\*.icc" LogicalName="Icc/%(Filename)%(Extension)" />
 
     <!--
       The licence travels with the fonts. The SIL OFL requires its text to be distributed
@@ -108,7 +111,7 @@
       licence above, so this is here to answer "where did this binary come from and may we ship it"
       rather than because shipping it depends on the answer.
     -->
-    <EmbeddedResource Include="Assets\Icc\LICENSE.txt" LogicalName="Icc/LICENSE.txt" />
+    <EmbeddedResource Include="..\assets\icc\LICENSE.txt" LogicalName="Icc/LICENSE.txt" />
   </ItemGroup>
 
 </Project>

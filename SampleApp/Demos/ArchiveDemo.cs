@@ -46,7 +46,7 @@ internal sealed class ArchiveDemo : PdfDemo
         // The output intent every PDF/A document needs. Carried as an embedded asset rather
         // than built here: no profile ships with the library, so a demo making the claim has
         // to be given one, and a real profile that may be redistributed is a better answer
-        // than a convincing fake. Assets/Icc/LICENSE.txt says where it came from.
+        // than a convincing fake. assets/icc/LICENSE.txt says where it came from.
         byte[] profile = Assets.Bytes(Assets.SrgbProfile);
 
         PdfDocument document = new PdfDocument();

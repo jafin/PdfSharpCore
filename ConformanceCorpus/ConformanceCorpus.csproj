@@ -44,4 +44,16 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!--
+    The output intent every document here carries. Linked out of a directory belonging to neither
+    project rather than built in code, which is what this used to do - see SrgbProfile.cs for what
+    changed and why. The demonstration app embeds the same file, so what veraPDF passes here is what
+    a user actually gets.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\assets\icc\sRGB-v2-micro.icc">
+      <LogicalName>ConformanceCorpus.sRGB-v2-micro.icc</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

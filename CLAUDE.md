@@ -36,8 +36,11 @@ A sixth document sets a page in a face with **PostScript outlines**, which is th
 CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
 as a subset, both the opposite of every other document.
 
-`docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is built in code
-rather than checked in.
+`docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is a checked-in
+file rather than built in code — it was built for several months, and the entry worth carrying is
+that **`assets/icc/sRGB-v2-micro.icc` belongs to neither project on purpose**: `SampleApp` embeds it
+for the two demos that claim PDF/A and the corpus embeds it for all six documents, so what veraPDF
+passes is what a user gets, and a demo app reorganising its assets cannot break the gate.
 
 There is no lint or format step in the build or in CI.
 

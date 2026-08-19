@@ -35,8 +35,10 @@ public static class Assets
     /// <remarks>
     ///   Named here rather than spelled out at each of the two call sites, because it is one file
     ///   and the demos should differ in what they demonstrate rather than in which profile they
-    ///   picked. It is public domain (CC0) and 456 bytes; <c>Assets/Icc/LICENSE.txt</c>, embedded
-    ///   beside it, says where it came from and what is in it.
+    ///   picked. It is public domain (CC0) and 456 bytes, and it lives in <c>assets/icc/</c> at the
+    ///   root of the repository rather than in this project, because <c>ConformanceCorpus</c> embeds
+    ///   the same file and that corpus gates CI. <c>assets/icc/LICENSE.txt</c>, embedded beside it,
+    ///   says where it came from and what is in it.
     /// </remarks>
     public const string SrgbProfile = IccPrefix + "sRGB-v2-micro.icc";
 

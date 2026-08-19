@@ -52,32 +52,47 @@ install and nothing fails, because a developer who has not installed Docker has 
 
 PDF/A needs an output intent, an output intent needs an ICC profile, and **no profile ships with this
 library** — the writer embeds the bytes it is given and says so when given none. So the corpus has to
-get one from somewhere, and the three obvious somewheres are all worse than building it:
+get one from somewhere, and where it gets it changed once, which is worth recording because the first
+answer was right at the time.
+
+`SrgbProfile` **built** one for its first several months: an ICC v2.1 matrix-shaper display profile
+written out byte by byte, with sRGB's primaries adapted to D50 and a single gamma of 2.2 standing in
+for sRGB's piecewise transfer curve — a deliberate approximation, since the curve matters to colour
+management and that profile managed no colour. 250 lines. It existed because the three obvious
+alternatives were worse:
 
 - A checked-in `.icc` is a binary blob in the repository with a licence of its own to account for.
-  That is the decision `docs/specs/pdf-a-conformance.md` records as unmade, and it is still unmade —
-  this sidesteps it rather than settling it. **The sidestep is now the only reason left.** The demo
-  app carries `SampleApp/Assets/Icc/sRGB-v2-micro.icc`, 456 bytes released to the public domain
-  under CC0, so the licence half of that bullet has an answer and the corpus could link the file the
-  way it already links a font out of `SampleApp/Assets`. Doing so would delete 250 lines and change
-  the bytes CI validates, which is a change to make deliberately rather than in passing.
 - Downloading one during the build makes validation depend on a third party being up.
 - Skia, already a dependency, parses profiles but does not write them. `SKColorSpace.ToProfile()`
   hands back a structure whose buffer is the bytes it was parsed from, so for a colour space that was
   never parsed from anything there are no bytes at all. This was tried first and is why it is written
   down: the failure is silent-looking, an empty buffer rather than an exception.
 
-So `SrgbProfile` builds one: an ICC v2.1 matrix-shaper display profile with sRGB's primaries and
-white point already adapted to the D50 connection space, and a single gamma of 2.2 standing in for
-sRGB's piecewise transfer curve. **That last is a deliberate approximation** — the curve matters to
-colour management and this profile manages no colour; it exists so a document can name the space its
-numbers are in, which is what PDF/A asks for.
+**Only the first of those was ever about licences rather than about tools, and it now has an
+answer.** `assets/icc/sRGB-v2-micro.icc` is 456 bytes released to the public domain under CC0 — no
+attribution owed, the true sRGB primaries, and the real transfer curve sampled at 42 points instead
+of approximated. `SrgbProfile` reads it, and is nine lines and a remark. The other two bullets are
+untouched by the change and remain the reasons not to fetch or generate one.
 
-It has to be a *real* profile, which is the trap worth flagging. The unit tests covering the XMP
-writer pass the ASCII bytes `NOT-AN-ICC-PROFILE`, and they are right to — nothing in this library
-parses a profile, so a legible stand-in makes those assertions clearer and says plainly that they are
-not colour-management tests. A validator does parse it, and reads the colour space out of the header
-to check the output intent agrees.
+Three things were settled with it, and each is the answer to an objection worth raising:
+
+- **It lives in `assets/icc/`, belonging to neither project.** `SampleApp` embeds the same file for
+  the demos that claim PDF/A. A corpus that gates CI should not be able to fail because a demo app
+  reorganised its assets, which is what linking it out of `SampleApp` — the way the CFF font is
+  linked — would have allowed.
+- **`*.icc` is `binary` in `.gitattributes`.** A profile that has been through line-ending
+  normalisation still embeds and still looks like a file; what it produces is every document here
+  failing on its output intent at once, which reads as a regression in the writer. `SrgbProfile`
+  additionally checks the `acsp` signature every profile carries at byte 36 and says so by name.
+- **A binary cannot be read in a diff, and that is the real cost.** The code could be checked against
+  the sRGB specification by reading it. The mitigation is the hash in `assets/icc/LICENSE.txt` and
+  the fact that veraPDF parses the profile on every run, which is a stronger check than review was.
+
+It has to be a *real* profile, which is the trap worth flagging and the reason none of this was
+skipped. The unit tests covering the XMP writer pass the ASCII bytes `NOT-AN-ICC-PROFILE`, and they
+are right to — nothing in this library parses a profile, so a legible stand-in makes those assertions
+clearer and says plainly that they are not colour-management tests. A validator does parse it, and
+reads the colour space out of the header to check the output intent agrees.
 
 ## What it found, and what was done about it
 

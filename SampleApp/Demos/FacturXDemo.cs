@@ -63,7 +63,7 @@ internal sealed class FacturXDemo : PdfDemo
 
         // Every PDF/A document using a device colour space embeds a profile saying what its colours
         // mean, and RGB is one. No profile ships with the library, so the demo carries a real one -
-        // public domain, 456 bytes, provenance in Assets/Icc/LICENSE.txt.
+        // public domain, 456 bytes, provenance in assets/icc/LICENSE.txt.
         document.Options.OutputIntentIccProfile = Assets.Bytes(Assets.SrgbProfile);
         document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
 

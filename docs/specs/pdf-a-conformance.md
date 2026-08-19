@@ -21,19 +21,20 @@ is given, so a document claiming conformance has to be handed a profile, and whi
 is a decision about the document rather than about the code. The failure is loud — saving without one
 throws and the message says so.
 
-What has changed is that the licence question the proposal flagged has an answer. `SampleApp`
-carries `Assets/Icc/sRGB-v2-micro.icc`, 456 bytes from the Compact ICC Profiles collection, released
-to the public domain under CC0 — a vetted, redistributable asset needing no attribution, whose own
-`cprt` tag reads `CC0`. It is ICC version 2 rather than 4 on purpose, because PDF/A-1 predates
-version 4 and will not take one, so v2 is the version that serves every part. Both demos that claim
-PDF/A embed it, and both of their outputs pass veraPDF.
+What has changed is that the licence question the proposal flagged has an answer.
+`assets/icc/sRGB-v2-micro.icc` is 456 bytes from the Compact ICC Profiles collection, released to the
+public domain under CC0 — a vetted, redistributable asset needing no attribution, whose own `cprt`
+tag reads `CC0`. It is ICC version 2 rather than 4 on purpose, because PDF/A-1 predates version 4 and
+will not take one, so v2 is the version that serves every part. Both demos that claim PDF/A embed it,
+**and so does every document in the conformance corpus**, which is what makes veraPDF's verdict a
+verdict on the bytes a user gets rather than on bytes that existed only inside the corpus. It sits in
+a directory belonging to neither project because the corpus gates CI and should not be able to fail
+over how a demo app arranges its assets.
 
 So the remaining decision is narrower than it was: not *can a profile be shipped* — one is in the
-tree and may be redistributed — but *should the library hand one out by default*, which is a
-different question about encouraging callers to make a colour claim they have not thought about.
-`ConformanceCorpus/SrgbProfile.cs` still builds its own in code and could now link the asset the way
-it already links a font out of `SampleApp/Assets`; that is a change to what CI validates, so it is
-left to be made deliberately.
+tree, may be redistributed, and passes every part of PDF/A from 1b up — but *should the library hand
+one out by default*, which is a different question about encouraging callers to make a colour claim
+they have not thought about. That one is still open.
 
 **Enforcement is partial, and the code says which parts.** These are checked: no encryption, a title
 present, an output intent profile present, embedded files only under PDF/A-3, every attachment of a

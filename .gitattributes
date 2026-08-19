@@ -61,3 +61,14 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# ICC colour profiles
+#
+# Said explicitly rather than left to text=auto. A profile that has been through
+# line-ending normalisation still embeds and still looks like a file, and what it
+# produces is every document in the conformance corpus failing validation on its
+# output intent at once - which reads as a regression in the writer rather than as
+# a mangled asset.
+###############################################################################
+*.icc   binary
