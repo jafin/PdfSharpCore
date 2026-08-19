@@ -9,9 +9,10 @@ Gap **G4** of the competitive gap analysis.
 | 2 | Output intent with an embedded ICC profile | done, **caller supplies the profile** |
 | 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, **partially** |
 | 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | done |
-| 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | not started |
+| 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | done |
 
-Covered by `PdfSharpCore.Test/IO/XmpMetadataTests.cs` and `PdfSharpCore.Test/Pdfs/AttachmentTests.cs`.
+Covered by `PdfSharpCore.Test/IO/XmpMetadataTests.cs`, `PdfSharpCore.Test/Pdfs/AttachmentTests.cs`
+and `PdfSharpCore.Test/Pdfs/EInvoiceTests.cs`.
 
 ## What is honestly not finished
 
@@ -34,9 +35,9 @@ otherwise.
 
 **veraPDF is now in CI**, and the claim is no longer self-certified — see
 `docs/specs/verapdf-validation.md`, which covers this spec and
-`docs/specs/tagged-pdf-accessibility.md` together, as both said it should. It reports rather than
-gates, because the first run found three defects and a step that always fails is a step everybody
-learns to ignore.
+`docs/specs/tagged-pdf-accessibility.md` together, as both said it should. It gates: it reported
+without failing for exactly as long as the corpus did not conform, which was the three defects the
+first run found, all since fixed and all with tests of their own.
 
 Two of those three are this spec's: **a stream `/Length` that does not match the bytes between
 `stream` and `endstream`**, on the XMP metadata stream this feature wrote, failing every PDF/A
@@ -252,15 +253,75 @@ already entered — a name tree is a tree, so a node reached twice holds nothing
 the searching one carry it, and both are pinned by a test with a timeout, because a regression there
 stops a test run rather than failing it.
 
-`PdfSharpCore.EInvoice` is then thin: attach the XML with the right filename and relationship, emit the
-ZUGFeRD XMP extension schema (profile, version, conformance level), set the conformance mode. Only the
-middle one is left, and it needs no new machinery — the schema goes in through `CustomizeMetadata` and
-`XmpMetadata.AdditionalDescriptions`, which `TheHookCanAddASchemaTheLibraryKnowsNothingAbout` already
-demonstrates with a Factur-X namespace.
+### `PdfSharpCore.EInvoice`
 
-**Generating the CII XML itself is out of scope.** EN 16931 semantics, profile validation and the
-country-specific rules are somebody else's library and a permanent maintenance liability; the
-documentation should name one rather than absorb it.
+A package of its own, and thin, as the proposal said it would be — the whole of it is one class and
+one enum over machinery that was already here:
+
+```csharp
+new FacturXInvoice(xml) { Profile = EInvoiceProfile.En16931 }.AttachTo(document);
+```
+
+That names the attachment `factur-x.xml`, relates it as `/Data`, calls it `text/xml`, associates it,
+claims PDF/A-3, and writes the two `rdf:Description` elements the format wants into the metadata
+packet. Every one of those has a silent failure mode: the document opens perfectly and the system it
+was sent to rejects it, which is the argument for a helper rather than a paragraph of documentation.
+
+**The extension schema is the part that is not obvious.** PDF/A holds every property in the packet to
+a schema the file either predefines or describes, and the invoice namespace is nobody's predefined
+schema — so a packet writing `fx:DocumentType` without a `pdfaExtension:schemas` entry declaring it
+fails validation for its *metadata* rather than for its invoice, which is a confusing way to be
+wrong. The four property names are declared and written from one list walked twice, because declaring
+a property that is never written and writing one that was never declared are both failures and the
+way to make neither is to have one place saying which four there are.
+
+**`fx:DocumentFileName` is written from the same property the attachment was named from.** A receiver
+takes the attachment by the name the metadata gives it, so the two disagreeing is a document
+describing an invoice it does not carry.
+
+**The conformance level is spelled out by an enum, because the spelling is the trap.** The values are
+exact strings and two of them contain a space — `BASIC WL` and `EN 16931` — so a document writing
+`EN16931` passes every check that looks at the PDF and is rejected by whatever reads the invoice.
+Nothing here reads the XML: `EInvoiceProfile` is a claim about it that only a schema validator can
+settle, and the type exists to keep the claim spelled the way a receiver reads it.
+
+**The customisation hook is chained, not assigned.** The packet is built at save time from the
+information dictionary, so `PdfDocument.CustomizeMetadata` is the only way to reach it — and a helper
+that assigned over it would silently drop whatever the caller had already put there. It keeps the
+existing hook and calls it first.
+
+**A PDF/A-1 or PDF/A-2 claim is refused rather than promoted.** Neither may carry a file at all, and
+quietly rewriting the caller's claim to PDF/A-3 would be deciding for them which standard their
+document meets. Attaching happens before the claim is changed, so the one failure a caller is likely
+to hit — a second invoice under a name the first took — leaves the document as it was rather than
+half converted.
+
+**Reading is half of what the mandates ask for**, and Germany has asked for the receiving half since
+January 2025, so `FacturXInvoice.FindIn` and `ReadFrom` answer the other direction. They find the
+invoice **by name** — `factur-x.xml`, `zugferd-invoice.xml`, `xrechnung.xml`, `order-x.xml`, compared
+without regard to case because ZUGFeRD 1.0 capitalised its own. Deliberately not by relationship and
+media type: every `/Data` attachment that is `text/xml` would match, a document may carry an XML that
+is data about it without being an invoice, and answering "here is your invoice" about such a file is
+worse than answering nothing.
+
+`pdfa-3b-facturx` in the conformance corpus is built through this, so veraPDF is what says the
+extension schema is the shape PDF/A asks for. No unit test can settle that, which is exactly why the
+corpus document exists.
+
+**ZUGFeRD 1.0 and Order-X are reachable and not supported.** The file name, namespace, prefix, schema
+name and relationship are all settable, so a caller who needs the older layout can have it by setting
+five properties — but the defaults are Factur-X, nothing here has been validated in the other shapes,
+and the class says so. ZUGFeRD 1.0 is superseded; producing it today would be producing a deprecated
+format.
+
+**Generating the CII XML itself is out of scope and stays there.** EN 16931 semantics, profile
+validation and the country-specific rules are somebody else's library and a permanent maintenance
+liability. Hand `FacturXInvoice` the bytes something else produced.
+
+**No demonstration in `SampleApp`.** A demo would have to claim PDF/A-3 and therefore supply an ICC
+profile, and the only profile in this repository is the one `ConformanceCorpus` builds in code for
+its own use. Shipping one, or copying those 250 lines into the demo app, is the ICC decision above
+rather than a demo — so the corpus document is what there is to look at.
 
 ---
 
