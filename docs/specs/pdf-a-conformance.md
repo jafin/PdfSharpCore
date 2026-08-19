@@ -72,9 +72,12 @@ The associated-file work of item 4 came back clean: the PDF/A-3 document carryin
 exactly what the one without it fails and nothing more, so the relationship, the catalog `/AF` array
 and the name tree are all right.
 
-**The ICC decision is still unmade.** The corpus builds an sRGB profile in code rather than shipping
-one, which sidesteps the question of what the repository distributes rather than answering it. A
-caller still has to supply their own.
+**The ICC decision was made afterwards**, and this paragraph used to record it as open. The corpus
+built an sRGB profile in code, which sidestepped the question of what the repository distributes
+rather than answering it, and a caller had to supply their own. Both are now false: the core package
+embeds `assets/icc/sRGB-v2-micro.icc`, an RGB document that names no profile is given it, and the
+corpus sets no output intent at all — so what veraPDF gates on is the default path. See the item 2
+section above for the rule and the two colour modes it deliberately excludes.
 
 ## What was added afterwards
 

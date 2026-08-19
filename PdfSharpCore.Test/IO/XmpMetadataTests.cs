@@ -201,6 +201,71 @@ public class XmpMetadataTests
     }
 
     [Fact]
+    public void TheComponentCountComesFromTheProfileRatherThanFromTheColourMode()
+    {
+        // /N has to agree with the profile's own colour space, and the colour mode does not decide
+        // that. A caller in Undefined mode — which writes each colour as the XColor gave it — who
+        // supplies a CMYK profile was getting /N 3 over four-component data, which is a broken
+        // output intent in a document whose whole point is that it validates.
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.ColorMode = PdfColorMode.Undefined;
+            document.Options.OutputIntentIccProfile = ProfileFor("CMYK");
+        });
+
+        Latin1(bytes).Should().Contain("/N 4");
+    }
+
+    [Fact]
+    public void AGreyProfileSaysOneComponent()
+    {
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.OutputIntentIccProfile = ProfileFor("GRAY");
+        });
+
+        Latin1(bytes).Should().Contain("/N 1");
+    }
+
+    [Fact]
+    public void AProfileTooShortToReadFallsBackToWhatTheColourModeImplies()
+    {
+        // Nothing in this library parses a profile, and these tests hand it legible stand-ins
+        // rather than real ones — so an unreadable header must not throw.
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.ColorMode = PdfColorMode.Cmyk;
+            document.Options.OutputIntentIccProfile = SomeProfile;
+        });
+
+        Latin1(bytes).Should().Contain("/N 4");
+    }
+
+    [Fact]
+    public void TheBuiltInProfileSaysThreeComponents()
+    {
+        var bytes = Save(document => document.Options.Conformance = PdfAConformance.PdfA2B);
+
+        Latin1(bytes).Should().Contain("/N 3");
+    }
+
+    /// <summary>
+    ///   A profile header real enough to be read: the <c>acsp</c> file signature where one belongs
+    ///   and the given data colour space where one belongs. Not a profile a validator would accept,
+    ///   which is the point — this is about what the writer reads out of the header.
+    /// </summary>
+    private static byte[] ProfileFor(string space)
+    {
+        var profile = new byte[128];
+        Encoding.ASCII.GetBytes(space).CopyTo(profile, 16);
+        Encoding.ASCII.GetBytes("acsp").CopyTo(profile, 36);
+        return profile;
+    }
+
+    [Fact]
     public void TheProfileHandedOutIsACopy()
     {
         // An array is mutable, and a caller who edited a shared one would change what every later

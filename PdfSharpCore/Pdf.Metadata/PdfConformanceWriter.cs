@@ -188,6 +188,62 @@ internal static class PdfConformanceWriter
         }
     }
 
+    /// <summary>
+    /// How many components the embedded profile's colour space has, which is what <c>/N</c> states.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read out of the profile rather than inferred from <see cref="PdfDocumentOptions.ColorMode"/>,
+    /// because the mode does not decide it. <see cref="PdfColorMode.Undefined"/> writes each colour
+    /// as the <c>XColor</c> gave it and says nothing about which profile was supplied, and a caller
+    /// in any mode may hand over a profile for a space other than the one they are drawing in — both
+    /// of which used to write <c>/N 3</c> over four-component data, an output intent a validator
+    /// rejects in a document whose whole point is that it does not get rejected. An ICC profile
+    /// names its data colour space at byte 16, so there is no need to guess.
+    /// </para>
+    /// <para>
+    /// An unreadable header falls back to what the colour mode implies rather than throwing.
+    /// Nothing in this library parses a profile — the tests hand the writer legible stand-ins like
+    /// <c>NOT-AN-ICC-PROFILE</c> precisely because it does not — and refusing to save over a header
+    /// this cannot read would turn a writer into a validator it has never claimed to be.
+    /// </para>
+    /// <para>
+    /// What is still <em>not</em> checked is that every device colour space the document actually
+    /// uses is the one the output intent describes. A document in
+    /// <see cref="PdfColorMode.Undefined"/> may hold RGB and CMYK together, and finding out means
+    /// walking every page's resources — the same walk the transparency rule needs and does not get.
+    /// Said plainly here rather than implied by silence.
+    /// </para>
+    /// </remarks>
+    static int ComponentsOf(byte[] profile, PdfColorMode mode)
+    {
+        const int SpaceAt = 16;
+
+        if (profile != null && profile.Length >= SpaceAt + 4)
+        {
+            var space = new string(new[]
+            {
+                (char)profile[SpaceAt], (char)profile[SpaceAt + 1],
+                (char)profile[SpaceAt + 2], (char)profile[SpaceAt + 3],
+            });
+
+            switch (space)
+            {
+                case "GRAY": return 1;
+                case "CMYK": return 4;
+
+                // The three-component spaces a PDF output intent can plausibly carry. Lab and XYZ
+                // are not device spaces and will not appear here from this library, but a caller's
+                // profile is a caller's profile and answering 3 for them is right.
+                case "RGB ":
+                case "Lab ":
+                case "XYZ ": return 3;
+            }
+        }
+
+        return mode == PdfColorMode.Cmyk ? 4 : 3;
+    }
+
     /// <summary>Whether the caller supplied a profile of their own.</summary>
     static bool HasProfile(PdfDocumentOptions options) =>
         options.OutputIntentIccProfile != null && options.OutputIntentIccProfile.Length != 0;
@@ -332,7 +388,7 @@ internal static class PdfConformanceWriter
             : PdfOutputIntents.SrgbIdentifier;
 
         var profile = new PdfDictionary(document);
-        profile.Elements.SetInteger("/N", options.ColorMode == PdfColorMode.Cmyk ? 4 : 3);
+        profile.Elements.SetInteger("/N", ComponentsOf(bytes, options.ColorMode));
         profile.CreateStream(bytes);
         document._irefTable.Add(profile);
 

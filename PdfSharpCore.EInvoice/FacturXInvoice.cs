@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 
@@ -175,6 +176,12 @@ public sealed class FacturXInvoice
         Required(DocumentType, nameof(DocumentType));
         Required(Version, nameof(Version));
 
+        // Checked rather than escaped, because there is no escaping it: the prefix becomes part of
+        // an element name and of a namespace declaration, and neither is a place a character can be
+        // written as an entity. A prefix that is not a name produces a packet no parser will read,
+        // and the point of this class is that the metadata is right.
+        RequiredName(Prefix, nameof(Prefix));
+
         var claimed = document.Options.Conformance;
         if (claimed != PdfAConformance.None && claimed != PdfAConformance.PdfA3B)
             throw new InvalidOperationException(
@@ -306,7 +313,7 @@ public sealed class FacturXInvoice
         xmp.Append("       <rdf:Seq>\n");
 
         foreach (var property in Properties())
-            AppendPropertyDeclaration(xmp, property.Key, property.Value);
+            AppendPropertyDeclaration(xmp, property.Name, property.Description);
 
         xmp.Append("       </rdf:Seq>\n");
         xmp.Append("      </pdfaSchema:property>\n");
@@ -330,9 +337,9 @@ public sealed class FacturXInvoice
 
         foreach (var property in Properties())
         {
-            xmp.Append("   <").Append(Prefix).Append(':').Append(property.Key).Append('>')
-               .Append(Escape(ValueOf(property.Key)))
-               .Append("</").Append(Prefix).Append(':').Append(property.Key).Append(">\n");
+            xmp.Append("   <").Append(Prefix).Append(':').Append(property.Name).Append('>')
+               .Append(Escape(property.Value))
+               .Append("</").Append(Prefix).Append(':').Append(property.Name).Append(">\n");
         }
 
         xmp.Append("  </rdf:Description>");
@@ -341,41 +348,33 @@ public sealed class FacturXInvoice
     }
 
     /// <summary>
-    /// The four properties the format defines, each with the description the extension schema
-    /// carries for it. One list, walked twice — declaring a property the packet never writes, and
-    /// writing one the schema never declared, are both validation failures, and the way to make
-    /// neither is to have one place saying which four there are.
+    /// The four properties the format defines: what each is called, what the extension schema says
+    /// about it, and what this invoice says for it.
     /// </summary>
-    private static IEnumerable<KeyValuePair<string, string>> Properties()
+    /// <remarks>
+    /// <para>
+    /// One list, walked twice — once to declare the four and once to write them. Declaring a
+    /// property that is never written and writing one that was never declared are both validation
+    /// failures, and the way to make neither is to have one place saying which four there are. The
+    /// name and the value travel together for the same reason: a lookup keyed by name is a second
+    /// place to get the set wrong.
+    /// </para>
+    /// <para>
+    /// <c>DocumentFileName</c> is <see cref="FileName"/> rather than a second copy of it, because a
+    /// receiver takes the attachment by the name the metadata gives it and the two disagreeing is a
+    /// document describing an invoice it does not carry.
+    /// </para>
+    /// </remarks>
+    private IEnumerable<(string Name, string Description, string Value)> Properties()
     {
-        yield return new KeyValuePair<string, string>("DocumentType",
-            "The type of the embedded XML document");
-        yield return new KeyValuePair<string, string>("DocumentFileName",
-            "The name of the embedded XML document");
-        yield return new KeyValuePair<string, string>("Version",
-            "The version of the standard the embedded XML document follows");
-        yield return new KeyValuePair<string, string>("ConformanceLevel",
-            "The profile of the embedded XML document");
-    }
-
-    /// <summary>
-    /// What this invoice says for one of those properties. <c>DocumentFileName</c> comes from the
-    /// same property the attachment was named from rather than being said twice, because a receiver
-    /// takes the attachment by the name the metadata gives it and the two disagreeing is a document
-    /// describing an invoice it does not carry.
-    /// </summary>
-    private string ValueOf(string property)
-    {
-        switch (property)
-        {
-            case "DocumentType": return DocumentType;
-            case "DocumentFileName": return FileName;
-            case "Version": return Version;
-            case "ConformanceLevel": return ConformanceLevelOf(Profile);
-            default:
-                throw new ArgumentOutOfRangeException(nameof(property), property,
-                    "This is not one of the properties the format defines.");
-        }
+        yield return ("DocumentType",
+            "The type of the embedded XML document", DocumentType);
+        yield return ("DocumentFileName",
+            "The name of the embedded XML document", FileName);
+        yield return ("Version",
+            "The version of the standard the embedded XML document follows", Version);
+        yield return ("ConformanceLevel",
+            "The profile of the embedded XML document", ConformanceLevelOf(Profile));
     }
 
     private static void AppendPropertyDeclaration(StringBuilder xmp, string name, string description)
@@ -393,14 +392,23 @@ public sealed class FacturXInvoice
     }
 
     /// <summary>
-    /// The same three characters <see cref="Pdf.Metadata.XmpMetadata"/> escapes, for the same
-    /// reason: these descriptions are written into the packet verbatim, so an ampersand in one of
-    /// them makes the whole packet unparseable rather than only the part of it that is wrong.
+    /// The three characters <see cref="Pdf.Metadata.XmpMetadata"/> escapes, for the same reason —
+    /// these descriptions are written into the packet verbatim, so an ampersand in one of them
+    /// makes the whole packet unparseable rather than only the part of it that is wrong — and the
+    /// quotation mark besides.
     /// </summary>
+    /// <remarks>
+    /// The fourth is the difference between this and the packet writer, and it is not decoration.
+    /// <see cref="NamespaceUri"/> is written into an <em>attribute</em> value rather than into
+    /// element text, where a quotation mark ends the attribute early and everything after it
+    /// becomes markup. Escaping it in element text as well is harmless and saves having two
+    /// routines a caller could pick the wrong one of.
+    /// </remarks>
     private static string Escape(string value) => value
         .Replace("&", "&amp;")
         .Replace("<", "&lt;")
-        .Replace(">", "&gt;");
+        .Replace(">", "&gt;")
+        .Replace("\"", "&quot;");
 
     private static void Required(string value, string property)
     {
@@ -408,5 +416,24 @@ public sealed class FacturXInvoice
             throw new InvalidOperationException(
                 property + " has to say something: it goes into the metadata, and an invoice "
                 + "described by an empty string is described by nothing.");
+    }
+
+    /// <summary>
+    /// Refuses anything XML would not accept as a name, naming the property and the value.
+    /// </summary>
+    private static void RequiredName(string value, string property)
+    {
+        try
+        {
+            XmlConvert.VerifyNCName(value);
+        }
+        catch (XmlException malformed)
+        {
+            throw new InvalidOperationException(
+                property + " becomes part of an XML element name and of a namespace declaration, so "
+                + "it has to be a name XML accepts — no spaces, no quotation marks, no colon, and "
+                + "not starting with a digit. '" + value + "' is not one: " + malformed.Message,
+                malformed);
+        }
     }
 }

@@ -42,7 +42,13 @@ public static class PdfOutputIntents
     /// </summary>
     const int SignatureAt = 36;
 
-    static byte[] _srgb;
+    /// <summary>
+    /// The profile, read and checked once. <see cref="Lazy{T}"/> rather than a field and a null
+    /// check, because two threads asking at the same moment would otherwise both read the resource
+    /// and both check it — the same answer twice over, which is waste rather than a defect, but
+    /// stating "once" is shorter than explaining why doing it twice is harmless.
+    /// </summary>
+    static readonly Lazy<byte[]> Loaded = new Lazy<byte[]>(Read);
 
     /// <summary>
     /// The bytes of an sRGB profile, ready to be assigned to
@@ -66,7 +72,7 @@ public static class PdfOutputIntents
     /// would change what every later document says about its colours.
     /// </para>
     /// </remarks>
-    public static byte[] SrgbProfile => (byte[])Bytes().Clone();
+    public static byte[] SrgbProfile => (byte[])Loaded.Value.Clone();
 
     /// <summary>
     /// What to write as <c>/OutputConditionIdentifier</c> for <see cref="SrgbProfile"/>, which is
@@ -81,13 +87,10 @@ public static class PdfOutputIntents
     public const string SrgbIdentifier = "sRGB IEC61966-2.1";
 
     /// <summary>
-    /// The embedded bytes, read once. Never handed out directly — see <see cref="SrgbProfile"/>.
+    /// The embedded bytes. Never handed out directly — see <see cref="SrgbProfile"/>.
     /// </summary>
-    static byte[] Bytes()
+    static byte[] Read()
     {
-        if (_srgb != null)
-            return _srgb;
-
         using (var stream = typeof(PdfOutputIntents).GetTypeInfo().Assembly
                    .GetManifestResourceStream(Resource))
         {
@@ -117,8 +120,7 @@ public static class PdfOutputIntents
                         + "between the repository and here.");
                 }
 
-                _srgb = bytes;
-                return _srgb;
+                return bytes;
             }
         }
     }

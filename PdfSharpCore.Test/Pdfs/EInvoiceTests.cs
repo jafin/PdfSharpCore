@@ -188,6 +188,58 @@ public class EInvoiceTests
         packet.Descendants(PdfaSchema + "schema").Single().Value.Should().Be("Bolts & Nuts <Ltd> schema");
     }
 
+    [Fact]
+    public void AQuotationMarkInTheNamespaceDoesNotEndTheAttributeEarly()
+    {
+        // The namespace goes into an attribute value rather than into element text, where a
+        // quotation mark closes the attribute and everything after it becomes markup. Escaping
+        // three characters is enough for a value and not for an attribute.
+        var invoice = new FacturXInvoice(Xml())
+        {
+            NamespaceUri = "urn:example:\"quoted\"&odd#",
+        };
+
+        var packet = Packet(Save(invoice));
+        XNamespace odd = "urn:example:\"quoted\"&odd#";
+
+        packet.Descendants(PdfaSchema + "namespaceURI").Single().Value
+            .Should().Be("urn:example:\"quoted\"&odd#");
+        packet.Descendants(odd + "DocumentType").Single().Value.Should().Be("INVOICE");
+    }
+
+    [Fact]
+    public void APrefixThatIsNotAnXmlNameIsRefusedRatherThanWritten()
+    {
+        // There is no escaping this one: the prefix becomes part of an element name and of a
+        // namespace declaration, and neither is a place a character can be written as an entity.
+        // Writing it anyway produces a packet no parser will read.
+        var document = Prepared();
+        var invoice = new FacturXInvoice(Xml()) { Prefix = "not a name" };
+
+        var attaching = () => invoice.AttachTo(document);
+
+        attaching.Should().Throw<InvalidOperationException>().WithMessage("*Prefix*");
+        document.Attachments.Count.Should().Be(0, "a refusal leaves the document as it was");
+    }
+
+    [Fact]
+    public void APrefixThatIsAnXmlNameIsAccepted()
+    {
+        // The escape hatch has to keep working: ZUGFeRD 1.0 used zf, and a caller reaching for it
+        // should not be stopped by the check that stops "not a name".
+        var invoice = new FacturXInvoice(Xml())
+        {
+            Prefix = "zf",
+            NamespaceUri = "urn:ferd:pdfa:CrossIndustryDocument:invoice:1p0#",
+        };
+
+        var packet = Packet(Save(invoice));
+        XNamespace ferd = "urn:ferd:pdfa:CrossIndustryDocument:invoice:1p0#";
+
+        packet.Descendants(PdfaSchema + "prefix").Single().Value.Should().Be("zf");
+        packet.Descendants(ferd + "DocumentFileName").Single().Value.Should().Be("factur-x.xml");
+    }
+
     // ── Reading one back ────────────────────────────────────────────────────────────────────────
 
     [Fact]
