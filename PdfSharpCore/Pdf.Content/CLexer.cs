@@ -724,7 +724,16 @@ public class CLexer
         int count = chars.Length;
         if (count > 2 && chars[0] == (char)0xFE && chars[1] == (char)0xFF)
         {
-            Debug.Assert(count % 2 == 0);
+            // A Unicode hex string missing half of its last character is short of the low byte
+            // of that character, which is taken to be a zero - the same reading a hex string
+            // missing its final digit gets, just above. Debug.Assert(count % 2 == 0) stood here
+            // instead: it caught the odd count in a Debug build and did nothing in a Release
+            // build, where the loop below read one character past the end of the string.
+            if ((count & 1) == 1)
+            {
+                chars += '\0';
+                ++count;
+            }
             _token.Length = 0;
             for (int idx = 2; idx < count; idx += 2)
                 _token.Append((char)(chars[idx] * 256 + chars[idx + 1]));

@@ -123,6 +123,20 @@ public class CLexerTests
         TokensOf(tokens, CSymbol.HexString).Should().Equal(BytesSpelling(expected));
     }
 
+    // A Unicode hex string short of the low byte of its last character used to be caught only by
+    // a Debug.Assert, which does nothing in a Release build - where the decode loop then read one
+    // character past the end of the string. The missing byte is a zero, the same reading a plain
+    // hex string missing its final digit gets, just above.
+    [Theory(Timeout = 5000)]
+    [InlineData("<FEFF0>")]
+    [InlineData("<FEFF0")]
+    public async Task ScanHexadecimalString_padsAUnicodeHexStringShortOfItsLastByte(string content)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.HexString).Should().Equal("\0");
+    }
+
     [Theory(Timeout = 5000)]
     [InlineData("BT", CSymbol.Operator, "BT")]
     [InlineData("q Q", CSymbol.Operator, "Q")]
