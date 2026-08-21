@@ -178,6 +178,8 @@ public abstract class VisitorBase : DocumentObjectVisitor
       font.superscript = refFont.superscript;
     if (font.subscript == null)
       font.subscript = refFont.subscript;
+    if (font.strikethrough == null)
+      font.strikethrough = refFont.strikethrough;
   }
 
   /// <summary>Fills in every shading value left unset from <paramref name="refShading"/>.</summary>
