@@ -120,6 +120,13 @@ public sealed class ValueDescriptor
     Kind == ValueKind.Leaf || Kind == ValueKind.NullableValue || Kind == ValueKind.PlainValue;
 
   /// <summary>
+  /// Whether <see cref="SetValue"/> can be called at all. A DocumentObject or Collection member is
+  /// only settable when it is a field - a property of that kind, such as Style.Font delegating to
+  /// Style.ParagraphFormat.Font, has nowhere of its own to write a value into.
+  /// </summary>
+  public bool IsSettable => setter != null;
+
+  /// <summary>
   /// Creates an instance of the described type using its parameterless constructor.
   /// </summary>
   public object CreateValue()

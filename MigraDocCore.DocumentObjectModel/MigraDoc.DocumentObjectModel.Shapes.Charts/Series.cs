@@ -56,35 +56,6 @@ public partial class Series : ChartObject
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Series series = (Series)base.DeepCopy();
-    if (series.seriesElements != null)
-    {
-      series.seriesElements = series.seriesElements.Clone();
-      series.seriesElements.parent = series;
-    }
-    if (series.lineFormat != null)
-    {
-      series.lineFormat = series.lineFormat.Clone();
-      series.lineFormat.parent = series;
-    }
-    if (series.fillFormat != null)
-    {
-      series.fillFormat = series.fillFormat.Clone();
-      series.fillFormat.parent = series;
-    }
-    if (series.dataLabel != null)
-    {
-      series.dataLabel = series.dataLabel.Clone();
-      series.dataLabel.parent = series;
-    }
-    return series;
-  }
-
-  /// <summary>
   /// Adds a blank to the series.
   /// </summary>
   public void AddBlank()

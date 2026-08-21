@@ -61,24 +61,6 @@ public partial class Legend : ChartObject, IVisitable
     return (Legend)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Legend legend = (Legend)base.DeepCopy();
-    if (legend.format != null)
-    {
-      legend.format = legend.format.Clone();
-      legend.format.parent = legend;
-    }
-    if (legend.lineFormat != null)
-    {
-      legend.lineFormat = legend.lineFormat.Clone();
-      legend.lineFormat.parent = legend;
-    }
-    return legend;
-  }
   #endregion
 
   #region Properties

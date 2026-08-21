@@ -75,25 +75,6 @@ public partial class Footnote : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Footnote footnote = (Footnote)base.DeepCopy();
-        if (footnote.elements != null)
-        {
-            footnote.elements = footnote.elements.Clone();
-            footnote.elements.parent = footnote;
-        }
-        if (footnote.format != null)
-        {
-            footnote.format = footnote.format.Clone();
-            footnote.format.parent = footnote;
-        }
-        return footnote;
-    }
-
-    /// <summary>
     /// Adds a new paragraph to the footnote.
     /// </summary>
     public Paragraph AddParagraph()

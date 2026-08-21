@@ -66,35 +66,6 @@ public partial class Cell : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Cell cell = (Cell)base.DeepCopy();
-        if (cell.format != null)
-        {
-            cell.format = cell.format.Clone();
-            cell.format.parent = cell;
-        }
-        if (cell.borders != null)
-        {
-            cell.borders = cell.borders.Clone();
-            cell.borders.parent = cell;
-        }
-        if (cell.shading != null)
-        {
-            cell.shading = cell.shading.Clone();
-            cell.shading.parent = cell;
-        }
-        if (cell.elements != null)
-        {
-            cell.elements = cell.elements.Clone();
-            cell.elements.parent = cell;
-        }
-        return cell;
-    }
-
-    /// <summary>
     /// Resets the cached values.
     /// </summary>
     internal override void ResetCachedValues()

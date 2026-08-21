@@ -66,45 +66,6 @@ public partial class Table : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        var table = (Table)base.DeepCopy();
-        if (table.columns != null)
-        {
-            table.columns = table.columns.Clone();
-            table.columns.parent = table;
-        }
-
-        if (table.rows != null)
-        {
-            table.rows = table.rows.Clone();
-            table.rows.parent = table;
-        }
-
-        if (table.format != null)
-        {
-            table.format = table.format.Clone();
-            table.format.parent = table;
-        }
-
-        if (table.borders != null)
-        {
-            table.borders = table.borders.Clone();
-            table.borders.parent = table;
-        }
-
-        if (table.shading != null)
-        {
-            table.shading = table.shading.Clone();
-            table.shading.parent = table;
-        }
-
-        return table;
-    }
-
-    /// <summary>
     /// Adds a new column to the table. Allowed only before any row was added.
     /// </summary>
     public Column AddColumn()

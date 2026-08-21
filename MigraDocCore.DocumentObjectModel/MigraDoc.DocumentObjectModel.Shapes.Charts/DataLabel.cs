@@ -60,19 +60,6 @@ public partial class DataLabel : DocumentObject
     return (DataLabel)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    DataLabel dataLabel = (DataLabel)base.DeepCopy();
-    if (dataLabel.font != null)
-    {
-      dataLabel.font = dataLabel.font.Clone();
-      dataLabel.font.parent = dataLabel;
-    }
-    return dataLabel;
-  }
   #endregion
 
   #region Properties

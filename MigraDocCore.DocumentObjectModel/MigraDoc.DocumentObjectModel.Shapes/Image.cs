@@ -64,19 +64,6 @@ public partial class Image : Shape
         return (Image)DeepCopy();
     }
 
-    /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Image image = (Image)base.DeepCopy();
-        if (image.pictureFormat != null)
-        {
-            image.pictureFormat = image.pictureFormat.Clone();
-            image.pictureFormat.parent = image;
-        }
-        return image;
-    }
     //#endregion
     [DV]
     // Written only through the reflection layer, so it needs an initializer to count as assigned.
