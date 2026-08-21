@@ -45,7 +45,7 @@ public sealed class XmpExtensionSchema
     {
         SchemaName = Require(schemaName, nameof(schemaName));
         NamespaceUri = Require(namespaceUri, nameof(namespaceUri));
-        Prefix = RequireName(Require(prefix, nameof(prefix)), nameof(prefix));
+        Prefix = RequireName(Require(prefix, nameof(prefix)));
 
         if (properties == null || properties.Count == 0)
             throw new InvalidOperationException(
@@ -78,9 +78,11 @@ public sealed class XmpExtensionSchema
     }
 
     /// <summary>
-    /// Refuses anything XML would not accept as a name, naming the property and the value.
+    /// Refuses anything XML would not accept as a name, naming the value. There is only the one
+    /// caller of this — the prefix — so the label in the message is fixed rather than derived from a
+    /// parameter name.
     /// </summary>
-    private static string RequireName(string value, string parameterName)
+    private static string RequireName(string value)
     {
         try
         {
@@ -89,9 +91,9 @@ public sealed class XmpExtensionSchema
         catch (XmlException malformed)
         {
             throw new InvalidOperationException(
-                parameterName + " becomes part of an XML element name and of a namespace declaration, "
-                + "so it has to be a name XML accepts — no spaces, no quotation marks, no colon, and "
-                + "not starting with a digit. '" + value + "' is not one: " + malformed.Message,
+                "Prefix becomes part of an XML element name and of a namespace declaration, so it has "
+                + "to be a name XML accepts — no spaces, no quotation marks, no colon, and not "
+                + "starting with a digit. '" + value + "' is not one: " + malformed.Message,
                 malformed);
         }
 
