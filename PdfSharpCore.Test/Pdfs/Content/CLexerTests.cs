@@ -529,6 +529,21 @@ public class CLexerTests
     }
 
     /// <summary>
+    ///   An integer too large for CSymbol.Integer used to be refused outright. The document lexer
+    ///   degrades the same value to a real rather than throw - CSymbol has no separate "long
+    ///   integer" symbol to reach for instead, so a real is the fallback here too.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData("5000000000")]  // past Int32.MaxValue
+    [InlineData("-5000000000")] // and its negative counterpart
+    public async Task ScanNumber_degradesAnIntegerOutOfRangeToAReal(string content)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.Real).Should().Equal(content);
+    }
+
+    /// <summary>
     ///   The document lexer refuses to append the end-of-content marker to a token rather than
     ///   grow one out of it, and CLexer now carries the same guard. No grammar rule reaches it
     ///   through the public surface - each of ScanComment, ScanName and ScanOperator checks the

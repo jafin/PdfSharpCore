@@ -403,8 +403,11 @@ public class CLexer
         if (value >= Int32.MinValue && value < Int32.MaxValue)
             return CSymbol.Integer;
 
-        ContentReaderDiagnostics.ThrowNumberOutOfIntegerRange(value);
-        return CSymbol.Error;
+        // Out of range for CSymbol.Integer, which a content operand is expected to fit. The
+        // document lexer degrades a too-large integer to a real rather than refuse it outright -
+        // CSymbol has no separate "long integer" symbol to reach for instead, so a real is the
+        // same fallback here. _tokenAsReal was already set to this value above.
+        return CSymbol.Real;
     }
 
     /// <summary>
