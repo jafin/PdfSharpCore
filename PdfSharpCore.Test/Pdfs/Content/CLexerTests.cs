@@ -49,6 +49,27 @@ public class CLexerTests
         TokensOf(tokens, CSymbol.Operator).Should().Equal("BT", "Q");
     }
 
+    // The document lexer treats '{' and '}' as delimiters; CLexer's copy of the list had both
+    // commented out, so a name written hard against one - with no white space to end it instead -
+    // swallowed the brace as if it were one more character of the name. Neither lexer's grammar
+    // has a token that starts with a bare brace, so this scans the one name token rather than
+    // scanning on into what follows it.
+    [Theory(Timeout = 5000)]
+    [InlineData("/Foo{", "/Foo")]
+    [InlineData("/Foo}", "/Foo")]
+    public async Task ScanName_endsAtABraceWithNoWhiteSpaceNeeded(string content, string expected)
+    {
+        var scanned = await Interruptibly.Run(() =>
+        {
+            var lexer = new CLexer(Encoding.ASCII.GetBytes(content));
+            var symbol = lexer.ScanNextToken();
+            return (symbol, lexer.Token);
+        });
+
+        scanned.symbol.Should().Be(CSymbol.Name);
+        scanned.Token.Should().Be(expected);
+    }
+
     [Theory(Timeout = 5000)]
     [InlineData("<< /W 16", CSymbol.Dictionary)]
     [InlineData("(unterminated", CSymbol.String)]

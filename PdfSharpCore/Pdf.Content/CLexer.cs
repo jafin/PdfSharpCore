@@ -951,8 +951,8 @@ public class CLexer
             case '>':
             case '[':
             case ']':
-            //case '{':
-            //case '}':
+            case '{':
+            case '}':
             case '/':
             case '%':
                 return true;
