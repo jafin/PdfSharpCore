@@ -52,7 +52,7 @@ public sealed class XmpExtensionSchema
                 "A schema with no properties declares nothing, so there is nothing for a validator to "
                 + "hold it to.");
 
-        Properties = properties.ToList();
+        Properties = properties.ToList().AsReadOnly();
     }
 
     /// <summary>The human-readable name of the schema.</summary>
@@ -96,6 +96,17 @@ public sealed class XmpExtensionSchema
                 + "starting with a digit. '" + value + "' is not one: " + malformed.Message,
                 malformed);
         }
+
+        // An NCName alone is not enough: XML Namespaces reserves 'xml' and 'xmlns', so neither can
+        // be bound to another URI, and 'rdf' would rebind the namespace this packet already uses for
+        // rdf:Description and rdf:about on the very element the schema's values are written into.
+        if (value.Equals("xml", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("xmlns", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("rdf", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Prefix '" + value + "' is reserved and cannot be declared: 'xml' and 'xmlns' cannot "
+                + "be bound to another namespace, and 'rdf' is already bound to the one this packet "
+                + "writes rdf:Description and rdf:about in.");
 
         return value;
     }

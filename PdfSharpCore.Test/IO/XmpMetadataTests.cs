@@ -396,6 +396,35 @@ public class XmpMetadataTests
             .WithMessage("*Prefix*").WithMessage("*not a name*");
     }
 
+    [Theory]
+    [InlineData("xml")]
+    [InlineData("xmlns")]
+    [InlineData("rdf")]
+    [InlineData("RDF")]
+    public void AReservedPrefixIsRefusedEvenThoughItIsAnXmlName(string prefix)
+    {
+        // Each of these is a valid NCName on its own, but XML Namespaces reserves 'xml' and 'xmlns',
+        // and 'rdf' is already bound to the namespace rdf:Description and rdf:about are written in.
+        Action declaring = () => new XmpExtensionSchema(
+            "Sample schema", "http://example.invalid/sample/1.0/", prefix,
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "value") });
+
+        declaring.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Prefix*").WithMessage("*reserved*");
+    }
+
+    [Fact]
+    public void APropertyNameThatIsNotAnXmlNameIsRefused()
+    {
+        // The name becomes part of an element name too, the same as the prefix — see
+        // APrefixThatIsNotAnXmlNameIsRefusedNamingTheValue — and is checked the same way.
+        Action declaring = () => new XmpSchemaProperty(
+            "not a name", "A note", XmpPropertyCategory.Internal, "value");
+
+        declaring.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Name*").WithMessage("*not a name*");
+    }
+
     [Fact]
     public void TwoSchemasCanBeDeclaredInOnePacketAndBothAppear()
     {

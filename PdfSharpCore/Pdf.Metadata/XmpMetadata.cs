@@ -96,7 +96,7 @@ public sealed class XmpMetadata
     /// <see cref="DeclareSchema"/>; there is no other way to add to it, because a schema added any
     /// other way could not have had its prefix checked against the ones already here.
     /// </summary>
-    public IReadOnlyList<XmpExtensionSchema> ExtensionSchemas => _extensionSchemas;
+    public IReadOnlyList<XmpExtensionSchema> ExtensionSchemas => _extensionSchemas.AsReadOnly();
 
     /// <summary>
     /// Declares a namespace of the caller's own, so that the properties it describes may be written

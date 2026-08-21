@@ -1,4 +1,5 @@
 using System;
+using System.Xml;
 
 namespace PdfSharpCore.Pdf.Metadata;
 
@@ -15,9 +16,9 @@ public sealed class XmpSchemaProperty
 {
     /// <param name="name">
     /// The property's name. Becomes part of an XML element name in the packet — <c>fx:DocumentType</c>
-    /// for a property named <c>DocumentType</c> in a schema prefixed <c>fx</c> — so it has to be one a
-    /// reader can use as one; this is not checked the way a prefix is, because every caller so far has
-    /// passed a literal it wrote itself.
+    /// for a property named <c>DocumentType</c> in a schema prefixed <c>fx</c> — so it is refused when
+    /// it is not an XML NCName, the same check <see cref="XmpExtensionSchema"/> applies to a prefix
+    /// and for the same reason: there is no escaping it once it becomes part of an element name.
     /// </param>
     /// <param name="description">The human-readable description a validator shows for the property.</param>
     /// <param name="category">
@@ -29,7 +30,7 @@ public sealed class XmpSchemaProperty
     /// </param>
     public XmpSchemaProperty(string name, string description, XmpPropertyCategory category, string value)
     {
-        Name = Require(name, nameof(name));
+        Name = RequireName(Require(name, nameof(name)));
         Description = Require(description, nameof(description));
         Category = category;
         Value = Require(value, nameof(value));
@@ -53,6 +54,29 @@ public sealed class XmpSchemaProperty
             throw new InvalidOperationException(
                 parameterName + " has to say something: it goes into the metadata, and a property "
                 + "described by an empty string is described by nothing.");
+
+        return value;
+    }
+
+    /// <summary>
+    /// Refuses anything XML would not accept as a name, naming the value. There is only the one
+    /// caller of this — the name — so the label in the message is fixed rather than derived from a
+    /// parameter name.
+    /// </summary>
+    private static string RequireName(string value)
+    {
+        try
+        {
+            XmlConvert.VerifyNCName(value);
+        }
+        catch (XmlException malformed)
+        {
+            throw new InvalidOperationException(
+                "Name becomes part of an XML element name, so it has to be a name XML accepts — no "
+                + "spaces, no quotation marks, no colon, and not starting with a digit. '" + value
+                + "' is not one: " + malformed.Message,
+                malformed);
+        }
 
         return value;
     }

@@ -29,7 +29,7 @@ internal sealed class ArchiveDemo : PdfDemo
         "That the claim is enforced at save time rather than stamped on the file",
         "The XMP packet the document actually carries, printed from its own bytes",
         "OutputIntentIccProfile and PdfOutputIntents.SrgbProfile, and what a document gets unset",
-        "CustomizeMetadata and XmpMetadata.AdditionalDescriptions, the seam the FacturX demo uses",
+        "CustomizeMetadata and XmpMetadata.DeclareSchema, the seam the FacturX demo uses",
         "That a namespace PDF/A has not heard of has to be declared in an extension schema first",
         "Five refusal messages, caught from documents built to break one rule each",
     };
