@@ -75,9 +75,27 @@
       how wide a tick label measures, and a tick label's width decides how much room the axis
       renderer leaves itself and therefore where every column on the plot area lands. Liberation
       Sans carries the metrics of Arial, which is what the charting defaults ask for.
+
+      All four faces the linked resolver can hand out, not only the Liberation Sans ones: it
+      answers the CFF, Arabic and Devanagari families by name too, and a project that linked the
+      class without linking what it reads would have it throw FileNotFoundException the day a test
+      here asks for one of them by name, instead of the "not shipped here" it would get from a
+      resolver that never heard of that family.
     -->
     <None Include="..\PdfSharpCore.Test\Assets\Fonts\LiberationSans-*.ttf"
           Link="Assets\Fonts\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\PdfSharpCore.Test\Assets\Fonts\SourceCodePro-Regular.otf"
+          Link="Assets\Fonts\SourceCodePro-Regular.otf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\PdfSharpCore.Test\Assets\Fonts\NotoSansArabic-Regular.ttf"
+          Link="Assets\Fonts\NotoSansArabic-Regular.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\PdfSharpCore.Test\Assets\Fonts\NotoSansDevanagari-Regular.ttf"
+          Link="Assets\Fonts\NotoSansDevanagari-Regular.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\PdfSharpCore.Test\Assets\Fonts\LICENSE.txt"
