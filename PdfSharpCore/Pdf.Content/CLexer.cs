@@ -798,6 +798,13 @@ public class CLexer
     /// </summary>
     internal char AppendAndScanNextChar()
     {
+        // The document lexer refuses rather than appends the end-of-content marker itself, so a
+        // grammar rule that keeps calling this past the end - rather than stopping at the
+        // character it was just handed - is stopped here instead of growing a token out of a
+        // sentinel that is not content.
+        if (_currChar == Chars.EOF)
+            ContentReaderDiagnostics.ThrowContentReaderException("Undetected EOF reached.");
+
         _token.Append(_currChar);
         return ScanNextChar();
     }

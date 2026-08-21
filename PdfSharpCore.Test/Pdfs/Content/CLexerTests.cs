@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using AwesomeAssertions;
@@ -469,6 +470,29 @@ public class CLexerTests
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
         TokensOf(tokens, CSymbol.Operator).Should().Equal("d");
+    }
+
+    /// <summary>
+    ///   The document lexer refuses to append the end-of-content marker to a token rather than
+    ///   grow one out of it, and CLexer now carries the same guard. No grammar rule reaches it
+    ///   through the public surface - each of ScanComment, ScanName and ScanOperator checks the
+    ///   character this method returns for the end of content before calling it again - which is
+    ///   exactly why the guard exists: it is what stops a rule that someday does not make that
+    ///   check from reading past the token buffer instead. AppendAndScanNextChar is internal and
+    ///   this repository carries no InternalsVisibleTo, so it is reached by reflection.
+    /// </summary>
+    [Fact]
+    public void AppendAndScanNextChar_refusesToAppendTheEndOfContentMarker()
+    {
+        var lexer = new CLexer(Array.Empty<byte>());
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(CLexer).GetField("_currChar", flags)!.SetValue(lexer, (char)0xFFFF);
+        var method = typeof(CLexer).GetMethod("AppendAndScanNextChar", flags)!;
+
+        Action invoke = () => method.Invoke(lexer, null);
+
+        invoke.Should().Throw<TargetInvocationException>()
+            .WithInnerException<ContentReaderException>();
     }
 
     static IEnumerable<string> TokensOf(IEnumerable<(CSymbol Symbol, string Token)> tokens, CSymbol symbol)
