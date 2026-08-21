@@ -8,6 +8,7 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.Metadata;
 using PdfSharpCore.Pdf.Security;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 // This namespace has a PdfReader of its own, so the one that opens documents needs saying in full.
@@ -26,14 +27,8 @@ namespace PdfSharpCore.Test.IO;
 /// </summary>
 public class XmpMetadataTests
 {
-    private const string Title = "Invoice 2026-0042";
-
-    /// <summary>
-    ///   Not a real ICC profile. Nothing here parses one — the writer embeds the bytes it is given —
-    ///   so a recognisable stand-in makes the assertions legible and says plainly that this test is
-    ///   not a colour-management test.
-    /// </summary>
-    private static readonly byte[] SomeProfile = Encoding.ASCII.GetBytes("NOT-AN-ICC-PROFILE");
+    private const string Title = ConformingDocument.Title;
+    private static readonly byte[] SomeProfile = ConformingDocument.SomeProfile;
 
     private static readonly XNamespace PdfaSchema = "http://www.aiim.org/pdfa/ns/schema#";
     private static readonly XNamespace PdfaProperty = "http://www.aiim.org/pdfa/ns/property#";
@@ -306,6 +301,124 @@ public class XmpMetadataTests
         saving.Should().Throw<InvalidOperationException>().WithMessage("*PDF/A-1*");
     }
 
+    // ── ClaimConformance: refused at the claim, where the checks can be settled that early ───────
+
+    [Fact]
+    public void ClaimingConformanceChecksTheTitleImmediately()
+    {
+        var document = new PdfDocument();
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        claiming.Should().Throw<InvalidOperationException>().WithMessage("*has to have a title*");
+        document.Options.Conformance.Should().Be(PdfAConformance.None,
+            "a refused claim must not half-set what it refused to make");
+    }
+
+    [Fact]
+    public void ClaimingConformanceChecksEncryptionImmediately()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.SecuritySettings.DocumentSecurityLevel = PdfDocumentSecurityLevel.Encrypted128Bit;
+        document.SecuritySettings.OwnerPassword = "12343";
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        claiming.Should().Throw<InvalidOperationException>().WithMessage("*may not be encrypted*");
+    }
+
+    [Fact]
+    public void ClaimingConformanceChecksACmykColourModeImmediately()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.Options.ColorMode = PdfColorMode.Cmyk;
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        claiming.Should().Throw<InvalidOperationException>().WithMessage("*OutputIntentIccProfile*");
+    }
+
+    [Fact]
+    public void ClaimingConformanceChecksAnUndefinedColourModeImmediately()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.Options.ColorMode = PdfColorMode.Undefined;
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        claiming.Should().Throw<InvalidOperationException>().WithMessage("*Undefined*");
+    }
+
+    [Fact]
+    public void ClaimingPdfA1OverACrossReferenceStreamIsRefusedImmediately()
+    {
+        // The version a cross-reference stream implies is not raised until the document is
+        // written, which used to be the reason this rule could only be asked at Save. Checked here
+        // directly against the setting rather than against the version it would eventually raise.
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.Options.CrossReferenceFormat = PdfCrossReferenceFormat.Stream;
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA1B);
+
+        claiming.Should().Throw<InvalidOperationException>().WithMessage("*PDF/A-1*");
+    }
+
+    [Fact]
+    public void ClaimingConformanceSucceedsWhenEverythingItCanCheckIsAlreadyTrue()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.Options.OutputIntentIccProfile = SomeProfile;
+
+        document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        document.Options.Conformance.Should().Be(PdfAConformance.PdfA2B);
+    }
+
+    [Fact]
+    public void ARefusedClaimLeavesWhateverWasClaimedBeforeInPlace()
+    {
+        var document = new PdfDocument();
+        document.Info.Title = Title;
+        document.ClaimConformance(PdfAConformance.PdfA3B);
+
+        document.SecuritySettings.DocumentSecurityLevel = PdfDocumentSecurityLevel.Encrypted128Bit;
+        document.SecuritySettings.OwnerPassword = "12343";
+
+        var claiming = () => document.ClaimConformance(PdfAConformance.PdfA2B);
+
+        claiming.Should().Throw<InvalidOperationException>();
+        document.Options.Conformance.Should().Be(PdfAConformance.PdfA3B,
+            "a refused reclaim should not half-change what the document already claims");
+    }
+
+    [Fact]
+    public void ClaimingConformanceDoesNotCheckForAnAttachmentAddedAfterwards()
+    {
+        // Attachments cannot be checked at the claim: a caller may legitimately claim PDF/A-3 and
+        // attach a file afterwards, which is exactly what FacturXInvoice does. That rule is not
+        // moved early — it stays at Save, checked against the document as it stands there.
+        var document = new PdfDocument();
+        document.AddPage();
+        document.Info.Title = Title;
+
+        document.ClaimConformance(PdfAConformance.PdfA1B);
+        document.Attachments.Add("data.xml", Encoding.UTF8.GetBytes("<x/>"),
+            PdfAFRelationship.Data, "Data", "text/xml");
+
+        var saving = () =>
+        {
+            using var output = new MemoryStream();
+            document.Save(output, false);
+        };
+
+        saving.Should().Throw<InvalidOperationException>().WithMessage("*embedded file*");
+    }
+
     [Fact]
     public void TheHookCannotWithdrawTheConformanceClaim()
     {
@@ -507,6 +620,33 @@ public class XmpMetadataTests
     }
 
     [Fact]
+    public void EveryRegisteredContributorSurvivesAlongsideTheOthers()
+    {
+        // CustomizeMetadata is a single assignable delegate — the wrong shape for something several
+        // independent packages each want to add to. AddMetadataContributor has no such slot to lose:
+        // every one registered is called, whatever order they were registered in and whatever else
+        // the document already carries.
+        var bytes = Save(document =>
+        {
+            document.Options.WriteXmpMetadata = true;
+            document.AddMetadataContributor(metadata => metadata.AdditionalDescriptions.Add(
+                "<rdf:Description rdf:about=\"\" xmlns:a=\"urn:example:a#\">"
+                + "<a:One>first</a:One></rdf:Description>"));
+            document.CustomizeMetadata = metadata => metadata.AdditionalDescriptions.Add(
+                "<rdf:Description rdf:about=\"\" xmlns:b=\"urn:example:b#\">"
+                + "<b:Two>second</b:Two></rdf:Description>");
+            document.AddMetadataContributor(metadata => metadata.AdditionalDescriptions.Add(
+                "<rdf:Description rdf:about=\"\" xmlns:c=\"urn:example:c#\">"
+                + "<c:Three>third</c:Three></rdf:Description>"));
+        });
+
+        var text = Latin1(bytes);
+        text.Should().Contain("<a:One>first</a:One>");
+        text.Should().Contain("<b:Two>second</b:Two>");
+        text.Should().Contain("<c:Three>third</c:Three>");
+    }
+
+    [Fact]
     public void ThePacketAndTheInformationDictionaryAgreeAboutTheTitle()
     {
         // A validator compares the two and complains when they differ, which is why the packet is
@@ -559,12 +699,8 @@ public class XmpMetadataTests
     }
 
     /// <summary>Everything a document needs before it may claim a profile.</summary>
-    private static Action<PdfDocument> Conforming(PdfAConformance conformance) => document =>
-    {
-        document.Options.Conformance = conformance;
-        document.Options.OutputIntentIccProfile = SomeProfile;
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
-    };
+    private static Action<PdfDocument> Conforming(PdfAConformance conformance) =>
+        ConformingDocument.Conforming(conformance);
 
     private static byte[] Save(Action<PdfDocument> arrange)
     {

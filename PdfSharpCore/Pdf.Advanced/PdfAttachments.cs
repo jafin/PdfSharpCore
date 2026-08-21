@@ -133,9 +133,7 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
         // is PDF 1.7 and /AF later still, and a document announcing 1.4 while carrying them tells a
         // reader it may ignore exactly the parts that make the attachment findable. A PDF/A-3 claim
         // raises the same floor, so this is what the document that makes no claim was missing.
-        // Raised rather than set, so a document that has already asked for more keeps it.
-        if (_document._version < 17)
-            _document._version = 17;
+        PdfVersionRequirements.Require(_document, 17);
 
         Associate(specification);
         Register(fileName, specification);

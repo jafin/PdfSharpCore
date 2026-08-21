@@ -8,6 +8,7 @@ using PdfSharpCore.EInvoice;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Test.Helpers;
 using Xunit;
 
 // This namespace has a PdfReader of its own, so the one that opens documents needs saying in full.
@@ -28,16 +29,10 @@ namespace PdfSharpCore.Test.Pdfs;
 /// </summary>
 public class EInvoiceTests
 {
-    private const string Title = "Invoice 2026-0042";
+    private const string Title = ConformingDocument.Title;
 
     private const string InvoiceXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Invoice><ID>2026-0042</ID></Invoice>";
-
-    /// <summary>
-    ///   Not a real ICC profile — nothing here parses one, and saying so plainly keeps this from
-    ///   reading as a colour-management test.
-    /// </summary>
-    private static readonly byte[] SomeProfile = Encoding.ASCII.GetBytes("NOT-AN-ICC-PROFILE");
 
     private static readonly XNamespace PdfaSchema = "http://www.aiim.org/pdfa/ns/schema#";
     private static readonly XNamespace PdfaProperty = "http://www.aiim.org/pdfa/ns/property#";
@@ -160,16 +155,35 @@ public class EInvoiceTests
     }
 
     [Fact]
-    public void AHookTheCallerAlreadySetIsCalledRatherThanReplaced()
+    public void AHookTheCallerAlreadySetSurvivesAlongsideTheInvoice()
     {
-        // The packet is built at save time, so CustomizeMetadata is the only way in — and a helper
-        // that assigned over it would silently drop whatever the caller had put there.
+        // AttachTo contributes through AddMetadataContributor, which cannot replace whatever
+        // CustomizeMetadata already held — the two are independent slots, both always invoked.
         var document = Prepared();
         document.CustomizeMetadata = metadata => metadata.AdditionalDescriptions.Add(
             "<rdf:Description rdf:about=\"\" xmlns:mine=\"urn:example:mine#\">"
             + "<mine:Note>kept</mine:Note></rdf:Description>");
 
         new FacturXInvoice(Xml()).AttachTo(document);
+
+        var text = Latin1(Written(document));
+        text.Should().Contain("<mine:Note>kept</mine:Note>");
+        text.Should().Contain("Factur-X PDFA Extension Schema");
+    }
+
+    [Fact]
+    public void AHookSetAfterAttachingTheInvoiceSurvivesJustAsWell()
+    {
+        // The bug this guards against: a single assignable CustomizeMetadata meant a caller who set
+        // it after AttachTo silently dropped the extension schema and the four fx: properties — the
+        // document still claimed PDF/A-3, still opened perfectly, and failed validation for its
+        // metadata. AddMetadataContributor has no ordering to get wrong.
+        var document = Prepared();
+
+        new FacturXInvoice(Xml()).AttachTo(document);
+        document.CustomizeMetadata = metadata => metadata.AdditionalDescriptions.Add(
+            "<rdf:Description rdf:about=\"\" xmlns:mine=\"urn:example:mine#\">"
+            + "<mine:Note>kept</mine:Note></rdf:Description>");
 
         var text = Latin1(Written(document));
         text.Should().Contain("<mine:Note>kept</mine:Note>");
@@ -296,15 +310,7 @@ public class EInvoiceTests
     ///   A document with the two things a PDF/A claim will be held to at save time, so that a test
     ///   about invoicing fails for something about invoicing.
     /// </summary>
-    private static PdfDocument Prepared()
-    {
-        var document = new PdfDocument();
-        document.AddPage();
-        document.Info.Title = Title;
-        document.Options.OutputIntentIccProfile = SomeProfile;
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
-        return document;
-    }
+    private static PdfDocument Prepared() => ConformingDocument.Prepared();
 
     private static byte[] Xml() => Encoding.UTF8.GetBytes(InvoiceXml);
 
