@@ -83,15 +83,16 @@ thing most worth knowing before adding a renderer to this.
 
 **A refused scope is the trap the artifact rule sets.** `Tagger.Block` and `Tagger.Container` hand
 back `StructureTagger.Nothing` and push nothing when tagging is refused — which, per the rule above,
-is what happens inside an artifact. `Tagger.Current` then still names whatever was current *before*
-the artifact opened, because `Artifact` deliberately does not change the current element. So a
-renderer that opened a scope and then read `Current` to find "the element I just opened" got an
-unrelated one, and wrote its metadata onto that: an image with alternate text in a running head put
-"The company logo." onto the body of the page, and a table with a summary in a header put its
-`/Summary` on an enclosing element. Three renderers did this. The fix is to stop inferring the
-element: `Block` and `Container` have overloads handing it back, `null` when nothing was opened, and
-`DescribeCell`/`DescribeTable` take it as a parameter. **A renderer with something to write onto an
-element must never read `Current` for it.**
+is what happens inside an artifact. `Tagger.Parent` (named `Current` at the time this was found) then
+still names whatever was current *before* the artifact opened, because `Artifact` deliberately does
+not change the current element. So a renderer that opened a scope and then read that property to find
+"the element I just opened" got an unrelated one, and wrote its metadata onto that: an image with
+alternate text in a running head put "The company logo." onto the body of the page, and a table with a
+summary in a header put its `/Summary` on an enclosing element. Three renderers did this. The fix is
+to stop inferring the element: `Block` and `Container` have overloads handing it back, `null` when
+nothing was opened, and `DescribeCell`/`DescribeTable` take it as a parameter. **A renderer with
+something to write onto an element must never read `Parent` for it** — see
+`docs/specs/structure-tagger-interface.md` for the rename that made the two questions two names.
 
 **`CanTag` has to ask whether a page has been begun.** `_document` is assigned by `BeginPage`, and
 everything the tagger builds is built against it — but nothing obliges a caller to begin a page.

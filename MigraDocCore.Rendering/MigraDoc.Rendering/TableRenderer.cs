@@ -403,7 +403,7 @@ internal class TableRenderer : Renderer
   /// table continues onto, and they have to stay the same rows.
   /// </remarks>
   PdfStructureElement RowElementOf(Cell cell) =>
-    Tagger.Element(cell.Row, PdfTag.TR, Tagger.Current);
+    Tagger.Element(cell.Row, PdfTag.TR, Tagger.Parent);
 
   void InitFormat(Area area, FormatInfo previousFormatInfo)
   {
