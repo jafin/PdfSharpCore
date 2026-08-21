@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Linq;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
+using PdfSharpCore.Pdf.Metadata;
 
 namespace PdfSharpCore.EInvoice;
 
@@ -176,11 +176,12 @@ public sealed class FacturXInvoice
         Required(DocumentType, nameof(DocumentType));
         Required(Version, nameof(Version));
 
-        // Checked rather than escaped, because there is no escaping it: the prefix becomes part of
-        // an element name and of a namespace declaration, and neither is a place a character can be
-        // written as an entity. A prefix that is not a name produces a packet no parser will read,
-        // and the point of this class is that the metadata is right.
-        RequiredName(Prefix, nameof(Prefix));
+        // Built now rather than inside the hook, so that a later edit to this object does not change
+        // what a document already told to carry the invoice says about it. Built before anything about
+        // the document changes, too: an XmpExtensionSchema refuses a prefix XML would not accept as a
+        // name, and the point of building it here is that the refusal happens before the document is
+        // half converted.
+        var schema = Schema();
 
         var claimed = document.Options.Conformance;
         if (claimed != PdfAConformance.None && claimed != PdfAConformance.PdfA3B)
@@ -198,17 +199,11 @@ public sealed class FacturXInvoice
 
         document.Options.Conformance = PdfAConformance.PdfA3B;
 
-        // Both descriptions are built now rather than inside the hook, so that a later edit to this
-        // object does not change what a document already told to carry the invoice says about it.
-        var extension = ExtensionSchema();
-        var values = InvoiceProperties();
-
         var alreadyThere = document.CustomizeMetadata;
         document.CustomizeMetadata = metadata =>
         {
             alreadyThere?.Invoke(metadata);
-            metadata.AdditionalDescriptions.Add(extension);
-            metadata.AdditionalDescriptions.Add(values);
+            metadata.DeclareSchema(schema);
         };
 
         return specification;
@@ -286,7 +281,9 @@ public sealed class FacturXInvoice
     }
 
     /// <summary>
-    /// The <c>pdfaExtension</c> description declaring the four properties the packet then uses.
+    /// The extension schema declaring the four properties the packet then uses, built from
+    /// <see cref="Properties"/> so that the declared set and the written set are the same set by
+    /// construction.
     /// </summary>
     /// <remarks>
     /// Not optional and not decoration. PDF/A requires every property in the metadata to belong to a
@@ -294,57 +291,17 @@ public sealed class FacturXInvoice
     /// predefined schema — so a packet carrying <c>fx:DocumentType</c> without this fails validation
     /// for its metadata rather than for its invoice, which is a confusing way to be wrong.
     /// </remarks>
-    private string ExtensionSchema()
+    private XmpExtensionSchema Schema()
     {
-        var xmp = new StringBuilder();
+        var properties = Properties()
+            .Select(property => new XmpSchemaProperty(
+                property.Name, property.Description,
+                // "external" says the value describes something that came from outside rather than
+                // something derived from the document's own content, which an invoice attached to it is.
+                XmpPropertyCategory.External, property.Value))
+            .ToList();
 
-        xmp.Append("<rdf:Description rdf:about=\"\"")
-           .Append(" xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\"")
-           .Append(" xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\"")
-           .Append(" xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">\n");
-        xmp.Append("   <pdfaExtension:schemas>\n");
-        xmp.Append("    <rdf:Bag>\n");
-        xmp.Append("     <rdf:li rdf:parseType=\"Resource\">\n");
-        xmp.Append("      <pdfaSchema:schema>").Append(Escape(SchemaName)).Append("</pdfaSchema:schema>\n");
-        xmp.Append("      <pdfaSchema:namespaceURI>").Append(Escape(NamespaceUri))
-           .Append("</pdfaSchema:namespaceURI>\n");
-        xmp.Append("      <pdfaSchema:prefix>").Append(Escape(Prefix)).Append("</pdfaSchema:prefix>\n");
-        xmp.Append("      <pdfaSchema:property>\n");
-        xmp.Append("       <rdf:Seq>\n");
-
-        foreach (var property in Properties())
-            AppendPropertyDeclaration(xmp, property.Name, property.Description);
-
-        xmp.Append("       </rdf:Seq>\n");
-        xmp.Append("      </pdfaSchema:property>\n");
-        xmp.Append("     </rdf:li>\n");
-        xmp.Append("    </rdf:Bag>\n");
-        xmp.Append("   </pdfaExtension:schemas>\n");
-        xmp.Append("  </rdf:Description>");
-
-        return xmp.ToString();
-    }
-
-    /// <summary>
-    /// The description saying what this document's invoice actually is.
-    /// </summary>
-    private string InvoiceProperties()
-    {
-        var xmp = new StringBuilder();
-
-        xmp.Append("<rdf:Description rdf:about=\"\" xmlns:").Append(Escape(Prefix)).Append("=\"")
-           .Append(Escape(NamespaceUri)).Append("\">\n");
-
-        foreach (var property in Properties())
-        {
-            xmp.Append("   <").Append(Prefix).Append(':').Append(property.Name).Append('>')
-               .Append(Escape(property.Value))
-               .Append("</").Append(Prefix).Append(':').Append(property.Name).Append(">\n");
-        }
-
-        xmp.Append("  </rdf:Description>");
-
-        return xmp.ToString();
+        return new XmpExtensionSchema(SchemaName, NamespaceUri, Prefix, properties);
     }
 
     /// <summary>
@@ -377,63 +334,11 @@ public sealed class FacturXInvoice
             "The profile of the embedded XML document", ConformanceLevelOf(Profile));
     }
 
-    private static void AppendPropertyDeclaration(StringBuilder xmp, string name, string description)
-    {
-        xmp.Append("        <rdf:li rdf:parseType=\"Resource\">\n");
-        xmp.Append("         <pdfaProperty:name>").Append(name).Append("</pdfaProperty:name>\n");
-        xmp.Append("         <pdfaProperty:valueType>Text</pdfaProperty:valueType>\n");
-
-        // "external" says the value describes something that came from outside rather than something
-        // derived from the document's own content, which an invoice attached to it is.
-        xmp.Append("         <pdfaProperty:category>external</pdfaProperty:category>\n");
-        xmp.Append("         <pdfaProperty:description>").Append(Escape(description))
-           .Append("</pdfaProperty:description>\n");
-        xmp.Append("        </rdf:li>\n");
-    }
-
-    /// <summary>
-    /// The three characters <see cref="Pdf.Metadata.XmpMetadata"/> escapes, for the same reason —
-    /// these descriptions are written into the packet verbatim, so an ampersand in one of them
-    /// makes the whole packet unparseable rather than only the part of it that is wrong — and the
-    /// quotation mark besides.
-    /// </summary>
-    /// <remarks>
-    /// The fourth is the difference between this and the packet writer, and it is not decoration.
-    /// <see cref="NamespaceUri"/> is written into an <em>attribute</em> value rather than into
-    /// element text, where a quotation mark ends the attribute early and everything after it
-    /// becomes markup. Escaping it in element text as well is harmless and saves having two
-    /// routines a caller could pick the wrong one of.
-    /// </remarks>
-    private static string Escape(string value) => value
-        .Replace("&", "&amp;")
-        .Replace("<", "&lt;")
-        .Replace(">", "&gt;")
-        .Replace("\"", "&quot;");
-
     private static void Required(string value, string property)
     {
         if (string.IsNullOrEmpty(value))
             throw new InvalidOperationException(
                 property + " has to say something: it goes into the metadata, and an invoice "
                 + "described by an empty string is described by nothing.");
-    }
-
-    /// <summary>
-    /// Refuses anything XML would not accept as a name, naming the property and the value.
-    /// </summary>
-    private static void RequiredName(string value, string property)
-    {
-        try
-        {
-            XmlConvert.VerifyNCName(value);
-        }
-        catch (XmlException malformed)
-        {
-            throw new InvalidOperationException(
-                property + " becomes part of an XML element name and of a namespace declaration, so "
-                + "it has to be a name XML accepts — no spaces, no quotation marks, no colon, and "
-                + "not starting with a digit. '" + value + "' is not one: " + malformed.Message,
-                malformed);
-        }
     }
 }
