@@ -71,7 +71,13 @@ internal sealed class StructureTagger
     /// <summary>
     /// The element that anything tagged now becomes a child of.
     /// </summary>
-    internal PdfStructureElement Current => _parents.Count > 0 ? _parents.Peek() : _root;
+    /// <remarks>
+    /// A parent to build a new element under — not the element a scope you just opened returned,
+    /// which a refused scope (one opened inside an artifact) never pushes here. Ask for that through
+    /// the <c>out</c> parameter of <see cref="Block(XGraphics,object,PdfTag,out PdfStructureElement)"/>
+    /// or <see cref="Container(XGraphics,object,PdfTag,out PdfStructureElement)"/> instead.
+    /// </remarks>
+    internal PdfStructureElement Parent => _parents.Count > 0 ? _parents.Peek() : _root;
 
     /// <summary>
     /// Whether the graphics being drawn into can carry marks — which it cannot when tagging is off,
@@ -167,7 +173,7 @@ internal sealed class StructureTagger
     /// </param>
     /// <remarks>
     /// For a caller with something to write onto the element it just opened. It must not read
-    /// <see cref="Current"/> for that: a scope that was refused pushed nothing, so Current still
+    /// <see cref="Parent"/> for that: a scope that was refused pushed nothing, so Parent still
     /// names whatever was current before — the enclosing paragraph, the section, the document — and
     /// the caller's alternate text or summary lands on that instead. A figure in a running head
     /// reaches exactly that case, because a header is drawn inside an artifact and an artifact does
@@ -203,7 +209,7 @@ internal sealed class StructureTagger
     /// <param name="element">
     /// The element that was opened, or null if none was. See
     /// <see cref="Block(XGraphics,object,PdfTag,out PdfStructureElement)"/> for why a caller with
-    /// something to write onto it must ask this way rather than read <see cref="Current"/>.
+    /// something to write onto it must ask this way rather than read <see cref="Parent"/>.
     /// </param>
     internal IDisposable Container(XGraphics gfx, object key, PdfTag tag, out PdfStructureElement element)
     {

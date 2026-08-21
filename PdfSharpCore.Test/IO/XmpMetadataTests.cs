@@ -234,6 +234,28 @@ public class XmpMetadataTests
         Latin1(bytes).Should().Contain("/N 1");
     }
 
+    [Theory]
+    [InlineData("CMY ", 3)]
+    [InlineData("Luv ", 3)]
+    // ICC.1:2010 Table 19's nCLR family for multi-channel devices: the leading character spells
+    // the component count in hex, from '2CLR' (2) up through '9CLR' (9) and 'ACLR' (10) up through
+    // 'FCLR' (15).
+    [InlineData("2CLR", 2)]
+    [InlineData("9CLR", 9)]
+    [InlineData("ACLR", 10)]
+    [InlineData("FCLR", 15)]
+    public void AMultiChannelOrFixedThreeComponentProfileSaysItsOwnComponentCount(
+        string space, int components)
+    {
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.OutputIntentIccProfile = ProfileFor(space);
+        });
+
+        Latin1(bytes).Should().Contain("/N " + components);
+    }
+
     [Fact]
     public void AProfileTooShortToReadFallsBackToWhatTheColourModeImplies()
     {

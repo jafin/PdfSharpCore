@@ -1118,7 +1118,7 @@ internal class ParagraphRenderer : Renderer
     /// runs over, and however many annotations that costs.
     /// </summary>
     PdfStructureElement LinkElementOf(Hyperlink hyperlink) =>
-        Tagger.Element(hyperlink, PdfTag.Link, Tagger.Current);
+        Tagger.Element(hyperlink, PdfTag.Link, Tagger.Parent);
 
     IDisposable linkScope;
     Hyperlink scopedHyperlink;
@@ -1256,7 +1256,7 @@ internal class ParagraphRenderer : Renderer
     /// </summary>
     PdfStructureElement SpanElementOf(BrokenWord word)
     {
-        PdfStructureElement element = Tagger.Element(word.Hyphen, PdfTag.Span, Tagger.Current);
+        PdfStructureElement element = Tagger.Element(word.Hyphen, PdfTag.Span, Tagger.Parent);
         if (element != null)
             element.ActualText = word.Text;
 
