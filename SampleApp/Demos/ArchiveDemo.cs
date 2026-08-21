@@ -6,6 +6,7 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Pdf.Metadata;
 using SampleApp.Infrastructure;
 
 namespace SampleApp.Demos;
@@ -73,14 +74,22 @@ internal sealed class ArchiveDemo : PdfDemo
 
             // Declared before it is used, and that order is the whole lesson. Clause 6.6.2.3.1
             // holds every property in the packet to a schema the file either predefines or
-            // describes, so a document writing sample:demo without the block below opens perfectly
-            // in every reader and fails validation - for its metadata, not for anything a reader
-            // would notice. This demo did exactly that until veraPDF was pointed at its own output.
-            metadata.AdditionalDescriptions.Add(SampleExtensionSchema);
-            metadata.AdditionalDescriptions.Add(
-                "<rdf:Description rdf:about=\"\" xmlns:sample=\"http://example.invalid/sample/1.0/\">"
-                + "<sample:demo>Archive</sample:demo>"
-                + "</rdf:Description>");
+            // describes, so a document writing sample:demo without declaring it first opens
+            // perfectly in every reader and fails validation - for its metadata, not for anything a
+            // reader would notice. This demo did exactly that until veraPDF was pointed at its own
+            // output; DeclareSchema is what makes that mistake unrepresentable rather than merely
+            // fixed once.
+            metadata.DeclareSchema(new XmpExtensionSchema(
+                "PdfSharpCore sample app",
+                "http://example.invalid/sample/1.0/",
+                "sample",
+                new[]
+                {
+                    // "internal" says the value is derived from the document's own content, which a
+                    // note about which demo wrote the file is.
+                    new XmpSchemaProperty("demo", "The demo that wrote this document",
+                        XmpPropertyCategory.Internal, "Archive"),
+                }));
         };
 
         // ----- page one: what the claim means ------------------------------------------------------
@@ -325,35 +334,6 @@ internal sealed class ArchiveDemo : PdfDemo
 
         return document;
     }
-
-    /// <summary>
-    ///   The extension schema declaring this demo's own namespace, which is what makes writing
-    ///   <c>sample:demo</c> into the packet legal rather than merely possible.
-    /// </summary>
-    /// <remarks>
-    ///   One property, so it is short; the shape is the same however many there are. Each property
-    ///   needs a name, a value type, a category - <c>internal</c> for something derived from the
-    ///   document's own content, <c>external</c> for something that came from outside it - and a
-    ///   description. Declare a property the packet never writes, or write one the schema never
-    ///   declared, and a validator objects to either.
-    /// </remarks>
-    const string SampleExtensionSchema =
-        "<rdf:Description rdf:about=\"\""
-        + " xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\""
-        + " xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\""
-        + " xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">"
-        + "<pdfaExtension:schemas><rdf:Bag><rdf:li rdf:parseType=\"Resource\">"
-        + "<pdfaSchema:schema>PdfSharpCore sample app</pdfaSchema:schema>"
-        + "<pdfaSchema:namespaceURI>http://example.invalid/sample/1.0/</pdfaSchema:namespaceURI>"
-        + "<pdfaSchema:prefix>sample</pdfaSchema:prefix>"
-        + "<pdfaSchema:property><rdf:Seq><rdf:li rdf:parseType=\"Resource\">"
-        + "<pdfaProperty:name>demo</pdfaProperty:name>"
-        + "<pdfaProperty:valueType>Text</pdfaProperty:valueType>"
-        + "<pdfaProperty:category>internal</pdfaProperty:category>"
-        + "<pdfaProperty:description>The demo that wrote this document</pdfaProperty:description>"
-        + "</rdf:li></rdf:Seq></pdfaSchema:property>"
-        + "</rdf:li></rdf:Bag></pdfaExtension:schemas>"
-        + "</rdf:Description>";
 
     /// <summary>
     ///   Builds a probe claiming the same profile, saves it, reopens it and hands back the metadata
