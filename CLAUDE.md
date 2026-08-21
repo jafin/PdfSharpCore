@@ -36,8 +36,13 @@ A sixth document sets a page in a face with **PostScript outlines**, which is th
 CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
 as a subset, both the opposite of every other document.
 
-`docs/specs/verapdf-validation.md` has the rest, including why the sRGB ICC profile is built in code
-rather than checked in.
+`docs/specs/verapdf-validation.md` has the rest. The entry worth carrying is that **the corpus sets
+no output intent at all**: `assets/icc/sRGB-v2-micro.icc` is embedded by the *core* package and an
+RGB document claiming PDF/A that names no profile is given it, so what veraPDF passes here is the
+default path rather than a profile the corpus built for itself. It was built in code for several
+months, and `SrgbProfile.cs` is gone. **A CMYK or `Undefined` document is still refused** — the same
+four CMYK numbers are a different colour on every press — and that asymmetry is the whole of the
+rule, in `PdfConformanceWriter.Enforce` and `PdfOutputIntents`.
 
 There is no lint or format step in the build or in CI.
 
@@ -63,7 +68,8 @@ input carry `[Fact(Timeout = …)]`, which xUnit honours only on `async` tests �
 PdfSharpCore ─────────────┬── PdfSharpCore.Skia        (SkiaSharp; the default backend)
    (no imaging or font    ├── PdfSharpCore.ImageSharp   (ImageSharp 2.1.x, Fonts 1.0.1)
     dependency of its own)├── PdfSharpCore.HarfBuzz     (HarfBuzzSharp; shaping, either backend)
-                          └── PdfSharpCore.Signing      (CMS signing; net8.0;net10.0 only)
+                          ├── PdfSharpCore.Signing      (CMS signing; net8.0;net10.0 only)
+                          └── PdfSharpCore.EInvoice     (Factur-X / ZUGFeRD; no dependency at all)
    ▲       ▲
    │       └── MigraDocCore.DocumentObjectModel ── MigraDocCore.Rendering ── PdfSharpCore.Charting
    │              ▲                                                              ▲
@@ -269,6 +275,17 @@ which ships in the runtime but not in the reference pack and so needs a version-
 `PackageReference` per leg. The core's own `Pdf.Signatures` namespace holds all the PDF machinery —
 the placeholder, the byte range, the patching — and no cryptography at all, behind the `IPdfSigner`
 seam. `docs/specs/digital-signatures.md` says why that split is where it is.
+
+`PdfSharpCore.EInvoice` is the opposite kind of package: no dependency of its own, all three target
+frameworks, and one class over machinery the core already had. `FacturXInvoice.AttachTo` names the
+attachment `factur-x.xml`, relates it as `/Data`, claims PDF/A-3 and writes the XMP extension schema
+that declares the four `fx:` properties the packet then uses. **That declaration is what only veraPDF
+can check** — a packet writing `fx:DocumentType` without declaring it fails PDF/A for its metadata
+rather than for its invoice — which is why `pdfa-3b-facturx` in the corpus is built through this
+package rather than by hand, and why a change to what the packet says has to be validated rather than
+unit-tested. The hook it writes through is *chained*, because `PdfDocument.CustomizeMetadata` is a
+single property and assigning over it drops whatever the caller put there.
+`docs/specs/pdf-a-conformance.md` has the rest.
 
 `ImageSource` is a trap for the eye: the file is `PdfSharpCore/Drawing/ImageSource.cs` and it ships
 in the **PdfSharpCore** assembly, but its namespace is

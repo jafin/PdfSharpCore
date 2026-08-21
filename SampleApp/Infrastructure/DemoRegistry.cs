@@ -43,6 +43,7 @@ public static class DemoRegistry
         new CompressDemo(),
         new InspectDemo(),
         new ArchiveDemo(),
+        new FacturXDemo(),
         new ExtractDemo(),
         new ReviseDemo(),
         new FormsDemo(),

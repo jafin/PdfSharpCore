@@ -77,6 +77,16 @@ public sealed class XmpMetadata
     /// class knows nothing about. Each entry is written verbatim, so each is the caller's to get
     /// right — including its own namespace declarations.
     /// </summary>
+    /// <remarks>
+    /// <b>A document claiming PDF/A has to declare a namespace before it uses one.</b> ISO 19005
+    /// clause 6.6.2.3.1 holds every property in the packet to a schema the file either predefines
+    /// or describes, so a property in a namespace of the caller's own needs a
+    /// <c>pdfaExtension:schemas</c> description naming it, placed here alongside the description
+    /// that uses it. Without one the document opens perfectly in every reader and fails validation
+    /// — for its metadata rather than for anything a reader would notice, which is a confusing way
+    /// to be wrong. <c>PdfSharpCore.EInvoice</c> writes exactly that pair for the invoice
+    /// namespace, and is worth reading as the worked example.
+    /// </remarks>
     public IList<string> AdditionalDescriptions { get; } = new List<string>();
 
     /// <summary>

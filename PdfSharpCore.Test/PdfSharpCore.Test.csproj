@@ -37,6 +37,7 @@
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
+    <ProjectReference Include="..\PdfSharpCore.EInvoice\PdfSharpCore.EInvoice.csproj" />
     <ProjectReference Include="..\PdfSharpCore.HarfBuzz\PdfSharpCore.HarfBuzz.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
     <ProjectReference Include="..\PdfSharpCore.ImageSharp\PdfSharpCore.ImageSharp.csproj" />

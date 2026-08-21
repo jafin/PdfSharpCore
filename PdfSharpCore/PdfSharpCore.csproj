@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net8.0;net10.0</TargetFrameworks>
@@ -42,6 +42,20 @@ PdfSharpCore is a partial port of PdfSharp.Xamarin for .NET Core Additionally Mi
   <ItemGroup>
     <EmbeddedResource Include="Resources\Messages.de.restext" />
     <EmbeddedResource Include="Resources\Messages.restext" />
+  </ItemGroup>
+
+  <!--
+    The sRGB profile a PDF/A document gets when its colours are RGB and the caller supplied none.
+    456 bytes, public domain under CC0, and the only binary asset this package carries - see
+    ../assets/icc/LICENSE.txt for where it came from and PdfOutputIntents for why it is here at all.
+    Linked rather than kept in this project because the licence note is a fact about the repository
+    rather than about this assembly, and it is where somebody asking about a checked-in binary will
+    look for it.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\assets\icc\sRGB-v2-micro.icc">
+      <LogicalName>PdfSharpCore.sRGB-v2-micro.icc</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

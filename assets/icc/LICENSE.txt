@@ -1,0 +1,42 @@
+The ICC profile in this directory is embedded in the PdfSharpCore package and
+handed to any PDF/A document whose colours are RGB and which names no profile of
+its own - see PdfOutputIntents. Every archival document has to embed a profile
+saying what its colours mean, and colours written as RGB by a library nobody told
+otherwise are sRGB, so supplying this one is a description rather than a guess. A
+CMYK document is still refused: only its press knows what those numbers mean.
+
+It sits at the root of the repository rather than inside the library project
+because where a checked-in binary came from, and whether it may be shipped, is a
+fact about the repository - and this is where somebody asking will look.
+
+sRGB-v2-micro.icc
+	456 bytes. sha256
+	0a8a33aea66a6f154a5642ebe168ef287e73265d9f7b51c42a45e6eedbacda7a
+	From Compact ICC Profiles, by Clinton Ingram:
+	https://github.com/saucecontrol/Compact-ICC-Profiles
+	Released to the public domain under the Creative Commons CC0 1.0
+	Universal dedication:
+	https://github.com/saucecontrol/Compact-ICC-Profiles/blob/master/license
+
+	"All profiles in this collection are released to the public domain under
+	 the Creative Commons CC0 license. They are free from restrictions on
+	 distribution and use to the extent allowed by law."
+
+	The profile says so itself: its cprt tag reads "CC0". Its desc tag reads
+	"uRGB", which is the collection's name for the micro variant rather than a
+	different colour space - it carries the true sRGB primaries, and
+	approximates sRGB's piecewise transfer curve with a 42-point sampled curve
+	instead of stating it parametrically. That approximation is what makes it
+	456 bytes rather than the several kilobytes an sRGB profile usually is, and
+	it is accurate enough for the eight-bit images these demos draw.
+
+	ICC version 2.1, class mntr, RGB with an XYZ connection space, nine tags:
+	desc, cprt, wtpt, rXYZ, gXYZ, bXYZ and one shared curve serving rTRC, gTRC
+	and bTRC. Version 2 rather than 4 deliberately - PDF/A-1 predates ICC v4 and
+	will not accept one, so a v2 profile is the one that serves every part.
+
+CC0 asks for nothing in return, so this file is not a condition of shipping the
+profile the way the font licence beside it is a condition of shipping the fonts.
+It is here so that the next person to ask where a binary in the repository came
+from, and whether it may be redistributed, can find out without leaving the
+directory.

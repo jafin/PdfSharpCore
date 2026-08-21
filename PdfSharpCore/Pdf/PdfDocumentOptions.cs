@@ -165,10 +165,17 @@ public sealed class PdfDocumentOptions
     /// profile requires whenever a device-dependent colour space is used — and
     /// <see cref="PdfColorMode.Rgb"/>, the default, is one.
     /// <para>
-    /// No profile ships with this library, so a document claiming conformance has to be given one.
     /// The profile is embedded rather than referenced: naming a well-known profile is exactly what
     /// PDF/A exists to stop, since the name means nothing once the machine that understood it is
     /// gone.
+    /// </para>
+    /// <para>
+    /// <b>Left unset, an RGB document is given <see cref="PdfOutputIntents.SrgbProfile"/></b>, and
+    /// <see cref="OutputIntentIdentifier"/> the sRGB condition to go with it — colours written as
+    /// RGB by a library nobody told otherwise are sRGB, so that is a description rather than a
+    /// guess. A <see cref="PdfColorMode.Cmyk"/> or <see cref="PdfColorMode.Undefined"/> document is
+    /// refused at save time instead, because nothing true could be supplied for either. Whatever is
+    /// set here always wins.
     /// </para>
     /// </summary>
     public byte[] OutputIntentIccProfile
@@ -187,7 +194,19 @@ public sealed class PdfDocumentOptions
         get => _outputIntentIdentifier;
         set => _outputIntentIdentifier = value;
     }
-    string _outputIntentIdentifier = "Custom";
+    string _outputIntentIdentifier = DefaultOutputIntentIdentifier;
+
+    /// <summary>
+    /// What <see cref="OutputIntentIdentifier"/> says when nobody has said anything: a placeholder
+    /// naming no condition at all.
+    /// </summary>
+    /// <remarks>
+    /// Named rather than repeated, because the writer has to be able to tell "the caller told me
+    /// nothing" from "the caller told me this" — a document given the built-in sRGB profile is
+    /// given the sRGB condition to go with it, and only a caller who named a condition themselves
+    /// keeps theirs.
+    /// </remarks>
+    internal const string DefaultOutputIntentIdentifier = "Custom";
 
     /// <summary>
     /// Gets or sets how many objects at most are gathered into one object stream. Only meaningful

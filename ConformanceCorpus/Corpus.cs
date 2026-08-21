@@ -4,6 +4,7 @@ using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.Rendering;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.EInvoice;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.Advanced;
 
@@ -54,9 +55,10 @@ static class Corpus
         document.Info.Title = "Conformance corpus: " + conformance;
         document.Info.Author = "PdfSharpCore conformance corpus";
 
+        // The output intent is not set, and that is the point of not setting it: an RGB document
+        // claiming PDF/A is given PdfOutputIntents.SrgbProfile and the sRGB condition to name it,
+        // so what veraPDF passes here is what a caller gets for writing nothing at all.
         document.Options.Conformance = conformance;
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
@@ -104,8 +106,6 @@ static class Corpus
         document.Info.Author = "PdfSharpCore conformance corpus";
 
         document.Options.Conformance = PdfAConformance.PdfA2B;
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
@@ -125,12 +125,26 @@ static class Corpus
     /// machine, associated with the document rather than merely carried inside it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This is what PDF/A-3 exists for, and the part a validator is worth most on — an associated
     /// file has to carry an <c>/AFRelationship</c>, be reachable from the catalog's <c>/AF</c>, and
     /// appear in the embedded-files name tree, and getting two of the three right produces a file
-    /// that opens perfectly and conforms to nothing. The XML is a plausible skeleton rather than
-    /// real Factur-X: nothing here validates against EN 16931, and pretending otherwise in a fixture
-    /// would be a claim of its own.
+    /// that opens perfectly and conforms to nothing.
+    /// </para>
+    /// <para>
+    /// Built through <see cref="FacturXInvoice"/>, which adds the second thing only a validator can
+    /// settle: the XMP extension schema. PDF/A holds every property in the metadata packet to a
+    /// schema the file predefines or describes, and the invoice namespace is nobody's predefined
+    /// schema — so a packet naming <c>fx:DocumentType</c> without declaring it fails for its
+    /// metadata rather than for its invoice. Nothing in the unit tests can settle whether the
+    /// declaration is the shape PDF/A asks for; this document is how that gets checked.
+    /// </para>
+    /// <para>
+    /// The XML is a plausible skeleton rather than real Factur-X. Nothing here validates against
+    /// EN 16931 and nothing here could, so the profile the metadata names is a claim about the
+    /// bytes attached and not a finding about them — the PDF side is what this document is for,
+    /// and it is the only side veraPDF reads.
+    /// </para>
     /// </remarks>
     static byte[] Invoice()
     {
@@ -138,9 +152,9 @@ static class Corpus
         document.Info.Title = "Conformance corpus: invoice with an associated file";
         document.Info.Author = "PdfSharpCore conformance corpus";
 
-        document.Options.Conformance = PdfAConformance.PdfA3B;
-        document.Options.OutputIntentIccProfile = SrgbProfile.Bytes();
-        document.Options.OutputIntentIdentifier = "sRGB IEC61966-2.1";
+        // Nothing about conformance is set here at all: attaching the invoice claims PDF/A-3, the
+        // only profile that may carry one, and the output intent an RGB document needs comes with
+        // the claim.
 
         var page = document.AddPage();
         using (var gfx = XGraphics.FromPdfPage(page))
@@ -153,8 +167,7 @@ static class Corpus
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             + "<Invoice><ID>2026-0042</ID><Total currency=\"EUR\">240.00</Total></Invoice>\n";
 
-        document.Attachments.Add("invoice.xml", Encoding.UTF8.GetBytes(invoice),
-            PdfAFRelationship.Data, "The invoice as data", "text/xml");
+        new FacturXInvoice(Encoding.UTF8.GetBytes(invoice)).AttachTo(document);
 
         return Bytes(document);
     }

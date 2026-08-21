@@ -18,6 +18,7 @@
     <ProjectReference Include="..\MigraDocCore.DocumentObjectModel\MigraDocCore.DocumentObjectModel.csproj" />
     <ProjectReference Include="..\MigraDocCore.Rendering\MigraDocCore.Rendering.csproj" />
     <ProjectReference Include="..\PdfSharpCore\PdfSharpCore.csproj" />
+    <ProjectReference Include="..\PdfSharpCore.EInvoice\PdfSharpCore.EInvoice.csproj" />
     <ProjectReference Include="..\PdfSharpCore.Skia\PdfSharpCore.Skia.csproj" />
   </ItemGroup>
 

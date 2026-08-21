@@ -27,8 +27,9 @@ internal sealed class ArchiveDemo : PdfDemo
         "PdfDocumentOptions.Conformance - PdfA1B, PdfA2B and PdfA3B, and what separates them",
         "That the claim is enforced at save time rather than stamped on the file",
         "The XMP packet the document actually carries, printed from its own bytes",
-        "OutputIntentIccProfile - why no profile ships, and what a minimal one contains",
-        "CustomizeMetadata and XmpMetadata.AdditionalDescriptions, the ZUGFeRD seam",
+        "OutputIntentIccProfile and PdfOutputIntents.SrgbProfile, and what a document gets unset",
+        "CustomizeMetadata and XmpMetadata.AdditionalDescriptions, the seam the FacturX demo uses",
+        "That a namespace PDF/A has not heard of has to be declared in an extension schema first",
         "Five refusal messages, caught from documents built to break one rule each",
     };
 
@@ -42,7 +43,11 @@ internal sealed class ArchiveDemo : PdfDemo
         XFont body = new XFont(BundledFontResolver.SansFamily, 9);
         XFont mono = new XFont(BundledFontResolver.MonoFamily, 7);
 
-        byte[] profile = MinimalSrgbProfile();
+        // The output intent every PDF/A document needs. Written out rather than left to the
+        // default it now has, because this is the demo of the thing: an RGB document that sets
+        // nothing gets exactly these bytes anyway, which is what the FacturX demo shows by
+        // setting nothing.
+        byte[] profile = PdfOutputIntents.SrgbProfile;
 
         PdfDocument document = new PdfDocument();
 
@@ -60,10 +65,18 @@ internal sealed class ArchiveDemo : PdfDemo
 
         // Written verbatim after the descriptions this library builds, which is the seam a hybrid
         // e-invoice goes through: ZUGFeRD and Factur-X are a PDF/A-3 file with an XML attachment
-        // and an extension schema saying what the attachment is.
+        // and an extension schema saying what the attachment is. The FacturX demo is that, built
+        // through PdfSharpCore.EInvoice rather than by hand.
         document.CustomizeMetadata = metadata =>
         {
             metadata.Keywords = "archival, conformance, sample";
+
+            // Declared before it is used, and that order is the whole lesson. Clause 6.6.2.3.1
+            // holds every property in the packet to a schema the file either predefines or
+            // describes, so a document writing sample:demo without the block below opens perfectly
+            // in every reader and fails validation - for its metadata, not for anything a reader
+            // would notice. This demo did exactly that until veraPDF was pointed at its own output.
+            metadata.AdditionalDescriptions.Add(SampleExtensionSchema);
             metadata.AdditionalDescriptions.Add(
                 "<rdf:Description rdf:about=\"\" xmlns:sample=\"http://example.invalid/sample/1.0/\">"
                 + "<sample:demo>Archive</sample:demo>"
@@ -159,17 +172,29 @@ internal sealed class ArchiveDemo : PdfDemo
                 + "which is why XMP is not optional for a document making a claim.",
                 body, XBrushes.Black, new XRect(50, 80, 495, 60));
 
-            gfx.DrawString("Written by a document just like this one", label, XBrushes.Black, 50, 155);
+            gfx.DrawString("A namespace of your own needs declaring", label, XBrushes.Firebrick, 50, 148);
+
+            prose.DrawString(
+                "AdditionalDescriptions writes what it is given, verbatim, and PDF/A accepts no "
+                + "property whose schema the file has not either predefined or described. So a "
+                + "namespace nobody has heard of - this demo's own, or an invoice format's - is "
+                + "declared in a pdfaExtension:schemas block naming every property before any of "
+                + "them is written. The FacturX demo is that done for real, by "
+                + "PdfSharpCore.EInvoice rather than by hand.",
+                body, XBrushes.Black, new XRect(50, 162, 495, 62));
+
+            gfx.DrawString("Written by a document just like this one", label, XBrushes.Black, 50, 236);
 
             prose.DrawString(
                 "Read back out of a probe document built with the same options, saved to memory and "
                 + "reopened. It is the bytes, not a description of them. Note that the packet is left "
                 + "uncompressed: it carries those xpacket markers so a tool can find it by scanning "
                 + "for them without parsing the PDF around it, and a compressed packet is invisible "
-                + "to one.",
-                body, XBrushes.Black, new XRect(50, 170, 495, 48));
+                + "to one. The probe claims conformance and adds nothing of its own, so what follows "
+                + "is the packet a document gets for free.",
+                body, XBrushes.Black, new XRect(50, 250, 495, 48));
 
-            double y = 232;
+            double y = 312;
             foreach (string line in PacketOfAProbe(profile))
             {
                 if (y > 780)
@@ -228,37 +253,50 @@ internal sealed class ArchiveDemo : PdfDemo
                 + "nothing once the machine that understood it is gone.",
                 body, XBrushes.Black, new XRect(50, 80, 495, 62));
 
-            gfx.DrawString("No profile ships with the library", label, XBrushes.Black, 50, 158);
+            gfx.DrawString("An RGB document is given one, and that is new", label, XBrushes.Black, 50, 158);
 
             prose.DrawString(
-                "Which one is right is a decision about the document rather than about the code - a "
-                + "press wants the one its press was profiled with, and shipping a default would "
-                + "encourage every caller to make a colour claim they had not thought about. So "
-                + "Options.OutputIntentIccProfile has no default and the writer refuses without one.",
-                body, XBrushes.Black, new XRect(50, 172, 495, 48));
+                "Colours written as RGB by a library nobody told otherwise are sRGB - that is what "
+                + "every reader assumes of them - so a PDF/A document whose ColorMode is Rgb and "
+                + "which names no profile of its own is given PdfOutputIntents.SrgbProfile, and the "
+                + "sRGB condition to name it by. That is a description rather than a guess, which is "
+                + "why it can be done at all. Whatever you set yourself always wins.",
+                body, XBrushes.Black, new XRect(50, 172, 495, 62));
 
-            gfx.DrawString("The profile this demo embeds", label, XBrushes.Black, 50, 236);
+            gfx.DrawString("CMYK is still refused, and so is Undefined", label, XBrushes.Firebrick, 50, 244);
 
             prose.DrawString(
-                "Written by this file, in the method below the example, for the same reason: there "
-                + "was none to hand and checking a binary into a sample app raises a licence question "
-                + "the sample does not need. It is a minimal ICC v2 matrix/TRC display profile with "
-                + "the sRGB primaries adapted to D50 and a gamma of 2.2 - enough to be a real profile "
-                + "and honest about being the least one. A document that matters should embed the "
-                + "profile its colours were actually made in.",
-                body, XBrushes.Black, new XRect(50, 250, 495, 72));
+                "The same four CMYK numbers are a different colour on every press, so there is "
+                + "nothing true to supply and the writer says so instead - the last refusal on the "
+                + "previous page is that one. ColorMode.Undefined writes each colour as the XColor "
+                + "gave it, so a document may hold RGB and CMYK together and no one profile describes "
+                + "it. Both name what to set.",
+                body, XBrushes.Black, new XRect(50, 258, 495, 62));
+
+            gfx.DrawString("What that profile is", label, XBrushes.Black, 50, 330);
+
+            prose.DrawString(
+                "456 bytes from the Compact ICC Profiles collection, released to the public domain "
+                + "under CC0 - which is what makes it shippable at all. It states the true sRGB "
+                + "primaries and samples the transfer curve at 42 points rather than stating it "
+                + "parametrically, which is where the size goes. ICC version 2 rather than 4, because "
+                + "PDF/A-1 predates version 4 and will not take one, so a v2 profile is the one that "
+                + "serves every part. A document that matters should still embed the profile its "
+                + "colours were actually made in.",
+                body, XBrushes.Black, new XRect(50, 344, 495, 76));
 
             (string Field, string Value)[] facts =
             {
                 ("Profile size", profile.Length.ToString("N0") + " bytes"),
-                ("Device class", "mntr (display)"),
+                ("Device class", "mntr (display), ICC version 2.1"),
                 ("Colour space", "RGB, PCS XYZ"),
                 ("Tags", "desc, cprt, wtpt, rXYZ, gXYZ, bXYZ, rTRC, gTRC, bTRC"),
+                ("Licence", "CC0 1.0, public domain - the cprt tag says so itself"),
                 ("/OutputConditionIdentifier", document.Options.OutputIntentIdentifier),
                 ("/S", "/GTS_PDFA1, for every part of PDF/A and not only the first"),
             };
 
-            double y = 340;
+            double y = 432;
             foreach ((string Field, string Value) fact in facts)
             {
                 gfx.DrawString(fact.Field, label, XBrushes.Black, 50, y);
@@ -287,6 +325,35 @@ internal sealed class ArchiveDemo : PdfDemo
 
         return document;
     }
+
+    /// <summary>
+    ///   The extension schema declaring this demo's own namespace, which is what makes writing
+    ///   <c>sample:demo</c> into the packet legal rather than merely possible.
+    /// </summary>
+    /// <remarks>
+    ///   One property, so it is short; the shape is the same however many there are. Each property
+    ///   needs a name, a value type, a category - <c>internal</c> for something derived from the
+    ///   document's own content, <c>external</c> for something that came from outside it - and a
+    ///   description. Declare a property the packet never writes, or write one the schema never
+    ///   declared, and a validator objects to either.
+    /// </remarks>
+    const string SampleExtensionSchema =
+        "<rdf:Description rdf:about=\"\""
+        + " xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\""
+        + " xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\""
+        + " xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">"
+        + "<pdfaExtension:schemas><rdf:Bag><rdf:li rdf:parseType=\"Resource\">"
+        + "<pdfaSchema:schema>PdfSharpCore sample app</pdfaSchema:schema>"
+        + "<pdfaSchema:namespaceURI>http://example.invalid/sample/1.0/</pdfaSchema:namespaceURI>"
+        + "<pdfaSchema:prefix>sample</pdfaSchema:prefix>"
+        + "<pdfaSchema:property><rdf:Seq><rdf:li rdf:parseType=\"Resource\">"
+        + "<pdfaProperty:name>demo</pdfaProperty:name>"
+        + "<pdfaProperty:valueType>Text</pdfaProperty:valueType>"
+        + "<pdfaProperty:category>internal</pdfaProperty:category>"
+        + "<pdfaProperty:description>The demo that wrote this document</pdfaProperty:description>"
+        + "</rdf:li></rdf:Seq></pdfaSchema:property>"
+        + "</rdf:li></rdf:Bag></pdfaExtension:schemas>"
+        + "</rdf:Description>";
 
     /// <summary>
     ///   Builds a probe claiming the same profile, saves it, reopens it and hands back the metadata
@@ -338,8 +405,13 @@ internal sealed class ArchiveDemo : PdfDemo
     {
         yield return Refusal("No title", profile, document => document.Info.Title = "");
 
-        yield return Refusal("No output intent", profile,
-            document => document.Options.OutputIntentIccProfile = null);
+        // Not "no output intent" any more: an RGB document that names no profile is given one.
+        // CMYK is where the writer still has nothing true to say.
+        yield return Refusal("CMYK with no output intent", profile, document =>
+        {
+            document.Options.OutputIntentIccProfile = null;
+            document.Options.ColorMode = PdfColorMode.Cmyk;
+        });
 
         // Setting a password is what raises the security level - assigning the level on its own is
         // refused earlier and by something else, because there would be nothing to encrypt with.
@@ -384,148 +456,4 @@ internal sealed class ArchiveDemo : PdfDemo
         // instead of printing a quotation that is no longer true.
         return (broken, "This document saved. The rule is no longer enforced.");
     }
-
-    /// <summary>
-    ///   A minimal but genuine ICC v2 RGB matrix/TRC display profile, with the sRGB primaries
-    ///   adapted to the D50 white point every ICC profile connection space uses, and a gamma of 2.2.
-    /// </summary>
-    /// <remarks>
-    ///   Built here rather than carried as a file. No profile ships with the library, on purpose;
-    ///   checking a binary into a sample app raises a redistribution question the sample does not
-    ///   need to answer, and a profile written out in code can be read. It is deliberately the least
-    ///   profile that is still one: nine required tags, a single gamma curve per channel, and no
-    ///   measurement data. A real archival document should embed the profile its colours were
-    ///   actually made in.
-    /// </remarks>
-    static byte[] MinimalSrgbProfile()
-    {
-        // Tag signature, and the bytes of the tag's own data.
-        (string Signature, byte[] Data)[] tags =
-        {
-            ("desc", TextDescription("Minimal sRGB, written by the PdfSharpCore sample app")),
-            ("cprt", Text("No rights reserved.")),
-            ("wtpt", Xyz(0.96420, 1.00000, 0.82491)),
-            ("rXYZ", Xyz(0.43607, 0.22249, 0.01392)),
-            ("gXYZ", Xyz(0.38515, 0.71687, 0.09708)),
-            ("bXYZ", Xyz(0.14307, 0.06061, 0.71410)),
-            ("rTRC", Gamma(2.2)),
-            ("gTRC", Gamma(2.2)),
-            ("bTRC", Gamma(2.2)),
-        };
-
-        const int headerSize = 128;
-        int tableSize = 4 + tags.Length * 12;
-
-        // Every tag starts on a four-byte boundary, so the offsets have to be laid out before
-        // anything is written and the padding counted into the total.
-        int[] offsets = new int[tags.Length];
-        int at = Aligned(headerSize + tableSize);
-        for (int index = 0; index < tags.Length; index++)
-        {
-            offsets[index] = at;
-            at = Aligned(at + tags[index].Data.Length);
-        }
-
-        byte[] icc = new byte[at];
-
-        WriteUInt32(icc, 0, (uint)icc.Length);
-        WriteUInt32(icc, 8, 0x02100000);                   // version 2.1.0
-        WriteSignature(icc, 12, "mntr");                       // display device
-        WriteSignature(icc, 16, "RGB ");
-        WriteSignature(icc, 20, "XYZ ");                       // profile connection space
-        WriteSignature(icc, 36, "acsp");                       // the file magic
-
-        // The PCS illuminant is D50 and is not negotiable: it is the white point the connection
-        // space is defined at, whatever the profile's own media white point says.
-        WriteFixed(icc, 68, 0.96420);
-        WriteFixed(icc, 72, 1.00000);
-        WriteFixed(icc, 76, 0.82491);
-
-        WriteUInt32(icc, headerSize, (uint)tags.Length);
-        for (int index = 0; index < tags.Length; index++)
-        {
-            int entry = headerSize + 4 + index * 12;
-            WriteSignature(icc, entry, tags[index].Signature);
-            WriteUInt32(icc, entry + 4, (uint)offsets[index]);
-            WriteUInt32(icc, entry + 8, (uint)tags[index].Data.Length);
-
-            Array.Copy(tags[index].Data, 0, icc, offsets[index], tags[index].Data.Length);
-        }
-
-        return icc;
-    }
-
-    /// <summary>An <c>XYZType</c> tag: three s15Fixed16 numbers behind their type signature.</summary>
-    static byte[] Xyz(double x, double y, double z)
-    {
-        byte[] data = new byte[20];
-        WriteSignature(data, 0, "XYZ ");
-        WriteFixed(data, 8, x);
-        WriteFixed(data, 12, y);
-        WriteFixed(data, 16, z);
-        return data;
-    }
-
-    /// <summary>
-    ///   A <c>curveType</c> tag holding a single number, which an ICC reader takes as a gamma
-    ///   exponent in u8Fixed8 rather than as a one-entry sampled curve.
-    /// </summary>
-    static byte[] Gamma(double exponent)
-    {
-        byte[] data = new byte[14];
-        WriteSignature(data, 0, "curv");
-        WriteUInt32(data, 8, 1);
-        WriteUInt16(data, 12, (ushort)Math.Round(exponent * 256));
-        return data;
-    }
-
-    /// <summary>A <c>textType</c> tag: an ASCII string with a terminating NUL.</summary>
-    static byte[] Text(string value)
-    {
-        byte[] ascii = Encoding.ASCII.GetBytes(value);
-        byte[] data = new byte[8 + ascii.Length + 1];
-        WriteSignature(data, 0, "text");
-        Array.Copy(ascii, 0, data, 8, ascii.Length);
-        return data;
-    }
-
-    /// <summary>
-    ///   A <c>textDescriptionType</c> tag, which ICC v2 requires for <c>desc</c> and which carries
-    ///   room for a Unicode and a Macintosh ScriptCode form neither of which is filled in here.
-    /// </summary>
-    static byte[] TextDescription(string value)
-    {
-        byte[] ascii = Encoding.ASCII.GetBytes(value);
-        byte[] data = new byte[8 + 4 + ascii.Length + 1 + 4 + 4 + 2 + 1 + 67];
-        WriteSignature(data, 0, "desc");
-        WriteUInt32(data, 8, (uint)(ascii.Length + 1));
-        Array.Copy(ascii, 0, data, 12, ascii.Length);
-        return data;
-    }
-
-    static int Aligned(int value) => (value + 3) & ~3;
-
-    static void WriteSignature(byte[] buffer, int at, string signature)
-    {
-        for (int index = 0; index < 4; index++)
-            buffer[at + index] = (byte)signature[index];
-    }
-
-    static void WriteUInt32(byte[] buffer, int at, uint value)
-    {
-        buffer[at] = (byte)(value >> 24);
-        buffer[at + 1] = (byte)(value >> 16);
-        buffer[at + 2] = (byte)(value >> 8);
-        buffer[at + 3] = (byte)value;
-    }
-
-    static void WriteUInt16(byte[] buffer, int at, ushort value)
-    {
-        buffer[at] = (byte)(value >> 8);
-        buffer[at + 1] = (byte)value;
-    }
-
-    /// <summary>An s15Fixed16 number: the value multiplied by 65536, as a signed 32-bit integer.</summary>
-    static void WriteFixed(byte[] buffer, int at, double value) =>
-        WriteUInt32(buffer, at, unchecked((uint)(int)Math.Round(value * 65536)));
 }

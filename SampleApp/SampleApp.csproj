@@ -49,6 +49,13 @@
       package of its own and not part of the core.
     -->
     <ProjectReference Include="..\PdfSharpCore.Signing\PdfSharpCore.Signing.csproj" />
+    <!--
+      The hybrid e-invoice helper, for the FacturX demo. Nothing the core could not do - it writes a
+      file specification and a string of RDF/XML - but every part of it is silent when got wrong, so
+      it is a package rather than a paragraph of documentation. It carries no dependency of its own,
+      which is why this line costs the app nothing but a project reference.
+    -->
+    <ProjectReference Include="..\PdfSharpCore.EInvoice\PdfSharpCore.EInvoice.csproj" />
   </ItemGroup>
 
   <ItemGroup>
