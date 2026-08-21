@@ -32,6 +32,22 @@ public class CLexerTests
         TokensOf(tokens, CSymbol.Name).Should().Equal("/Foo");
     }
 
+    // The document lexer treats a vertical tab and a soft hyphen as white space between tokens,
+    // wider than PDF's own list of NUL, HT, LF, FF, CR and SP. A content stream a document lexer
+    // reads should read the same way, rather than folding the separator into one of the operators
+    // either side of it or refusing the byte outright.
+    [Theory(Timeout = 5000)]
+    [InlineData((byte)11)]  // vertical tab
+    [InlineData((byte)173)] // soft hyphen
+    public async Task ScanNextToken_treatsAVerticalTabAndASoftHyphenAsWhiteSpace(byte separator)
+    {
+        var content = new byte[] { (byte)'B', (byte)'T', separator, (byte)'Q' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("BT", "Q");
+    }
+
     [Theory(Timeout = 5000)]
     [InlineData("<< /W 16", CSymbol.Dictionary)]
     [InlineData("(unterminated", CSymbol.String)]

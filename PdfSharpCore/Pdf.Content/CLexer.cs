@@ -805,7 +805,7 @@ public class CLexer
     /// <summary>
     /// If the current character is not a white space, the function immediately returns it.
     /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF.
-    /// White spaces are NUL, HT, LF, FF, CR, and SP.
+    /// White spaces are NUL, HT, LF, FF, CR, SP, vertical tab, and soft hyphen.
     /// </summary>
     public char MoveToNonWhiteSpace()
     {
@@ -819,6 +819,14 @@ public class CLexer
                 case Chars.FF:
                 case Chars.CR:
                 case Chars.SP:
+                    ScanNextChar();
+                    break;
+
+                // A vertical tab or a soft hyphen between tokens - PDF's own white-space list is
+                // narrower than this, but the document lexer treats both as white space and a
+                // content stream a document lexer reads should read the same way.
+                case (char)11:
+                case (char)173:
                     ScanNextChar();
                     break;
 
