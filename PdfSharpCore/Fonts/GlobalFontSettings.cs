@@ -93,6 +93,29 @@ public static class GlobalFontSettings
     static IFontResolver _fontResolver;
 
     /// <summary>
+    /// Whether <see cref="FontResolver"/> has been set, so a caller can find out without catching
+    /// the <see cref="InvalidOperationException"/> reading it unset throws.
+    /// </summary>
+    public static bool IsFontResolverSet
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _fontResolver != null;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+
+    /// <summary>
+    /// States that <see cref="FontResolver"/> refuses a second write once a font has been resolved
+    /// through it - see <see cref="SeamLifecycle.SetOnce"/>.
+    /// </summary>
+    public static SeamLifecycle FontResolverLifecycle => SeamLifecycle.SetOnce;
+
+    /// <summary>
     /// Gets or sets the provider that turns text into glyph outlines for the current application domain.
     /// Only <see cref="T:PdfSharpCore.Drawing.XGraphicsPath"/>.AddString needs one; drawing and measuring
     /// text do not. Install PdfSharpCore.Skia and use <c>new SkiaGlyphOutlineProvider()</c>, or install
@@ -137,6 +160,29 @@ public static class GlobalFontSettings
     static IGlyphOutlineProvider _glyphOutlineProvider;
 
     /// <summary>
+    /// Whether <see cref="GlyphOutlineProvider"/> has been set, so a caller can find out without
+    /// catching the <see cref="InvalidOperationException"/> reading it unset throws.
+    /// </summary>
+    public static bool IsGlyphOutlineProviderSet
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _glyphOutlineProvider != null;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+
+    /// <summary>
+    /// States that <see cref="GlyphOutlineProvider"/> may be set, replaced or cleared at any time -
+    /// see <see cref="SeamLifecycle.SetAnytime"/>.
+    /// </summary>
+    public static SeamLifecycle GlyphOutlineProviderLifecycle => SeamLifecycle.SetAnytime;
+
+    /// <summary>
     /// Gets or sets the shaper that turns characters into the glyphs a font really draws for them,
     /// for the current application domain. Null means none is registered, and then every path
     /// behaves as it always has: one character, one glyph, no reordering.
@@ -176,6 +222,31 @@ public static class GlobalFontSettings
         }
     }
     static ITextShaper _textShaper;
+
+    /// <summary>
+    /// Whether <see cref="TextShaper"/> has been set. Unlike <see cref="FontResolver"/> and
+    /// <see cref="GlyphOutlineProvider"/>, reading this seam unset does not throw - null is a
+    /// working default - so this answers the same thing <c>TextShaper != null</c> would, stated
+    /// here for the same shape as the other seams.
+    /// </summary>
+    public static bool IsTextShaperSet
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _textShaper != null;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+
+    /// <summary>
+    /// States that <see cref="TextShaper"/> may be set, replaced or cleared at any time - see
+    /// <see cref="SeamLifecycle.SetAnytime"/>.
+    /// </summary>
+    public static SeamLifecycle TextShaperLifecycle => SeamLifecycle.SetAnytime;
 
     /// <summary>
     /// Gets or sets what to try when the chosen face has no glyph for a character, for the current
@@ -222,6 +293,31 @@ public static class GlobalFontSettings
     static IFontFallback _fontFallback;
 
     /// <summary>
+    /// Whether <see cref="FontFallback"/> answers anything other than null - either because a
+    /// fallback was registered directly, or because the registered <see cref="FontResolver"/>
+    /// implements <see cref="IFontFallback"/> itself. Mirrors what the getter falls back to, rather
+    /// than only the field this seam sets.
+    /// </summary>
+    public static bool IsFontFallbackSet
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _fontFallback != null || _fontResolver is IFontFallback;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+
+    /// <summary>
+    /// States that <see cref="FontFallback"/> may be set, replaced or cleared at any time - see
+    /// <see cref="SeamLifecycle.SetAnytime"/>.
+    /// </summary>
+    public static SeamLifecycle FontFallbackLifecycle => SeamLifecycle.SetAnytime;
+
+    /// <summary>
     /// Gets or sets the default font encoding used for XFont objects where encoding is not explicitly specified.
     /// If it is not set, the default value is PdfFontEncoding.Unicode.
     /// If you are sure your document contains only Windows-1252 characters (see https://en.wikipedia.org/wiki/Windows-1252) 
@@ -257,4 +353,28 @@ public static class GlobalFontSettings
     }
     static PdfFontEncoding _fontEncoding;
     static bool _fontEncodingInitialized;
+
+    /// <summary>
+    /// Whether <see cref="DefaultFontEncoding"/> has been explicitly set. Reading it unset does not
+    /// throw - it answers <see cref="PdfFontEncoding.Unicode"/> - so this is the only way to tell
+    /// that default apart from one a caller chose.
+    /// </summary>
+    public static bool IsDefaultFontEncodingSet
+    {
+        get
+        {
+            try
+            {
+                Lock.EnterFontFactory();
+                return _fontEncodingInitialized;
+            }
+            finally { Lock.ExitFontFactory(); }
+        }
+    }
+
+    /// <summary>
+    /// States that <see cref="DefaultFontEncoding"/> refuses a second write to a different value
+    /// once it has been set once - see <see cref="SeamLifecycle.SetOnce"/>.
+    /// </summary>
+    public static SeamLifecycle DefaultFontEncodingLifecycle => SeamLifecycle.SetOnce;
 }

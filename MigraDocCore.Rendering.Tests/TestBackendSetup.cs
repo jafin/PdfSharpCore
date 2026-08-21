@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
-using MigraDocCore.Rendering.Tests.Helpers;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Skia;
+using PdfSharpCore.Test.Helpers;
 using PdfSharpCore.Utils;
 
 namespace MigraDocCore.Rendering.Tests;

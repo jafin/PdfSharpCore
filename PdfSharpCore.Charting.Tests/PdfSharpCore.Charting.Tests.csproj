@@ -61,6 +61,12 @@
     <Compile Include="..\PdfSharpCore.Test\Helpers\PageContent.cs" Link="Helpers\Linked\PageContent.cs" />
     <Compile Include="..\PdfSharpCore.Test\Helpers\StrokedLines.cs" Link="Helpers\Linked\StrokedLines.cs" />
     <Compile Include="..\PdfSharpCore.Test\Helpers\TextOperators.cs" Link="Helpers\Linked\TextOperators.cs" />
+    <!--
+      The one fact that decides what every axis and label measurement here sees: which font stands
+      in for Arial. It used to be a smaller copy of its own; linked now, for the same reason as the
+      three readers above.
+    -->
+    <Compile Include="..\PdfSharpCore.Test\Helpers\PinnedFontResolver.cs" Link="Helpers\Linked\PinnedFontResolver.cs" />
   </ItemGroup>
 
   <ItemGroup>

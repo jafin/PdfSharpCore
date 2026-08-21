@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Reflection;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 
@@ -18,6 +19,13 @@ namespace PdfSharpCore.Test.Helpers;
 ///   fits at all. Tests that assert either of those cannot pass on both machines while the
 ///   font is chosen for them. Liberation Sans is used because it carries the metrics of Arial,
 ///   which the assertions and the reference images were written against.
+///
+///   Linked, not copied, into <c>MigraDocCore.Rendering.Tests</c> and
+///   <c>PdfSharpCore.Charting.Tests</c> - the same way this project's content-stream readers are
+///   shared with those two projects - so that the one fact deciding every layout assertion in
+///   three suites has one file to edit. Compiling it needs no project reference, which is why it
+///   resolves its own path through the executing assembly rather than through
+///   <see cref="PathHelper"/>: a type that, unlike this one, is not linked anywhere.
 /// </remarks>
 internal sealed class PinnedFontResolver : IFontResolver
 {
@@ -126,13 +134,21 @@ internal sealed class PinnedFontResolver : IFontResolver
     ///   Where a face name's file is. The two named faces are files in their own right; every
     ///   other name is one of Liberation Sans's four styles.
     /// </summary>
+    /// <remarks>
+    ///   Resolved through the executing assembly's own location rather than through
+    ///   <see cref="PathHelper"/>, because this class is linked into two other test projects that
+    ///   do not reference this one and so cannot see that type. Every project this file is linked
+    ///   into copies "Assets/Fonts" from this one's into its own output directory.
+    /// </remarks>
     private static string AssetPathOf(string faceName)
     {
+        var directory = Path.GetDirectoryName(typeof(PinnedFontResolver).GetTypeInfo().Assembly.Location);
+
         if (faceName == CffFaceName || faceName == ArabicFaceName
             || faceName == DevanagariFaceName)
-            return PathHelper.GetInstance().GetAssetPath("Fonts", faceName);
+            return Path.Combine(directory, "Assets", "Fonts", faceName);
 
-        return PathHelper.GetInstance().GetAssetPath("Fonts", "LiberationSans-" + faceName + ".ttf");
+        return Path.Combine(directory, "Assets", "Fonts", "LiberationSans-" + faceName + ".ttf");
     }
 
     private static string FaceNameOf(bool isBold, bool isItalic)

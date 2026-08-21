@@ -125,6 +125,27 @@ public class FontFallbackTests
         naming.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void IsFontFallbackSetAnswersWhetherAnythingWouldBeTried()
+    {
+        GlobalFontSettings.IsFontFallbackSet.Should().BeFalse(
+            "nothing is registered before this test registers something, and PinnedFontResolver "
+            + "does not implement IFontFallback itself");
+
+        using (new Installed(new FontFallbackList("Whatever")))
+            GlobalFontSettings.IsFontFallbackSet.Should().BeTrue();
+
+        GlobalFontSettings.IsFontFallbackSet.Should().BeFalse("and clearing it answers false again");
+    }
+
+    [Fact]
+    public void FontFallbackLifecycleSaysItMayBeSetAtAnyTime()
+    {
+        GlobalFontSettings.FontFallbackLifecycle.Should().Be(SeamLifecycle.SetAnytime,
+            "null is a working default and installing, replacing or clearing a fallback is always "
+            + "allowed");
+    }
+
     // ----- the defect it exists for -------------------------------------------------------------------
 
     [Fact]

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Loader;
 using AwesomeAssertions;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 using Xunit;
@@ -319,5 +320,106 @@ public class FontPlumbingTests
         });
 
         act.Should().NotThrow();
+    }
+
+    // ----- asking whether a seam is set, without catching -----------------------------------------
+
+    [Fact]
+    public void IsFontResolverSetIsFalseOnACopyOfTheLibraryNothingHasTouchedYet()
+    {
+        var isSet = OnAColdCopyOfTheLibrary(assembly => SettingsProperty(assembly, "IsFontResolverSet"));
+
+        isSet.Should().Be(false, "reading this without catching an exception is the point of it");
+    }
+
+    [Fact]
+    public void IsFontResolverSetIsTrueInThisProcessBecauseTheTestAssemblyAlreadyRegisteredOne()
+    {
+        // Unlike the cold-copy tests above, this asks the question of the resolver the whole suite
+        // runs against - PinnedFontResolver, registered once by TestBackendSetup - rather than
+        // trying to flip it, which the seam refuses after the first font it resolved.
+        GlobalFontSettings.IsFontResolverSet.Should().BeTrue();
+    }
+
+    [Fact]
+    public void FontResolverLifecycleSaysItRefusesASecondWrite()
+    {
+        GlobalFontSettings.FontResolverLifecycle.Should().Be(SeamLifecycle.SetOnce,
+            "changing it once a font has been resolved would disagree with what is already cached");
+    }
+
+    [Fact]
+    public void IsGlyphOutlineProviderSetIsFalseOnACopyOfTheLibraryNothingHasTouchedYet()
+    {
+        var isSet = OnAColdCopyOfTheLibrary(
+            assembly => SettingsProperty(assembly, "IsGlyphOutlineProviderSet"));
+
+        isSet.Should().Be(false);
+    }
+
+    [Fact]
+    public void GlyphOutlineProviderLifecycleSaysItMayBeSetAtAnyTime()
+    {
+        GlobalFontSettings.GlyphOutlineProviderLifecycle.Should().Be(SeamLifecycle.SetAnytime,
+            "only XGraphicsPath.AddString reads it, so nothing is cached against it");
+    }
+
+    [Fact]
+    public void IsDefaultFontEncodingSetIsFalseUntilTheDefaultOrAChoiceIsRead()
+    {
+        var isSet = OnAColdCopyOfTheLibrary(assembly => SettingsProperty(assembly, "IsDefaultFontEncodingSet"));
+
+        isSet.Should().Be(false,
+            "even though reading DefaultFontEncoding itself never throws, this is the only way to " +
+            "tell its default apart from a value a caller chose");
+    }
+
+    [Fact]
+    public void IsDefaultFontEncodingSetBecomesTrueOnceItHasBeenRead()
+    {
+        // DefaultFontEncoding answers its own default the first time it is read, and settles itself
+        // to that default as a side effect - which is exactly the side effect IsDefaultFontEncodingSet
+        // exists to let a caller find out about without triggering it.
+        var isSet = OnAColdCopyOfTheLibrary(assembly =>
+        {
+            var settings = assembly.GetType("PdfSharpCore.Fonts.GlobalFontSettings", throwOnError: true);
+            _ = settings.GetProperty("DefaultFontEncoding").GetValue(null);
+            return settings.GetProperty("IsDefaultFontEncodingSet").GetValue(null);
+        });
+
+        isSet.Should().Be(true);
+    }
+
+    [Fact]
+    public void DefaultFontEncodingLifecycleSaysItRefusesASecondWriteToADifferentValue()
+    {
+        GlobalFontSettings.DefaultFontEncodingLifecycle.Should().Be(SeamLifecycle.SetOnce);
+    }
+
+    [Fact]
+    public void IsImageSourceImplSetIsFalseOnACopyOfTheLibraryNothingHasTouchedYet()
+    {
+        var isSet = OnAColdCopyOfTheLibrary(assembly =>
+        {
+            var imageSourceType = assembly.GetType(
+                "MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource",
+                throwOnError: true);
+            return imageSourceType.GetProperty("IsImageSourceImplSet").GetValue(null);
+        });
+
+        isSet.Should().Be(false);
+    }
+
+    [Fact]
+    public void IsImageSourceImplSetIsTrueInThisProcessBecauseTheTestAssemblyAlreadyRegisteredOne()
+    {
+        ImageSource.IsImageSourceImplSet.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ImageSourceImplLifecycleSaysItMayBeSetAtAnyTime()
+    {
+        ImageSource.ImageSourceImplLifecycle.Should().Be(SeamLifecycle.SetAnytime,
+            "unlike the font resolver, it may be replaced at any time");
     }
 }

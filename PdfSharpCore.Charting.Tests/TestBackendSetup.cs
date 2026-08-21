@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using PdfSharpCore.Charting.Tests.Helpers;
 using PdfSharpCore.Fonts;
+using PdfSharpCore.Test.Helpers;
 
 namespace PdfSharpCore.Charting.Tests;
 
