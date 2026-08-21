@@ -33,7 +33,7 @@ using System.Diagnostics;
 using System.Text;
 using System.IO;
 using PdfSharpCore.Internal;
-
+using PdfSharpCore.Pdf.IO;
 
 namespace PdfSharpCore.Pdf.Content;
 
