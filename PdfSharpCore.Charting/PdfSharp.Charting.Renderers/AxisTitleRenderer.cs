@@ -109,47 +109,16 @@ internal class AxisTitleRenderer : Renderer
         XRect layout = new XRect(-(caption.Width / 2), -(caption.Height / 2),
           caption.Width, caption.Height);
 
-        double x = 0;
-        switch (atri.AxisTitleAlignment)
-        {
-          case HorizontalAlignment.Center:
-            x = atri.X + atri.Width / 2;
-            break;
-
-          case HorizontalAlignment.Right:
-            x = atri.X + atri.Width - caption.Width / 2;
-            break;
-
-          case HorizontalAlignment.Left:
-          default:
-            x = atri.X + caption.Width / 2;
-            break;
-        }
-
-        double y = 0;
-        switch (atri.AxisTitleVerticalAlignment)
-        {
-          case VerticalAlignment.Center:
-            y = atri.Y + atri.Height / 2;
-            break;
-
-          case VerticalAlignment.Bottom:
-            y = atri.Y + atri.Height - caption.Height / 2;
-            break;
-
-          case VerticalAlignment.Top:
-          default:
-            y = atri.Y + caption.Height / 2;
-            break;
-        }
+        RotatedCaptionLayout position = AxisTitleGeometry.RotatedCaption(
+          atri.Rect, caption, atri.AxisTitleOrientation, atri.AxisTitleAlignment, atri.AxisTitleVerticalAlignment);
 
         XStringFormat xsf = new XStringFormat();
         xsf.Alignment = XStringAlignment.Center;
         xsf.LineAlignment = XLineAlignment.Center;
 
         XGraphicsState state = gfx.Save();
-        gfx.TranslateTransform(x, y);
-        gfx.RotateTransform(-atri.AxisTitleOrientation);
+        gfx.TranslateTransform(position.Anchor.X, position.Anchor.Y);
+        gfx.RotateTransform(position.RotationDegrees);
         gfx.DrawString(atri.AxisTitleText, atri.AxisTitleFont, atri.AxisTitleBrush, layout, xsf);
         gfx.Restore(state);
       }

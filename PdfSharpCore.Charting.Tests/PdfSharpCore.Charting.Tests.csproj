@@ -65,6 +65,18 @@
 
   <ItemGroup>
     <!--
+      docs/specs/charting-renderer-seam.md's internal seam: renderer parameters in, computed
+      geometry out. AxisTitleGeometry.cs depends on nothing but public XRect/XSize/XPoint and the
+      public HorizontalAlignment/VerticalAlignment enums, so linking it - rather than adding this
+      repository's first InternalsVisibleTo, or making the geometry types public - costs this
+      project one more compiled copy of a small pure-arithmetic file and nothing else. The renderer
+      it serves, AxisTitleRenderer.Draw, calls the same file.
+    -->
+    <Compile Include="..\PdfSharpCore.Charting\PdfSharp.Charting.Renderers\AxisTitleGeometry.cs" Link="Renderers\Linked\AxisTitleGeometry.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       Linked rather than checked in again, as the renderer's tests link them. Glyph widths decide
       how wide a tick label measures, and a tick label's width decides how much room the axis
       renderer leaves itself and therefore where every column on the plot area lands. Liberation
