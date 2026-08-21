@@ -462,7 +462,7 @@ public class CLexer
             {
                 // The empty unicode string...
                 ScanNextChar(false);
-                return _symbol = CSymbol.String;
+                return _symbol = CSymbol.UnicodeString;
             }
             char second = ScanNextChar(false);
             ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
@@ -472,7 +472,7 @@ public class CLexer
                 // An unterminated string never sees its closing ')', so give up at the end
                 // of the content rather than scanning for ever.
                 if (_currChar == Chars.EOF)
-                    return _symbol = CSymbol.String;
+                    return _symbol = CSymbol.UnicodeString;
 
                 switch (ch)
                 {
@@ -484,7 +484,7 @@ public class CLexer
                         if (parenLevel == 0)
                         {
                             ScanNextChar(false);
-                            return _symbol = CSymbol.String;
+                            return _symbol = CSymbol.UnicodeString;
                         }
                         parenLevel--;
                         break;
@@ -565,14 +565,14 @@ public class CLexer
                 // As in the 8-bit branch below: the end-of-file marker is not a character of the
                 // string. It reaches here when the content ends immediately after a backslash.
                 if (ch == Chars.EOF)
-                    return _symbol = CSymbol.String;
+                    return _symbol = CSymbol.UnicodeString;
 
                 _token.Append(ch);
                 first = ScanNextChar(false);
                 if (first == ')')
                 {
                     ScanNextChar(false);
-                    return _symbol = CSymbol.String;
+                    return _symbol = CSymbol.UnicodeString;
                 }
                 second = ScanNextChar(false);
                 ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
@@ -756,6 +756,7 @@ public class CLexer
             _token.Length = 0;
             for (int idx = 2; idx < count; idx += 2)
                 _token.Append((char)(chars[idx] * 256 + chars[idx + 1]));
+            return _symbol = CSymbol.UnicodeHexString;
         }
         return _symbol = CSymbol.HexString;
     }

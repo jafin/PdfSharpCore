@@ -131,7 +131,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        tokens.Should().Contain(token => token.Symbol == CSymbol.String);
+        tokens.Should().Contain(token => token.Symbol == CSymbol.UnicodeString);
     }
 
     [Theory(Timeout = 5000)]
@@ -161,6 +161,17 @@ public class CLexerTests
         TokensOf(tokens, CSymbol.HexString).Should().Equal(BytesSpelling(expected));
     }
 
+    // A hex string carrying the UTF-16BE byte order mark decodes to text either way, but used to
+    // come back as CSymbol.HexString regardless - CParser treats the two symbols alike, so nothing
+    // downstream noticed, but the symbol itself said less than the scanner already knew.
+    [Fact(Timeout = 5000)]
+    public async Task ScanHexadecimalString_isRecognisedByItsByteOrderMark()
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("<FEFF00480049>")));
+
+        TokensOf(tokens, CSymbol.UnicodeHexString).Should().Equal("HI");
+    }
+
     // A Unicode hex string short of the low byte of its last character used to be caught only by
     // a Debug.Assert, which does nothing in a Release build - where the decode loop then read one
     // character past the end of the string. The missing byte is a zero, the same reading a plain
@@ -172,7 +183,7 @@ public class CLexerTests
     {
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
-        TokensOf(tokens, CSymbol.HexString).Should().Equal("\0");
+        TokensOf(tokens, CSymbol.UnicodeHexString).Should().Equal("\0");
     }
 
     [Theory(Timeout = 5000)]
@@ -294,7 +305,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("Hi");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Hi");
     }
 
     /// <summary>
@@ -309,7 +320,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("Hi");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Hi");
     }
 
     /// <summary>
@@ -325,7 +336,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("Ω€");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Ω€");
     }
 
     [Fact(Timeout = 5000)]
@@ -335,7 +346,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("");
     }
 
     /// <summary>
@@ -476,7 +487,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("A");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("A");
     }
 
     [Fact(Timeout = 5000)]
