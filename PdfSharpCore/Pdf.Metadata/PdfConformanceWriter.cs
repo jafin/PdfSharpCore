@@ -232,12 +232,27 @@ internal static class PdfConformanceWriter
                 case "GRAY": return 1;
                 case "CMYK": return 4;
 
-                // The three-component spaces a PDF output intent can plausibly carry. Lab and XYZ
-                // are not device spaces and will not appear here from this library, but a caller's
-                // profile is a caller's profile and answering 3 for them is right.
+                // The three-component spaces a PDF output intent can plausibly carry. Lab, XYZ,
+                // Luv and CMY are not device spaces and will not appear here from this library, but
+                // a caller's profile is a caller's profile and answering 3 for them is right.
                 case "RGB ":
                 case "Lab ":
-                case "XYZ ": return 3;
+                case "XYZ ":
+                case "Luv ":
+                case "CMY ": return 3;
+            }
+
+            // ICC.1:2010 Table 19 also names an nCLR family for multi-channel devices: '2CLR'
+            // through '9CLR' and then 'ACLR' through 'FCLR', the leading character spelling the
+            // channel count in hex from 2 to 15. Falling back to the colour mode's 3-or-4 guess for
+            // one of these is exactly the wrong /N this method exists to stop writing.
+            if (space[1] == 'C' && space[2] == 'L' && space[3] == 'R')
+            {
+                var digit = space[0];
+                if (digit is >= '2' and <= '9')
+                    return digit - '0';
+                if (digit is >= 'A' and <= 'F')
+                    return digit - 'A' + 10;
             }
         }
 
