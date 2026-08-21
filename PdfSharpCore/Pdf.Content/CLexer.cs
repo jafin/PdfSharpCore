@@ -439,22 +439,27 @@ public class CLexer
         ClearToken();
         int parenLevel = 0;
         char ch = ScanNextChar();
-        // Test UNICODE string
-        if (ch == '\xFE' && _nextChar == '\xFF')
+        // Test UNICODE string. The reference only names the big-endian byte order mark, but
+        // Adobe Reader also accepts the little-endian one - the document lexer's ScanLiteralString
+        // does too, decoding after the fact rather than character by character, and a byte-swapped
+        // string here should read the same text it does there.
+        bool bigEndian = ch == '\xFE' && _nextChar == '\xFF';
+        bool littleEndian = ch == '\xFF' && _nextChar == '\xFE';
+        if (bigEndian || littleEndian)
         {
             // I'm not sure if the code is correct in any case.
             // ? Can a UNICODE character not start with ')' as hibyte
             // ? What about \# escape sequences
             ScanNextChar();
-            char chHi = ScanNextChar();
-            if (chHi == ')')
+            char first = ScanNextChar();
+            if (first == ')')
             {
                 // The empty unicode string...
                 ScanNextChar();
                 return _symbol = CSymbol.String;
             }
-            char chLo = ScanNextChar();
-            ch = (char)(chHi * 256 + chLo);
+            char second = ScanNextChar();
+            ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             while (true)
             {
                 SkipChar:
@@ -553,14 +558,14 @@ public class CLexer
                     return _symbol = CSymbol.String;
 
                 _token.Append(ch);
-                chHi = ScanNextChar();
-                if (chHi == ')')
+                first = ScanNextChar();
+                if (first == ')')
                 {
                     ScanNextChar();
                     return _symbol = CSymbol.String;
                 }
-                chLo = ScanNextChar();
-                ch = (char)(chHi * 256 + chLo);
+                second = ScanNextChar();
+                ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             }
         }
         else

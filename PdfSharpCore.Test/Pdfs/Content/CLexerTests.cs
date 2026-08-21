@@ -298,6 +298,21 @@ public class CLexerTests
     }
 
     /// <summary>
+    /// Adobe Reader also accepts the little-endian byte order mark, FF FE, and the document lexer
+    /// decodes it too - CLexer's copy checked for FE FF alone, so the same bytes read as raw pairs
+    /// rather than as the text they spell.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_readsALittleEndianUnicodeStringTheOtherWayRound()
+    {
+        var content = new byte[] { (byte)'(', 0xFF, 0xFE, (byte)'H', 0x00, (byte)'i', 0x00, (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("Hi");
+    }
+
+    /// <summary>
     /// Characters whose high byte is zero would read the same whether the two bytes were combined
     /// or the high one simply dropped, so a string of them cannot tell the two apart. These are
     /// above the Latin block and fail if the high byte is not carried.
