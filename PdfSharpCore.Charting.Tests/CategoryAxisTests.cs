@@ -112,25 +112,46 @@ public class CategoryAxisTests
     }
 
     /// <summary>
-    ///   The category axis draws nothing at all until its line format says something. Its tick
-    ///   marks and its axis line are both stroked with a renderer built from
-    ///   <see cref="Axis.LineFormat"/>, and that renderer holds no pen when the format is absent,
-    ///   so every line it is asked for is discarded. The value axis has a pen of its own and draws
-    ///   its tick marks either way, which is why a default chart has horizontal tick marks up the
-    ///   side and nothing along the bottom.
+    ///   The tick-mark pens repair: every axis's tick marks are stroked with the pens
+    ///   <c>AxisRenderer.InitAxisLineFormat</c> already computes for it, which are never null, so
+    ///   the category axis's tick marks are visible without asking for anything - exactly as the
+    ///   value axis's always were. Before the axis renderers were merged, the category axis
+    ///   stroked its ticks with a pen built from <see cref="Axis.LineFormat"/> instead, which holds
+    ///   no pen until a caller sets one, so a default chart had tick marks up the side and none
+    ///   along the bottom.
     /// </summary>
     [Fact]
-    public void TheCategoryAxisStrokesNothingUntilItIsGivenALineFormat()
+    public void TheCategoryAxisDrawsTickMarksByDefault()
     {
         var chart = Charts.Of(ChartType.Column2D, 1.0, 3.0, 2.0, 4.0);
 
-        StrokedLines.Of(Drawn.Page(chart)).Should().OnlyContain(line => line.IsHorizontal,
-            "only the value axis, which runs up the side, has drawn anything");
+        StrokedLines.Of(Drawn.Page(chart)).Should().Contain(line => line.IsVertical,
+            "the category axis's tick marks run up and down, and need no line format to be drawn");
+    }
+
+    /// <summary>
+    ///   The category axis's own line - the single segment running along it, separate from its
+    ///   tick marks - still waits on <see cref="Axis.LineFormat"/>, which holds no pen until a
+    ///   caller sets one.
+    /// </summary>
+    [Fact]
+    public void TheCategoryAxissOwnLineStillWaitsForALineFormat()
+    {
+        var chart = Charts.Of(ChartType.Column2D, 1.0, 3.0, 2.0, 4.0);
+        chart.XAxis.MajorTickMark = TickMarkType.None;
+        chart.XAxis.MinorTickMark = TickMarkType.None;
+
+        var before = StrokedLines.Of(Drawn.Page(chart));
+        before.Should().OnlyContain(line => line.IsHorizontal,
+            "only the value axis's tick marks, which stick out sideways from it, have drawn anything");
 
         chart.XAxis.LineFormat.Visible = true;
 
-        StrokedLines.Of(Drawn.Page(chart)).Should().Contain(line => line.IsVertical,
-            "the category axis now has a pen for its tick marks");
+        // A column chart's category axis runs left to right along the bottom, so its own line is
+        // one more horizontal segment - one this chart had no line to draw before.
+        var after = StrokedLines.Of(Drawn.Page(chart));
+        after.Should().OnlyContain(line => line.IsHorizontal);
+        after.Count.Should().BeGreaterThan(before.Count, "the category axis now draws its own line");
     }
 
     [Fact]
@@ -151,17 +172,21 @@ public class CategoryAxisTests
     }
 
     /// <summary>
-    ///   The bar chart's category axis is the same story: nothing is stroked for it until it has a
-    ///   line format, and then its tick marks run across rather than up.
+    ///   The bar chart's category axis is the same story as the column chart's: its tick marks -
+    ///   here running across rather than up - are stroked by default, and only its own line still
+    ///   waits on a line format.
     /// </summary>
     [Fact]
-    public void ABarChartsCategoryAxisStrokesNothingUntilItIsGivenALineFormat()
+    public void ABarChartsCategoryAxisDrawsTickMarksByDefaultButNotItsOwnLine()
     {
         var chart = Charts.Of(ChartType.Bar2D, 3.0, 6.0);
         chart.YAxis.MajorTickMark = TickMarkType.None;
         chart.YAxis.MinorTickMark = TickMarkType.None;
 
-        StrokedLines.Of(Drawn.Page(chart)).Should().BeEmpty();
+        var beforeLineFormat = StrokedLines.Of(Drawn.Page(chart));
+        beforeLineFormat.Should().NotBeEmpty("the category axis's tick marks need no line format");
+        beforeLineFormat.Should().OnlyContain(line => line.IsHorizontal,
+            "a bar chart's category tick marks stick out sideways, and its own line is not drawn yet");
 
         chart.XAxis.LineFormat.Visible = true;
         chart.XAxis.MinorTickMark = TickMarkType.Outside;

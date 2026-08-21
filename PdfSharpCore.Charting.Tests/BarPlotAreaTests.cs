@@ -112,6 +112,8 @@ public class BarPlotAreaTests
     {
         var chart = Charts.Of(ChartType.Bar2D, 3.0, 6.0, 1.0);
         chart.XAxis.HasMajorGridlines = true;
+        chart.XAxis.MajorTickMark = TickMarkType.None;
+        chart.XAxis.MinorTickMark = TickMarkType.None;
         chart.YAxis.MajorTickMark = TickMarkType.None;
         chart.YAxis.MinorTickMark = TickMarkType.None;
 
@@ -126,6 +128,8 @@ public class BarPlotAreaTests
     {
         var chart = Charts.Of(ChartType.Bar2D, 3.0, 6.0, 1.0);
         chart.XAxis.HasMajorGridlines = true;
+        chart.XAxis.MajorTickMark = TickMarkType.None;
+        chart.XAxis.MinorTickMark = TickMarkType.None;
         chart.YAxis.MajorTickMark = TickMarkType.None;
         chart.YAxis.MinorTickMark = TickMarkType.None;
 
@@ -230,6 +234,8 @@ public class BarPlotAreaTests
     public void ABarChartWithNoGridlinesAsksForNoneOfThem()
     {
         var chart = Charts.Of(ChartType.Bar2D, 3.0, 6.0, 1.0);
+        chart.XAxis.MajorTickMark = TickMarkType.None;
+        chart.XAxis.MinorTickMark = TickMarkType.None;
         chart.YAxis.MajorTickMark = TickMarkType.None;
         chart.YAxis.MinorTickMark = TickMarkType.None;
 

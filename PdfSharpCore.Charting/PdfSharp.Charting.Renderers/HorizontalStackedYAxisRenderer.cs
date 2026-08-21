@@ -23,11 +23,9 @@
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 #endregion
-
-using System;
 
 namespace PdfSharpCore.Charting.Renderers;
 
@@ -48,36 +46,5 @@ internal class HorizontalStackedYAxisRenderer : HorizontalYAxisRenderer
   /// Determines the sum of the smallest and the largest stacked bar
   /// from all series of the chart.
   /// </summary>
-  protected override void CalcYAxis(out double yMin, out double yMax)
-  {
-    yMin = double.MaxValue;
-    yMax = double.MinValue;
-
-    ChartRendererInfo cri = (ChartRendererInfo)this.rendererParms.RendererInfo;
-
-    int maxPoints = 0;
-    foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      maxPoints = Math.Max(maxPoints, sri.series.Elements.Count);
-
-    for (int pointIdx = 0; pointIdx < maxPoints; ++pointIdx)
-    {
-      double valueSumPos = 0, valueSumNeg = 0;
-      foreach (SeriesRendererInfo sri in cri.seriesRendererInfos)
-      {
-        if (sri.pointRendererInfos.Length <= pointIdx)
-          break;
-
-        ColumnRendererInfo column = (ColumnRendererInfo)sri.pointRendererInfos[pointIdx];
-        if (!double.IsNaN(column.Value))
-        {
-          if (column.Value < 0)
-            valueSumNeg += column.Value;
-          else
-            valueSumPos += column.Value;
-        }
-      }
-      yMin = Math.Min(valueSumNeg, yMin);
-      yMax = Math.Max(valueSumPos, yMax);
-    }
-  }
+  protected override void CalcYAxis(out double yMin, out double yMax) => CalcStackedYAxis(out yMin, out yMax);
 }
