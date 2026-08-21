@@ -39,6 +39,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a row of a table.
 /// </summary>
+[SuppressSerializeCheck("index is this row's position in Rows, recomputed from that collection " +
+    "on read rather than stored - there is nothing for Serialize to write")]
 public partial class Row : DocumentObject, IVisitable
 {
   /// <summary>

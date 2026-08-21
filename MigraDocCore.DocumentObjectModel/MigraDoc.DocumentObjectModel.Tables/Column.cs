@@ -38,6 +38,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a column of a table.
 /// </summary>
+[SuppressSerializeCheck("index is this column's position in Columns, recomputed from that " +
+    "collection on read rather than stored - there is nothing for Serialize to write")]
 public partial class Column : DocumentObject
 {
   /// <summary>
