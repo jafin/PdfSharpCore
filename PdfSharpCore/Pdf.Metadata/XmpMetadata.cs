@@ -89,6 +89,43 @@ public sealed class XmpMetadata
     /// </remarks>
     public IList<string> AdditionalDescriptions { get; } = new List<string>();
 
+    private readonly List<XmpExtensionSchema> _extensionSchemas = new();
+
+    /// <summary>
+    /// The extension schemas declared so far, in declaration order. Populated by
+    /// <see cref="DeclareSchema"/>; there is no other way to add to it, because a schema added any
+    /// other way could not have had its prefix checked against the ones already here.
+    /// </summary>
+    public IReadOnlyList<XmpExtensionSchema> ExtensionSchemas => _extensionSchemas;
+
+    /// <summary>
+    /// Declares a namespace of the caller's own, so that the properties it describes may be written
+    /// into the packet. Declaration and value are the same list by construction — see
+    /// <see cref="XmpExtensionSchema"/> — so a property cannot be declared without being written, or
+    /// written without being declared.
+    /// </summary>
+    /// <remarks>
+    /// Refused immediately, not at save time, when a schema already declared here uses the same
+    /// prefix: two schemas sharing a prefix would leave a property's namespace ambiguous, and nothing
+    /// about that depends on the rest of the document.
+    /// </remarks>
+    public void DeclareSchema(XmpExtensionSchema schema)
+    {
+        if (schema == null)
+            throw new ArgumentNullException(nameof(schema));
+
+        foreach (var already in _extensionSchemas)
+        {
+            if (already.Prefix == schema.Prefix)
+                throw new InvalidOperationException(
+                    "A schema with prefix '" + schema.Prefix + "' is already declared in this packet. "
+                    + "Two schemas cannot share a prefix, or a property's namespace would be "
+                    + "ambiguous — give the new one a prefix of its own.");
+        }
+
+        _extensionSchemas.Add(schema);
+    }
+
     /// <summary>
     /// Takes the facts from the document's information dictionary, so that the two cannot drift
     /// apart. Anything set on the result afterwards wins.
@@ -134,6 +171,7 @@ public sealed class XmpMetadata
         AppendBasic(xmp);
         AppendConformance(xmp);
         AppendAccessibility(xmp);
+        AppendExtensionSchemas(xmp);
 
         foreach (var description in AdditionalDescriptions)
             xmp.Append("  ").Append(description).Append('\n');
@@ -214,6 +252,92 @@ public sealed class XmpMetadata
     }
 
     /// <summary>
+    /// One <c>pdfaExtension:schemas</c> description declaring every schema in <see cref="ExtensionSchemas"/>,
+    /// followed by one <c>rdf:Description</c> per schema carrying the values it declared. Both are
+    /// written from <see cref="XmpExtensionSchema.Properties"/> — the same list, walked twice — so a
+    /// property declared here is always one written below, and a property written below is always one
+    /// declared here.
+    /// </summary>
+    private void AppendExtensionSchemas(StringBuilder xmp)
+    {
+        if (_extensionSchemas.Count == 0)
+            return;
+
+        xmp.Append("  <rdf:Description rdf:about=\"\"")
+           .Append(" xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\"")
+           .Append(" xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\"")
+           .Append(" xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">\n");
+        xmp.Append("   <pdfaExtension:schemas>\n");
+        xmp.Append("    <rdf:Bag>\n");
+
+        foreach (var schema in _extensionSchemas)
+            AppendSchemaDeclaration(xmp, schema);
+
+        xmp.Append("    </rdf:Bag>\n");
+        xmp.Append("   </pdfaExtension:schemas>\n");
+        xmp.Append("  </rdf:Description>\n");
+
+        foreach (var schema in _extensionSchemas)
+            AppendSchemaValues(xmp, schema);
+    }
+
+    private static void AppendSchemaDeclaration(StringBuilder xmp, XmpExtensionSchema schema)
+    {
+        xmp.Append("     <rdf:li rdf:parseType=\"Resource\">\n");
+        xmp.Append("      <pdfaSchema:schema>").Append(EscapeAttribute(schema.SchemaName))
+           .Append("</pdfaSchema:schema>\n");
+        xmp.Append("      <pdfaSchema:namespaceURI>").Append(EscapeAttribute(schema.NamespaceUri))
+           .Append("</pdfaSchema:namespaceURI>\n");
+        xmp.Append("      <pdfaSchema:prefix>").Append(schema.Prefix).Append("</pdfaSchema:prefix>\n");
+        xmp.Append("      <pdfaSchema:property>\n");
+        xmp.Append("       <rdf:Seq>\n");
+
+        foreach (var property in schema.Properties)
+        {
+            xmp.Append("        <rdf:li rdf:parseType=\"Resource\">\n");
+            xmp.Append("         <pdfaProperty:name>").Append(property.Name)
+               .Append("</pdfaProperty:name>\n");
+            xmp.Append("         <pdfaProperty:valueType>Text</pdfaProperty:valueType>\n");
+            xmp.Append("         <pdfaProperty:category>").Append(CategoryOf(property.Category))
+               .Append("</pdfaProperty:category>\n");
+            xmp.Append("         <pdfaProperty:description>").Append(EscapeAttribute(property.Description))
+               .Append("</pdfaProperty:description>\n");
+            xmp.Append("        </rdf:li>\n");
+        }
+
+        xmp.Append("       </rdf:Seq>\n");
+        xmp.Append("      </pdfaSchema:property>\n");
+        xmp.Append("     </rdf:li>\n");
+    }
+
+    private static void AppendSchemaValues(StringBuilder xmp, XmpExtensionSchema schema)
+    {
+        xmp.Append("  <rdf:Description rdf:about=\"\" xmlns:").Append(schema.Prefix).Append("=\"")
+           .Append(EscapeAttribute(schema.NamespaceUri)).Append("\">\n");
+
+        foreach (var property in schema.Properties)
+        {
+            xmp.Append("   <").Append(schema.Prefix).Append(':').Append(property.Name).Append('>')
+               .Append(EscapeAttribute(property.Value))
+               .Append("</").Append(schema.Prefix).Append(':').Append(property.Name).Append(">\n");
+        }
+
+        xmp.Append("  </rdf:Description>\n");
+    }
+
+    /// <summary>
+    /// The category string PDF/A expects — the enum exists so a caller cannot misspell either of the
+    /// two, and this is where the string it misspells nothing of comes from.
+    /// </summary>
+    private static string CategoryOf(XmpPropertyCategory category) => category switch
+    {
+        XmpPropertyCategory.Internal => "internal",
+        XmpPropertyCategory.External => "external",
+        _ => throw new ArgumentOutOfRangeException(nameof(category), category,
+            "There is no PDF/A category string for this value."),
+    };
+
+    /// <summary>
     /// The part number of ISO 19005 a profile belongs to, which is what <c>pdfaid:part</c> holds.
     /// </summary>
     internal static string PartOf(PdfAConformance conformance) => conformance switch
@@ -273,6 +397,19 @@ public sealed class XmpMetadata
         .Replace("&", "&amp;")
         .Replace("<", "&lt;")
         .Replace(">", "&gt;");
+
+    /// <summary>
+    /// The same three characters <see cref="Escape"/> handles, and the quotation mark besides. An
+    /// extension schema's namespace URI and prefix are written into <em>attribute</em> values, where a
+    /// quotation mark ends the attribute early and everything after it becomes markup — a mistake
+    /// <see cref="Escape"/> alone cannot catch because none of the built-in descriptions it serves ever
+    /// land in an attribute.
+    /// </summary>
+    private static string EscapeAttribute(string value) => value
+        .Replace("&", "&amp;")
+        .Replace("<", "&lt;")
+        .Replace(">", "&gt;")
+        .Replace("\"", "&quot;");
 
     private static string NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
