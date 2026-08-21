@@ -438,7 +438,10 @@ public class CLexer
 
         ClearToken();
         int parenLevel = 0;
-        char ch = ScanNextChar();
+        // Read with folding off throughout: the document lexer's ScanLiteralString does the same,
+        // so a raw carriage return inside the string is kept rather than turned into a line feed,
+        // and only an escaped one - '\' before either end-of-line spelling - continues the line.
+        char ch = ScanNextChar(false);
         // Test UNICODE string. The reference only names the big-endian byte order mark, but
         // Adobe Reader also accepts the little-endian one - the document lexer's ScanLiteralString
         // does too, decoding after the fact rather than character by character, and a byte-swapped
@@ -450,15 +453,15 @@ public class CLexer
             // I'm not sure if the code is correct in any case.
             // ? Can a UNICODE character not start with ')' as hibyte
             // ? What about \# escape sequences
-            ScanNextChar();
-            char first = ScanNextChar();
+            ScanNextChar(false);
+            char first = ScanNextChar(false);
             if (first == ')')
             {
                 // The empty unicode string...
-                ScanNextChar();
+                ScanNextChar(false);
                 return _symbol = CSymbol.String;
             }
-            char second = ScanNextChar();
+            char second = ScanNextChar(false);
             ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             while (true)
             {
@@ -477,7 +480,7 @@ public class CLexer
                     case ')':
                         if (parenLevel == 0)
                         {
-                            ScanNextChar();
+                            ScanNextChar(false);
                             return _symbol = CSymbol.String;
                         }
                         parenLevel--;
@@ -486,7 +489,7 @@ public class CLexer
                     case '\\':
                     {
                         // TODO: not sure that this is correct...
-                        ch = ScanNextChar();
+                        ch = ScanNextChar(false);
                         switch (ch)
                         {
                             case 'n':
@@ -521,8 +524,12 @@ public class CLexer
                                 ch = Chars.BackSlash;
                                 break;
 
+                            // A backslash right before either spelling of an end of line
+                            // continues the string onto the next one; neither the backslash nor
+                            // the line ending becomes part of it.
+                            case Chars.CR:
                             case Chars.LF:
-                                ch = ScanNextChar();
+                                ch = ScanNextChar(false);
                                 goto SkipChar;
 
                             default:
@@ -532,9 +539,9 @@ public class CLexer
                                     int n = ch - '0';
                                     if (IsOctalDigit(_nextChar))
                                     {
-                                        n = n * 8 + ScanNextChar() - '0';
+                                        n = n * 8 + ScanNextChar(false) - '0';
                                         if (IsOctalDigit(_nextChar))
-                                            n = n * 8 + ScanNextChar() - '0';
+                                            n = n * 8 + ScanNextChar(false) - '0';
                                     }
                                     ch = (char)n;
                                 }
@@ -558,13 +565,13 @@ public class CLexer
                     return _symbol = CSymbol.String;
 
                 _token.Append(ch);
-                first = ScanNextChar();
+                first = ScanNextChar(false);
                 if (first == ')')
                 {
-                    ScanNextChar();
+                    ScanNextChar(false);
                     return _symbol = CSymbol.String;
                 }
-                second = ScanNextChar();
+                second = ScanNextChar(false);
                 ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             }
         }
@@ -588,7 +595,7 @@ public class CLexer
                     case ')':
                         if (parenLevel == 0)
                         {
-                            ScanNextChar();
+                            ScanNextChar(false);
                             return _symbol = CSymbol.String;
                         }
                         parenLevel--;
@@ -596,7 +603,7 @@ public class CLexer
 
                     case '\\':
                     {
-                        ch = ScanNextChar();
+                        ch = ScanNextChar(false);
                         switch (ch)
                         {
                             case 'n':
@@ -631,8 +638,12 @@ public class CLexer
                                 ch = Chars.BackSlash;
                                 break;
 
+                            // A backslash right before either spelling of an end of line
+                            // continues the string onto the next one; neither the backslash nor
+                            // the line ending becomes part of it.
+                            case Chars.CR:
                             case Chars.LF:
-                                ch = ScanNextChar();
+                                ch = ScanNextChar(false);
                                 goto SkipChar;
 
                             default:
@@ -642,9 +653,9 @@ public class CLexer
                                     int n = ch - '0';
                                     if (IsOctalDigit(_nextChar))
                                     {
-                                        n = n * 8 + ScanNextChar() - '0';
+                                        n = n * 8 + ScanNextChar(false) - '0';
                                         if (IsOctalDigit(_nextChar))
-                                            n = n * 8 + ScanNextChar() - '0';
+                                            n = n * 8 + ScanNextChar(false) - '0';
                                     }
                                     ch = (char)n;
                                 }
@@ -671,7 +682,7 @@ public class CLexer
 
                 _token.Append(ch);
                 //token.Append(Encoding.GetEncoding(1252).GetString(new byte[] { (byte)ch }));
-                ch = ScanNextChar();
+                ch = ScanNextChar(false);
             }
         }
     }
@@ -747,9 +758,14 @@ public class CLexer
     }
 
     /// <summary>
-    /// Move current position one character further in content stream.
+    /// Move current position one character further in content stream, folding a carriage return
+    /// into a line feed when <paramref name="handleCRLF"/> is set - CR LF becomes LF, and a lone
+    /// CR becomes LF as well. A literal string reads its characters with it clear, the way the
+    /// document lexer's <c>Lexer.ScanNextChar</c> does, so that a raw carriage return inside the
+    /// string is kept rather than folded, and only an escaped one - <c>\</c> followed by either
+    /// end-of-line spelling - continues the line.
     /// </summary>
-    internal char ScanNextChar()
+    internal char ScanNextChar(bool handleCRLF = true)
     {
         if (ContLength <= _charIndex)
         {
@@ -760,14 +776,14 @@ public class CLexer
             _nextChar = Chars.EOF;
             // Treat a single CR as LF, as the branch below does. Nothing is left to pair it
             // with, so it cannot be the CR of a CR LF.
-            if (_currChar == Chars.CR)
+            if (handleCRLF && _currChar == Chars.CR)
                 _currChar = Chars.LF;
         }
         else
         {
             _currChar = _nextChar;
             _nextChar = (char)_content[_charIndex++];
-            if (_currChar == Chars.CR)
+            if (handleCRLF && _currChar == Chars.CR)
             {
                 if (_nextChar == Chars.LF)
                 {

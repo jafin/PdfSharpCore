@@ -408,18 +408,38 @@ public class CLexerTests
     }
 
     [Theory(Timeout = 5000)]
-    [InlineData("(a\\\nb)")]
-    [InlineData("(a\\\rb)")]
-    [InlineData("(a\\\r\nb)")]
+    [InlineData("(a\\\nb)", "ab")]
+    [InlineData("(a\\\rb)", "ab")]
+    // Both bytes of a CR LF pair are read raw here, matching the document lexer's own
+    // ScanLiteralString: the CR after the backslash continues the line, but the LF that follows
+    // it is not itself escaped, so it lands in the string as an ordinary character rather than
+    // being swallowed along with the CR. Lexer does the same - LexerLiteralStringTests would pin
+    // it there too, but no such test existed before this one for either lexer.
+    [InlineData("(a\\\r\nb)", "a\nb")]
     public async Task ScanLiteralString_treatsABackslashBeforeAnEndOfLineAsAContinuation(
-        string content)
+        string content, string expected)
     {
-        // A long string may be broken across lines of the file without the break becoming part
-        // of it. All three spellings of an end of line have to work, which they do because the
-        // scanner turns them all into one before the escape is looked at.
         var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("ab");
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    /// <summary>
+    ///   A carriage return that is not escaped is not a line continuation and is not folded into
+    ///   a line feed either - the document lexer reads a literal string's characters with folding
+    ///   off throughout, so a bare CR is kept exactly as written. CLexer used to fold every CR to
+    ///   LF unconditionally, escaped or not, which is what made the guard above look unnecessary:
+    ///   the fold did its job by accident. Closing it here is what makes an explicit case for CR
+    ///   in the escape switch load-bearing rather than redundant.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_keepsABareCarriageReturnRatherThanFoldingIt()
+    {
+        var content = new byte[] { (byte)'(', (byte)'a', 0x0D, (byte)'b', (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("a\rb");
     }
 
     /// <summary>
