@@ -36,6 +36,7 @@ using System.Collections;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using PdfSharpCore.Pdf.IO;
 
 namespace PdfSharpCore.Pdf.Content.Objects; // TODO: split into single files
 

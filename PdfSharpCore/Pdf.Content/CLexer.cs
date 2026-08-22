@@ -33,7 +33,7 @@ using System.Diagnostics;
 using System.Text;
 using System.IO;
 using PdfSharpCore.Internal;
-
+using PdfSharpCore.Pdf.IO;
 
 namespace PdfSharpCore.Pdf.Content;
 
@@ -50,15 +50,15 @@ public class CLexer
     {
         _content = content;
         _charIndex = 0;
+        _readNextRawByte = ReadNextRawByte;
+        _scanNextCharFolding = ScanNextCharFolding;
     }
 
     /// <summary>
     /// Initializes a new instance of the Lexer class.
     /// </summary>
-    public CLexer(MemoryStream content)
+    public CLexer(MemoryStream content) : this(content.ToArray())
     {
-        _content = content.ToArray();
-        _charIndex = 0;
     }
 
     /// <summary>
@@ -403,8 +403,11 @@ public class CLexer
         if (value >= Int32.MinValue && value < Int32.MaxValue)
             return CSymbol.Integer;
 
-        ContentReaderDiagnostics.ThrowNumberOutOfIntegerRange(value);
-        return CSymbol.Error;
+        // Out of range for CSymbol.Integer, which a content operand is expected to fit. The
+        // document lexer degrades a too-large integer to a real rather than refuse it outright -
+        // CSymbol has no separate "long integer" symbol to reach for instead, so a real is the
+        // same fallback here. _tokenAsReal was already set to this value above.
+        return CSymbol.Real;
     }
 
     /// <summary>
@@ -438,30 +441,38 @@ public class CLexer
 
         ClearToken();
         int parenLevel = 0;
-        char ch = ScanNextChar();
-        // Test UNICODE string
-        if (ch == '\xFE' && _nextChar == '\xFF')
+        // Read with folding off throughout: the document lexer's ScanLiteralString does the same,
+        // so a raw carriage return inside the string is kept rather than turned into a line feed,
+        // and only an escaped one - '\' before either end-of-line spelling - continues the line.
+        char ch = ScanNextChar(false);
+        // Test UNICODE string. The reference only names the big-endian byte order mark, but
+        // Adobe Reader also accepts the little-endian one - the document lexer's ScanLiteralString
+        // does too, decoding after the fact rather than character by character, and a byte-swapped
+        // string here should read the same text it does there.
+        bool bigEndian = ch == '\xFE' && _nextChar == '\xFF';
+        bool littleEndian = ch == '\xFF' && _nextChar == '\xFE';
+        if (bigEndian || littleEndian)
         {
             // I'm not sure if the code is correct in any case.
             // ? Can a UNICODE character not start with ')' as hibyte
             // ? What about \# escape sequences
-            ScanNextChar();
-            char chHi = ScanNextChar();
-            if (chHi == ')')
+            ScanNextChar(false);
+            char first = ScanNextChar(false);
+            if (first == ')')
             {
                 // The empty unicode string...
-                ScanNextChar();
-                return _symbol = CSymbol.String;
+                ScanNextChar(false);
+                return _symbol = CSymbol.UnicodeString;
             }
-            char chLo = ScanNextChar();
-            ch = (char)(chHi * 256 + chLo);
+            char second = ScanNextChar(false);
+            ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             while (true)
             {
                 SkipChar:
                 // An unterminated string never sees its closing ')', so give up at the end
                 // of the content rather than scanning for ever.
                 if (_currChar == Chars.EOF)
-                    return _symbol = CSymbol.String;
+                    return _symbol = CSymbol.UnicodeString;
 
                 switch (ch)
                 {
@@ -472,8 +483,8 @@ public class CLexer
                     case ')':
                         if (parenLevel == 0)
                         {
-                            ScanNextChar();
-                            return _symbol = CSymbol.String;
+                            ScanNextChar(false);
+                            return _symbol = CSymbol.UnicodeString;
                         }
                         parenLevel--;
                         break;
@@ -481,7 +492,7 @@ public class CLexer
                     case '\\':
                     {
                         // TODO: not sure that this is correct...
-                        ch = ScanNextChar();
+                        ch = ScanNextChar(false);
                         switch (ch)
                         {
                             case 'n':
@@ -516,8 +527,12 @@ public class CLexer
                                 ch = Chars.BackSlash;
                                 break;
 
+                            // A backslash right before either spelling of an end of line
+                            // continues the string onto the next one; neither the backslash nor
+                            // the line ending becomes part of it.
+                            case Chars.CR:
                             case Chars.LF:
-                                ch = ScanNextChar();
+                                ch = ScanNextChar(false);
                                 goto SkipChar;
 
                             default:
@@ -527,9 +542,9 @@ public class CLexer
                                     int n = ch - '0';
                                     if (IsOctalDigit(_nextChar))
                                     {
-                                        n = n * 8 + ScanNextChar() - '0';
+                                        n = n * 8 + ScanNextChar(false) - '0';
                                         if (IsOctalDigit(_nextChar))
-                                            n = n * 8 + ScanNextChar() - '0';
+                                            n = n * 8 + ScanNextChar(false) - '0';
                                     }
                                     ch = (char)n;
                                 }
@@ -550,17 +565,17 @@ public class CLexer
                 // As in the 8-bit branch below: the end-of-file marker is not a character of the
                 // string. It reaches here when the content ends immediately after a backslash.
                 if (ch == Chars.EOF)
-                    return _symbol = CSymbol.String;
+                    return _symbol = CSymbol.UnicodeString;
 
                 _token.Append(ch);
-                chHi = ScanNextChar();
-                if (chHi == ')')
+                first = ScanNextChar(false);
+                if (first == ')')
                 {
-                    ScanNextChar();
-                    return _symbol = CSymbol.String;
+                    ScanNextChar(false);
+                    return _symbol = CSymbol.UnicodeString;
                 }
-                chLo = ScanNextChar();
-                ch = (char)(chHi * 256 + chLo);
+                second = ScanNextChar(false);
+                ch = bigEndian ? (char)(first * 256 + second) : (char)(second * 256 + first);
             }
         }
         else
@@ -583,7 +598,7 @@ public class CLexer
                     case ')':
                         if (parenLevel == 0)
                         {
-                            ScanNextChar();
+                            ScanNextChar(false);
                             return _symbol = CSymbol.String;
                         }
                         parenLevel--;
@@ -591,7 +606,7 @@ public class CLexer
 
                     case '\\':
                     {
-                        ch = ScanNextChar();
+                        ch = ScanNextChar(false);
                         switch (ch)
                         {
                             case 'n':
@@ -626,8 +641,12 @@ public class CLexer
                                 ch = Chars.BackSlash;
                                 break;
 
+                            // A backslash right before either spelling of an end of line
+                            // continues the string onto the next one; neither the backslash nor
+                            // the line ending becomes part of it.
+                            case Chars.CR:
                             case Chars.LF:
-                                ch = ScanNextChar();
+                                ch = ScanNextChar(false);
                                 goto SkipChar;
 
                             default:
@@ -637,9 +656,9 @@ public class CLexer
                                     int n = ch - '0';
                                     if (IsOctalDigit(_nextChar))
                                     {
-                                        n = n * 8 + ScanNextChar() - '0';
+                                        n = n * 8 + ScanNextChar(false) - '0';
                                         if (IsOctalDigit(_nextChar))
-                                            n = n * 8 + ScanNextChar() - '0';
+                                            n = n * 8 + ScanNextChar(false) - '0';
                                     }
                                     ch = (char)n;
                                 }
@@ -666,7 +685,7 @@ public class CLexer
 
                 _token.Append(ch);
                 //token.Append(Encoding.GetEncoding(1252).GetString(new byte[] { (byte)ch }));
-                ch = ScanNextChar();
+                ch = ScanNextChar(false);
             }
         }
     }
@@ -724,18 +743,33 @@ public class CLexer
         int count = chars.Length;
         if (count > 2 && chars[0] == (char)0xFE && chars[1] == (char)0xFF)
         {
-            Debug.Assert(count % 2 == 0);
+            // A Unicode hex string missing half of its last character is short of the low byte
+            // of that character, which is taken to be a zero - the same reading a hex string
+            // missing its final digit gets, just above. Debug.Assert(count % 2 == 0) stood here
+            // instead: it caught the odd count in a Debug build and did nothing in a Release
+            // build, where the loop below read one character past the end of the string.
+            if ((count & 1) == 1)
+            {
+                chars += '\0';
+                ++count;
+            }
             _token.Length = 0;
             for (int idx = 2; idx < count; idx += 2)
                 _token.Append((char)(chars[idx] * 256 + chars[idx + 1]));
+            return _symbol = CSymbol.UnicodeHexString;
         }
         return _symbol = CSymbol.HexString;
     }
 
     /// <summary>
-    /// Move current position one character further in content stream.
+    /// Move current position one character further in content stream, folding a carriage return
+    /// into a line feed when <paramref name="handleCRLF"/> is set - CR LF becomes LF, and a lone
+    /// CR becomes LF as well. A literal string reads its characters with it clear, the way the
+    /// document lexer's <c>Lexer.ScanNextChar</c> does, so that a raw carriage return inside the
+    /// string is kept rather than folded, and only an escaped one - <c>\</c> followed by either
+    /// end-of-line spelling - continues the line.
     /// </summary>
-    internal char ScanNextChar()
+    internal char ScanNextChar(bool handleCRLF = true)
     {
         if (ContLength <= _charIndex)
         {
@@ -746,33 +780,24 @@ public class CLexer
             _nextChar = Chars.EOF;
             // Treat a single CR as LF, as the branch below does. Nothing is left to pair it
             // with, so it cannot be the CR of a CR LF.
-            if (_currChar == Chars.CR)
+            if (handleCRLF && _currChar == Chars.CR)
                 _currChar = Chars.LF;
         }
         else
         {
-            _currChar = _nextChar;
-            _nextChar = (char)_content[_charIndex++];
-            if (_currChar == Chars.CR)
-            {
-                if (_nextChar == Chars.LF)
-                {
-                    // Treat CR LF as LF
-                    _currChar = _nextChar;
-                    if (ContLength <= _charIndex)
-                        _nextChar = Chars.EOF;
-                    else
-                        _nextChar = (char)_content[_charIndex++];
-                }
-                else
-                {
-                    // Treat single CR as LF
-                    _currChar = Chars.LF;
-                }
-            }
+            CharacterScanning.Advance(ref _currChar, ref _nextChar, handleCRLF, _readNextRawByte);
         }
         return _currChar;
     }
+
+    /// <summary>
+    /// Reads the next raw byte from the content and advances <see cref="_charIndex"/> past it, or
+    /// returns <see cref="Chars.EOF"/> once the content is exhausted. Cached as
+    /// <see cref="_readNextRawByte"/> rather than a method group conversion at each call site.
+    /// </summary>
+    char ReadNextRawByte() => ContLength <= _charIndex ? Chars.EOF : (char)_content[_charIndex++];
+
+    char ScanNextCharFolding() => ScanNextChar();
 
     /// <summary>
     /// Resets the current token to the empty string.
@@ -789,36 +814,24 @@ public class CLexer
     /// </summary>
     internal char AppendAndScanNextChar()
     {
+        // The document lexer refuses rather than appends the end-of-content marker itself, so a
+        // grammar rule that keeps calling this past the end - rather than stopping at the
+        // character it was just handed - is stopped here instead of growing a token out of a
+        // sentinel that is not content.
+        if (_currChar == Chars.EOF)
+            ContentReaderDiagnostics.ThrowContentReaderException("Undetected EOF reached.");
+
         _token.Append(_currChar);
         return ScanNextChar();
     }
 
     /// <summary>
     /// If the current character is not a white space, the function immediately returns it.
-    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF.
-    /// White spaces are NUL, HT, LF, FF, CR, and SP.
+    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF. White
+    /// spaces are NUL, HT, LF, FF, CR, SP, a vertical tab, and a soft hyphen.
     /// </summary>
-    public char MoveToNonWhiteSpace()
-    {
-        while (_currChar != Chars.EOF)
-        {
-            switch (_currChar)
-            {
-                case Chars.NUL:
-                case Chars.HT:
-                case Chars.LF:
-                case Chars.FF:
-                case Chars.CR:
-                case Chars.SP:
-                    ScanNextChar();
-                    break;
-
-                default:
-                    return _currChar;
-            }
-        }
-        return _currChar;
-    }
+    public char MoveToNonWhiteSpace() =>
+        _currChar = CharacterScanning.SkipWhiteSpace(_currChar, _scanNextCharFolding);
 
     /// <summary>
     /// Gets or sets the current symbol.
@@ -862,20 +875,7 @@ public class CLexer
     /// <summary>
     /// Indicates whether the specified character is a content stream white-space character.
     /// </summary>
-    internal static bool IsWhiteSpace(char ch)
-    {
-        switch (ch)
-        {
-            case Chars.NUL:  // 0 Null
-            case Chars.HT:   // 9 Tab
-            case Chars.LF:   // 10 Line feed
-            case Chars.FF:   // 12 Form feed
-            case Chars.CR:   // 13 Carriage return
-            case Chars.SP:   // 32 Space
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsWhiteSpace(char ch) => CharacterScanning.IsWhiteSpace(ch);
 
     /// <summary>
     /// Indicates whether the specified character is an content operator character.
@@ -899,42 +899,17 @@ public class CLexer
     /// character code in octal, so only '0' to '7' count — '8' and '9' end the code rather than
     /// extending it, and a backslash before either is dropped and the digit kept as text.
     /// </summary>
-    internal static bool IsOctalDigit(char ch)
-    {
-        return ch >= '0' && ch <= '7';
-    }
+    internal static bool IsOctalDigit(char ch) => CharacterScanning.IsOctalDigit(ch);
 
     /// <summary>
     /// Indicates whether the specified character is a hexadecimal digit.
     /// </summary>
-    internal static bool IsHexChar(char ch)
-    {
-        return char.IsDigit(ch) ||
-               (ch >= 'A' && ch <= 'F') ||
-               (ch >= 'a' && ch <= 'f');
-    }
+    internal static bool IsHexChar(char ch) => CharacterScanning.IsHexChar(ch);
 
     /// <summary>
     /// Indicates whether the specified character is a PDF delimiter character.
     /// </summary>
-    internal static bool IsDelimiter(char ch)
-    {
-        switch (ch)
-        {
-            case '(':
-            case ')':
-            case '<':
-            case '>':
-            case '[':
-            case ']':
-            //case '{':
-            //case '}':
-            case '/':
-            case '%':
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsDelimiter(char ch) => CharacterScanning.IsDelimiter(ch);
 
     /// <summary>
     /// Gets the length of the content.
@@ -958,6 +933,11 @@ public class CLexer
     int _charIndex;
     char _currChar;
     char _nextChar;
+
+    // Cached rather than a method group conversion at each call site, since
+    // CharacterScanning.Advance and .SkipWhiteSpace are called once per character scanned.
+    readonly Func<char> _readNextRawByte;
+    readonly Func<char> _scanNextCharFolding;
 
     readonly StringBuilder _token = new();
     long _tokenAsLong;
