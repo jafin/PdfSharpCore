@@ -10,10 +10,20 @@ namespace PdfSharpCore.Pdf.Metadata;
 /// intent — and refuses to write it at all when it breaks a rule of the profile it claims.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The refusal is the point. A library that stamps <c>pdfaid:part 3</c> on a file and leaves the
 /// caller to find out from a validator, or from their customer, that it does not conform has made
-/// things worse rather than better. So every rule checked here throws at save time, naming the rule
-/// and what to do about it.
+/// things worse rather than better. So every rule checked here throws — at <c>Save</c> always, and
+/// through <see cref="CheckClaimable"/> at <see cref="PdfDocument.ClaimConformance"/> as well for
+/// what a claim can be held to immediately — naming the rule and what to do about it.
+/// </para>
+/// <para>
+/// Every PDF/A rule this library enforces is meant to be reachable from here, including the two
+/// that live where the thing they govern is written rather than in this file: <see cref="RequiresCidSet"/>
+/// is what <see cref="PdfCIDFont"/> asks before writing a subset's <c>/CIDSet</c>, and
+/// <see cref="PdfVersionRequirements"/> is the one place a floor the profile claimed implies gets
+/// raised, alongside the two other features that raise it for reasons of their own.
+/// </para>
 /// </remarks>
 internal static class PdfConformanceWriter
 {
@@ -58,19 +68,35 @@ internal static class PdfConformanceWriter
     }
 
     /// <summary>
-    /// The rules of the claimed profile that can be settled by looking at the document.
+    /// The rules of a claimed profile that are properties of the document as it stands, and so can
+    /// be settled the moment the claim is made rather than waiting for <c>Save</c> to discover them.
     /// </summary>
     /// <remarks>
-    /// Deliberately not all of them. Checking that a PDF/A-1 document uses no transparency means
-    /// walking every page's resources — <see cref="PdfTransparencyDetector"/> can answer it for one
-    /// XObject but not yet for a page — and checking for JPXDecode means walking every image. Both
-    /// are real rules and neither is checked here. What is checked is checked properly; what is not
-    /// is said plainly rather than implied by silence, so nobody reads a successful save as a
-    /// validator's verdict.
+    /// <para>
+    /// Called from <see cref="PdfDocument.ClaimConformance"/>, so that a caller who claims a profile
+    /// before the document is ready is told where the mistake was made, and from <see cref="Enforce"/>,
+    /// so that a document changed after the claim — encrypted afterwards, say — is still held to it.
+    /// Both calls run exactly these checks; nothing here depends on which one is asking.
+    /// </para>
+    /// <para>
+    /// What is not here is exactly what cannot be settled by looking at the document now: whether it
+    /// carries an attachment, which PDF/A-3 alone may hold. A caller may legitimately attach a file
+    /// after claiming the profile — <c>FacturXInvoice.AttachTo</c> does exactly that — so that rule
+    /// stays in <see cref="Enforce"/> alone, checked against the document as it is at <c>Save</c>.
+    /// </para>
+    /// <para>
+    /// Nor is <see cref="CheckVersionAgainstProfile"/> here, even though it too is settled by looking
+    /// at the document now: adding an attachment already raises the version floor, so checking it
+    /// ahead of the attachment rule would have a document refused for its version rather than for the
+    /// attachment PDF/A-1 cannot carry at all — a less specific message for the same mistake. Called
+    /// separately, and later, so <see cref="Enforce"/> can put the attachment rule first exactly as
+    /// it did before either was extracted.
+    /// </para>
     /// </remarks>
-    static void Enforce(PdfDocument document)
+    internal static void CheckClaimable(PdfDocument document, PdfAConformance conformance)
     {
-        var options = document.Options;
+        if (conformance == PdfAConformance.None)
+            return;
 
         if (document.SecuritySettings.DocumentSecurityLevel != PdfDocumentSecurityLevel.None)
             throw new InvalidOperationException(
@@ -81,6 +107,8 @@ internal static class PdfConformanceWriter
             throw new InvalidOperationException(
                 "A PDF/A document has to have a title, in the document information dictionary and "
                 + "in its XMP metadata alike. Set Info.Title.");
+
+        var options = document.Options;
 
         // Refused only where nothing true could be supplied. An RGB document with no profile of its
         // own is given sRGB, because colours written as RGB by a library that was never told
@@ -102,6 +130,53 @@ internal static class PdfConformanceWriter
                 + "Either set Options.ColorMode to Rgb, which is given " + nameof(PdfOutputIntents)
                 + "." + nameof(PdfOutputIntents.SrgbProfile) + " when nothing else is set, or set "
                 + "Options.OutputIntentIccProfile yourself.");
+    }
+
+    /// <summary>
+    /// The two rules that follow from PDF/A-1 being defined against an older PDF version than the
+    /// later parts are. Kept apart from <see cref="CheckClaimable"/> — see its remarks — so that
+    /// <see cref="Enforce"/> can check them after the attachment rule rather than before it.
+    /// </summary>
+    internal static void CheckVersionAgainstProfile(PdfDocument document, PdfAConformance conformance)
+    {
+        if (conformance != PdfAConformance.PdfA1B)
+            return;
+
+        // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raising a low
+        // version is not enough on its own: a document that has already asked for something newer
+        // keeps it, and would carry a PDF/A-1 claim over a header PDF/A-1 does not allow.
+        if (document._version > 14)
+            throw new InvalidOperationException(
+                "PDF/A-1 is defined against PDF 1.4, and this document is written as PDF 1."
+                + (document._version % 10) + ". Either claim PDF/A-2 or later, or stop asking for "
+                + "the feature that raised the version.");
+
+        // Checked directly against the setting that would raise it, rather than against the version
+        // number: Options.CrossReferenceFormat is known the moment it is set, but the version it
+        // implies is not raised until the document is written, which is too late for this to see.
+        if (document.Options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
+            throw new InvalidOperationException(
+                "PDF/A-1 is defined against PDF 1.4 and a cross-reference stream is a PDF 1.5 "
+                + "construction, so the two cannot both be asked for. Either claim PDF/A-2 or later, "
+                + "or leave Options.CrossReferenceFormat as Classic.");
+    }
+
+    /// <summary>
+    /// The rules of the claimed profile that can be settled by looking at the document.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not all of them. Checking that a PDF/A-1 document uses no transparency means
+    /// walking every page's resources — <see cref="PdfTransparencyDetector"/> can answer it for one
+    /// XObject but not yet for a page — and checking for JPXDecode means walking every image. Both
+    /// are real rules and neither is checked here. What is checked is checked properly; what is not
+    /// is said plainly rather than implied by silence, so nobody reads a successful save as a
+    /// validator's verdict.
+    /// </remarks>
+    static void Enforce(PdfDocument document)
+    {
+        var options = document.Options;
+
+        CheckClaimable(document, options.Conformance);
 
         var attachments = EmbeddedFiles(document);
 
@@ -117,30 +192,24 @@ internal static class PdfConformanceWriter
         if (options.Conformance == PdfAConformance.PdfA3B)
             EnforceAssociation(document, attachments);
 
-        // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raising a low
-        // version is not enough on its own: a document that has already asked for something newer
-        // keeps it, and would carry a PDF/A-1 claim over a header PDF/A-1 does not allow.
-        if (options.Conformance == PdfAConformance.PdfA1B && document._version > 14)
-            throw new InvalidOperationException(
-                "PDF/A-1 is defined against PDF 1.4, and this document is written as PDF 1."
-                + (document._version % 10) + ". Either claim PDF/A-2 or later, or stop asking for "
-                + "the feature that raised the version.");
+        CheckVersionAgainstProfile(document, options.Conformance);
 
-        // Asked separately because the version it implies is not set until the document is written,
-        // which is after this runs. A cross-reference stream is a PDF 1.5 construction and PDF/A-1
-        // predates it.
-        if (options.Conformance == PdfAConformance.PdfA1B
-            && options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
-            throw new InvalidOperationException(
-                "PDF/A-1 is defined against PDF 1.4 and a cross-reference stream is a PDF 1.5 "
-                + "construction, so the two cannot both be asked for. Either claim PDF/A-2 or later, "
-                + "or leave Options.CrossReferenceFormat as Classic.");
-
-        // Raise rather than set, so a document that has already asked for more keeps it.
+        // Raise rather than set, so a document that has already asked for more keeps it. See
+        // PdfVersionRequirements for the other two features that raise this floor.
         var floor = options.Conformance == PdfAConformance.PdfA1B ? 14 : 17;
-        if (document._version < floor)
-            document._version = floor;
+        PdfVersionRequirements.Require(document, floor);
     }
+
+    /// <summary>
+    /// Whether a Type 2 CIDFont's subset needs a <c>/CIDSet</c> under the profile claimed — PDF/A-1
+    /// clause 6.3.5 alone; PDF/A-2 dropped the requirement as redundant.
+    /// </summary>
+    /// <remarks>
+    /// Asked of this module rather than read directly off <see cref="PdfDocumentOptions.Conformance"/>
+    /// so that every rule PDF/A implies is reachable from one place, including the ones a font
+    /// dictionary has to act on well before <see cref="PrepareForSave"/> runs.
+    /// </remarks>
+    internal static bool RequiresCidSet(PdfAConformance conformance) => conformance == PdfAConformance.PdfA1B;
 
     /// <summary>
     /// The rules PDF/A-3 adds by permitting attachments at all: each has to be attached <em>to</em>
@@ -358,7 +427,7 @@ internal static class PdfConformanceWriter
     {
         var metadata = XmpMetadata.FromDocument(document);
 
-        document.CustomizeMetadata?.Invoke(metadata);
+        document.InvokeMetadataContributors(metadata);
 
         // Set after the callback rather than before it. The conformance claim is what a validator
         // reads to decide which rules to hold the file to, and Options.Conformance is the one place

@@ -52,6 +52,11 @@ public sealed class XmpExtensionSchema
                 "A schema with no properties declares nothing, so there is nothing for a validator to "
                 + "hold it to.");
 
+        if (properties.Any(property => property == null))
+            throw new InvalidOperationException(
+                "A schema's properties cannot contain a null entry: every one of them is written into "
+                + "the extension description.");
+
         Properties = properties.ToList().AsReadOnly();
     }
 

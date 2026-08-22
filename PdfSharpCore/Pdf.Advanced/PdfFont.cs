@@ -139,8 +139,7 @@ public class PdfFont : PdfDictionary
 
             // '/Subtype /OpenType' arrives in PDF 1.6. Raising the version is the honest thing
             // to do; lowering it is not this method's business.
-            if (Owner._version < 16)
-                Owner._version = 16;
+            PdfVersionRequirements.Require(Owner, 16);
         }
         else
         {
