@@ -50,15 +50,15 @@ public class CLexer
     {
         _content = content;
         _charIndex = 0;
+        _readNextRawByte = ReadNextRawByte;
+        _scanNextCharFolding = ScanNextCharFolding;
     }
 
     /// <summary>
     /// Initializes a new instance of the Lexer class.
     /// </summary>
-    public CLexer(MemoryStream content)
+    public CLexer(MemoryStream content) : this(content.ToArray())
     {
-        _content = content.ToArray();
-        _charIndex = 0;
     }
 
     /// <summary>
@@ -785,28 +785,19 @@ public class CLexer
         }
         else
         {
-            _currChar = _nextChar;
-            _nextChar = (char)_content[_charIndex++];
-            if (handleCRLF && _currChar == Chars.CR)
-            {
-                if (_nextChar == Chars.LF)
-                {
-                    // Treat CR LF as LF
-                    _currChar = _nextChar;
-                    if (ContLength <= _charIndex)
-                        _nextChar = Chars.EOF;
-                    else
-                        _nextChar = (char)_content[_charIndex++];
-                }
-                else
-                {
-                    // Treat single CR as LF
-                    _currChar = Chars.LF;
-                }
-            }
+            CharacterScanning.Advance(ref _currChar, ref _nextChar, handleCRLF, _readNextRawByte);
         }
         return _currChar;
     }
+
+    /// <summary>
+    /// Reads the next raw byte from the content and advances <see cref="_charIndex"/> past it, or
+    /// returns <see cref="Chars.EOF"/> once the content is exhausted. Cached as
+    /// <see cref="_readNextRawByte"/> rather than a method group conversion at each call site.
+    /// </summary>
+    char ReadNextRawByte() => ContLength <= _charIndex ? Chars.EOF : (char)_content[_charIndex++];
+
+    char ScanNextCharFolding() => ScanNextChar();
 
     /// <summary>
     /// Resets the current token to the empty string.
@@ -836,38 +827,11 @@ public class CLexer
 
     /// <summary>
     /// If the current character is not a white space, the function immediately returns it.
-    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF.
-    /// White spaces are NUL, HT, LF, FF, CR, SP, vertical tab, and soft hyphen.
+    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF. White
+    /// spaces are NUL, HT, LF, FF, CR, SP, a vertical tab, and a soft hyphen.
     /// </summary>
-    public char MoveToNonWhiteSpace()
-    {
-        while (_currChar != Chars.EOF)
-        {
-            switch (_currChar)
-            {
-                case Chars.NUL:
-                case Chars.HT:
-                case Chars.LF:
-                case Chars.FF:
-                case Chars.CR:
-                case Chars.SP:
-                    ScanNextChar();
-                    break;
-
-                // A vertical tab or a soft hyphen between tokens - PDF's own white-space list is
-                // narrower than this, but the document lexer treats both as white space and a
-                // content stream a document lexer reads should read the same way.
-                case (char)11:
-                case (char)173:
-                    ScanNextChar();
-                    break;
-
-                default:
-                    return _currChar;
-            }
-        }
-        return _currChar;
-    }
+    public char MoveToNonWhiteSpace() =>
+        _currChar = CharacterScanning.SkipWhiteSpace(_currChar, _scanNextCharFolding);
 
     /// <summary>
     /// Gets or sets the current symbol.
@@ -911,20 +875,7 @@ public class CLexer
     /// <summary>
     /// Indicates whether the specified character is a content stream white-space character.
     /// </summary>
-    internal static bool IsWhiteSpace(char ch)
-    {
-        switch (ch)
-        {
-            case Chars.NUL:  // 0 Null
-            case Chars.HT:   // 9 Tab
-            case Chars.LF:   // 10 Line feed
-            case Chars.FF:   // 12 Form feed
-            case Chars.CR:   // 13 Carriage return
-            case Chars.SP:   // 32 Space
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsWhiteSpace(char ch) => CharacterScanning.IsWhiteSpace(ch);
 
     /// <summary>
     /// Indicates whether the specified character is an content operator character.
@@ -948,42 +899,17 @@ public class CLexer
     /// character code in octal, so only '0' to '7' count — '8' and '9' end the code rather than
     /// extending it, and a backslash before either is dropped and the digit kept as text.
     /// </summary>
-    internal static bool IsOctalDigit(char ch)
-    {
-        return ch >= '0' && ch <= '7';
-    }
+    internal static bool IsOctalDigit(char ch) => CharacterScanning.IsOctalDigit(ch);
 
     /// <summary>
     /// Indicates whether the specified character is a hexadecimal digit.
     /// </summary>
-    internal static bool IsHexChar(char ch)
-    {
-        return char.IsDigit(ch) ||
-               (ch >= 'A' && ch <= 'F') ||
-               (ch >= 'a' && ch <= 'f');
-    }
+    internal static bool IsHexChar(char ch) => CharacterScanning.IsHexChar(ch);
 
     /// <summary>
     /// Indicates whether the specified character is a PDF delimiter character.
     /// </summary>
-    internal static bool IsDelimiter(char ch)
-    {
-        switch (ch)
-        {
-            case '(':
-            case ')':
-            case '<':
-            case '>':
-            case '[':
-            case ']':
-            case '{':
-            case '}':
-            case '/':
-            case '%':
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsDelimiter(char ch) => CharacterScanning.IsDelimiter(ch);
 
     /// <summary>
     /// Gets the length of the content.
@@ -1007,6 +933,11 @@ public class CLexer
     int _charIndex;
     char _currChar;
     char _nextChar;
+
+    // Cached rather than a method group conversion at each call site, since
+    // CharacterScanning.Advance and .SkipWhiteSpace are called once per character scanned.
+    readonly Func<char> _readNextRawByte;
+    readonly Func<char> _scanNextCharFolding;
 
     readonly StringBuilder _token = new();
     long _tokenAsLong;

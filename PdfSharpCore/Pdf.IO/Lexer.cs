@@ -56,6 +56,8 @@ public class Lexer
         _pdfSteam = pdfInputStream;
         _pdfLength = _pdfSteam.Length;
         _idxChar = 0;
+        _readNextRawByte = ReadNextRawByte;
+        _scanNextCharFolding = ScanNextCharFolding;
         Position = 0;
     }
 
@@ -660,12 +662,7 @@ public class Lexer
         return _symbol = Symbol.HexString;
     }
 
-    internal static bool IsHexChar(char c)
-    {
-        return char.IsDigit(c) ||
-               (c >= 'A' && c <= 'F') ||
-               (c >= 'a' && c <= 'f');
-    }
+    internal static bool IsHexChar(char c) => CharacterScanning.IsHexChar(c);
 
     /// <summary>
     /// Move current position one character further in PDF stream.
@@ -679,26 +676,20 @@ public class Lexer
         }
         else
         {
-            _currChar = _nextChar;
-            _nextChar = (char)_pdfSteam.ReadByte();
-            _idxChar++;
-            if (handleCRLF && _currChar == Chars.CR)
-            {
-                if (_nextChar == Chars.LF)
-                {
-                    // Treat CR LF as LF.
-                    _currChar = _nextChar;
-                    _nextChar = (char)_pdfSteam.ReadByte();
-                    _idxChar++;
-                }
-                else
-                {
-                    // Treat single CR as LF.
-                    _currChar = Chars.LF;
-                }
-            }
+            CharacterScanning.Advance(ref _currChar, ref _nextChar, handleCRLF, _readNextRawByte);
         }
         return _currChar;
+    }
+
+    /// <summary>
+    /// Reads the next raw byte from the PDF stream and advances <see cref="_idxChar"/> past it.
+    /// A cached delegate rather than a method group conversion at each call site, since
+    /// <see cref="CharacterScanning.Advance"/> is called once per character scanned.
+    /// </summary>
+    char ReadNextRawByte()
+    {
+        _idxChar++;
+        return (char)_pdfSteam.ReadByte();
     }
 
     ///// <summary>
@@ -771,36 +762,13 @@ public class Lexer
 
     /// <summary>
     /// If the current character is not a white space, the function immediately returns it.
-    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF.
-    /// White spaces are NUL, HT, LF, FF, CR, and SP.
+    /// Otherwise the PDF cursor is moved forward to the first non-white space or EOF. White
+    /// spaces are NUL, HT, LF, FF, CR, SP, a vertical tab, and a soft hyphen.
     /// </summary>
-    public char MoveToNonWhiteSpace()
-    {
-        while (_currChar != Chars.EOF)
-        {
-            switch (_currChar)
-            {
-                case Chars.NUL:
-                case Chars.HT:
-                case Chars.LF:
-                case Chars.FF:
-                case Chars.CR:
-                case Chars.SP:
-                    ScanNextChar(true);
-                    break;
+    public char MoveToNonWhiteSpace() =>
+        _currChar = CharacterScanning.SkipWhiteSpace(_currChar, _scanNextCharFolding);
 
-                case (char)11:
-                case (char)173:
-                    ScanNextChar(true);
-                    break;
-
-
-                default:
-                    return _currChar;
-            }
-        }
-        return _currChar;
-    }
+    char ScanNextCharFolding() => ScanNextChar(true);
 
     /// <summary>
     /// Gets the current symbol.
@@ -867,42 +835,12 @@ public class Lexer
     /// <summary>
     /// Indicates whether the specified character is a PDF white-space character.
     /// </summary>
-    internal static bool IsWhiteSpace(char ch)
-    {
-        switch (ch)
-        {
-            case Chars.NUL:  // 0 Null
-            case Chars.HT:   // 9 Horizontal Tab
-            case Chars.LF:   // 10 Line Feed
-            case Chars.FF:   // 12 Form Feed
-            case Chars.CR:   // 13 Carriage Return
-            case Chars.SP:   // 32 Space
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsWhiteSpace(char ch) => CharacterScanning.IsWhiteSpace(ch);
 
     /// <summary>
     /// Indicates whether the specified character is a PDF delimiter character.
     /// </summary>
-    internal static bool IsDelimiter(char ch)
-    {
-        switch (ch)
-        {
-            case '(':
-            case ')':
-            case '<':
-            case '>':
-            case '[':
-            case ']':
-            case '{':
-            case '}':
-            case '/':
-            case '%':
-                return true;
-        }
-        return false;
-    }
+    internal static bool IsDelimiter(char ch) => CharacterScanning.IsDelimiter(ch);
 
     /// <summary>
     /// Gets the length of the PDF output.
@@ -917,4 +855,6 @@ public class Lexer
     Symbol _symbol = Symbol.None;
 
     readonly Stream _pdfSteam;
+    readonly Func<char> _readNextRawByte;
+    readonly Func<char> _scanNextCharFolding;
 }
