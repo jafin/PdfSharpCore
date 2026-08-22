@@ -405,11 +405,7 @@ public sealed class XmpMetadata
     /// <see cref="Escape"/> alone cannot catch because none of the built-in descriptions it serves ever
     /// land in an attribute.
     /// </summary>
-    private static string EscapeAttribute(string value) => value
-        .Replace("&", "&amp;")
-        .Replace("<", "&lt;")
-        .Replace(">", "&gt;")
-        .Replace("\"", "&quot;");
+    private static string EscapeAttribute(string value) => Escape(value).Replace("\"", "&quot;");
 
     private static string NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
