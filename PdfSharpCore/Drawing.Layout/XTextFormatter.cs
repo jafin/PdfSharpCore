@@ -1272,29 +1272,12 @@ public class XTextFormatter
         if (!resolved.Runs().Any(run => run.Direction == XTextDirection.RightToLeft))
             return lineBlocks;
 
-        // Where each character ended up, which is the inverse of the order the algorithm answers.
-        var placed = new int[line.Length];
-        for (int idx = 0; idx < placed.Length; idx++)
-            placed[idx] = int.MaxValue;
-        for (int at = 0; at < resolved.VisualOrder.Count; at++)
-            placed[resolved.VisualOrder[at]] = at;
-
-        var keys = new int[lineBlocks.Length];
+        var spans = new (int Start, int Length)[lineBlocks.Length];
         for (int idx = 0; idx < lineBlocks.Length; idx++)
-        {
-            int leftmost = int.MaxValue;
-            for (int ch = starts[idx]; ch < starts[idx] + lineBlocks[idx].Text.Length; ch++)
-                leftmost = Math.Min(leftmost, placed[ch]);
+            spans[idx] = (starts[idx], lineBlocks[idx].Text.Length);
 
-            // A block of nothing but bidirectional controls has no position of its own - they are
-            // removed before anything is ordered - so it stays beside whatever it followed.
-            keys[idx] = leftmost == int.MaxValue && idx > 0 ? keys[idx - 1] : leftmost;
-        }
-
-        return lineBlocks
-            .Select((block, idx) => (block, key: keys[idx]))
-            .OrderBy(pair => pair.key)
-            .Select(pair => pair.block)
+        return VisualOrder.Of(resolved, spans)
+            .Select(idx => lineBlocks[idx])
             .ToArray();
     }
 }

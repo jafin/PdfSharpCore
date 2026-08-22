@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Xml.Linq;
 using AwesomeAssertions;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -32,6 +34,9 @@ public class XmpMetadataTests
     ///   not a colour-management test.
     /// </summary>
     private static readonly byte[] SomeProfile = Encoding.ASCII.GetBytes("NOT-AN-ICC-PROFILE");
+
+    private static readonly XNamespace PdfaSchema = "http://www.aiim.org/pdfa/ns/schema#";
+    private static readonly XNamespace PdfaProperty = "http://www.aiim.org/pdfa/ns/property#";
 
     [Fact]
     public void ADocumentGetsNoMetadataPacketUnlessItAsksForOne()
@@ -229,6 +234,28 @@ public class XmpMetadataTests
         Latin1(bytes).Should().Contain("/N 1");
     }
 
+    [Theory]
+    [InlineData("CMY ", 3)]
+    [InlineData("Luv ", 3)]
+    // ICC.1:2010 Table 19's nCLR family for multi-channel devices: the leading character spells
+    // the component count in hex, from '2CLR' (2) up through '9CLR' (9) and 'ACLR' (10) up through
+    // 'FCLR' (15).
+    [InlineData("2CLR", 2)]
+    [InlineData("9CLR", 9)]
+    [InlineData("ACLR", 10)]
+    [InlineData("FCLR", 15)]
+    public void AMultiChannelOrFixedThreeComponentProfileSaysItsOwnComponentCount(
+        string space, int components)
+    {
+        var bytes = Save(document =>
+        {
+            document.Options.Conformance = PdfAConformance.PdfA2B;
+            document.Options.OutputIntentIccProfile = ProfileFor(space);
+        });
+
+        Latin1(bytes).Should().Contain("/N " + components);
+    }
+
     [Fact]
     public void AProfileTooShortToReadFallsBackToWhatTheColourModeImplies()
     {
@@ -330,6 +357,175 @@ public class XmpMetadataTests
         });
 
         Latin1(bytes).Should().Contain("<zf:DocumentType>INVOICE</zf:DocumentType>");
+    }
+
+    // ── Declaring an extension schema ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public void EveryDeclaredPropertyIsWrittenAndEveryWrittenPropertyIsDeclared()
+    {
+        XNamespace sample = "http://example.invalid/sample/1.0/";
+        var metadata = new XmpMetadata();
+        metadata.DeclareSchema(new XmpExtensionSchema(
+            "Sample schema", sample.NamespaceName, "sample",
+            new[]
+            {
+                new XmpSchemaProperty("One", "The first property", XmpPropertyCategory.Internal, "1"),
+                new XmpSchemaProperty("Two", "The second property", XmpPropertyCategory.External, "2"),
+            }));
+
+        var packet = ParsePacket(metadata.Build());
+
+        var declared = packet.Descendants(PdfaProperty + "name").Select(name => name.Value).ToList();
+        var used = packet.Descendants()
+            .Where(element => element.Name.Namespace == sample)
+            .Select(element => element.Name.LocalName)
+            .ToList();
+
+        declared.Should().BeEquivalentTo(new[] { "One", "Two" });
+        used.Should().BeEquivalentTo(declared);
+    }
+
+    [Fact]
+    public void AQuotationMarkAndAnAmpersandInTheNamespaceDoNotBreakThePacket()
+    {
+        // The namespace URI lands in an attribute value, where a quotation mark ends the attribute
+        // early and everything after it becomes markup — three escaped characters is enough for
+        // element text and not for an attribute.
+        const string odd = "urn:example:\"quoted\"&odd#";
+        var metadata = new XmpMetadata();
+        metadata.DeclareSchema(new XmpExtensionSchema(
+            "Odd schema", odd, "odd",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "value") }));
+
+        var packet = ParsePacket(metadata.Build());
+        XNamespace oddNamespace = odd;
+
+        packet.Descendants(PdfaSchema + "namespaceURI").Single().Value.Should().Be(odd);
+        packet.Descendants(oddNamespace + "Note").Single().Value.Should().Be("value");
+    }
+
+    [Fact]
+    public void APrefixThatIsNotAnXmlNameIsRefusedNamingTheValue()
+    {
+        // There is no escaping this one: the prefix becomes part of an element name and of a
+        // namespace declaration, and neither is a place a character can be written as an entity.
+        Action declaring = () => new XmpExtensionSchema(
+            "Sample schema", "http://example.invalid/sample/1.0/", "not a name",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "value") });
+
+        declaring.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Prefix*").WithMessage("*not a name*");
+    }
+
+    [Theory]
+    [InlineData("xml")]
+    [InlineData("xmlns")]
+    [InlineData("rdf")]
+    [InlineData("RDF")]
+    public void AReservedPrefixIsRefusedEvenThoughItIsAnXmlName(string prefix)
+    {
+        // Each of these is a valid NCName on its own, but XML Namespaces reserves 'xml' and 'xmlns',
+        // and 'rdf' is already bound to the namespace rdf:Description and rdf:about are written in.
+        Action declaring = () => new XmpExtensionSchema(
+            "Sample schema", "http://example.invalid/sample/1.0/", prefix,
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "value") });
+
+        declaring.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Prefix*").WithMessage("*reserved*");
+    }
+
+    [Fact]
+    public void APropertyNameThatIsNotAnXmlNameIsRefused()
+    {
+        // The name becomes part of an element name too, the same as the prefix — see
+        // APrefixThatIsNotAnXmlNameIsRefusedNamingTheValue — and is checked the same way.
+        Action declaring = () => new XmpSchemaProperty(
+            "not a name", "A note", XmpPropertyCategory.Internal, "value");
+
+        declaring.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Name*").WithMessage("*not a name*");
+    }
+
+    [Fact]
+    public void TwoSchemasCanBeDeclaredInOnePacketAndBothAppear()
+    {
+        XNamespace first = "http://example.invalid/first/1.0/";
+        XNamespace second = "http://example.invalid/second/1.0/";
+        var metadata = new XmpMetadata();
+        metadata.DeclareSchema(new XmpExtensionSchema(
+            "First schema", first.NamespaceName, "first",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "one") }));
+        metadata.DeclareSchema(new XmpExtensionSchema(
+            "Second schema", second.NamespaceName, "second",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.External, "two") }));
+
+        var packet = ParsePacket(metadata.Build());
+
+        packet.Descendants(first + "Note").Single().Value.Should().Be("one");
+        packet.Descendants(second + "Note").Single().Value.Should().Be("two");
+        packet.Descendants(PdfaSchema + "prefix").Select(prefix => prefix.Value)
+            .Should().BeEquivalentTo(new[] { "first", "second" });
+    }
+
+    [Fact]
+    public void ASchemaWithNoPropertiesIsRefused()
+    {
+        Action declaring = () => new XmpExtensionSchema(
+            "Empty schema", "http://example.invalid/empty/1.0/", "empty",
+            Array.Empty<XmpSchemaProperty>());
+
+        declaring.Should().Throw<InvalidOperationException>().WithMessage("*no properties*");
+    }
+
+    [Fact]
+    public void TwoSchemasSharingAPrefixAreRefused()
+    {
+        var metadata = new XmpMetadata();
+        metadata.DeclareSchema(new XmpExtensionSchema(
+            "First schema", "http://example.invalid/first/1.0/", "dup",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.Internal, "one") }));
+
+        Action declaringAgain = () => metadata.DeclareSchema(new XmpExtensionSchema(
+            "Second schema", "http://example.invalid/second/1.0/", "dup",
+            new[] { new XmpSchemaProperty("Note", "A note", XmpPropertyCategory.External, "two") }));
+
+        declaringAgain.Should().Throw<InvalidOperationException>().WithMessage("*dup*");
+    }
+
+    [Fact]
+    public void ADocumentUsingOnlyAdditionalDescriptionsWritesNoExtensionSchemaBlock()
+    {
+        // No schema was declared, so AppendExtensionSchemas has nothing to write — the same path
+        // this packet always took, which is what keeps a document using only the hatch unchanged.
+        var bytes = Save(document =>
+        {
+            document.Options.WriteXmpMetadata = true;
+            document.CustomizeMetadata = metadata => metadata.AdditionalDescriptions.Add(
+                "<rdf:Description rdf:about=\"\" xmlns:zf=\"urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#\">"
+                + "<zf:DocumentType>INVOICE</zf:DocumentType></rdf:Description>");
+        });
+
+        Latin1(bytes).Should().NotContain("pdfaExtension");
+    }
+
+    /// <summary>
+    ///   The packet <see cref="XmpMetadata.Build"/> returns, parsed. The leading processing
+    ///   instruction and the trailing padding and closing instruction are not part of the
+    ///   <c>x:xmpmeta</c> element, so they are cut away before parsing rather than fed to it.
+    /// </summary>
+    private static XDocument ParsePacket(byte[] bytes)
+    {
+        const string closing = "</x:xmpmeta>";
+
+        var text = Encoding.UTF8.GetString(bytes);
+        var start = text.IndexOf("<x:xmpmeta", StringComparison.Ordinal);
+        var end = text.IndexOf(closing, StringComparison.Ordinal);
+
+        start.Should().BeGreaterThan(-1, "the packet should carry the xmpmeta root element");
+        end.Should().BeGreaterThan(start);
+
+        return XDocument.Parse(text.Substring(start, end + closing.Length - start));
     }
 
     [Fact]

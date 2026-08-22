@@ -36,7 +36,7 @@ using System.Text;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
-using System.Linq;
+using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Text;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
@@ -933,31 +933,8 @@ internal class ParagraphRenderer : Renderer
         if (!anyRightToLeft)
             return null;
 
-        // Where each character ended up, which is the inverse of the order the algorithm answers.
-        var at = new int[text.Length];
-        for (int idx = 0; idx < at.Length; idx++)
-            at[idx] = int.MaxValue;
-        for (int position = 0; position < bidi.VisualOrder.Count; position++)
-            at[bidi.VisualOrder[position]] = position;
-
-        // A leaf is ordered by the leftmost position any of its characters ends up at, not by the
-        // position of its first character - the first character of a right-to-left word is its
-        // rightmost. Ordering by leftmost is also what keeps an English phrase inside a Hebrew
-        // sentence in its own order, where reversing the line would turn it round.
-        var keys = new int[widths.Count];
-        for (int leaf = 0; leaf < keys.Length; leaf++)
-        {
-            int leftmost = int.MaxValue;
-            for (int idx = spans[leaf].Start; idx < spans[leaf].Start + spans[leaf].Length; idx++)
-                leftmost = Math.Min(leftmost, at[idx]);
-
-            // A leaf that contributed no text - a bookmark, a line break - has no position of its
-            // own and stays beside whatever it followed.
-            keys[leaf] = leftmost == int.MaxValue && leaf > 0 ? keys[leaf - 1] : leftmost;
-        }
-
-        var order = Enumerable.Range(0, keys.Length).OrderBy(leaf => keys[leaf]).ToArray();
-        var placed = new XUnit[keys.Length];
+        var order = VisualOrder.Of(bidi, spans);
+        var placed = new XUnit[widths.Count];
         XUnit x = StartXPosition;
         foreach (int leaf in order)
         {
@@ -1118,7 +1095,7 @@ internal class ParagraphRenderer : Renderer
     /// runs over, and however many annotations that costs.
     /// </summary>
     PdfStructureElement LinkElementOf(Hyperlink hyperlink) =>
-        Tagger.Element(hyperlink, PdfTag.Link, Tagger.Current);
+        Tagger.Element(hyperlink, PdfTag.Link, Tagger.Parent);
 
     IDisposable linkScope;
     Hyperlink scopedHyperlink;
@@ -1256,7 +1233,7 @@ internal class ParagraphRenderer : Renderer
     /// </summary>
     PdfStructureElement SpanElementOf(BrokenWord word)
     {
-        PdfStructureElement element = Tagger.Element(word.Hyphen, PdfTag.Span, Tagger.Current);
+        PdfStructureElement element = Tagger.Element(word.Hyphen, PdfTag.Span, Tagger.Parent);
         if (element != null)
             element.ActualText = word.Text;
 
