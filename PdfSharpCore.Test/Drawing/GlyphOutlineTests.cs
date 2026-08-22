@@ -56,6 +56,25 @@ public class GlyphOutlineTests
     }
 
     [Fact]
+    public void IsGlyphOutlineProviderSetReflectsWhatIsRegisteredRightNow()
+    {
+        var provider = GlobalFontSettings.GlyphOutlineProvider;
+        try
+        {
+            GlobalFontSettings.GlyphOutlineProvider.Should().NotBeNull(
+                "TestBackendSetup registers one for the whole assembly");
+            GlobalFontSettings.IsGlyphOutlineProviderSet.Should().BeTrue();
+
+            GlobalFontSettings.GlyphOutlineProvider = null;
+            GlobalFontSettings.IsGlyphOutlineProviderSet.Should().BeFalse();
+        }
+        finally
+        {
+            GlobalFontSettings.GlyphOutlineProvider = provider;
+        }
+    }
+
+    [Fact]
     public void RegisteringAProviderLeavesTheOtherSeamsAlone()
     {
         var resolver = GlobalFontSettings.FontResolver;

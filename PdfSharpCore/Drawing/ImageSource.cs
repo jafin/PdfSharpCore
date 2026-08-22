@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.IO;
+using PdfSharpCore.Fonts;
 
 
 namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
@@ -24,6 +25,20 @@ public abstract class ImageSource
     /// one. Unlike the font resolver, it may be replaced at any time.
     /// </summary>
     public static ImageSource ImageSourceImpl { get; set; }
+
+    /// <summary>
+    /// Whether <see cref="ImageSourceImpl"/> has been set. Reading <see cref="ImageSourceImpl"/>
+    /// itself never throws - only decoding an image through it does - so this answers the same
+    /// thing <c>ImageSourceImpl != null</c> would, stated here for the same shape as the seams on
+    /// <see cref="GlobalFontSettings"/>.
+    /// </summary>
+    public static bool IsImageSourceImplSet => ImageSourceImpl != null;
+
+    /// <summary>
+    /// States that <see cref="ImageSourceImpl"/> may be set, replaced or cleared at any time - see
+    /// <see cref="SeamLifecycle.SetAnytime"/>.
+    /// </summary>
+    public static SeamLifecycle ImageSourceImplLifecycle => SeamLifecycle.SetAnytime;
 
     /// <summary>
     /// One decoded image, as much of it as the PDF writer needs: its size, a name to identify it

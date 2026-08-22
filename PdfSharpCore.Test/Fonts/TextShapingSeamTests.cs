@@ -145,6 +145,27 @@ public class TextShapingSeamTests
             + "unshaped behaviour back");
     }
 
+    [Fact]
+    public void IsTextShaperSetAnswersWhetherOneIsInstalledRightNow()
+    {
+        var shaper = new SelectiveShaper("seam-is-set", _ => Array.Empty<ShapedGlyph>());
+
+        GlobalFontSettings.IsTextShaperSet.Should().BeFalse(
+            "nothing is installed before this test installs one");
+
+        using (Installed(shaper))
+            GlobalFontSettings.IsTextShaperSet.Should().BeTrue();
+
+        GlobalFontSettings.IsTextShaperSet.Should().BeFalse("and clearing it answers false again");
+    }
+
+    [Fact]
+    public void TextShaperLifecycleSaysItMayBeSetAtAnyTime()
+    {
+        GlobalFontSettings.TextShaperLifecycle.Should().Be(SeamLifecycle.SetAnytime,
+            "null is a working default and installing, replacing or clearing a shaper is always allowed");
+    }
+
     // ----- what a shaper gets to decide ----------------------------------------------------------
 
     [Fact]
