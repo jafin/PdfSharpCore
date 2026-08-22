@@ -37,7 +37,6 @@ using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
-using System.Linq;
 using PdfSharpCore.Text;
 using MigraDocCore.DocumentObjectModel.Fields;
 using MigraDocCore.DocumentObjectModel.Shapes;
