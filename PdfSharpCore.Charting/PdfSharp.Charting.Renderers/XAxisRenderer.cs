@@ -275,7 +275,13 @@ internal abstract class XAxisRenderer : AxisRenderer
       int countMinorTickMarks = (int)(xMax / xMinorTick);
       if (isHorizontal)
       {
-        double minorTickMarkStep = xari.Width / countMinorTickMarks;
+        // The same guard the major ticks take just below: a chart with nothing plotted scales to
+        // a maximum of zero, and dividing the axis length by zero minor ticks turned every tick
+        // position into NaN. Only reachable when a caller sets Axis.MinorTickMark explicitly -
+        // it defaults to None, which the block above already skips - but reachable all the same.
+        double minorTickMarkStep = xari.Width;
+        if (countMinorTickMarks != 0)
+          minorTickMarkStep = xari.Width / countMinorTickMarks;
         startPos.X = xari.X;
         for (int x = 0; x <= countMinorTickMarks; x++)
         {
@@ -288,7 +294,9 @@ internal abstract class XAxisRenderer : AxisRenderer
       }
       else
       {
-        double minorTickMarkStep = xari.Height / countMinorTickMarks;
+        double minorTickMarkStep = xari.Height;
+        if (countMinorTickMarks != 0)
+          minorTickMarkStep = xari.Height / countMinorTickMarks;
         startPos.Y = xari.Y;
         for (int x = 0; x <= countMinorTickMarks; x++)
         {

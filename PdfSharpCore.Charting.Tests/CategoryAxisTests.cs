@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text;
 using AwesomeAssertions;
 using PdfSharpCore.Charting.Tests.Helpers;
 using PdfSharpCore.Test.Helpers;
@@ -152,6 +153,25 @@ public class CategoryAxisTests
         var after = StrokedLines.Of(Drawn.Page(chart));
         after.Should().OnlyContain(line => line.IsHorizontal);
         after.Count.Should().BeGreaterThan(before.Count, "the category axis now draws its own line");
+    }
+
+    /// <summary>
+    ///   A chart with nothing plotted scales to a maximum of zero, so its minor tick count is also
+    ///   zero. Dividing the axis length by that turned every minor tick position into NaN - the
+    ///   same defect class the major ticks were already guarded against, just for a pen that stays
+    ///   null until a caller asks for minor ticks at all.
+    /// </summary>
+    [Theory]
+    [InlineData(ChartType.Column2D)]
+    [InlineData(ChartType.Bar2D)]
+    public void AnEmptyChartsMinorTickMarksStillWriteNoNaN(ChartType type)
+    {
+        var chart = Charts.Empty(type);
+        chart.XAxis.MinorTickMark = TickMarkType.Outside;
+
+        var page = Drawn.Page(chart);
+
+        Encoding.ASCII.GetString(PageContent.Of(page)).Should().NotContain("NaN");
     }
 
     [Fact]
