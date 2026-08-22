@@ -47,9 +47,16 @@ internal abstract class YAxisRenderer : AxisRenderer
     : base(parms)
   {
     this.orientation = orientation;
+    this.isHorizontal = orientation == AxisOrientation.Horizontal;
   }
 
   readonly AxisOrientation orientation;
+
+  /// <summary>
+  /// Whether this is the horizontal axis, cached once rather than compared for on every one of
+  /// the several places <see cref="Draw"/> and <see cref="Format"/> branch on it.
+  /// </summary>
+  readonly bool isHorizontal;
 
   /// <summary>
   /// Returns a initialized rendererInfo based on the Y axis.
@@ -94,7 +101,7 @@ internal abstract class YAxisRenderer : AxisRenderer
       {
         string str = y.ToString(yari.TickLabelsFormat);
         labelSize = gfx.MeasureString(str, yari.TickLabelsFont);
-        if (orientation == AxisOrientation.Horizontal)
+        if (isHorizontal)
         {
           size.Width += labelSize.Width;
           size.Height = Math.Max(labelSize.Height, size.Height);
@@ -109,7 +116,7 @@ internal abstract class YAxisRenderer : AxisRenderer
       }
 
       // add space for tickmarks
-      if (orientation == AxisOrientation.Horizontal)
+      if (isHorizontal)
         size.Height += yari.MajorTickMarkWidth * 1.5;
       else
         size.Width += yari.MajorTickMarkWidth * 1.5;
@@ -127,7 +134,7 @@ internal abstract class YAxisRenderer : AxisRenderer
         titleSize.Width = yari.axisTitleRendererInfo.Width;
       }
 
-      if (orientation == AxisOrientation.Horizontal)
+      if (isHorizontal)
       {
         yari.Height = size.Height + titleSize.Height;
         yari.Width = Math.Max(size.Width, titleSize.Width);
@@ -164,7 +171,7 @@ internal abstract class YAxisRenderer : AxisRenderer
     double yMinorTick = yari.MinorTick;
 
     XMatrix matrix = new XMatrix();
-    if (orientation == AxisOrientation.Horizontal)
+    if (isHorizontal)
     {
       matrix.TranslatePrepend(-yMin, -yari.Y);
       matrix.Scale(yari.InnerRect.Width / (yMax - yMin), 1, XMatrixOrder.Append);
@@ -200,7 +207,7 @@ internal abstract class YAxisRenderer : AxisRenderer
     {
       for (double y = yMin + yMinorTick; y < yMax; y += yMinorTick)
       {
-        if (orientation == AxisOrientation.Horizontal)
+        if (isHorizontal)
         {
           points[0].X = y;
           points[0].Y = minorTickMarkStart;
@@ -219,7 +226,7 @@ internal abstract class YAxisRenderer : AxisRenderer
       }
     }
 
-    if (orientation == AxisOrientation.Horizontal)
+    if (isHorizontal)
     {
       XStringFormat xsf = new XStringFormat();
       xsf.LineAlignment = XLineAlignment.Near;
@@ -291,7 +298,7 @@ internal abstract class YAxisRenderer : AxisRenderer
     }
 
     // Draw axis.
-    if (orientation == AxisOrientation.Horizontal)
+    if (isHorizontal)
     {
       if (yari.LineFormat != null)
       {
@@ -329,7 +336,7 @@ internal abstract class YAxisRenderer : AxisRenderer
     }
 
     // Draw axis title
-    if (orientation == AxisOrientation.Horizontal)
+    if (isHorizontal)
     {
       if (yari.axisTitleRendererInfo != null)
       {
@@ -382,113 +389,17 @@ internal abstract class YAxisRenderer : AxisRenderer
     ref double majorTickMarkStart, ref double majorTickMarkEnd,
     ref double minorTickMarkStart, ref double minorTickMarkEnd)
   {
-    double majorTickMarkWidth = rendererInfo.MajorTickMarkWidth;
-    double minorTickMarkWidth = rendererInfo.MinorTickMarkWidth;
+    // Outside adds the width to the edge for one orientation and subtracts it for the other -
+    // the sign this flips - because the two edges face opposite ways relative to the plot area.
+    double edge = isHorizontal
+      ? rendererInfo.Rect.Y
+      : rendererInfo.Rect.X + rendererInfo.Rect.Width;
+    int direction = isHorizontal ? 1 : -1;
 
-    if (orientation == AxisOrientation.Horizontal)
-    {
-      double y = rendererInfo.Rect.Y;
-
-      switch (rendererInfo.MajorTickMark)
-      {
-        case TickMarkType.Inside:
-          majorTickMarkStart = y - majorTickMarkWidth;
-          majorTickMarkEnd = y;
-          break;
-
-        case TickMarkType.Outside:
-          majorTickMarkStart = y;
-          majorTickMarkEnd   = y + majorTickMarkWidth;
-          break;
-
-        case TickMarkType.Cross:
-          majorTickMarkStart = y - majorTickMarkWidth;
-          majorTickMarkEnd = y + majorTickMarkWidth;
-          break;
-
-        //TickMarkType.None:
-        default:
-          majorTickMarkStart = 0;
-          majorTickMarkEnd = 0;
-          break;
-      }
-
-      switch (rendererInfo.MinorTickMark)
-      {
-        case TickMarkType.Inside:
-          minorTickMarkStart = y - minorTickMarkWidth;
-          minorTickMarkEnd = y;
-          break;
-
-        case TickMarkType.Outside:
-          minorTickMarkStart = y;
-          minorTickMarkEnd = y + minorTickMarkWidth;
-          break;
-
-        case TickMarkType.Cross:
-          minorTickMarkStart = y - minorTickMarkWidth;
-          minorTickMarkEnd = y + minorTickMarkWidth;
-          break;
-
-        //TickMarkType.None:
-        default:
-          minorTickMarkStart = 0;
-          minorTickMarkEnd = 0;
-          break;
-      }
-    }
-    else
-    {
-      XRect rect = rendererInfo.Rect;
-
-      switch (rendererInfo.MajorTickMark)
-      {
-        case TickMarkType.Inside:
-          majorTickMarkStart = rect.X + rect.Width;
-          majorTickMarkEnd = rect.X + rect.Width + majorTickMarkWidth;
-          break;
-
-        case TickMarkType.Outside:
-          majorTickMarkStart = rect.X + rect.Width;
-          majorTickMarkEnd   = rect.X + rect.Width - majorTickMarkWidth;
-          break;
-
-        case TickMarkType.Cross:
-          majorTickMarkStart = rect.X + rect.Width - majorTickMarkWidth;
-          majorTickMarkEnd = rect.X + rect.Width + majorTickMarkWidth;
-          break;
-
-        //TickMarkType.None:
-        default:
-          majorTickMarkStart = 0;
-          majorTickMarkEnd = 0;
-          break;
-      }
-
-      switch (rendererInfo.MinorTickMark)
-      {
-        case TickMarkType.Inside:
-          minorTickMarkStart = rect.X + rect.Width;
-          minorTickMarkEnd = rect.X + rect.Width + minorTickMarkWidth;
-          break;
-
-        case TickMarkType.Outside:
-          minorTickMarkStart = rect.X + rect.Width;
-          minorTickMarkEnd = rect.X + rect.Width - minorTickMarkWidth;
-          break;
-
-        case TickMarkType.Cross:
-          minorTickMarkStart = rect.X + rect.Width - minorTickMarkWidth;
-          minorTickMarkEnd = rect.X + rect.Width + minorTickMarkWidth;
-          break;
-
-        //TickMarkType.None:
-        default:
-          minorTickMarkStart = 0;
-          minorTickMarkEnd = 0;
-          break;
-      }
-    }
+    GetTickMarkEndpoints(rendererInfo.MajorTickMark, edge, rendererInfo.MajorTickMarkWidth, direction,
+      out majorTickMarkStart, out majorTickMarkEnd);
+    GetTickMarkEndpoints(rendererInfo.MinorTickMark, edge, rendererInfo.MinorTickMarkWidth, direction,
+      out minorTickMarkStart, out minorTickMarkEnd);
   }
 
   /// <summary>

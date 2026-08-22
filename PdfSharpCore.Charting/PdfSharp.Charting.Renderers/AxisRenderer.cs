@@ -185,4 +185,42 @@ internal abstract class AxisRenderer : Renderer
   protected const double SpaceBetweenLabelAndTickmark = 2.1; // 0.7 mm
 
   protected abstract string GetDefaultTickLabelsFormat();
+
+  /// <summary>
+  /// Turns a tick mark type into the two endpoints of the little line it draws, one
+  /// <paramref name="width"/> away from <paramref name="edge"/>. <paramref name="direction"/> is
+  /// +1 where growing away from the edge means a larger coordinate and -1 where it means a
+  /// smaller one. Shared by <see cref="XAxisRenderer.GetTickMarkPos"/> and
+  /// <see cref="YAxisRenderer.GetTickMarkPos"/>, which otherwise each carried this switch twice
+  /// over - once per orientation - and so four times between the pair of them; a fifth
+  /// <see cref="TickMarkType"/> now wants changing here once rather than in four places. Which
+  /// value comes out as "start" and which as "end" is arbitrary: both callers use them only as
+  /// the two ends of a drawn line, which does not care which end is which.
+  /// </summary>
+  protected static void GetTickMarkEndpoints(TickMarkType type, double edge, double width, int direction,
+    out double start, out double end)
+  {
+    switch (type)
+    {
+      case TickMarkType.Inside:
+        start = edge;
+        end = edge - direction * width;
+        break;
+
+      case TickMarkType.Outside:
+        start = edge;
+        end = edge + direction * width;
+        break;
+
+      case TickMarkType.Cross:
+        start = edge + direction * width;
+        end = edge - direction * width;
+        break;
+
+      default: // TickMarkType.None
+        start = 0;
+        end = 0;
+        break;
+    }
+  }
 }
