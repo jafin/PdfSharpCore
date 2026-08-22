@@ -60,31 +60,7 @@ public sealed partial class Document : DocumentObject, IVisitable
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Document document = (Document)base.DeepCopy();
-    if (document.info != null)
-    {
-      document.info = document.info.Clone();
-      document.info.parent = document;
-    }
-    if (document.styles != null)
-    {
-      document.styles = document.styles.Clone();
-      document.styles.parent = document;
-    }
-    if (document.sections != null)
-    {
-      document.sections = document.sections.Clone();
-      document.sections.parent = document;
-    }
-    return document;
-  }
-
-  /// <summary>
-  /// Internal function used by renderers to bind this instance to it. 
+  /// Internal function used by renderers to bind this instance to it.
   /// </summary>
   public void BindToRenderer(object renderer)
   {

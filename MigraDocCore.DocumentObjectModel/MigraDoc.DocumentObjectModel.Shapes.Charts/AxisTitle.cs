@@ -61,19 +61,6 @@ public partial class AxisTitle : ChartObject
     return (AxisTitle)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    AxisTitle axisTitle = (AxisTitle)base.DeepCopy();
-    if (axisTitle.font != null)
-    {
-      axisTitle.font = axisTitle.font.Clone();
-      axisTitle.font.parent = axisTitle;
-    }
-    return axisTitle;
-  }
   #endregion
 
   #region Properties

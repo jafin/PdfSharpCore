@@ -11,3 +11,4 @@ MDG003 | DomValueModel | Error | [DV] is only meaningful on an instance member
 MDG004 | DomValueModel | Error | Two [DV] members share a name
 MDG005 | DomValueModel | Error | [DV] is only meaningful inside a DocumentObject
 MDG006 | DomValueModel | Warning | RefOnly has no meaning on a value member
+MDG007 | DomValueModel | Warning | [DV] member's name appears nowhere in this type's Serialize

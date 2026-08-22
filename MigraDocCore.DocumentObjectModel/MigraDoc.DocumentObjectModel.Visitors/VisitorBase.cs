@@ -30,6 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using MigraDocCore.DocumentObjectModel.Internals;
 using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes.Charts;
@@ -66,46 +67,34 @@ public abstract class VisitorBase : DocumentObjectVisitor
       visitable.AcceptVisitor(this, true);
   }
 
+  /// <summary>
+  /// Fills in every simple-valued [DV] member of <paramref name="target"/> left unset from
+  /// <paramref name="reference"/> - the rule behind every Flatten* method in this class: if mine is
+  /// null, take the reference's. Both must be the same DOM type, or a member the one declares and
+  /// the other does not would silently fail to flatten.
+  /// </summary>
+  /// <remarks>
+  /// Not used for a member whose copy needs more than that: a shared object needing its own clone
+  /// and a reparented copy, a border needing per-side logic, and so on - those stay hand-written
+  /// below, and are exactly the cases this rule does not cover. A member is read through
+  /// <see cref="GV.ReadOnly"/> rather than <see cref="GV.GetNull"/>, because a Leaf member's boxed
+  /// default is not null and would overwrite an unset target with it; skipping the copy whenever
+  /// the reference is itself unset gets the same "left alone" result without ever reading that
+  /// default at all.
+  /// </remarks>
+  protected static void FlattenSimpleValues(DocumentObject target, DocumentObject reference)
+  {
+    foreach (ValueDescriptor vd in target.Meta.ValueDescriptors)
+    {
+      if (vd.IsSimpleValue && vd.IsNull(target) && !vd.IsNull(reference))
+        vd.SetValue(target, vd.GetValue(reference, GV.ReadOnly));
+    }
+  }
+
   /// <summary>Fills in every paragraph format value left unset from <paramref name="refFormat"/>.</summary>
   protected void FlattenParagraphFormat(ParagraphFormat format, ParagraphFormat refFormat)
   {
-    if (format.alignment == null)
-      format.alignment = refFormat.alignment;
-
-    if (format.firstLineIndent.IsNull)
-      format.firstLineIndent = refFormat.firstLineIndent;
-
-    if (format.leftIndent.IsNull)
-      format.leftIndent = refFormat.leftIndent;
-
-    if (format.rightIndent.IsNull)
-      format.rightIndent = refFormat.rightIndent;
-
-    if (format.spaceBefore.IsNull)
-      format.spaceBefore = refFormat.spaceBefore;
-
-    if (format.spaceAfter.IsNull)
-      format.spaceAfter = refFormat.spaceAfter;
-
-    if (format.lineSpacingRule == null)
-      format.lineSpacingRule = refFormat.lineSpacingRule;
-    if (format.lineSpacing.IsNull)
-      format.lineSpacing = refFormat.lineSpacing;
-
-    if (format.widowControl == null)
-      format.widowControl = refFormat.widowControl;
-
-    if (format.keepTogether == null)
-      format.keepTogether = refFormat.keepTogether;
-
-    if (format.keepWithNext == null)
-      format.keepWithNext = refFormat.keepWithNext;
-
-    if (format.pageBreakBefore == null)
-      format.pageBreakBefore = refFormat.pageBreakBefore;
-
-    if (format.outlineLevel == null)
-      format.outlineLevel = refFormat.outlineLevel;
+    FlattenSimpleValues(format, refFormat);
 
     if (format.font == null)
     {
@@ -149,46 +138,16 @@ public abstract class VisitorBase : DocumentObjectVisitor
   }
 
   /// <summary>Fills in every list value left unset from <paramref name="refListInfo"/>.</summary>
-  protected void FlattenListInfo(ListInfo listInfo, ListInfo refListInfo)
-  {
-    if (listInfo.continuePreviousList == null)
-      listInfo.continuePreviousList = refListInfo.continuePreviousList;
-    if (listInfo.listType == null)
-      listInfo.listType = refListInfo.listType;
-    if (listInfo.numberPosition.IsNull)
-      listInfo.numberPosition = refListInfo.numberPosition;
-  }
+  protected void FlattenListInfo(ListInfo listInfo, ListInfo refListInfo) =>
+    FlattenSimpleValues(listInfo, refListInfo);
 
   /// <summary>Fills in every font value left unset from <paramref name="refFont"/>.</summary>
-  protected void FlattenFont(Font font, Font refFont)
-  {
-    if (font.name == null)
-      font.name = refFont.name;
-    if (font.size.IsNull)
-      font.size = refFont.size;
-    if (font.color.IsNull)
-      font.color = refFont.color;
-    if (font.underline == null)
-      font.underline = refFont.underline;
-    if (font.bold == null)
-      font.bold = refFont.bold;
-    if (font.italic == null)
-      font.italic = refFont.italic;
-    if (font.superscript == null)
-      font.superscript = refFont.superscript;
-    if (font.subscript == null)
-      font.subscript = refFont.subscript;
-  }
+  protected void FlattenFont(Font font, Font refFont) =>
+    FlattenSimpleValues(font, refFont);
 
   /// <summary>Fills in every shading value left unset from <paramref name="refShading"/>.</summary>
-  protected void FlattenShading(Shading shading, Shading refShading)
-  {
-    //fClear?
-    if (shading.visible == null)
-      shading.visible = refShading.visible;
-    if (shading.color.IsNull)
-      shading.color = refShading.color;
-  }
+  protected void FlattenShading(Shading shading, Shading refShading) =>
+    FlattenSimpleValues(shading, refShading);
 
   /// <summary>
   /// Returns a border with every value left unset filled in from the <see cref="Borders"/> collection
@@ -247,23 +206,7 @@ public abstract class VisitorBase : DocumentObjectVisitor
   /// <summary>Fills in every border value left unset from <paramref name="refBorders"/>.</summary>
   protected void FlattenBorders(Borders borders, Borders refBorders)
   {
-    if (borders.visible == null)
-      borders.visible = refBorders.visible;
-    if (borders.width.IsNull)
-      borders.width = refBorders.width;
-    if (borders.style == null)
-      borders.style = refBorders.style;
-    if (borders.color.IsNull)
-      borders.color = refBorders.color;
-
-    if (borders.distanceFromBottom.IsNull)
-      borders.distanceFromBottom = refBorders.distanceFromBottom;
-    if (borders.distanceFromRight.IsNull)
-      borders.distanceFromRight = refBorders.distanceFromRight;
-    if (borders.distanceFromLeft.IsNull)
-      borders.distanceFromLeft = refBorders.distanceFromLeft;
-    if (borders.distanceFromTop.IsNull)
-      borders.distanceFromTop = refBorders.distanceFromTop;
+    FlattenSimpleValues(borders, refBorders);
 
     if (refBorders.left != null)
     {
@@ -288,17 +231,8 @@ public abstract class VisitorBase : DocumentObjectVisitor
   }
 
   /// <summary>Fills in every value of a single border left unset from <paramref name="refBorder"/>.</summary>
-  protected void FlattenBorder(Border border, Border refBorder)
-  {
-    if (border.visible == null)
-      border.visible = refBorder.visible;
-    if (border.width.IsNull)
-      border.width = refBorder.width;
-    if (border.style == null)
-      border.style = refBorder.style;
-    if (border.color.IsNull)
-      border.color = refBorder.color;
-  }
+  protected void FlattenBorder(Border border, Border refBorder) =>
+    FlattenSimpleValues(border, refBorder);
 
   /// <summary>
   /// Takes on the inherited tab stops when none have been set here, and drops any marked for removal.

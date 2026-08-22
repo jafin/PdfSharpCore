@@ -63,20 +63,6 @@ public partial class XSeries : ChartObject
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    XSeries xSeries = (XSeries)base.DeepCopy();
-    if (xSeries.xSeriesElements != null)
-    {
-      xSeries.xSeriesElements = xSeries.xSeriesElements.Clone();
-      xSeries.xSeriesElements.parent = xSeries;
-    }
-    return xSeries;
-  }
-
-  /// <summary>
   /// Adds a blank to the XSeries.
   /// </summary>
   public void AddBlank()

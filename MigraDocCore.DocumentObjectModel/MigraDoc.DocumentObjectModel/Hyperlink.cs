@@ -90,20 +90,6 @@ public partial class Hyperlink : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Hyperlink hyperlink = (Hyperlink)base.DeepCopy();
-        if (hyperlink.elements != null)
-        {
-            hyperlink.elements = hyperlink.elements.Clone();
-            hyperlink.elements.parent = hyperlink;
-        }
-        return hyperlink;
-    }
-
-    /// <summary>
     /// Adds a text phrase to the hyperlink.
     /// </summary>
     public Text AddText(String text)

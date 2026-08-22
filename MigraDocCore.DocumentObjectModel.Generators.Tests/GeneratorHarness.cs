@@ -40,6 +40,12 @@ internal static class GeneratorHarness
             [System.AttributeUsage(System.AttributeTargets.Field | System.AttributeTargets.Property)]
             internal sealed class DVAttribute : System.Attribute { public bool RefOnly; }
 
+            [System.AttributeUsage(System.AttributeTargets.Class)]
+            internal sealed class SuppressSerializeCheckAttribute : System.Attribute
+            {
+                public SuppressSerializeCheckAttribute(string reason) { }
+            }
+
             public interface INullableValue { bool IsNull { get; } void SetNull(); }
 
             public enum ValueKind { Leaf, NullableValue, PlainValue, DocumentObject, Collection }
@@ -94,6 +100,12 @@ internal static class GeneratorHarness
         .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
         .ToImmutableArray();
 
+    /// <param name="Diagnostics">
+    /// What the generator itself reported. A `#pragma warning disable` in the snippet has no effect
+    /// on this list - see <c>DiagnosticTests.MDG007_APragmaDoesNotSuppressIt</c>, which checked that
+    /// against a real build rather than assuming it: a source generator's own diagnostics do not go
+    /// through the same in-source suppression path an ordinary analyzer's do.
+    /// </param>
     public sealed record Result(
         ImmutableArray<Diagnostic> Diagnostics,
         IReadOnlyList<string> GeneratedSources,

@@ -73,14 +73,6 @@ public abstract partial class NumericFieldBase : DocumentObject
     return (NumericFieldBase)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    NumericFieldBase numericFieldBase = (NumericFieldBase)base.DeepCopy();
-    return numericFieldBase;
-  }
   #endregion
 
   #region Properties

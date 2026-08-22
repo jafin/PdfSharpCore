@@ -11,12 +11,13 @@ namespace MigraDocCore.DocumentObjectModel.Tests;
 ///   and the serializer that writes a <see cref="LineFormat"/> into DDL.
 /// </summary>
 /// <remarks>
-///   <c>Table.DeepCopy</c> is <c>protected override</c> and is reached through the public
-///   <c>Clone</c>. It clones five children by hand - columns, rows, format, borders and shading -
-///   and reparents each, so what is worth asserting is that the copy is <em>independent</em>, the
-///   way <c>Chart.DeepCopy</c> was asserted in batch 5.2. A deep copy that comes back non-null
-///   proves nothing at all; one that still shares its rows with the original proves the opposite of
-///   what it looks like.
+///   <c>Table</c> declares no <c>DeepCopy</c> of its own: <c>DocumentObject.DeepCopy</c> clones and
+///   reparents every non-simple [DV] member - columns, rows, format, borders and shading - driven
+///   by the descriptor, the same move a hand-written override used to make for each of the five by
+///   name. What is worth asserting is that the copy is <em>independent</em>, the way
+///   <c>Chart.DeepCopy</c> was asserted in batch 5.2. A deep copy that comes back non-null proves
+///   nothing at all; one that still shares its rows with the original proves the opposite of what
+///   it looks like.
 /// </remarks>
 public class TableCloneAndLineFormatTests
 {
@@ -60,8 +61,8 @@ public class TableCloneAndLineFormatTests
     public void ChangingTheOriginalAfterCopyingDoesNotMoveTheCopy()
     {
         // The assertion that makes this a test of a *deep* copy. Each of these reaches one of the
-        // five children DeepCopy clones by hand, so a child left shared shows up here as the copy
-        // following the original.
+        // five children DeepCopy clones and reparents, so a child left shared shows up here as the
+        // copy following the original.
         var original = ATableWithEveryChildSet();
         var copy = original.Clone();
 

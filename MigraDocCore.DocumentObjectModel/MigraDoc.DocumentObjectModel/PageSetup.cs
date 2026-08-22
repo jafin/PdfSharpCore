@@ -414,9 +414,14 @@ public partial class PageSetup : DocumentObject
   private static readonly PageSetup defaultPageSetup = CreateDefaultPageSetup();
 
   /// <summary>
-  /// What <see cref="defaultPageSetup"/> was built as, kept to check nobody has since written to it.
+  /// What <see cref="defaultPageSetup"/> was built as, kept to check nobody has since written to
+  /// it. Built on first use rather than as a field initializer: Clone reads Meta, which the source
+  /// generator emits as a static field of this same type, and a field initializer that ran before
+  /// that field's own initializer would read it as null. Whichever thread first asks for it, the
+  /// class has by then finished initializing - a field initializer running inside the same type
+  /// initializer has no such guarantee about a field declared later.
   /// </summary>
-  private static readonly PageSetup defaultPageSetupClone = defaultPageSetup.Clone();
+  private static PageSetup defaultPageSetupClone;
 
   private static PageSetup CreateDefaultPageSetup()
   {
@@ -445,6 +450,7 @@ public partial class PageSetup : DocumentObject
   /// </summary>
   private static void AssertDefaultPageSetupUnmodified()
   {
+    defaultPageSetupClone ??= defaultPageSetup.Clone();
     Debug.Assert(defaultPageSetup.PageFormat == defaultPageSetupClone.PageFormat, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.SectionStart == defaultPageSetupClone.SectionStart, "DefaultPageSetup must not be modified");
     Debug.Assert(defaultPageSetup.Orientation == defaultPageSetupClone.Orientation, "DefaultPageSetup must not be modified");

@@ -39,6 +39,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a row of a table.
 /// </summary>
+[SuppressSerializeCheck("index is this row's position in Rows, recomputed from that collection " +
+    "on read rather than stored - there is nothing for Serialize to write")]
 public partial class Row : DocumentObject, IVisitable
 {
   /// <summary>
@@ -62,34 +64,6 @@ public partial class Row : DocumentObject, IVisitable
     return (Row)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Row row = (Row)base.DeepCopy();
-    if (row.format != null)
-    {
-      row.format = row.format.Clone();
-      row.format.parent = row;
-    }
-    if (row.borders != null)
-    {
-      row.borders = row.borders.Clone();
-      row.borders.parent = row;
-    }
-    if (row.shading != null)
-    {
-      row.shading = row.shading.Clone();
-      row.shading.parent = row;
-    }
-    if (row.cells != null)
-    {
-      row.cells = row.cells.Clone();
-      row.cells.parent = row;
-    }
-    return row;
-  }
   #endregion
 
   #region Properties

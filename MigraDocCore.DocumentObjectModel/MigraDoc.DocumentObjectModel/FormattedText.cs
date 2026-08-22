@@ -65,25 +65,6 @@ public partial class FormattedText : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        FormattedText formattedText = (FormattedText)base.DeepCopy();
-        if (formattedText.font != null)
-        {
-            formattedText.font = formattedText.font.Clone();
-            formattedText.font.parent = formattedText;
-        }
-        if (formattedText.elements != null)
-        {
-            formattedText.elements = formattedText.elements.Clone();
-            formattedText.elements.parent = formattedText;
-        }
-        return formattedText;
-    }
-
-    /// <summary>
     /// Adds a new Bookmark.
     /// </summary>
     public BookmarkField AddBookmark(string name)

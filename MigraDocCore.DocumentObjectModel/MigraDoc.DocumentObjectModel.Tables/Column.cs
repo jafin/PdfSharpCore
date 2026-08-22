@@ -38,6 +38,8 @@ namespace MigraDocCore.DocumentObjectModel.Tables;
 /// <summary>
 /// Represents a column of a table.
 /// </summary>
+[SuppressSerializeCheck("index is this column's position in Columns, recomputed from that " +
+    "collection on read rather than stored - there is nothing for Serialize to write")]
 public partial class Column : DocumentObject
 {
   /// <summary>
@@ -61,29 +63,6 @@ public partial class Column : DocumentObject
     return (Column)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Column column = (Column)base.DeepCopy();
-    if (column.format != null)
-    {
-      column.format = column.format.Clone();
-      column.format.parent = column;
-    }
-    if (column.borders != null)
-    {
-      column.borders = column.borders.Clone();
-      column.borders.parent = column;
-    }
-    if (column.shading != null)
-    {
-      column.shading = column.shading.Clone();
-      column.shading.parent = column;
-    }
-    return column;
-  }
   #endregion
 
   #region Properties
