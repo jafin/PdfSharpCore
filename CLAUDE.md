@@ -328,6 +328,17 @@ There are two independent lexers, and a change to one usually belongs in the oth
   `Chars` and `CSymbol`. It is the older and rougher of the two; the document lexer usually has the
   guard the content lexer is missing.
 
+`Parser` touches exactly one member of `PdfDocument`, `_irefTable`, and reaches it through
+that table's own four members rather than through its backing `ObjectTable` dictionary. It still
+needs *a* document — a `PdfObject` gets its number by looking itself up in one — but no longer the
+one `PdfReader.Open` builds, so a test reaches it through `PdfSharpCore.Test/IO/ParserProbe.cs`:
+a plain `new PdfDocument()`, a `MemoryStream` of hand-written bytes, and no `%PDF` header, no
+cross-reference table, no trailer and no `startxref`. **That document is not empty**, though — its
+information dictionary is object 1 before a byte is read, so a test writing its own objects numbers
+them from two, or the entry it writes for object 1 is ignored in favour of the one already there.
+`TolerantParsingTests` and `CrossReferenceStreamDecodingTests` are what the probe is for; the
+`PdfReader.Open`-based tests beside them still cover the same logic through a whole file.
+
 ## Drawing
 
 `XGraphics` is the drawing surface and holds an `IXGraphicsRenderer`; `XGraphicsPdfRenderer`

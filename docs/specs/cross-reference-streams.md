@@ -164,6 +164,12 @@ rather than merely pass:
 - **More objects than fit one stream are split across several**, with `MaxObjectsPerObjectStream` set
   low enough to force it, and the document still reopens.
 
+`PdfSharpCore.Test/IO/CrossReferenceStreamDecodingTests.cs` covers the reading half from the other
+side: `Parser.ReadXRefStream` reached directly through `ParserProbe`, with `/W`, `/Index` and `/Size`
+varied against a hand-packed stream body rather than against whatever shapes a written document
+happens to produce. The entries it decodes and what it puts in the cross-reference table are what
+those assert; the round trips above are what say the two halves agree.
+
 ## Related
 
 - `docs/specs/incremental-update-save.md` — needs the same two-pass writer refactor.
