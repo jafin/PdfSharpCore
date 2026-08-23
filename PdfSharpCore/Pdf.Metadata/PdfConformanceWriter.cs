@@ -147,9 +147,9 @@ internal static class PdfConformanceWriter
         // keeps it, and would carry a PDF/A-1 claim over a header PDF/A-1 does not allow.
         if (document._version > 14)
             throw new InvalidOperationException(
-                "PDF/A-1 is defined against PDF 1.4, and this document is written as PDF 1."
-                + (document._version % 10) + ". Either claim PDF/A-2 or later, or stop asking for "
-                + "the feature that raised the version.");
+                "PDF/A-1 is defined against PDF 1.4, and this document is written as PDF "
+                + (document._version / 10) + "." + (document._version % 10) + ". Either claim "
+                + "PDF/A-2 or later, or stop asking for the feature that raised the version.");
 
         // Checked directly against the setting that would raise it, rather than against the version
         // number: Options.CrossReferenceFormat is known the moment it is set, but the version it
