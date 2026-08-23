@@ -2,13 +2,14 @@ namespace MigraDocCore.DocumentObjectModel.Tests;
 
 /// <summary>
 ///   The exact DDL <see cref="DdlByteComparisonHarnessTests"/> compares against, captured once from
-///   a correct <c>Serialize</c> and pinned byte for byte - see that class's remarks for why. Built
-///   with explicit <c>\r\n</c> escapes rather than embedded line breaks: <c>DdlWriter</c> always
-///   writes CRLF, but this source file is committed under this repository's <c>text=auto</c>
-///   normalisation, which would silently turn an embedded CRLF in a raw string literal into LF on a
-///   platform that checks it out that way - CI runs on Linux - and the two golden strings would stop
-///   matching what Windows-authored DDL produces for a reason that has nothing to do with a real
-///   regression.
+///   a correct <c>Serialize</c> and pinned byte for byte - see that class's remarks for why. Joined
+///   with <see cref="System.Environment.NewLine"/> rather than a hardcoded separator:
+///   <c>DdlWriter.WriteToString</c> writes through a plain <c>StringWriter</c>, whose own
+///   <c>NewLine</c> defaults to <c>Environment.NewLine</c> - CRLF on the Windows machine this was
+///   captured on, LF on the Linux CI that runs it - so a golden value fixed to <c>\r\n</c> can never
+///   match there. Each line is still a plain string with no embedded line break of its own, so
+///   there is nothing for this repository's line-ending normalisation (<c>text=auto</c>) to disturb
+///   either.
 /// </summary>
 internal static class Golden
 {
@@ -17,7 +18,7 @@ internal static class Golden
     ///   names no other base for them - which is all six documents in the corpus but one, since
     ///   StyledParagraph adds a tenth style after this block rather than replacing it.
     /// </summary>
-    static readonly string BuiltInStyles = string.Join("\r\n", new[]
+    static readonly string BuiltInStyles = string.Join(System.Environment.NewLine, new[]
     {
         "  \\styles",
         "  {",
@@ -105,7 +106,7 @@ internal static class Golden
         "  }",
     });
 
-    public static readonly string NullableValuesSetAndUnset = string.Join("\r\n", new[]
+    public static readonly string NullableValuesSetAndUnset = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "[",
@@ -145,7 +146,7 @@ internal static class Golden
         "",
     });
 
-    public static readonly string FormattedTextFont = string.Join("\r\n", new[]
+    public static readonly string FormattedTextFont = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "{",
@@ -166,7 +167,7 @@ internal static class Golden
         "",
     });
 
-    public static readonly string ClearedBordersAndShading = string.Join("\r\n", new[]
+    public static readonly string ClearedBordersAndShading = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "{",
@@ -196,7 +197,7 @@ internal static class Golden
         "",
     });
 
-    public static readonly string Table = string.Join("\r\n", new[]
+    public static readonly string Table = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "{",
@@ -250,7 +251,7 @@ internal static class Golden
         "",
     });
 
-    public static readonly string Chart = string.Join("\r\n", new[]
+    public static readonly string Chart = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "{",
@@ -273,7 +274,7 @@ internal static class Golden
         "",
     });
 
-    public static readonly string StyledParagraph = string.Join("\r\n", new[]
+    public static readonly string StyledParagraph = string.Join(System.Environment.NewLine, new[]
     {
         "\\document",
         "{",
