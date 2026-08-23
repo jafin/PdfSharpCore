@@ -78,6 +78,23 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     }
 
     /// <summary>
+    /// Refuses a mutation of the page tree when the document it belongs to is not open for
+    /// modification.
+    /// <para>
+    /// This is the only place the check is made for the page tree. <see cref="PdfDocument"/>'s
+    /// page methods are one-line forwarders into the methods below, so the check they used to
+    /// repeat each for themselves lives here instead - once per operation rather than once per
+    /// forwarder, and now covering the callers who reach the page tree through
+    /// <see cref="PdfDocument.Pages"/> rather than through those forwarders.
+    /// </para>
+    /// </summary>
+    void EnsureCanModify()
+    {
+        if (!Owner.CanModify)
+            throw new InvalidOperationException(PSSR.CannotModify);
+    }
+
+    /// <summary>
     /// Creates a new PdfPage, adds it to the end of this document, and returns it.
     /// </summary>
     [MustUseReturnValue]
@@ -114,6 +131,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     [MustUseReturnValue]
     public PdfPage Insert(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
+        EnsureCanModify();
         if (page == null)
             throw new ArgumentNullException(nameof(page));
 
@@ -227,6 +245,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     /// </exception>
     public PdfPage Place(int index, PdfPage page)
     {
+        EnsureCanModify();
         if (page == null)
             throw new ArgumentNullException(nameof(page));
         if (index < 0 || index > Count)
@@ -255,6 +274,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     [MustUseReturnValue]
     public PdfPage Import(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
+        EnsureCanModify();
         if (page == null)
             throw new ArgumentNullException(nameof(page));
         if (index < 0 || index > Count)
@@ -283,6 +303,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     [MustUseReturnValue]
     public PdfPage Duplicate(int sourceIndex, int index)
     {
+        EnsureCanModify();
         if (sourceIndex < 0 || sourceIndex >= Count)
             throw new ArgumentOutOfRangeException(nameof(sourceIndex), "Argument 'sourceIndex' out of range.");
         if (index < 0 || index > Count)
@@ -348,6 +369,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     /// <param name="annotationCopying">Annotation copying action, by default annotations are copied shallowly.</param>
     public void InsertRange(int index, PdfDocument document, int startIndex, int pageCount, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
+        EnsureCanModify();
         if (document == null)
             throw new ArgumentNullException(nameof(document));
 
@@ -440,6 +462,7 @@ public sealed class PdfPages : PdfDictionary, IEnumerable<PdfPage>
     /// <param name="newIndex">The page index after this operation.</param>
     public void MovePage(int oldIndex, int newIndex)
     {
+        EnsureCanModify();
         if (oldIndex < 0 || oldIndex >= Count)
             throw new ArgumentOutOfRangeException(nameof(oldIndex));
         if (newIndex < 0 || newIndex >= Count)

@@ -7,7 +7,7 @@ deliberately leaves out.
 |---|---|---|
 | 1 | `CanModify` reading the open mode again | proposed |
 | 2 | Every refusal naming the mode it wanted | proposed |
-| 3 | Sixteen dead guards made live or removed | proposed |
+| 3 | Twelve dead guards made live or removed | proposed |
 | 4 | `InformationOnly` implemented or removed | proposed |
 
 ## Problem Statement
@@ -16,10 +16,20 @@ deliberately leaves out.
 common cause of 'this API does nothing'"*. The reason is in the source:
 
 `PdfDocument.CanModify` returns `true` unconditionally, with the real check commented out beside it —
-`//get {return _state == DocumentState.Created || _state == DocumentState.Modifyable;}`. Sixteen
-call sites in `PdfDocument` guard on it: `Close`, `AddPage`, `InsertPage`, `PlacePage`,
-`ImportPage`, `DuplicatePage`, `MovePage` and the rest. Every one of them reads exactly like the mode
-check a reader expects to find, and enforces nothing at all.
+`//get {return _state == DocumentState.Created || _state == DocumentState.Modifyable;}`. Twelve
+operations guard on it: `Close`, both `Save` overloads, the setters of `Version`, `PageLayout` and
+`PageMode`, and — through `PdfPages.EnsureCanModify` — `Insert`, `Place`, `Import`, `Duplicate`,
+`MovePage` and `InsertRange`. Every one of them reads exactly like the mode check a reader expects to
+find, and enforces nothing at all. A thirteenth site is not a guard but a fork: the `PageCount`
+getter has a whole second way of counting pages *"PdfOpenMode is InformationOnly"* that no document
+has ever taken.
+
+Those twelve are written at seven places rather than twelve. `docs/specs/pdfdocument-thin-forwarders.md`
+has landed, so the six page-tree operations share one `EnsureCanModify` in `PdfPages`, and
+`PdfDocument.AddPage`, `InsertPage`, `PlacePage`, `ImportPage`, `DuplicatePage` and `MovePage` no
+longer repeat it — they are one-line forwarders into the methods that do. That is where the repair
+below has to be made for all six, and it now also covers a caller who reaches the page tree through
+`document.Pages` rather than through those forwarders.
 
 What actually refuses lives in four other modules and uses a different property. `IsReadOnly` — which
 is real, and is `_openMode != Modify && _openMode != Append` — is read by `XGraphics` when creating a
@@ -44,8 +54,9 @@ doc comment says.
 Make the guard that names the constraint be the guard that enforces it.
 
 `CanModify` reads the open mode again. Every refusal says which mode the caller needed and which
-they have. The sixteen call sites become live, and any that turn out to be wrong about what they
-were guarding are corrected or removed rather than left reading as protection they do not provide.
+they have. The twelve guarded operations become live, and any that turn out to be wrong about what
+they were guarding are corrected or removed rather than left reading as protection they do not
+provide.
 
 This is deliberately the smaller of the two available changes. The larger one — giving each mode its
 own type so the compiler enforces the constraint — is set out under Out of Scope and is not proposed
@@ -91,10 +102,12 @@ with different logic is how the current split survived. `IsReadOnly` is the one 
 public; `CanModify` is internal. The internal one should be defined in terms of the public one, and
 the four modules that check `IsReadOnly` directly should keep doing so.
 
-**Each of the sixteen sites is a decision.** They are not uniformly correct. Some guard operations
-that genuinely require modification; `Close` may not be one of them, since closing a read-only
-document is reasonable. Every site is either confirmed, corrected to a different mode requirement, or
-removed. Leaving one dormant reproduces the problem this spec exists to fix.
+**Each of the twelve guarded operations is a decision.** They are not uniformly correct. Some guard
+operations that genuinely require modification; `Close` may not be one of them, since closing a
+read-only document is reasonable. Every one is either confirmed, corrected to a different mode
+requirement, or removed. Leaving one dormant reproduces the problem this spec exists to fix. The six
+page-tree operations are decided one at a time even though they are written at one place: sharing
+`EnsureCanModify` makes the guard one edit, not one judgment.
 
 **Refusals name both modes.** *"This document was opened `ReadOnly` and adding a page needs
 `Modify`."* The existing `PSSR.CannotModify` string says neither and should be replaced or
@@ -134,7 +147,9 @@ byte-exact files where the document must be malformed or minimal.
 `InsertPage`, `ImportPage`, `MovePage`, `DuplicatePage`, `XGraphics.FromPdfPage`, `Save`,
 `SaveIncremental`, `Close`. Most cells are one line. This matrix is the durable artefact — it is what
 makes the mode a specified thing rather than an emergent one, and it is what a future change to any
-of those methods will be measured against.
+of those methods will be measured against. Add `document.Pages.Add` and `document.Pages.InsertRange`
+to it: they are guarded now, they have no `PdfDocument` counterpart to reach them by, and the second
+never was.
 
 **Assert on the message, not only the type.** The point of the change is that the refusal names the
 mode. A test that only checks `InvalidOperationException` would pass against the unhelpful message
@@ -156,9 +171,11 @@ a wrongly restored guard would show there too.
   repair. Worth its own proposal.
 - **The `DocumentState` enum the commented-out code refers to.** Whether that concept should return
   is a separate question from whether the open mode should be honoured.
-- **`PdfDocument`'s width.** Eight page methods that are a guard plus one call into `PdfPages`, and
+- **`PdfDocument`'s width.** Eight page methods that were a guard plus one call into `PdfPages`, and
   two nested helpers — `ImageInfo` and `DocumentHandle` — that fail the deletion test in opposite
-  directions. Real, and not this.
+  directions. Real, and not this: it became
+  `docs/specs/pdfdocument-thin-forwarders.md`, which has landed, and is why the guard now has one
+  home per page-tree operation rather than two.
 - **`PdfPage`'s six responsibilities**, including the copying `TrimMargins` setter. Also real, also
   not this.
 - **The simple-type immutability rule.** `PdfItem` carries it as a bare comment, `PdfString` breaks
@@ -170,7 +187,7 @@ a wrongly restored guard would show there too.
 This is the smallest diff of the strong candidates and the one most likely to be argued about,
 because the current behaviour is permissive and permissive behaviour has users. The argument for
 doing it anyway is that the permissiveness is not a decision anybody made — it is a commented-out
-line — and the sixteen guards that read as protection are actively misleading to anyone reading the
+line — and the twelve guards that read as protection are actively misleading to anyone reading the
 code to find out what the mode does.
 
 If the matrix in the testing section turns out to refuse something the demos or the corpus rely on,
