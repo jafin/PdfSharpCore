@@ -272,3 +272,31 @@ turns up more byte differences than expected.
 irregularity from C# into attribute arguments without reducing it, and the three worst methods would
 need an expression language to describe. If the flat run is generated and the bespoke methods are
 left alone, there is nothing left for it to declare.
+
+---
+
+## 7. MDG007, shipped
+
+Step 1 landed: `MigraDocCore.DocumentObjectModel.Generators/Diagnostics.cs` has
+`MemberMissingFromSerialize`, and `Parser.cs` scans every method literally named `Serialize` for a
+mention of each of the type's own `[DV]` members — a string literal (`WriteSimpleAttribute("Style",
+…)`) or a plain identifier (`Columns.Serialize(serializer)`, `WriteComment(comment)`), matched
+case-insensitively since a member is typically camelCase and its DDL-facing name is PascalCase. §3.4
+predicted this would misfire on `Character`, `Text`, the eight `Field` types and the other
+keyword-writers; in the event, none of them did — the identifier half of the scan (not literals
+alone) already covers every one of those, because a keyword-writer still refers to its own field
+somewhere, just never inside a `WriteSimpleAttribute` call. Nothing in that predicted list needed a
+suppression.
+
+Only two members did: `Row.index` and `Column.index`, which are recomputed from the row's or
+column's own position in its collection rather than stored, so there is nothing for `Serialize` to
+write. Both carry `[SuppressSerializeCheck("…")]` on the type.
+
+Everything else the diagnostic found is real: `HeaderFooter.style`, `Hyperlink.font` and
+`Table.KeepTogether` are each read by the renderer (`ParagraphRenderer`, `TableRenderer`) but never
+written by their type's `Serialize` — set one, save the document, reload it, and the setting is
+gone. These are left as live warnings rather than fixed here: touching `Serialize` is exactly what
+§4's byte-comparison harness exists to make safe, and step 2 landed alongside MDG007 -
+`DdlByteComparisonHarnessTests` and `Golden.cs` in `MigraDocCore.DocumentObjectModel.Tests` pin six
+corpus documents against the DDL a correct `Serialize` produces today. Fixing the three warnings
+above is now safe to attempt; it is still not done here.

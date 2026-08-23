@@ -75,45 +75,6 @@ public partial class Borders : DocumentObject, IEnumerable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Borders borders = (Borders)base.DeepCopy();
-        if (borders.top != null)
-        {
-            borders.top = borders.top.Clone();
-            borders.top.parent = borders;
-        }
-        if (borders.left != null)
-        {
-            borders.left = borders.left.Clone();
-            borders.left.parent = borders;
-        }
-        if (borders.right != null)
-        {
-            borders.right = borders.right.Clone();
-            borders.right.parent = borders;
-        }
-        if (borders.bottom != null)
-        {
-            borders.bottom = borders.bottom.Clone();
-            borders.bottom.parent = borders;
-        }
-        if (borders.diagonalUp != null)
-        {
-            borders.diagonalUp = borders.diagonalUp.Clone();
-            borders.diagonalUp.parent = borders;
-        }
-        if (borders.diagonalDown != null)
-        {
-            borders.diagonalDown = borders.diagonalDown.Clone();
-            borders.diagonalDown.parent = borders;
-        }
-        return borders;
-    }
-
-    /// <summary>
     /// Gets an enumerator for the borders object.
     /// </summary>
     IEnumerator IEnumerable.GetEnumerator()

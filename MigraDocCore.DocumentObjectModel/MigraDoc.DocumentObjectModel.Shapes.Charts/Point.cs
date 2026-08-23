@@ -64,24 +64,6 @@ public partial class Point : ChartObject
     return (Point)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Point point = (Point)base.DeepCopy();
-    if (point.lineFormat != null)
-    {
-      point.lineFormat = point.lineFormat.Clone();
-      point.lineFormat.parent = point;
-    }
-    if (point.fillFormat != null)
-    {
-      point.fillFormat = point.fillFormat.Clone();
-      point.fillFormat.parent = point;
-    }
-    return point;
-  }
   #endregion
 
   #region Properties

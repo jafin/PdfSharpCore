@@ -65,20 +65,6 @@ public partial class TextFrame : Shape, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        TextFrame textFrame = (TextFrame)base.DeepCopy();
-        if (textFrame.elements != null)
-        {
-            textFrame.elements = textFrame.elements.Clone();
-            textFrame.elements.parent = textFrame;
-        }
-        return textFrame;
-    }
-
-    /// <summary>
     /// Adds a new paragraph to the text frame.
     /// </summary>
     public Paragraph AddParagraph()

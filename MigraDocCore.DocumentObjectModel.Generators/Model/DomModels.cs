@@ -70,10 +70,16 @@ internal sealed record ParsedMember(
 /// errors. This also carries the base chain, so grouping can close inheritance without going back
 /// to the compilation.
 /// </remarks>
+/// <param name="SerializeLiterals">
+/// The string literals, upper-invariant, written inside every method named Serialize declared
+/// directly in this type - null if it declares no such method. MDG007 checks a [DV] member's name
+/// against this set; see <see cref="Diagnostics.MemberMissingFromSerialize"/>.
+/// </param>
 internal sealed record ParsedType(
     string Fqn,
     string Namespace,
     string Name,
     string? BaseFqn,
     bool IsAbstract,
-    bool IsPartial) : IEquatable<ParsedType>;
+    bool IsPartial,
+    EquatableArray<string>? SerializeLiterals) : IEquatable<ParsedType>;

@@ -62,40 +62,6 @@ public partial class ParagraphFormat : DocumentObject
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    ParagraphFormat format = (ParagraphFormat)base.DeepCopy();
-    if (format.font != null)
-    {
-      format.font = format.font.Clone();
-      format.font.parent = format;
-    }
-    if (format.shading != null)
-    {
-      format.shading = format.shading.Clone();
-      format.shading.parent = format;
-    }
-    if (format.borders != null)
-    {
-      format.borders = format.borders.Clone();
-      format.borders.parent = format;
-    }
-    if (format.tabStops != null)
-    {
-      format.tabStops = format.tabStops.Clone();
-      format.tabStops.parent = format;
-    }
-    if (format.listInfo != null)
-    {
-      format.listInfo = format.listInfo.Clone();
-      format.listInfo.parent = format;
-    }
-    return format;
-  }
-
-  /// <summary>
   /// Adds a TabStop object to the collection.
   /// </summary>
   public TabStop AddTabStop(Unit position)

@@ -12,6 +12,7 @@ namespace MigraDocCore.DocumentObjectModel.Generators;
 internal static class Parser
 {
     public const string DvAttribute = "MigraDocCore.DocumentObjectModel.Internals.DVAttribute";
+    const string SuppressSerializeCheckAttribute = "MigraDocCore.DocumentObjectModel.Internals.SuppressSerializeCheckAttribute";
     const string DocumentObject = "MigraDocCore.DocumentObjectModel.DocumentObject";
     const string DocumentObjectCollection = "MigraDocCore.DocumentObjectModel.DocumentObjectCollection";
     const string NullableValue = "MigraDocCore.DocumentObjectModel.Internals.INullableValue";
@@ -124,10 +125,14 @@ internal static class Parser
     /// </summary>
     public static ParsedType? ParseType(GeneratorSyntaxContext context)
     {
-        if (context.SemanticModel.GetDeclaredSymbol((ClassDeclarationSyntax)context.Node) is not INamedTypeSymbol symbol)
+        var classDecl = (ClassDeclarationSyntax)context.Node;
+        if (context.SemanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol)
             return null;
         if (!DerivesFrom(symbol, DocumentObject))
             return null;
+
+        bool suppressed = symbol.GetAttributes().Any(a =>
+            a.AttributeClass?.ToDisplayString(Fqn) == "global::" + SuppressSerializeCheckAttribute);
 
         return new ParsedType(
             Fqn: symbol.ToDisplayString(Fqn),
@@ -135,7 +140,50 @@ internal static class Parser
             Name: symbol.Name,
             BaseFqn: symbol.BaseType?.ToDisplayString(Fqn),
             IsAbstract: symbol.IsAbstract,
-            IsPartial: IsPartial(symbol));
+            IsPartial: IsPartial(symbol),
+            SerializeLiterals: suppressed ? null : SerializeMentions(classDecl));
+    }
+
+    /// <summary>
+    /// Every string literal and identifier written inside a method named Serialize declared
+    /// directly in <paramref name="classDecl"/>, upper-invariant so MDG007's match is
+    /// case-insensitive - a [DV] field is typically camelCase, and the name it is mentioned under
+    /// in Serialize is either the PascalCase property (<c>Columns.Serialize(serializer)</c>,
+    /// <c>WriteComment(comment)</c>) or a literal DDL attribute name
+    /// (<c>WriteSimpleAttribute("Style", Style)</c>) - the check does not care which, only that the
+    /// member's name shows up somewhere. Null if the class declares no such method, which means
+    /// MDG007 has nothing to check: a type with no Serialize of its own is not the type responsible
+    /// for its members reaching DDL.
+    /// </summary>
+    /// <remarks>
+    /// Scans <paramref name="classDecl"/> alone, not every partial declaration of the type: a
+    /// hand-written DOM class lives in exactly one file today (only the generator's own emitted
+    /// partial, which has no base list and so is never seen here at all, adds a second), so there is
+    /// nothing yet to aggregate. A type split across two hand-written files with the [DV] member in
+    /// one and Serialize in the other would misfire - MDG002-style, a real gap this scan cannot see
+    /// rather than one that has happened.
+    /// </remarks>
+    static EquatableArray<string>? SerializeMentions(ClassDeclarationSyntax classDecl)
+    {
+        List<MethodDeclarationSyntax> methods = classDecl.Members
+            .OfType<MethodDeclarationSyntax>()
+            .Where(m => m.Identifier.Text == "Serialize")
+            .ToList();
+        if (methods.Count == 0)
+            return null;
+
+        IEnumerable<SyntaxNode> nodes = methods.SelectMany(m => m.DescendantNodes());
+
+        IEnumerable<string> literals = nodes
+            .OfType<LiteralExpressionSyntax>()
+            .Where(l => l.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StringLiteralExpression))
+            .Select(l => l.Token.ValueText);
+
+        IEnumerable<string> identifiers = nodes
+            .OfType<IdentifierNameSyntax>()
+            .Select(i => i.Identifier.Text);
+
+        return new EquatableArray<string>(literals.Concat(identifiers).Select(s => s.ToUpperInvariant()));
     }
 
     /// <summary>
@@ -245,6 +293,24 @@ internal static class Parser
 
         foreach (ParsedType type in declarations.Values.OrderBy(t => t.Fqn, System.StringComparer.Ordinal))
         {
+            // MDG007 checks a type's own [DV] members against its own Serialize - independent of
+            // whether the type is abstract, and independent of the base chain the table below
+            // closes, since a member declared here is this type's responsibility to serialize,
+            // not a descendant's.
+            if (type.SerializeLiterals is { } literals && byType.TryGetValue(type.Fqn, out List<ParsedMember>? ownMembers))
+            {
+                var written = new HashSet<string>(literals, System.StringComparer.OrdinalIgnoreCase);
+                foreach (ParsedMember member in ownMembers)
+                {
+                    if (!member.Member.IsRefOnly && !written.Contains(member.Member.Name))
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(
+                            Diagnostics.MemberMissingFromSerialize, member.Location?.ToLocation(),
+                            type.Name, member.Member.Name));
+                    }
+                }
+            }
+
             // An abstract class needs no table of its own - it cannot be instantiated, and its
             // members are picked up by every concrete type below it.
             if (type.IsAbstract)

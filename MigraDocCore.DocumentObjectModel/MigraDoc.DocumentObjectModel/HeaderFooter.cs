@@ -67,25 +67,6 @@ public partial class HeaderFooter : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        HeaderFooter headerFooter = (HeaderFooter)base.DeepCopy();
-        if (headerFooter.format != null)
-        {
-            headerFooter.format = headerFooter.format.Clone();
-            headerFooter.format.parent = headerFooter;
-        }
-        if (headerFooter.elements != null)
-        {
-            headerFooter.elements = headerFooter.elements.Clone();
-            headerFooter.elements.parent = headerFooter;
-        }
-        return headerFooter;
-    }
-
-    /// <summary>
     /// Adds a new paragraph to the header or footer.
     /// </summary>
     public Paragraph AddParagraph()

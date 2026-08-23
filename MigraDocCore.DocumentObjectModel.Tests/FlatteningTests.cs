@@ -82,6 +82,23 @@ public class FlatteningTests
         paragraph.Format.Font.Color.Should().Be(Colors.Purple, "from the style itself");
     }
 
+    [Theory]
+    [MemberData(nameof(FontMemberCases.All), MemberType = typeof(FontMemberCases))]
+    public void AStyleSettingAnyFontMemberPassesItDownToAParagraph(string member, Action<Font> set, Func<Font, object> read)
+    {
+        // strikethrough was the one member FlattenFont forgot - docs/specs/dom-property-seams.md.
+        // This runs the same check for all nine so a tenth member added later is the tenth case.
+        var document = new Document();
+        var style = document.Styles.AddStyle("Loud", "Normal");
+        set(style.Font);
+        var paragraph = document.AddSection().AddParagraph("styled");
+        paragraph.Style = "Loud";
+
+        Flattened(document);
+
+        read(paragraph.Format.Font).Should().Be(read(style.Font), $"{member} should have been inherited from the style");
+    }
+
     [Fact]
     public void AParagraphInsideACellIsFlattenedToo()
     {

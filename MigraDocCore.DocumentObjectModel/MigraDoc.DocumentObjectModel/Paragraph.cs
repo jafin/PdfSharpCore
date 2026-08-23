@@ -67,25 +67,6 @@ public partial class Paragraph : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Paragraph paragraph = (Paragraph)base.DeepCopy();
-        if (paragraph.format != null)
-        {
-            paragraph.format = paragraph.format.Clone();
-            paragraph.format.parent = paragraph;
-        }
-        if (paragraph.elements != null)
-        {
-            paragraph.elements = paragraph.elements.Clone();
-            paragraph.elements.parent = paragraph;
-        }
-        return paragraph;
-    }
-
-    /// <summary>
     /// Adds a text phrase to the paragraph.
     /// </summary>
     public Text AddText(String text)

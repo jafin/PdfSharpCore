@@ -173,6 +173,95 @@ public class DiagnosticTests
         result.Ids.Should().Contain("MDG006");
     }
 
+    [Fact]
+    public void MDG007_MemberNamedInNoStringLiteralWithinSerialize()
+    {
+        // The check this task's spec asks for: a member the generator drives correctly, but the
+        // hand-written Serialize this type declares never mentions by name - exactly the shape of
+        // Font.strikethrough going missing from FlattenFont, aimed at Serialize instead.
+        var result = GeneratorHarness.Run(Ns + """
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+
+                internal void Serialize(object serializer) { }
+            }
+            """);
+
+        result.Ids.Should().Contain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_SaysNothingWhenTheMemberIsNamed()
+    {
+        var result = GeneratorHarness.Run(Ns + """
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+
+                internal void Serialize(object serializer)
+                {
+                    string attributeName = "Visible";
+                }
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_MatchesCaseInsensitively()
+    {
+        // A [DV] field is conventionally camelCase and the DDL attribute name Serialize writes it
+        // under is the PascalCase property - "visible" against "Visible" - so the match cannot be
+        // case-sensitive without flagging every well-behaved type in the DOM.
+        var result = GeneratorHarness.Run(Ns + """
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+
+                internal void Serialize(object serializer)
+                {
+                    string attributeName = "VISIBLE";
+                }
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_SaysNothingAboutATypeWithNoSerializeOfItsOwn()
+    {
+        // No Serialize method means this type is not the one responsible for getting its members
+        // into DDL - a base class's Serialize, or none at all. Nothing to check.
+        var result = GeneratorHarness.Run(Ns + """
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_SaysNothingAboutARefOnlyMember()
+    {
+        // RefOnly exists so parent isn't walked forever by IsNull and SetNull; the same reason
+        // excludes it from a value's DDL, so it should not be flagged for missing from Serialize.
+        var result = GeneratorHarness.Run(Ns + """
+            public partial class Widget : DocumentObject
+            {
+                [DV(RefOnly = true)] internal Widget owner;
+
+                internal void Serialize(object serializer) { }
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
+    }
+
     /// <summary>
     /// A diagnostic with no location is reported against the project rather than the code, so the
     /// build says what is wrong without saying where. Every one of these used to be located except
@@ -187,6 +276,7 @@ public class DiagnosticTests
     [InlineData("MDG004", "public partial class Widget : DocumentObject { [DV] internal bool? caption; [DV] public bool? Caption { get; set; } }")]
     [InlineData("MDG005", "public partial class NotADomType { [DV] internal bool? visible; }")]
     [InlineData("MDG006", "public partial class Widget : DocumentObject { [DV(RefOnly = true)] internal bool? visible; }")]
+    [InlineData("MDG007", "public partial class Widget : DocumentObject { [DV] internal bool? visible; internal void Serialize(object serializer) { } }")]
     public void EveryDiagnosticPointsAtSource(string id, string snippet)
     {
         var result = GeneratorHarness.Run(Ns + snippet);
@@ -262,5 +352,63 @@ public class DiagnosticTests
         result.AllGenerated.Should().Contain("partial class Box");
         result.AllGenerated.Should().Contain("\"width\"", "Box inherits Shape's [DV] members");
         result.AllGenerated.Should().Contain("\"visible\"");
+    }
+
+    [Fact]
+    public void MDG007_APragmaDoesNotSuppressIt()
+    {
+        // Checked against a real build of the DOM, not guessed: a plain #pragma warning disable
+        // MDG007 compiles cleanly but the warning still appears. A generator's own diagnostics do
+        // not go through the same in-source suppression path an ordinary analyzer's do, which is
+        // why SuppressSerializeCheckAttribute exists instead of relying on this. Pinned here so a
+        // future refactor that moves the check into a real DiagnosticAnalyzer - where a pragma
+        // would start working - does not silently change what a suppressed type looks like.
+        var result = GeneratorHarness.Run(Ns + """
+            #pragma warning disable MDG007
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+
+                internal void Serialize(object serializer) { }
+            }
+            #pragma warning restore MDG007
+            """);
+
+        result.Ids.Should().Contain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_SuppressedByAttributeOnTheClass()
+    {
+        // The mechanism this task's spec actually asks for: "suppress it once, in source, with a
+        // reason" - answered before the diagnostic is ever created, since a #pragma cannot do it.
+        var result = GeneratorHarness.Run(Ns + """
+            [SuppressSerializeCheck("this type builds its DDL keyword by concatenation")]
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+
+                internal void Serialize(object serializer) { }
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
+    }
+
+    [Fact]
+    public void MDG007_TheAttributeSuppressesEveryMemberOfTheType()
+    {
+        var result = GeneratorHarness.Run(Ns + """
+            [SuppressSerializeCheck("keyword-writer")]
+            public partial class Widget : DocumentObject
+            {
+                [DV] internal bool? visible;
+                [DV] internal bool? alsoUnmentioned;
+
+                internal void Serialize(object serializer) { }
+            }
+            """);
+
+        result.Ids.Should().NotContain("MDG007");
     }
 }

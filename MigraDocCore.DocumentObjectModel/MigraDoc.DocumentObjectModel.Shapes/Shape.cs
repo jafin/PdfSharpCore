@@ -61,29 +61,6 @@ public partial class Shape : DocumentObject
     return (Shape)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Shape shape = (Shape)base.DeepCopy();
-    if (shape.wrapFormat != null)
-    {
-      shape.wrapFormat = shape.wrapFormat.Clone();
-      shape.wrapFormat.parent = shape;
-    }
-    if (shape.lineFormat != null)
-    {
-      shape.lineFormat = shape.lineFormat.Clone();
-      shape.lineFormat.parent = shape;
-    }
-    if (shape.fillFormat != null)
-    {
-      shape.fillFormat = shape.fillFormat.Clone();
-      shape.fillFormat.parent = shape;
-    }
-    return shape;
-  }
   #endregion
 
   #region Properties

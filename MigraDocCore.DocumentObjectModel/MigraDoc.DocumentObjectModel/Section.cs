@@ -67,35 +67,6 @@ public partial class Section : DocumentObject, IVisitable
     }
 
     /// <summary>
-    /// Implements the deep copy of the object.
-    /// </summary>
-    protected override object DeepCopy()
-    {
-        Section section = (Section)base.DeepCopy();
-        if (section.pageSetup != null)
-        {
-            section.pageSetup = section.pageSetup.Clone();
-            section.pageSetup.parent = section;
-        }
-        if (section.headers != null)
-        {
-            section.headers = section.headers.Clone();
-            section.headers.parent = section;
-        }
-        if (section.footers != null)
-        {
-            section.footers = section.footers.Clone();
-            section.footers.parent = section;
-        }
-        if (section.elements != null)
-        {
-            section.elements = section.elements.Clone();
-            section.elements.parent = section;
-        }
-        return section;
-    }
-
-    /// <summary>
     /// Gets the previous section.
     /// </summary>
     public Section PreviousSection()

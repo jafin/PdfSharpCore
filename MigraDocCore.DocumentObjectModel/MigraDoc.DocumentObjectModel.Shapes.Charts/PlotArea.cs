@@ -60,24 +60,6 @@ public partial class PlotArea : ChartObject
     return (PlotArea)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    PlotArea plotArea = (PlotArea)base.DeepCopy();
-    if (plotArea.lineFormat != null)
-    {
-      plotArea.lineFormat = plotArea.lineFormat.Clone();
-      plotArea.lineFormat.parent = plotArea;
-    }
-    if (plotArea.fillFormat != null)
-    {
-      plotArea.fillFormat = plotArea.fillFormat.Clone();
-      plotArea.fillFormat.parent = plotArea;
-    }
-    return plotArea;
-  }
   #endregion
 
   #region Properties

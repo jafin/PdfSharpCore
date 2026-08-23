@@ -64,35 +64,6 @@ public partial class TextArea : ChartObject, IVisitable
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    TextArea textArea = (TextArea)base.DeepCopy();
-    if (textArea.format != null)
-    {
-      textArea.format = textArea.format.Clone();
-      textArea.format.parent = textArea;
-    }
-    if (textArea.lineFormat != null)
-    {
-      textArea.lineFormat = textArea.lineFormat.Clone();
-      textArea.lineFormat.parent = textArea;
-    }
-    if (textArea.fillFormat != null)
-    {
-      textArea.fillFormat = textArea.fillFormat.Clone();
-      textArea.fillFormat.parent = textArea;
-    }
-    if (textArea.elements != null)
-    {
-      textArea.elements = textArea.elements.Clone();
-      textArea.elements.parent = textArea;
-    }
-    return textArea;
-  }
-
-  /// <summary>
   /// Adds a new paragraph to the text area.
   /// </summary>
   public Paragraph AddParagraph()

@@ -60,19 +60,6 @@ public partial class TickLabels : ChartObject
     return (TickLabels)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    TickLabels tickLabels = (TickLabels)base.DeepCopy();
-    if (tickLabels.font != null)
-    {
-      tickLabels.font = tickLabels.font.Clone();
-      tickLabels.font.parent = tickLabels;
-    }
-    return tickLabels;
-  }
   #endregion
 
   #region Properties

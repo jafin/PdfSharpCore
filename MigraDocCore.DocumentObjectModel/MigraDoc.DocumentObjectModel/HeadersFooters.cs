@@ -61,29 +61,6 @@ public partial class HeadersFooters : DocumentObject, IVisitable
     return (HeadersFooters)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    HeadersFooters headersFooters = (HeadersFooters)base.DeepCopy();
-    if (headersFooters.evenPage != null)
-    {
-      headersFooters.evenPage = headersFooters.evenPage.Clone();
-      headersFooters.evenPage.parent = headersFooters;
-    }
-    if (headersFooters.firstPage != null)
-    {
-      headersFooters.firstPage = headersFooters.firstPage.Clone();
-      headersFooters.firstPage.parent = headersFooters;
-    }
-    if (headersFooters.primary != null)
-    {
-      headersFooters.primary = headersFooters.primary.Clone();
-      headersFooters.primary.parent = headersFooters;
-    }
-    return headersFooters;
-  }
   #endregion
 
   #region Properties

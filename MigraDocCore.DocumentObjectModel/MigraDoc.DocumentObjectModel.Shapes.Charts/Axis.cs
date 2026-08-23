@@ -60,39 +60,6 @@ public partial class Axis : ChartObject
     return (Axis)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Axis axis = (Axis)base.DeepCopy();
-    if (axis.title != null)
-    {
-      axis.title = axis.title.Clone();
-      axis.title.parent = axis;
-    }
-    if (axis.tickLabels != null)
-    {
-      axis.tickLabels = axis.tickLabels.Clone();
-      axis.tickLabels.parent = axis;
-    }
-    if (axis.lineFormat != null)
-    {
-      axis.lineFormat = axis.lineFormat.Clone();
-      axis.lineFormat.parent = axis;
-    }
-    if (axis.majorGridlines != null)
-    {
-      axis.majorGridlines = axis.majorGridlines.Clone();
-      axis.majorGridlines.parent = axis;
-    }
-    if (axis.minorGridlines != null)
-    {
-      axis.minorGridlines = axis.minorGridlines.Clone();
-      axis.minorGridlines.parent = axis;
-    }
-    return axis;
-  }
   #endregion
 
   #region Properties

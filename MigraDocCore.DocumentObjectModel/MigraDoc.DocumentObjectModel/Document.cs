@@ -60,31 +60,19 @@ public sealed partial class Document : DocumentObject, IVisitable
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
+  /// A clone starts unbound, whatever the original's binding was - renderer carries no [DV] and so
+  /// is untouched by the base DeepCopy, but BindToRenderer's own message promises a clone as the
+  /// way to render the same document on a second renderer, and that promise needs this to hold.
   /// </summary>
   protected override object DeepCopy()
   {
     Document document = (Document)base.DeepCopy();
-    if (document.info != null)
-    {
-      document.info = document.info.Clone();
-      document.info.parent = document;
-    }
-    if (document.styles != null)
-    {
-      document.styles = document.styles.Clone();
-      document.styles.parent = document;
-    }
-    if (document.sections != null)
-    {
-      document.sections = document.sections.Clone();
-      document.sections.parent = document;
-    }
+    document.renderer = null;
     return document;
   }
 
   /// <summary>
-  /// Internal function used by renderers to bind this instance to it. 
+  /// Internal function used by renderers to bind this instance to it.
   /// </summary>
   public void BindToRenderer(object renderer)
   {

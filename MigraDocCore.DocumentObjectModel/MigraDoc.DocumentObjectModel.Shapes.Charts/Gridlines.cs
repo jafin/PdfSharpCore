@@ -60,19 +60,6 @@ public partial class Gridlines : ChartObject
     return (Gridlines)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Gridlines gridlines = (Gridlines)base.DeepCopy();
-    if (gridlines.lineFormat != null)
-    {
-      gridlines.lineFormat = gridlines.lineFormat.Clone();
-      gridlines.lineFormat.parent = gridlines;
-    }
-    return gridlines;
-  }
   #endregion
 
   #region Properties

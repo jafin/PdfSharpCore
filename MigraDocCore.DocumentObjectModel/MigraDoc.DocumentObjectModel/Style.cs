@@ -79,19 +79,6 @@ public sealed partial class Style : DocumentObject, IVisitable
     return (Style)DeepCopy();
   }
 
-  /// <summary>
-  /// Implements the deep copy of the object.
-  /// </summary>
-  protected override object DeepCopy()
-  {
-    Style style = (Style)base.DeepCopy();
-    if (style.paragraphFormat != null)
-    {
-      style.paragraphFormat = style.paragraphFormat.Clone();
-      style.paragraphFormat.parent = style;
-    }
-    return style;
-  }
   #endregion
 
   /// <summary>

@@ -67,12 +67,37 @@ public abstract partial class DocumentObject
   }
 
   /// <summary>
-  /// Implements the deep copy of the object.
+  /// Implements the deep copy of the object: a shallow MemberwiseClone, followed by cloning and
+  /// reparenting every [DV] member that is itself a DocumentObject or a DocumentObjectCollection,
+  /// so that the copy shares nothing mutable with the original.
   /// </summary>
+  /// <remarks>
+  /// This is what the 32 overrides across the DOM used to do by hand, one member at a time -
+  /// exactly the same move <c>FlattenSimpleValues</c> makes for flattening, driven by the same
+  /// descriptor. An override now exists only where a type does more than this: a collection
+  /// managing an internal ArrayList rather than being reached through a single [DV] member (see
+  /// <c>DocumentObjectCollection.DeepCopy</c>), or a field the descriptor does not reach at all.
+  /// A simple-valued member needs nothing here - a string, an int, a Unit - because
+  /// MemberwiseClone already copies it by value.
+  /// </remarks>
   protected virtual object DeepCopy()
   {
     DocumentObject value = (DocumentObject)MemberwiseClone();
     value.parent = null;
+    foreach (ValueDescriptor vd in Meta.ValueDescriptors)
+    {
+      // A DocumentObject-kind property with no field of its own - Style.Font, delegating to
+      // Style.ParagraphFormat.Font - is not settable and needs nothing here: it has no state
+      // beyond what the field it reads through already had cloned and reparented.
+      if (vd.IsRefOnly || vd.IsSimpleValue || !vd.IsSettable)
+        continue;
+      if (vd.GetValue(value, GV.ReadOnly) is DocumentObject child)
+      {
+        DocumentObject clone = (DocumentObject)child.Clone();
+        clone.parent = value;
+        vd.SetValue(value, clone);
+      }
+    }
     return value;
   }
 
