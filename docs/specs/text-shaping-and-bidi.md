@@ -559,6 +559,28 @@ cut where there was no boundary and left the real one uncut. Sweeping happens in
 bidirectional run now, where beside means something: **a run is one direction before it is one
 script.**
 
+That rule was first obeyed by giving `TextItemizer` a hand-written sweep of its own, so the same
+UAX #24 walk existed twice in the same folder — a fix to one could land and miss the other.
+`ScriptItemizer.Itemize` now takes a start and a length as well as a string, and `TextItemizer`
+calls it once per bidirectional run instead of keeping a copy. **The window is a window, not a
+substring**: the walk reads the string between the bounds directly, because the caller is
+`TextShaping.ShapeText` and a string plus a list per bidirectional run is not a price that path has
+to pay.
+
+**And `ScriptItemizer` is internal now.** The reason it must be asked per run is exactly the reason
+nobody outside should be able to ask it at all: a public, documented, obviously-named
+`Itemize(string)` does not throw and does not look wrong on a mixed-direction paragraph — it just
+disagrees with the bidirectional algorithm about where a boundary falls, which is a worse failure
+mode than a wrong answer that looks wrong. `TextItemizer.Itemize` is the supported entry point and
+gives the bidi-correct answer for free. A caller who has resolved their own bidi runs and genuinely
+wants script boundaries inside one is a small additive change away — the internal range overload is
+already the shape that request needs — but no such caller has asked. The deletion test flips as a
+result: deleting `ScriptItemizer.cs` used to break nothing but its own tests, and now breaks every
+`DrawString` that itemises. The eight script-only tests are reached by reflection, the way
+`CharacterScanningTests` reaches `CharacterScanning`; folding them into `TextItemizer`'s tests was
+rejected because several of their inputs are mixed-direction too, and a script regression would then
+hide behind correct bidi behaviour.
+
 **And the pieces of a right-to-left run have to be turned round among themselves.** A run whose
 script changes half way along is still one direction, so the piece written first is the rightmost.
 This went unnoticed because the one test covering two right-to-left scripts side by side asserted
@@ -819,7 +841,8 @@ back exactly rather than matching them loosely.
 `PdfSharpCore.Test/Text/` holds the text side: `UnicodePropertyTests` (41, including four on the
 `@missing` defaults and one sweeping all 1,114,112 code points through both lookups),
 `BidiConformanceTests` (the two suites, 861,948 cases, about two seconds), and `ItemizationTests`
-(17, script itemisation and its join with bidi — the part with no conformance suite of its own).
+(25, script itemisation and its join with bidi — the part with no conformance suite of its own,
+reaching the internal itemiser by reflection).
 
 ~~Still to write: a Devanagari face~~ — **since written**: Noto Sans Devanagari is in the assets and
 `DevanagariShapingTests` covers the conjuncts and the reordered vowel signs Arabic cannot exercise.

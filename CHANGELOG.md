@@ -528,6 +528,20 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Removed
 
+- **BREAKING:** `PdfSharpCore.Text.ScriptItemizer` and `PdfSharpCore.Text.ScriptRun` are internal.
+  Script itemisation asked of a whole paragraph gives a plausible answer that disagrees with the
+  bidirectional algorithm about where a run ends: UAX #24 sweeps a space into whichever script it is
+  beside, and *beside* is not a property the paragraph can settle — asked of the whole of
+  "one من" the space goes with the Latin, and UAX #9 then places it inside the Arabic. So the
+  obviously-named public entry point was silently wrong on exactly the input this subsystem exists to
+  get right, and it is now reachable only from `TextItemizer`, which asks it once per bidirectional
+  run.
+
+  Use `TextItemizer.Itemize`, which composes both algorithms and gives the bidi-correct answer. Its
+  `TextRun` carries `Script` and `ScriptCode` exactly as `ScriptRun` did, plus the direction, and it
+  hands the runs back in the order they are drawn. `UnicodeScript` and
+  `UnicodeProperties.ScriptOf`/`ScriptCode` are unaffected and stay public.
+
 - **BREAKING:** `PdfDocumentOptions.EnableCcittCompressionForBilevelImages`. The CCITT encoder this
   option gated was unreachable, so the option had no effect on any document — setting it changed
   nothing. Code that sets it will no longer compile; delete the assignment. No PDF that this library

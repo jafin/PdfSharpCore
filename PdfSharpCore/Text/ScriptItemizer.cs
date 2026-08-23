@@ -5,9 +5,18 @@ namespace PdfSharpCore.Text;
 
 /// <summary>
 /// Splits mixed text into runs of a single script - "this much is Arabic, this much is Latin" -
-/// which is the unit a shaper can handle at a time.
+/// which is one half of the unit a shaper can handle at a time.
 /// </summary>
 /// <remarks>
+/// <para>
+/// <b>Internal, and asked of a window rather than of a paragraph.</b> Sweeping a Common character
+/// into whatever it is beside only means something inside a stretch of text already resolved to one
+/// direction: asked of the whole of "one <c>&#x0645;&#x0646;</c>", the space goes with the Latin
+/// that precedes it, and <see cref="BidiAlgorithm"/> then puts that space in the middle of the
+/// Arabic. A cut where there is no boundary, and the real boundary left uncut. So the only caller is
+/// <see cref="TextItemizer"/>, which asks once per bidirectional run, and
+/// <see cref="TextItemizer.Itemize"/> is the supported way to ask the question of a paragraph.
+/// </para>
 /// <para>
 /// UAX #24. The whole of the difficulty is that most punctuation, all spaces and every digit have
 /// script <see cref="UnicodeScript.Common"/>, and combining marks have
@@ -24,26 +33,57 @@ namespace PdfSharpCore.Text;
 /// third generated table and no change to any caller.
 /// </para>
 /// </remarks>
-public static class ScriptItemizer
+internal static class ScriptItemizer
 {
     /// <summary>
-    /// The runs of a string, in written order, with indices into the string.
+    /// The runs of a whole string, in written order, with indices into the string.
     /// </summary>
     public static IReadOnlyList<ScriptRun> Itemize(string text)
     {
         if (text == null)
             throw new ArgumentNullException(nameof(text));
 
+        return Itemize(text, 0, text.Length);
+    }
+
+    /// <summary>
+    /// The runs of one window of a string, in written order, with indices into the whole string
+    /// rather than into the window.
+    /// </summary>
+    /// <remarks>
+    /// The window is how <see cref="TextItemizer"/> asks this of one bidirectional run instead of
+    /// the paragraph. No substring is taken - the walk reads <paramref name="text"/> between the
+    /// bounds directly - because the caller is on the path every <c>DrawString</c> and
+    /// <c>MeasureString</c> goes through, and a string plus a list per bidirectional run is a price
+    /// that path does not have to pay.
+    /// </remarks>
+    /// <param name="text">The string the window is cut out of.</param>
+    /// <param name="start">The index the window begins at.</param>
+    /// <param name="length">How many characters of <paramref name="text"/> it covers.</param>
+    public static IReadOnlyList<ScriptRun> Itemize(string text, int start, int length)
+    {
+        if (text == null)
+            throw new ArgumentNullException(nameof(text));
+        if (start < 0 || start > text.Length)
+            throw new ArgumentOutOfRangeException(nameof(start));
+        if (length < 0 || length > text.Length - start)
+            throw new ArgumentOutOfRangeException(nameof(length));
+
         var runs = new List<ScriptRun>();
-        if (text.Length == 0)
+        if (length == 0)
             return runs;
 
+        int end = start + length;
         var script = UnicodeScript.Common;
-        int start = 0;
+        int from = start;
 
-        for (int idx = 0; idx < text.Length;)
+        for (int idx = start; idx < end;)
         {
-            int width = char.IsHighSurrogate(text[idx]) && idx + 1 < text.Length
+            // The pair is looked for inside the window, so a window ending between the halves of a
+            // surrogate pair reads what is left of it as itself rather than reaching past its own
+            // end. char.ConvertToUtf32 throws on a lone surrogate, which is not an answer a layout
+            // path can use.
+            int width = char.IsHighSurrogate(text[idx]) && idx + 1 < end
                         && char.IsLowSurrogate(text[idx + 1])
                 ? 2
                 : 1;
@@ -71,15 +111,15 @@ public static class ScriptItemizer
 
             if (here != script)
             {
-                runs.Add(new ScriptRun(start, idx - start, script));
-                start = idx;
+                runs.Add(new ScriptRun(from, idx - from, script));
+                from = idx;
                 script = here;
             }
 
             idx += width;
         }
 
-        runs.Add(new ScriptRun(start, text.Length - start, script));
+        runs.Add(new ScriptRun(from, end - from, script));
         return runs;
     }
 }
@@ -87,7 +127,7 @@ public static class ScriptItemizer
 /// <summary>
 /// One stretch of text in a single script.
 /// </summary>
-public readonly struct ScriptRun
+internal readonly struct ScriptRun
 {
     internal ScriptRun(int start, int length, UnicodeScript script)
     {
