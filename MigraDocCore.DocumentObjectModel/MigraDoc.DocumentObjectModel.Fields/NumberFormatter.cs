@@ -71,7 +71,10 @@ public static class NumberFormatter
 
     static string AsRoman(int number, bool lowercase)
     {
-        if (Math.Abs(number) > 32768)
+        // Widened before the magnitude is taken, because int.MinValue has no positive counterpart
+        // and Math.Abs throws on it - so the number furthest past this ceiling was the one number
+        // the fallback could not catch.
+        if (Math.Abs((long)number) > 32768)
         {
             Debug.WriteLine(DomSR.NumberTooLargeForRoman(number), "warning");
             return number.ToString();
@@ -106,7 +109,8 @@ public static class NumberFormatter
 
     static string AsLetters(int number, bool lowercase)
     {
-        if (Math.Abs(number) > 32768)
+        // Widened for the same reason as in AsRoman above.
+        if (Math.Abs((long)number) > 32768)
         {
             Debug.WriteLine(DomSR.NumberTooLargeForLetters(number));
             return number.ToString();

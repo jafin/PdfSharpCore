@@ -57,6 +57,21 @@ public class NumberFormatterTests
         NumberFormatter.Format(number, format).Should().Be(expected);
     }
 
+    /// <summary>
+    ///   The number furthest past the ceiling was the one the fallback could not catch: taking the
+    ///   magnitude of <c>int.MinValue</c> overflows, because it has no positive counterpart, so the
+    ///   guard threw where it was supposed to hand the number on to be written in digits.
+    /// </summary>
+    [Theory]
+    [InlineData("ROMAN")]
+    [InlineData("roman")]
+    [InlineData("ALPHABETIC")]
+    [InlineData("alphabetic")]
+    public void TheMostNegativeNumberFallsBackToDigitsLikeAnyOtherPastTheCeiling(string format)
+    {
+        NumberFormatter.Format(int.MinValue, format).Should().Be("-2147483648");
+    }
+
     [Theory]
     [InlineData(1, "A")]
     [InlineData(26, "Z")]
