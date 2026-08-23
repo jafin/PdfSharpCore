@@ -278,6 +278,54 @@ public class PageBleedTests
         boxes.TrimBox.X1.Should().BeApproximately(Bleed.Point, 0.01);
     }
 
+    // ----- assigning the margins ------------------------------------------------------------------
+
+    [Fact]
+    public void AssigningTrimMarginsCopiesTheValuesRatherThanHoldingTheReference()
+    {
+        var page = Plain();
+        var shared = new TrimMargins { All = Bleed };
+
+        page.TrimMargins = shared;
+        shared.Left = XUnit.FromMillimeter(20);
+
+        // The page holds margins of its own and the setter copies the four values into them, so
+        // the page is not moved by a later change to the object it was given.
+        page.TrimMargins.Left.Point.Should().BeApproximately(Bleed.Point, 0.01);
+        page.TrimMargins.Should().NotBeSameAs(shared);
+    }
+
+    [Fact]
+    public void AssigningMarkMarginsCopiesTheValuesRatherThanHoldingTheReference()
+    {
+        var page = Plain();
+        var shared = new TrimMargins { All = Marks };
+
+        page.MarkMargins = shared;
+        shared.Top = XUnit.FromMillimeter(20);
+
+        page.MarkMargins.Top.Point.Should().BeApproximately(Marks.Point, 0.01);
+        page.MarkMargins.Should().NotBeSameAs(shared);
+    }
+
+    [Fact]
+    public void EveryPageGetsItsOwnCopyOfTheDocumentWideTrimMargins()
+    {
+        var document = new PdfDocument();
+        document.Settings.TrimMargins.All = Bleed;
+
+        var first = document.AddPage();
+        var second = document.AddPage();
+        first.TrimMargins.Left = XUnit.FromMillimeter(20);
+
+        // Settings.TrimMargins is one instance handed to every page as it is added. Were the page
+        // setter to keep the reference rather than copy from it, moving one page's bleed would
+        // move every other page's and the default every future page is given.
+        second.TrimMargins.Left.Point.Should().BeApproximately(Bleed.Point, 0.01);
+        document.Settings.TrimMargins.Left.Point.Should().BeApproximately(Bleed.Point, 0.01);
+        document.AddPage().TrimMargins.Left.Point.Should().BeApproximately(Bleed.Point, 0.01);
+    }
+
     // ----- crop marks ---------------------------------------------------------------------------
 
     [Fact]
