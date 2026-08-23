@@ -361,63 +361,26 @@ internal static class PdfConformanceWriter
     /// </summary>
     /// <remarks>
     /// All three, because the rule is about the file being in the document and not about how it got
-    /// there. Looking only at the name tree — which is what this did — meant a document could carry
-    /// an attachment on an annotation, claim PDF/A-1, and be told nothing: the one path a caller had
-    /// for attaching a file before <see cref="PdfAttachments"/> existed was the one path the check
-    /// could not see. A specification with no <c>/EF</c> is not counted; it names a file somewhere
-    /// else, and PDF/A objects to carrying bytes rather than to mentioning a filename.
+    /// there — and all three are walked by <see cref="PdfAttachments.Reachable"/>, which is the one
+    /// place that knows where a document's files can be found, rather than by a second copy of that
+    /// walk kept here. Looking only at the name tree — which is what this did — meant a document
+    /// could carry an attachment on an annotation, claim PDF/A-1, and be told nothing: the one path
+    /// a caller had for attaching a file before <see cref="PdfAttachments"/> existed was the one
+    /// path the check could not see. What is left here is the one question that was never about
+    /// reachability: a specification with no <c>/EF</c> is not counted, because it names a file
+    /// somewhere else, and PDF/A objects to carrying bytes rather than to mentioning a filename.
     /// </remarks>
     static List<PdfFileSpecification> EmbeddedFiles(PdfDocument document)
     {
         var found = new List<PdfFileSpecification>();
 
-        var associated = document.Catalog.Elements.GetArray(PdfCatalog.Keys.AF);
-        if (associated != null)
+        foreach (var specification in document.Attachments.Reachable(includeAnnotations: true))
         {
-            for (int idx = 0; idx < associated.Elements.Count; idx++)
-                Collect(found, associated.Elements[idx]);
-        }
-
-        foreach (var entry in PdfNameTree.Enumerate(document, "/EmbeddedFiles"))
-            Collect(found, entry.Value);
-
-        foreach (PdfPage page in document.Pages)
-        {
-            var annotations = page.Elements.GetArray("/Annots");
-            if (annotations == null)
-                continue;
-
-            for (int idx = 0; idx < annotations.Elements.Count; idx++)
-            {
-                var annotation = Dictionary(annotations.Elements[idx]);
-                if (annotation != null)
-                    Collect(found, annotation.Elements["/FS"]);
-            }
+            if (specification.EmbeddedFile != null)
+                found.Add(specification);
         }
 
         return found;
-    }
-
-    static void Collect(List<PdfFileSpecification> found, PdfItem item)
-    {
-        var specification = PdfAttachments.Resolve(item);
-        if (specification?.EmbeddedFile == null)
-            return;
-
-        foreach (var already in found)
-        {
-            if (ReferenceEquals(already, specification))
-                return;
-        }
-
-        found.Add(specification);
-    }
-
-    static PdfDictionary Dictionary(PdfItem item)
-    {
-        if (item is PdfReference reference)
-            item = reference.Value;
-        return item as PdfDictionary;
     }
 
     /// <summary>

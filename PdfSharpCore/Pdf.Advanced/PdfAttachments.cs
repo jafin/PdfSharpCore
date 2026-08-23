@@ -232,7 +232,31 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
     /// tree, without repeating one that is in both — which, for anything this library wrote, is
     /// all of them.
     /// </summary>
-    List<PdfFileSpecification> Specifications()
+    List<PdfFileSpecification> Specifications() => Reachable(includeAnnotations: false);
+
+    /// <summary>
+    /// Every file specification the document can be reached through: the catalog's <c>/AF</c> array
+    /// first, then the <c>/EmbeddedFiles</c> name tree, and — when asked for — each page's file
+    /// attachment annotations, without repeating one that is in more than one of them.
+    /// </summary>
+    /// <param name="includeAnnotations">
+    /// Whether to reach a file that hangs off a <see cref="Annotations.PdfFileAttachmentAnnotation"/>
+    /// and is listed nowhere else. False is what the public enumeration wants, because an
+    /// annotation's attachment is shown by the annotation rather than listed a second time — see
+    /// <see cref="Associate"/>. True is what PDF/A-3's association rule wants, because that rule is
+    /// about the file being in the document and not about how it got there, and annotation
+    /// attachment was the one path onto a document a name-tree-only check could not see.
+    /// </param>
+    /// <remarks>
+    /// The one walk, so that the public surface and
+    /// <see cref="Metadata.PdfConformanceWriter"/> cannot drift apart over what a document carries.
+    /// It answers what is reachable and nothing more: whether a specification carries bytes or
+    /// merely names a file somewhere else is a PDF/A question, and stays beside the rule that asks
+    /// it. No cycle guard of its own is needed either — <c>/AF</c> and a page's <c>/Annots</c> are
+    /// flat arrays, and <see cref="PdfNameTree"/> already guards the one structure that can lead
+    /// back into itself.
+    /// </remarks>
+    internal List<PdfFileSpecification> Reachable(bool includeAnnotations)
     {
         var found = new List<PdfFileSpecification>();
 
@@ -245,6 +269,23 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
 
         foreach (var entry in PdfNameTree.Enumerate(_document, EmbeddedFiles))
             AddOnce(found, entry.Value);
+
+        if (includeAnnotations)
+        {
+            foreach (PdfPage page in _document.Pages)
+            {
+                var annotations = page.Elements.GetArray("/Annots");
+                if (annotations == null)
+                    continue;
+
+                for (int idx = 0; idx < annotations.Elements.Count; idx++)
+                {
+                    var annotation = Dictionary(annotations.Elements[idx]);
+                    if (annotation != null)
+                        AddOnce(found, annotation.Elements["/FS"]);
+                }
+            }
+        }
 
         return found;
     }
@@ -282,6 +323,17 @@ public sealed class PdfAttachments : IEnumerable<PdfFileSpecification>
         // Transforming re-points the reference at the new instance, so a second look answers the
         // same object rather than building another wrapper around the same dictionary.
         return item is PdfDictionary dictionary ? new PdfFileSpecification(dictionary) : null;
+    }
+
+    /// <summary>
+    /// The dictionary an annotation entry stands for, whether the array holds it directly or holds
+    /// a reference to it.
+    /// </summary>
+    static PdfDictionary Dictionary(PdfItem item)
+    {
+        if (item is PdfReference reference)
+            item = reference.Value;
+        return item as PdfDictionary;
     }
 
     /// <summary>

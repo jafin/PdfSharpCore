@@ -265,6 +265,14 @@ specification can be reached from: the association array, the name tree, and the
 page. A specification with no `/EF` is not counted, because PDF/A objects to carrying bytes rather
 than to naming a file kept elsewhere.
 
+**And it looks through one walk, not a second copy of one.** `PdfAttachments.Reachable` is where all
+three places are read, with the annotations of every page reached only when its `includeAnnotations`
+argument says so — false for `document.Attachments`, whose enumeration deliberately leaves an
+annotation's attachment to the annotation, and true for the conformance writer, whose whole point is
+that the rule is about the file being in the document and not about how it got there. The
+`/EF` filter stayed behind in `PdfConformanceWriter`: the shared walk answers what is reachable, and
+which of those PDF/A cares about is a different question that belongs beside the rule asking it.
+
 Reading `Attachments` builds nothing — it looks at the catalog — so a document that never attaches
 anything is written exactly as it was before, which `AttachmentTests` pins by length.
 
