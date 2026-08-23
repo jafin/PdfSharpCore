@@ -158,10 +158,12 @@ public sealed class FacturXInvoice
     /// a caller's claim would be deciding for them which standard their document meets.
     /// </para>
     /// <para>
-    /// The metadata is written through <see cref="PdfDocument.CustomizeMetadata"/>, and any hook
-    /// already there is kept and called first — the packet is built at save time from the
-    /// information dictionary, so there is nowhere else to reach it, and a helper that replaced the
-    /// caller's own hook would silently drop whatever it wrote.
+    /// The metadata is written through <see cref="PdfDocument.AddMetadataContributor"/>, which adds
+    /// alongside whatever else the document is already carrying — or carries afterwards — rather
+    /// than replacing it. The packet is built at save time from the information dictionary, so there
+    /// is nowhere else to reach it, and neither this call nor a caller's own
+    /// <see cref="PdfDocument.CustomizeMetadata"/> can drop the other's contribution, whichever runs
+    /// first and whichever is set up first.
     /// </para>
     /// </remarks>
     public PdfFileSpecification AttachTo(PdfDocument document)
@@ -199,12 +201,7 @@ public sealed class FacturXInvoice
 
         document.Options.Conformance = PdfAConformance.PdfA3B;
 
-        var alreadyThere = document.CustomizeMetadata;
-        document.CustomizeMetadata = metadata =>
-        {
-            alreadyThere?.Invoke(metadata);
-            metadata.DeclareSchema(schema);
-        };
+        document.AddMetadataContributor(metadata => metadata.DeclareSchema(schema));
 
         return specification;
     }

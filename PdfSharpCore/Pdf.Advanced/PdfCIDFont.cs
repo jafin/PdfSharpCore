@@ -28,6 +28,7 @@
 #endregion
 
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf.Metadata;
 
 namespace PdfSharpCore.Pdf.Advanced;
 
@@ -119,7 +120,7 @@ internal class PdfCIDFont : PdfFont
         // because it cannot be subsetted; only TrueType outlines are subsetted first.
         EmbedFontProgram(true);
 
-        if (!postscriptOutlines && Owner.Options.Conformance == PdfAConformance.PdfA1B)
+        if (!postscriptOutlines && PdfConformanceWriter.RequiresCidSet(Owner.Options.Conformance))
             EmbedCidSet();
     }
 

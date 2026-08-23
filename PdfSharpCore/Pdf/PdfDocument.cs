@@ -569,11 +569,10 @@ public sealed class PdfDocument : PdfObject, IDisposable
             if (Options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
             {
                 // A cross-reference stream is a PDF 1.5 construct, so a file that has one may not
-                // announce itself as anything earlier. Set the field rather than the property: the
-                // property refuses a document that cannot be modified, and by here the decision to
-                // write has already been taken.
-                if (_version < 15)
-                    _version = 15;
+                // announce itself as anything earlier. Raised on the field rather than the property:
+                // the property refuses a document that cannot be modified, and by here the decision
+                // to write has already been taken.
+                PdfVersionRequirements.Require(this, 15);
 
                 writer.WriteFileHeader(this);
                 var startxref = PdfCrossReferenceStreamWriter.WriteBody(this, writer);
@@ -653,7 +652,10 @@ public sealed class PdfDocument : PdfObject, IDisposable
         if (IsImported && _openMode == PdfDocumentOpenMode.Modify && !info.ModificationDateIsTheCallersOwn)
             info.Elements.SetDateTime(PdfDocumentInformation.Keys.ModDate, GlobalTimeSettings.Now);
 
-        // Prepare used fonts.
+        // Prepare used fonts. A CIDFont subset asks Metadata.PdfConformanceWriter.RequiresCidSet
+        // whether the profile claimed wants a /CIDSet, rather than reading Options.Conformance
+        // itself — so this may run before or after the conformance writer below without either one
+        // caring, both reading the same caller-set property rather than anything the other computes.
         if (_fontTable != null)
             _fontTable.PrepareForSave();
 
@@ -748,13 +750,80 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// anything the built-in schemas do not cover.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The packet is built from the information dictionary at save time rather than kept beside it,
     /// so that the two cannot drift apart and have a validator notice. That leaves nowhere for a
     /// caller to reach it, which is what this is for: a PDF/UA identifier, a ZUGFeRD extension
     /// schema, or a namespace nobody has thought of, added through
     /// <see cref="Metadata.XmpMetadata.AdditionalDescriptions"/>.
+    /// </para>
+    /// <para>
+    /// Kept for compatibility, and it is a single slot: assigning it replaces whatever was there
+    /// before. A caller who does not know whether another component has already claimed it — an
+    /// extension package such as <c>PdfSharpCore.EInvoice</c>, in particular — should call
+    /// <see cref="AddMetadataContributor"/> instead, which cannot replace anyone else's contribution.
+    /// Both are invoked, this one first.
+    /// </para>
     /// </remarks>
     public Action<Metadata.XmpMetadata> CustomizeMetadata { get; set; }
+
+    /// <summary>
+    /// Registers a hook called with the XMP metadata packet just before it is written, alongside
+    /// every other one already registered rather than in place of it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CustomizeMetadata"/> is a single assignable delegate, which is the wrong shape for
+    /// something several independent packages may each want to contribute to: whichever assigns it
+    /// last silently drops what an earlier one wrote, and the order two callers happen to run in
+    /// becomes a hidden rule neither of them can see. This has no such ordering to get wrong — a
+    /// caller who registers a contributor is guaranteed it runs alongside every other one, whatever
+    /// else the document is already carrying and whatever registers after it.
+    /// </remarks>
+    public void AddMetadataContributor(Action<Metadata.XmpMetadata> contributor)
+    {
+        if (contributor == null)
+            throw new ArgumentNullException(nameof(contributor));
+
+        (_metadataContributors ??= new List<Action<Metadata.XmpMetadata>>()).Add(contributor);
+    }
+
+    /// <summary>
+    /// Calls <see cref="CustomizeMetadata"/> and every contributor registered through
+    /// <see cref="AddMetadataContributor"/>, in the order each was added.
+    /// </summary>
+    internal void InvokeMetadataContributors(Metadata.XmpMetadata metadata)
+    {
+        CustomizeMetadata?.Invoke(metadata);
+
+        if (_metadataContributors == null)
+            return;
+
+        foreach (var contributor in _metadataContributors)
+            contributor(metadata);
+    }
+    List<Action<Metadata.XmpMetadata>> _metadataContributors;
+
+    /// <summary>
+    /// Claims an archival profile for this document, and checks immediately what the claim can be
+    /// held to right now: that the document has a title, is not encrypted, its colour mode can be
+    /// described, and — for PDF/A-1 — that nothing has already pushed the version past what that
+    /// profile allows. Refuses rather than sets the claim when one of those is not yet true, so the
+    /// mistake is found where it was made rather than discovered later at <see cref="Save(Stream)"/>.
+    /// </summary>
+    /// <remarks>
+    /// What cannot be settled by looking at the document now — chiefly, whether it carries an
+    /// attachment PDF/A-3 alone may hold — is not checked here, because a caller may legitimately add
+    /// one afterwards; that stays a <see cref="Save(Stream)"/>-time rule, kept exactly as it was.
+    /// Setting <see cref="PdfDocumentOptions.Conformance"/> directly still works and is still
+    /// enforced at <see cref="Save(Stream)"/> — this is an earlier door onto the same enforcement, not
+    /// a replacement for it.
+    /// </remarks>
+    public void ClaimConformance(PdfAConformance conformance)
+    {
+        Metadata.PdfConformanceWriter.CheckClaimable(this, conformance);
+        Metadata.PdfConformanceWriter.CheckVersionAgainstProfile(this, conformance);
+        Options.Conformance = conformance;
+    }
 
     /// <summary>
     /// Gets the structure tree of this document, creating it on first use.
