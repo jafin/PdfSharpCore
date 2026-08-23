@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
@@ -85,6 +86,34 @@ public class SkiaImageSourceTest
         // Skia premultiplies by default; that would store red as ~128 and darken the image.
         pixels[2].Should().Be(255, "colour channels must stay unpremultiplied");
         pixels[3].Should().Be(128, "alpha is carried in the fourth byte");
+    }
+
+    [Fact]
+    public void GetPixelsRefusesAPremultipliedBitmap()
+    {
+        // FromSkiaBitmap takes whatever bitmap a caller has already decoded, and premultiplied
+        // alpha is the one wrong answer that looks right: PdfImage writes the colour channels into
+        // the image stream and the alpha into the /SMask separately, so a premultiplied pixel comes
+        // out darkened in proportion to its own transparency and nothing says so.
+        var bitmap = new SKBitmap(
+            new SKImageInfo(1, 1, SKColorType.Bgra8888, SKAlphaType.Premul));
+
+        var refusing = () => GetPixels(bitmap);
+
+        refusing.Should().Throw<InvalidOperationException>()
+            .WithMessage("*premultiplied*");
+    }
+
+    [Fact]
+    public void GetPixelsAcceptsAnOpaqueBitmap()
+    {
+        // Opaque is not premultiplied-by-another-name: alpha is 255 throughout, so the colour
+        // channels are the same bytes either way and refusing it would turn away a valid image.
+        var bitmap = new SKBitmap(
+            new SKImageInfo(1, 1, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        bitmap.SetPixel(0, 0, new SKColor(10, 20, 30, 255));
+
+        GetPixels(bitmap).Pixels.ToArray().Should().Equal(30, 20, 10, 255);
     }
 
     [Fact]

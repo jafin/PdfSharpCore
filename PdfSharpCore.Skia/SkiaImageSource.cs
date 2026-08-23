@@ -131,6 +131,17 @@ public class SkiaImageSource
                 throw new InvalidOperationException(
                     $"Expected a Bgra8888 bitmap for '{Name}' but got {_bitmap.ColorType}.");
 
+            // A PixelBuffer promises straight alpha, and premultiplied colour channels are a
+            // silent wrong answer rather than a loud one: PdfImage writes the colour into the
+            // image stream and the alpha into the /SMask separately, so a semi-transparent pixel
+            // comes out darkened with nothing to say why. Opaque is fine - alpha is 255
+            // throughout, so the two are the same bytes.
+            if (_bitmap.AlphaType == SKAlphaType.Premul)
+                throw new InvalidOperationException(
+                    $"Expected unpremultiplied alpha for '{Name}' but the bitmap is premultiplied. "
+                    + "Decode into SKAlphaType.Unpremul, or unpremultiply before handing the bitmap "
+                    + "to SkiaImageSource.FromSkiaBitmap.");
+
             int width = _bitmap.Width;
             int height = _bitmap.Height;
             int stride = width * PixelBuffer.BytesPerPixel;
