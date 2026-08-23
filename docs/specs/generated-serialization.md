@@ -296,4 +296,7 @@ Everything else the diagnostic found is real: `HeaderFooter.style`, `Hyperlink.f
 `Table.KeepTogether` are each read by the renderer (`ParagraphRenderer`, `TableRenderer`) but never
 written by their type's `Serialize` — set one, save the document, reload it, and the setting is
 gone. These are left as live warnings rather than fixed here: touching `Serialize` is exactly what
-§4's byte-comparison harness exists to make safe, and that harness does not exist yet.
+§4's byte-comparison harness exists to make safe, and step 2 landed alongside MDG007 -
+`DdlByteComparisonHarnessTests` and `Golden.cs` in `MigraDocCore.DocumentObjectModel.Tests` pin six
+corpus documents against the DDL a correct `Serialize` produces today. Fixing the three warnings
+above is now safe to attempt; it is still not done here.

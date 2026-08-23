@@ -155,6 +155,14 @@ internal static class Parser
     /// MDG007 has nothing to check: a type with no Serialize of its own is not the type responsible
     /// for its members reaching DDL.
     /// </summary>
+    /// <remarks>
+    /// Scans <paramref name="classDecl"/> alone, not every partial declaration of the type: a
+    /// hand-written DOM class lives in exactly one file today (only the generator's own emitted
+    /// partial, which has no base list and so is never seen here at all, adds a second), so there is
+    /// nothing yet to aggregate. A type split across two hand-written files with the [DV] member in
+    /// one and Serialize in the other would misfire - MDG002-style, a real gap this scan cannot see
+    /// rather than one that has happened.
+    /// </remarks>
     static EquatableArray<string>? SerializeMentions(ClassDeclarationSyntax classDecl)
     {
         List<MethodDeclarationSyntax> methods = classDecl.Members
