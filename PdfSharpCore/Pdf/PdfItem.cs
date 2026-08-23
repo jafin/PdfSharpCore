@@ -38,6 +38,9 @@ namespace PdfSharpCore.Pdf;
 public abstract class PdfItem : ICloneable
 {
     // All simple types (i.e. derived from PdfItem but not from PdfObject) must be immutable.
+    // That is what makes MemberwiseClone below a correct Copy for every one of them, and it is
+    // checked rather than merely stated: SimpleTypeImmutabilityTests sweeps the assembly and
+    // fails any such type that is unsealed or declares a field that is not readonly.
 
     object ICloneable.Clone()
     {

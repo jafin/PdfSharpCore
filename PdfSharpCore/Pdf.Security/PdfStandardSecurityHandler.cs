@@ -158,17 +158,37 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
             || dict.ObjectNumber == ObjectNumber)
             return;
 
+        // A PdfString is immutable, so a string this walk decrypts has to be put back where the old
+        // one was rather than written into. The replacements are collected here and applied below,
+        // after the enumeration has finished. Writing them as they are found would be fine on the
+        // net8.0 and net10.0 legs — .NET Core stopped bumping a Dictionary's version on an
+        // overwrite — but netstandard2.1 exists for Unity's Mono runtime, which still bumps it, and
+        // there the same loop would throw halfway through decrypting a document.
+        List<KeyValuePair<string, PdfString>> decrypted = null;
+
         foreach (KeyValuePair<string, PdfItem> item in dict.Elements)
         {
             PdfString value1;
             PdfDictionary value2;
             PdfArray value3;
             if ((value1 = item.Value as PdfString) != null)
-                EncryptString(value1);
+            {
+                decrypted ??= new List<KeyValuePair<string, PdfString>>();
+                decrypted.Add(new KeyValuePair<string, PdfString>(item.Key, EncryptString(value1)));
+            }
             else if ((value2 = item.Value as PdfDictionary) != null)
                 EncryptDictionary(value2);
             else if ((value3 = item.Value as PdfArray) != null)
                 EncryptArray(value3);
+        }
+
+        if (decrypted != null)
+        {
+            // Through the indexer, which is the one path that tells the owning object it changed.
+            // The old setter reached past it and mutated the string the dictionary was still
+            // holding, which is what made the replacement invisible to everything watching.
+            foreach (var replacement in decrypted)
+                dict.Elements[replacement.Key] = replacement.Value;
         }
         if (dict.Stream != null)
         {
@@ -197,7 +217,7 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
             if ((value1 = item as PdfString) != null)
             {
                 stringEncryptor.CreateHashKey(array.ObjectID);
-                EncryptString(value1);
+                array.Elements[idx] = EncryptString(value1);
             }
             else if ((value2 = item as PdfDictionary) != null)
                 EncryptDictionary(value2);
@@ -207,16 +227,20 @@ public sealed class PdfStandardSecurityHandler : PdfSecurityHandler
     }
 
     /// <summary>
-    /// Encrypts a string.
+    /// Encrypts a string, answering the string those bytes now spell.
     /// </summary>
-    void EncryptString(PdfString value)
+    /// <remarks>
+    /// A PdfString is a simple type and so immutable, which is why this answers a new string
+    /// rather than writing back into the one it was given. The caller puts the answer where the
+    /// old string was, through the owning collection's own indexer.
+    /// </remarks>
+    PdfString EncryptString(PdfString value)
     {
-        if (value.Length != 0)
-        {
-            byte[] bytes = value.EncryptionValue;
-            bytes = stringEncryptor.Encrypt(bytes);
-            value.EncryptionValue = bytes;
-        }
+        if (value.Length == 0)
+            return value;
+
+        byte[] bytes = stringEncryptor.Encrypt(value.EncryptionValue);
+        return PdfString.FromEncryptionValue(bytes, value.Flags);
     }
 
     /// <summary>
