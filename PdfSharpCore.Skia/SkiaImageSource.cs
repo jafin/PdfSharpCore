@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
-using PdfSharpCore.Utils;
 using SkiaSharp;
 
 namespace PdfSharpCore.Skia;
@@ -126,9 +125,37 @@ public class SkiaImageSource
         }
 
 
-        public void SaveAsPdfBitmap(MemoryStream ms)
+        public PixelBuffer GetPixels()
         {
-            PdfBitmapWriter.Write(_bitmap, ms);
+            if (_bitmap.ColorType != SKColorType.Bgra8888)
+                throw new InvalidOperationException(
+                    $"Expected a Bgra8888 bitmap for '{Name}' but got {_bitmap.ColorType}.");
+
+            // A PixelBuffer promises straight alpha, and premultiplied colour channels are a
+            // silent wrong answer rather than a loud one: PdfImage writes the colour into the
+            // image stream and the alpha into the /SMask separately, so a semi-transparent pixel
+            // comes out darkened with nothing to say why. Opaque is fine - alpha is 255
+            // throughout, so the two are the same bytes.
+            if (_bitmap.AlphaType == SKAlphaType.Premul)
+                throw new InvalidOperationException(
+                    $"Expected unpremultiplied alpha for '{Name}' but the bitmap is premultiplied. "
+                    + "Decode into SKAlphaType.Unpremul, or unpremultiply before handing the bitmap "
+                    + "to SkiaImageSource.FromSkiaBitmap.");
+
+            int width = _bitmap.Width;
+            int height = _bitmap.Height;
+            int stride = width * PixelBuffer.BytesPerPixel;
+
+            // Skia decodes straight into the layout a PixelBuffer promises - top-down, four bytes
+            // per pixel, B, G, R, A - so this is a copy out of native memory and nothing more. Rows
+            // are copied one at a time because SKBitmap.RowBytes may exceed the packed width.
+            byte[] pixels = new byte[stride * height];
+            ReadOnlySpan<byte> source = _bitmap.GetPixelSpan();
+            int rowBytes = _bitmap.RowBytes;
+            for (int y = 0; y < height; y++)
+                source.Slice(y * rowBytes, stride).CopyTo(pixels.AsSpan(y * stride, stride));
+
+            return new PixelBuffer(width, height, pixels);
         }
 
 

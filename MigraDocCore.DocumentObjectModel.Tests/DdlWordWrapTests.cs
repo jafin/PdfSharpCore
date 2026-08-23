@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.IO;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using Xunit;
 using static MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes.ImageSource;
 
@@ -104,6 +105,6 @@ public class DdlWordWrapTests
 
         public void SaveAsJpeg(MemoryStream ms) => throw new NotSupportedException();
 
-        public void SaveAsPdfBitmap(MemoryStream ms) => throw new NotSupportedException();
+        public PixelBuffer GetPixels() => throw new NotSupportedException();
     }
 }

@@ -283,6 +283,36 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Changed
 
+- **BREAKING:** `ImageSource.IImageSource.SaveAsPdfBitmap(MemoryStream)` is replaced by
+  `PixelBuffer GetPixels()`, and `XImage.AsBitmap()` by `XImage.GetPixels()`. Anyone who has written
+  an implementation of that interface has to change the member; anyone who called `AsBitmap()` for
+  the bytes gets pixels instead of a BMP file.
+
+  ```diff
+  - void SaveAsPdfBitmap(MemoryStream ms)
+  + PixelBuffer GetPixels()
+  ```
+
+  What the member handed over was a hand-built 32bpp bottom-up BMP that nothing outside this library
+  ever read: `PdfImage` parsed the magic number, the declared length, the width, the height, the
+  plane count, the bit count and the compression field back out at fixed byte offsets, and every one
+  of those fields was written moments earlier by the other half of the same call. The two ends of it
+  also flipped the rows in opposite directions, so the file was bottom-up and the pixels that came
+  out of it were the top-down ones that went in — correct by two mistakes cancelling.
+
+  `PixelBuffer` says the one thing that was ever really being passed: `Width`, `Height` and a
+  `ReadOnlyMemory<byte>` of tightly packed, top-down, straight-alpha **BGRA**, four bytes per pixel
+  and no stride padding. There is no format tag, because there is one format. Grayscale and CMYK
+  stay unsupported exactly as they were — the `components`/`bits`/`hasAlpha` parameters that used to
+  suggest otherwise were called from one place with one set of values, and the grayscale branch
+  under them could never run.
+
+  Both backends produce the same bytes for the same image, as they did before. `PdfSharpCore.Skia`
+  no longer writes a `BITMAPFILEHEADER` and `BITMAPINFOHEADER` by hand for a format SkiaSharp
+  refuses to encode, and `PdfSharpCore.ImageSharp` no longer drives `BmpEncoder`'s general
+  conversion — it performs the R/B reorder itself through ImageSharp's own bulk pixel conversion,
+  where before it was borrowing one from an encoder as a side effect of BMP's on-disk byte order.
+
 - **BREAKING:** `IFontFallback.FamiliesFor` takes an `int` code point where it took a `char`.
   Anyone who has written an implementation of that interface has to change the signature; the body
   usually needs no change, because a `char` widens to an `int` and the values below U+10000 are the
