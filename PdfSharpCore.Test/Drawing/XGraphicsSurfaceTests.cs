@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -63,6 +64,40 @@ public class XGraphicsSurfaceTests
 
     static int CountOf(string shape, string @operator) =>
         Regex.Matches(shape, @"(^|\s)" + @operator + "$", RegexOptions.Multiline).Count;
+
+    /// <summary>
+    ///   The graphics state operators a page writes, in order: every literal <c>q</c> and <c>Q</c>
+    ///   and nothing else. <see cref="ShapeOf"/> reads the geometry operators the same way; this is
+    ///   that reading applied to the pair that opens and closes a saved state.
+    /// </summary>
+    /// <remarks>
+    ///   Read as bytes rather than through <see cref="XGraphics.GraphicsStateLevel"/>, because that
+    ///   counter lives above the renderer and would say the same thing whatever the renderer wrote.
+    /// </remarks>
+    static string StateOf(Action<XGraphics> draw) =>
+        string.Concat(ContentOf(PageShowing(draw)).Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line is "q" or "Q"));
+
+    /// <summary>
+    ///   The graphics state nesting depth each shape is drawn at, one number per <c>re</c> operator,
+    ///   in the order they are drawn: how many <c>q</c> operators stand open above that shape.
+    /// </summary>
+    static int[] DepthsOf(Action<XGraphics> draw)
+    {
+        var depths = new List<int>();
+        var depth = 0;
+        foreach (var line in ContentOf(PageShowing(draw)).Split('\n').Select(line => line.Trim()))
+        {
+            if (line is "q")
+                depth++;
+            else if (line is "Q")
+                depth--;
+            else if (Regex.IsMatch(line, @"(^|\s)re$"))
+                depths.Add(depth);
+        }
+        return depths.ToArray();
+    }
 
     static int PointCount(Action<XGraphics> draw) => PathGeometry.PointsOf(PageShowing(draw)).Count;
 
@@ -734,6 +769,71 @@ public class XGraphicsSurfaceTests
 
         inMillimetres.Should().Throw<ArgumentException>();
         endNothing.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SavingAndRestoringWriteTheLiteralQAndQOperators()
+    {
+        void Box(XGraphics gfx) => gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+
+        // Two of them are the page's own: the renderer opens page space and then world space before
+        // the first thing is drawn, and closes both when the page ends.
+        StateOf(Box).Should().Be("qqQQ");
+
+        StateOf(gfx =>
+        {
+            Box(gfx);
+            var state = gfx.Save();
+            Box(gfx);
+            gfx.Restore(state);
+            Box(gfx);
+        }).Should().Be("qqqQQQ");
+
+        // A container is the same pair of operators; only the token the caller hands back differs.
+        StateOf(gfx =>
+        {
+            Box(gfx);
+            var container = gfx.BeginContainer();
+            Box(gfx);
+            gfx.EndContainer(container);
+            Box(gfx);
+        }).Should().Be("qqqQQQ");
+    }
+
+    [Fact]
+    public void ASaveNeverRestoredIsClosedWhenThePageEnds()
+    {
+        StateOf(gfx =>
+        {
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+            gfx.Save();
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+            gfx.Save();
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+        }).Should().Be("qqqqQQQQ");
+    }
+
+    [Fact]
+    public void RestoringAnOuterStateClosesEveryStateSavedInsideIt()
+    {
+        void Nested(XGraphics gfx, Action<XGraphics, XGraphicsState, XGraphicsState> restore)
+        {
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+            var outer = gfx.Save();
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+            var inner = gfx.Save();
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+            restore(gfx, outer, inner);
+            gfx.DrawRectangle(XPens.Black, 10, 10, 20, 20);
+        }
+
+        // Handing back the inner state closes one level, and the last shape is drawn one deep.
+        DepthsOf(gfx => Nested(gfx, (g, _, inner) => g.Restore(inner)))
+            .Should().Equal(2, 3, 4, 3);
+
+        // Handing back the outer one closes both, so the last shape is drawn back at page level.
+        DepthsOf(gfx => Nested(gfx, (g, outer, _) => g.Restore(outer)))
+            .Should().Equal(2, 3, 4, 2);
     }
 
     // ----- clipping ------------------------------------------------------------------------------
