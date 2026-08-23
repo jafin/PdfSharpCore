@@ -40,6 +40,7 @@ internal sealed class FacturXDemo : PdfDemo
         "The XMP extension schema, which declares the fx: properties the packet then writes",
         "EInvoiceProfile - the exact spelling a receiver reads, spaces and all",
         "FacturXInvoice.FindIn and ReadFrom - the receiving half of the mandate",
+        "That the XML carries the line items the page draws, from the same array, and reconciles",
         "That an RGB document claiming PDF/A is given an sRGB output intent it never asked for",
     };
 
@@ -68,20 +69,6 @@ internal sealed class FacturXDemo : PdfDemo
 
         // ----- page one: the invoice a person reads ------------------------------------------------
 
-        (string Description, int Quantity, decimal UnitPrice)[] items =
-        {
-            ("PdfSharpCore support, annual", 1, 1200.00m),
-            ("Migration consultancy, per day", 2, 780.00m),
-            ("Font licensing review", 1, 450.00m),
-        };
-
-        decimal net = 0;
-        foreach ((string Description, int Quantity, decimal UnitPrice) item in items)
-            net += item.Quantity * item.UnitPrice;
-
-        decimal tax = decimal.Round(net * 0.19m, 2);
-        decimal gross = net + tax;
-
         PdfPage first = document.AddPage();
         using (XGraphics gfx = XGraphics.FromPdfPage(first))
         {
@@ -98,21 +85,28 @@ internal sealed class FacturXDemo : PdfDemo
             gfx.DrawString("Beispiel GmbH", body, XBrushes.Black, 330, 122);
             gfx.DrawString("Musterweg 12, 10115 Berlin", body, XBrushes.Black, 330, 136);
 
+            // A column of money is read by comparing digits that line up, so every numeric column -
+            // and the heading over it - is placed by its right edge instead of its left. The point
+            // overload of DrawString takes an XStringFormat, and BaseLineRight is the one that moves
+            // the alignment without moving the baseline: XStringFormats.TopRight would also shift
+            // every line down by the ascent, because a point has no rectangle to sit at the top of.
+            XStringFormat figures = XStringFormats.BaseLineRight;
+
             double y = 180;
             gfx.DrawString("Description", label, XBrushes.Black, 50, y);
-            gfx.DrawString("Qty", label, XBrushes.Black, 350, y);
-            gfx.DrawString("Unit", label, XBrushes.Black, 400, y);
-            gfx.DrawString("Amount", label, XBrushes.Black, 480, y);
+            gfx.DrawString("Qty", label, XBrushes.Black, 375, y, figures);
+            gfx.DrawString("Unit", label, XBrushes.Black, 460, y, figures);
+            gfx.DrawString("Amount", label, XBrushes.Black, 545, y, figures);
             gfx.DrawLine(XPens.Black, 50, y + 5, 545, y + 5);
 
             y += 22;
-            foreach ((string Description, int Quantity, decimal UnitPrice) item in items)
+            foreach ((string Description, int Quantity, decimal UnitPrice) item in Items)
             {
                 decimal amount = item.Quantity * item.UnitPrice;
                 gfx.DrawString(item.Description, body, XBrushes.Black, 50, y);
-                gfx.DrawString(item.Quantity.ToString(Invariant), body, XBrushes.Black, 350, y);
-                gfx.DrawString(Money(item.UnitPrice), body, XBrushes.Black, 400, y);
-                gfx.DrawString(Money(amount), body, XBrushes.Black, 480, y);
+                gfx.DrawString(item.Quantity.ToString(Invariant), body, XBrushes.Black, 375, y, figures);
+                gfx.DrawString(Money(item.UnitPrice), body, XBrushes.Black, 460, y, figures);
+                gfx.DrawString(Money(amount), body, XBrushes.Black, 545, y, figures);
                 y += 16;
             }
 
@@ -121,16 +115,16 @@ internal sealed class FacturXDemo : PdfDemo
 
             (string Caption, decimal Amount)[] totals =
             {
-                ("Net", net),
-                ("VAT 19%", tax),
-                ("Total due", gross),
+                ("Net", Net),
+                ("VAT 19%", Tax),
+                ("Total due", Gross),
             };
 
             foreach ((string Caption, decimal Amount) total in totals)
             {
                 XFont font = total.Caption == "Total due" ? label : body;
-                gfx.DrawString(total.Caption, font, XBrushes.Black, 400, y);
-                gfx.DrawString(Money(total.Amount), font, XBrushes.Black, 480, y);
+                gfx.DrawString(total.Caption, font, XBrushes.Black, 460, y, figures);
+                gfx.DrawString(Money(total.Amount), font, XBrushes.Black, 545, y, figures);
                 y += 16;
             }
 
@@ -148,7 +142,7 @@ internal sealed class FacturXDemo : PdfDemo
 
         // ----- the attachment: what makes it a Factur-X invoice ------------------------------------
 
-        byte[] xml = Encoding.UTF8.GetBytes(CrossIndustryInvoice(gross));
+        byte[] xml = Encoding.UTF8.GetBytes(CrossIndustryInvoice());
 
         // The whole of the PDF side of ZUGFeRD and Factur-X. It names the attachment factur-x.xml,
         // relates it to the document as /Data, calls it text/xml, associates it with the catalog so
@@ -243,52 +237,172 @@ internal sealed class FacturXDemo : PdfDemo
 
     static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
+    /// <summary>
+    ///   The invoice, stated once. The page below and the XML attached to it are both written from
+    ///   this array, which is the whole claim a hybrid invoice makes: not a document with a copy of
+    ///   itself inside it, but one invoice rendered twice - once for a person and once for a
+    ///   machine. Two literals that happened to agree would demonstrate the opposite.
+    /// </summary>
+    static readonly (string Description, int Quantity, decimal UnitPrice)[] Items =
+    {
+        ("PdfSharpCore support, annual", 1, 1200.00m),
+        ("Migration consultancy, per day", 2, 780.00m),
+        ("Font licensing review", 1, 450.00m),
+    };
+
+    const decimal VatRate = 19.00m;
+
+    // Worked out once, in declaration order, from the array above - so the page and the XML cannot
+    // state different totals for the same invoice however either of them is edited later.
+    static readonly decimal Net = SumOfLines();
+
+    static readonly decimal Tax = decimal.Round(Net * VatRate / 100m, 2);
+
+    static readonly decimal Gross = Net + Tax;
+
+    static decimal SumOfLines()
+    {
+        decimal net = 0;
+        foreach ((string Description, int Quantity, decimal UnitPrice) item in Items)
+            net += item.Quantity * item.UnitPrice;
+        return net;
+    }
+
     static string Money(decimal amount) => amount.ToString("N2", Invariant) + " EUR";
+
+    /// <summary>The plain decimal a CII amount is written as: no grouping, no currency, two places.</summary>
+    static string Amount(decimal amount) => amount.ToString("F2", Invariant);
 
     /// <summary>
     ///   The invoice as UN/CEFACT Cross Industry Invoice XML, which is what ZUGFeRD and Factur-X
-    ///   carry.
+    ///   carry - the same line items the page above draws, priced and totalled the same way.
     /// </summary>
     /// <remarks>
-    ///   <b>A plausible skeleton, not a validated EN 16931 document.</b> A real one states the
-    ///   seller, the buyer, the tax registrations, the line items, the payment means and the
-    ///   breakdown, under business rules that differ by country and are revised on a public
-    ///   timetable. Generating and validating that is somebody else's library and a permanent
-    ///   maintenance liability - deliberately outside PdfSharpCore.EInvoice, which takes the bytes
-    ///   and puts them in the document correctly. This is enough to show what shape they are.
+    ///   <para>
+    ///   The line items are here rather than the grand total alone, because the grand total alone
+    ///   would misrepresent what the format is for. A receiver books an invoice from its lines: EN
+    ///   16931 requires at least one, each with its identifier, its price, its quantity, its tax
+    ///   category and its own line total, and requires the header summation to reconcile against
+    ///   them. An XML stating only what was payable would be a receipt, and the page beside it
+    ///   would be the only place the detail existed - which is the thing a hybrid invoice exists
+    ///   not to be.
+    ///   </para>
+    ///   <para>
+    ///   <b>Still a plausible skeleton, not a validated EN 16931 document.</b> A real one also
+    ///   states the seller and buyer addresses and tax registrations, the payment means and terms,
+    ///   the delivery event, and any allowances and charges, under business rules that differ by
+    ///   country and are revised on a public timetable. Generating and validating that is somebody
+    ///   else's library and a permanent maintenance liability - deliberately outside
+    ///   <c>PdfSharpCore.EInvoice</c>, which takes the bytes and puts them in the document
+    ///   correctly. This is enough to show what shape they are and how they answer to the page.
+    ///   </para>
     /// </remarks>
-    static string CrossIndustryInvoice(decimal gross)
+    static string CrossIndustryInvoice()
     {
-        return
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-            + "<rsm:CrossIndustryInvoice\n"
-            + "    xmlns:rsm=\"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100\"\n"
-            + "    xmlns:ram=\"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100\"\n"
-            + "    xmlns:udt=\"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100\">\n"
-            + "  <rsm:ExchangedDocumentContext>\n"
-            + "    <ram:GuidelineSpecifiedDocumentContextParameter>\n"
-            + "      <ram:ID>urn:cen.eu:en16931:2017</ram:ID>\n"
-            + "    </ram:GuidelineSpecifiedDocumentContextParameter>\n"
-            + "  </rsm:ExchangedDocumentContext>\n"
-            + "  <rsm:ExchangedDocument>\n"
-            + "    <ram:ID>2026-0042</ram:ID>\n"
-            + "    <ram:TypeCode>380</ram:TypeCode>\n"
-            + "    <ram:IssueDateTime><udt:DateTimeString format=\"102\">20260814</udt:DateTimeString></ram:IssueDateTime>\n"
-            + "  </rsm:ExchangedDocument>\n"
-            + "  <rsm:SupplyChainTradeTransaction>\n"
-            + "    <ram:ApplicableHeaderTradeAgreement>\n"
-            + "      <ram:SellerTradeParty><ram:Name>PdfSharpCore Ltd</ram:Name></ram:SellerTradeParty>\n"
-            + "      <ram:BuyerTradeParty><ram:Name>Beispiel GmbH</ram:Name></ram:BuyerTradeParty>\n"
-            + "    </ram:ApplicableHeaderTradeAgreement>\n"
-            + "    <ram:ApplicableHeaderTradeSettlement>\n"
-            + "      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>\n"
-            + "      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n"
-            + "        <ram:GrandTotalAmount>" + gross.ToString("F2", Invariant) + "</ram:GrandTotalAmount>\n"
-            + "      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n"
-            + "    </ram:ApplicableHeaderTradeSettlement>\n"
-            + "  </rsm:SupplyChainTradeTransaction>\n"
-            + "</rsm:CrossIndustryInvoice>\n";
+        StringBuilder xml = new StringBuilder();
+
+        xml.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        xml.Append("<rsm:CrossIndustryInvoice\n");
+        xml.Append("    xmlns:rsm=\"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100\"\n");
+        xml.Append("    xmlns:ram=\"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100\"\n");
+        xml.Append("    xmlns:udt=\"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100\">\n");
+        xml.Append("  <rsm:ExchangedDocumentContext>\n");
+        xml.Append("    <ram:GuidelineSpecifiedDocumentContextParameter>\n");
+        xml.Append("      <ram:ID>urn:cen.eu:en16931:2017</ram:ID>\n");
+        xml.Append("    </ram:GuidelineSpecifiedDocumentContextParameter>\n");
+        xml.Append("  </rsm:ExchangedDocumentContext>\n");
+        xml.Append("  <rsm:ExchangedDocument>\n");
+        xml.Append("    <ram:ID>2026-0042</ram:ID>\n");
+        xml.Append("    <ram:TypeCode>380</ram:TypeCode>\n");
+        xml.Append("    <ram:IssueDateTime><udt:DateTimeString format=\"102\">20260814</udt:DateTimeString></ram:IssueDateTime>\n");
+        xml.Append("  </rsm:ExchangedDocument>\n");
+        xml.Append("  <rsm:SupplyChainTradeTransaction>\n");
+
+        // The lines come first: CII puts them before the three header groups rather than after
+        // them, so a document writing them last is refused by the schema rather than by a business
+        // rule. One element per row of the table on page one, in the same order.
+        int line = 0;
+        foreach ((string Description, int Quantity, decimal UnitPrice) item in Items)
+        {
+            line++;
+            decimal amount = item.Quantity * item.UnitPrice;
+
+            xml.Append("    <ram:IncludedSupplyChainTradeLineItem>\n");
+            xml.Append("      <ram:AssociatedDocumentLineDocument>\n");
+            xml.Append("        <ram:LineID>" + line.ToString(Invariant) + "</ram:LineID>\n");
+            xml.Append("      </ram:AssociatedDocumentLineDocument>\n");
+            xml.Append("      <ram:SpecifiedTradeProduct>\n");
+            xml.Append("        <ram:Name>" + Escaped(item.Description) + "</ram:Name>\n");
+            xml.Append("      </ram:SpecifiedTradeProduct>\n");
+            xml.Append("      <ram:SpecifiedLineTradeAgreement>\n");
+            xml.Append("        <ram:NetPriceProductTradePrice>\n");
+            xml.Append("          <ram:ChargeAmount>" + Amount(item.UnitPrice) + "</ram:ChargeAmount>\n");
+            xml.Append("        </ram:NetPriceProductTradePrice>\n");
+            xml.Append("      </ram:SpecifiedLineTradeAgreement>\n");
+            xml.Append("      <ram:SpecifiedLineTradeDelivery>\n");
+            // C62 is UN/ECE Recommendation 20 for "one of something", which is what a year of
+            // support or a day of consultancy is billed in. The unit code is not optional.
+            xml.Append("        <ram:BilledQuantity unitCode=\"C62\">"
+                + item.Quantity.ToString(Invariant) + "</ram:BilledQuantity>\n");
+            xml.Append("      </ram:SpecifiedLineTradeDelivery>\n");
+            xml.Append("      <ram:SpecifiedLineTradeSettlement>\n");
+            xml.Append("        <ram:ApplicableTradeTax>\n");
+            xml.Append("          <ram:TypeCode>VAT</ram:TypeCode>\n");
+            xml.Append("          <ram:CategoryCode>S</ram:CategoryCode>\n");
+            xml.Append("          <ram:RateApplicablePercent>" + Amount(VatRate) + "</ram:RateApplicablePercent>\n");
+            xml.Append("        </ram:ApplicableTradeTax>\n");
+            xml.Append("        <ram:SpecifiedTradeSettlementLineMonetarySummation>\n");
+            xml.Append("          <ram:LineTotalAmount>" + Amount(amount) + "</ram:LineTotalAmount>\n");
+            xml.Append("        </ram:SpecifiedTradeSettlementLineMonetarySummation>\n");
+            xml.Append("      </ram:SpecifiedLineTradeSettlement>\n");
+            xml.Append("    </ram:IncludedSupplyChainTradeLineItem>\n");
+        }
+
+        xml.Append("    <ram:ApplicableHeaderTradeAgreement>\n");
+        xml.Append("      <ram:SellerTradeParty><ram:Name>PdfSharpCore Ltd</ram:Name></ram:SellerTradeParty>\n");
+        xml.Append("      <ram:BuyerTradeParty><ram:Name>Beispiel GmbH</ram:Name></ram:BuyerTradeParty>\n");
+        xml.Append("    </ram:ApplicableHeaderTradeAgreement>\n");
+        // Empty and present: nothing was delivered to a place, and the group still has to be here
+        // for the settlement group after it to be where the schema expects to find it.
+        xml.Append("    <ram:ApplicableHeaderTradeDelivery/>\n");
+        xml.Append("    <ram:ApplicableHeaderTradeSettlement>\n");
+        xml.Append("      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>\n");
+        // One breakdown per rate, and everything here is at the one rate. The basis is what the
+        // rate was applied to, so a receiver can recompute the tax rather than take it on trust.
+        xml.Append("      <ram:ApplicableTradeTax>\n");
+        xml.Append("        <ram:CalculatedAmount>" + Amount(Tax) + "</ram:CalculatedAmount>\n");
+        xml.Append("        <ram:TypeCode>VAT</ram:TypeCode>\n");
+        xml.Append("        <ram:BasisAmount>" + Amount(Net) + "</ram:BasisAmount>\n");
+        xml.Append("        <ram:CategoryCode>S</ram:CategoryCode>\n");
+        xml.Append("        <ram:RateApplicablePercent>" + Amount(VatRate) + "</ram:RateApplicablePercent>\n");
+        xml.Append("      </ram:ApplicableTradeTax>\n");
+        // The five amounts the header states, and they have to reconcile: the line total is the
+        // sum of the lines, the tax basis is that after allowances and charges, the grand total is
+        // basis plus tax, and due payable is the grand total less anything already prepaid. A
+        // receiver checks every one of those sums and rejects the invoice, not the arithmetic.
+        xml.Append("      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n");
+        xml.Append("        <ram:LineTotalAmount>" + Amount(Net) + "</ram:LineTotalAmount>\n");
+        xml.Append("        <ram:TaxBasisTotalAmount>" + Amount(Net) + "</ram:TaxBasisTotalAmount>\n");
+        xml.Append("        <ram:TaxTotalAmount currencyID=\"EUR\">" + Amount(Tax) + "</ram:TaxTotalAmount>\n");
+        xml.Append("        <ram:GrandTotalAmount>" + Amount(Gross) + "</ram:GrandTotalAmount>\n");
+        xml.Append("        <ram:DuePayableAmount>" + Amount(Gross) + "</ram:DuePayableAmount>\n");
+        xml.Append("      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n");
+        xml.Append("    </ram:ApplicableHeaderTradeSettlement>\n");
+        xml.Append("  </rsm:SupplyChainTradeTransaction>\n");
+        xml.Append("</rsm:CrossIndustryInvoice>\n");
+
+        return xml.ToString();
     }
+
+    /// <summary>
+    ///   Escapes the three characters that cannot stand in element content. A description is the
+    ///   one part of this document that comes from outside it, and so the one part that could
+    ///   carry an ampersand and turn well-formed XML into an attachment nothing can parse.
+    /// </summary>
+    static string Escaped(string text) => text
+        .Replace("&", "&amp;")
+        .Replace("<", "&lt;")
+        .Replace(">", "&gt;");
 
     /// <summary>
     ///   Builds a probe invoice the same way, saves it, reopens it, and hands back the part of its
@@ -306,7 +420,7 @@ internal sealed class FacturXDemo : PdfDemo
         probe.AddPage();
         probe.Info.Title = "A probe";
 
-        byte[] xml = Encoding.UTF8.GetBytes(CrossIndustryInvoice(3210.00m));
+        byte[] xml = Encoding.UTF8.GetBytes(CrossIndustryInvoice());
         new FacturXInvoice(xml).AttachTo(probe);
 
         using MemoryStream buffer = new MemoryStream();
