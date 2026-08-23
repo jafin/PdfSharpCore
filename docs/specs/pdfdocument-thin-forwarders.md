@@ -5,10 +5,10 @@ belong covers, and what stays exactly where it is because moving it would break 
 
 | item | what | status |
 |---|---|---|
-| 1 | The eight page-tree forwarders on `PdfDocument` stop duplicating the `CanModify` guard | proposed |
-| 2 | `PdfPages` itself checks `CanModify`, closing the gap where `document.Pages` bypasses it | proposed |
-| 3 | `ImageInfo` moves into a `Pdf.Advanced` consolidator that takes pages, not a document | proposed |
-| 4 | `DocumentHandle` keeps its shape but drops the string round trip around a `Guid` it already has | proposed |
+| 1 | The eight page-tree forwarders on `PdfDocument` stop duplicating the `CanModify` guard | done |
+| 2 | `PdfPages` itself checks `CanModify`, closing the gap where `document.Pages` bypasses it | done |
+| 3 | `ImageInfo` moves into a `Pdf.Advanced` consolidator that takes pages, not a document | done |
+| 4 | `DocumentHandle` keeps its shape but drops the string round trip around a `Guid` it already has | done |
 
 ## Problem Statement
 

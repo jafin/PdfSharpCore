@@ -113,6 +113,66 @@ public class PagePlacementTests
         Assert.Throws<InvalidOperationException>(() => document.PlacePage(0, page));
     }
 
+    // ----- insert -------------------------------------------------------------------------
+
+    /// <summary>
+    ///   InsertPage(int) creates the page where it is asked to and returns the page it created,
+    ///   already placed. Only its rejection of an already-placed page was covered before.
+    /// </summary>
+    [Fact]
+    public void InsertPage_CreatesThePageAtTheIndexGiven()
+    {
+        PdfDocument document = OpenForModify();
+        int before = document.PageCount;
+        PdfPage wasFirst = document.Pages[0];
+
+        PdfPage inserted = document.InsertPage(0);
+
+        Assert.Equal(before + 1, document.PageCount);
+        Assert.Equal(0, document.Pages.IndexOf(inserted));
+        Assert.Equal(1, document.Pages.IndexOf(wasFirst));
+        Assert.True(Save(document).Length > 0);
+    }
+
+    /// <summary>
+    ///   InsertPage(int, PdfPage) places a page of this document rather than copying it, which
+    ///   is the branch AddPage(PdfPage) shares with it.
+    /// </summary>
+    [Fact]
+    public void InsertPage_PlacesAPageOfThisDocumentWithoutCopyingIt()
+    {
+        PdfDocument document = OpenForModify();
+        int before = document.PageCount;
+        PdfPage page = new PdfPage(document);
+
+        PdfPage inserted = document.InsertPage(0, page);
+
+        Assert.Same(page, inserted);
+        Assert.Equal(before + 1, document.PageCount);
+        Assert.Equal(0, document.Pages.IndexOf(page));
+        Assert.True(Save(document).Length > 0);
+    }
+
+    /// <summary>
+    ///   InsertPage(int, PdfPage) imports a page of another document, so what comes back is a
+    ///   copy - the behaviour ImportPage says in its name and this overload does not.
+    /// </summary>
+    [Fact]
+    public void InsertPage_ImportsAForeignPageAndReturnsTheCopy()
+    {
+        PdfDocument document = OpenForModify();
+        PdfDocument foreign = OpenForImport();
+        int before = document.PageCount;
+
+        PdfPage source = foreign.Pages[0];
+        PdfPage inserted = document.InsertPage(0, source);
+
+        Assert.NotSame(source, inserted);
+        Assert.Equal(before + 1, document.PageCount);
+        Assert.Equal(0, document.Pages.IndexOf(inserted));
+        Assert.True(Save(document).Length > 0);
+    }
+
     // ----- import -------------------------------------------------------------------------
 
     /// <summary>

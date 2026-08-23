@@ -1173,8 +1173,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage AddPage()
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Add();
     }
 
@@ -1192,8 +1190,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage AddPage(PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Add(page, annotationCopying);
     }
 
@@ -1205,8 +1201,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage InsertPage(int index)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Insert(index);
     }
 
@@ -1224,8 +1218,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage InsertPage(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Insert(index, page, annotationCopying);
     }
 
@@ -1243,8 +1235,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// <param name="page">A page owned by this document that is not yet placed.</param>
     public PdfPage PlacePage(int index, PdfPage page)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Place(index, page);
     }
 
@@ -1263,8 +1253,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage ImportPage(int index, PdfPage page, AnnotationCopyingType annotationCopying = AnnotationCopyingType.ShallowCopy)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Import(index, page, annotationCopying);
     }
 
@@ -1283,8 +1271,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [MustUseReturnValue]
     public PdfPage DuplicatePage(int sourceIndex, int index)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         return Catalog.Pages.Duplicate(sourceIndex, index);
     }
 
@@ -1295,8 +1281,6 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// <param name="newIndex">The page index after this operation.</param>
     public void MovePage(int oldIndex, int newIndex)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
         Catalog.Pages.MovePage(oldIndex, newIndex);
     }
 
@@ -1374,79 +1358,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// </summary>
     public void ConsolidateImages()
     {
-        var images = ImageInfo.FindAll(this);
-
-        var mapHashcodeToMd5 = new Dictionary<int, string>();
-        var mapMd5ToPdfItem = new Dictionary<string, PdfItem>();
-
-        // Calculate MD5 for each image XObject and build lookups for all images.
-        foreach (ImageInfo img in images)
-        {
-            mapHashcodeToMd5[img.XObject.GetHashCode()] = img.XObjectMD5;
-            mapMd5ToPdfItem[img.XObjectMD5] = img.Item.Value;
-        }
-
-        // Set the PdfItem for each image to the one chosen for the MD5.
-        foreach (ImageInfo img in images)
-        {
-            string md5 = mapHashcodeToMd5[img.XObject.GetHashCode()];
-            img.XObjects.Elements[img.Item.Key] = mapMd5ToPdfItem[md5];
-        }
-    }
-        
-    internal class ImageInfo
-    {
-        public PdfDictionary XObjects { get; }
-        public KeyValuePair<string, PdfItem> Item  { get; }
-        public PdfDictionary XObject { get; }
-        public string XObjectMD5 { get; }
-
-        private static readonly MD5Managed Hasher = new();
-            
-        public ImageInfo(PdfDictionary xObjects, KeyValuePair<string, PdfItem> item, PdfDictionary xObject)
-        {
-            XObjects = xObjects;
-            Item = item;
-            XObject = xObject;
-            XObjectMD5 = ComputeMD5(xObject.Stream.Value);
-        }
-            
-        /// <summary>
-        /// Get info for each image in the document.
-        /// </summary>
-        internal static List<ImageInfo> FindAll(PdfDocument doc) =>
-            doc.Pages.Cast<PdfPage>()
-                .Select(page => page.Elements.GetDictionary("/Resources"))
-                .Select(resources => resources?.Elements?.GetDictionary("/XObject"))
-                .Where(xObjects => xObjects?.Elements != null)
-                .SelectMany(xObjects =>
-                    from item in xObjects.Elements
-                    let xObject = (item.Value as PdfReference)?.Value as PdfDictionary
-                    where xObject?.Elements?.GetString("/Subtype") == "/Image"
-                    select new ImageInfo(xObjects, item, xObject)
-                )
-                .ToList();
-            
-        /// <summary>
-        /// Compute and return the MD5 hash of the input data.
-        /// </summary>
-        internal static string ComputeMD5(byte[] input)
-        {
-            byte[] hashBytes;
-            lock (Hasher)
-            {
-                hashBytes = Hasher.ComputeHash(input);
-                Hasher.Initialize();
-            }
-                
-            var sb = new StringBuilder();
-            foreach (var x in hashBytes)
-            {
-                sb.Append(x.ToString("x2"));
-            }
-        
-            return sb.ToString();
-        }
+        PdfImageConsolidator.Consolidate(Pages);
     }
 
     /// <summary>
@@ -1494,39 +1406,48 @@ public sealed class PdfDocument : PdfObject, IDisposable
     [ThreadStatic]
     static ThreadLocalStorage tls;
 
-    [DebuggerDisplay("(ID={ID}, alive={IsAlive})")]
+    /// <summary>
+    /// A comparable, storable stand-in for "this document, weakly", so that the tables which
+    /// remember an imported document do not keep it alive.
+    /// <para>
+    /// Identity is the document's own <see cref="Guid"/>. It used to be that Guid reformatted
+    /// into a string, which is the same information said less directly and compared more
+    /// slowly.
+    /// </para>
+    /// </summary>
+    [DebuggerDisplay("(Id={Id}, alive={IsAlive})")]
     internal class DocumentHandle
     {
         public DocumentHandle(PdfDocument document)
         {
-            _weakRef = new WeakReference(document);
-            ID = document._guid.ToString("B").ToUpper();
+            _weakRef = new WeakReference<PdfDocument>(document);
+            Id = document.Guid;
         }
 
         public bool IsAlive
         {
-            get { return _weakRef.IsAlive; }
+            get { return _weakRef.TryGetTarget(out _); }
         }
 
         public PdfDocument Target
         {
-            get { return _weakRef.Target as PdfDocument; }
+            get { return _weakRef.TryGetTarget(out PdfDocument document) ? document : null; }
         }
-        readonly WeakReference _weakRef;
+        readonly WeakReference<PdfDocument> _weakRef;
 
-        public string ID;
+        readonly Guid Id;
 
         public override bool Equals(object obj)
         {
             DocumentHandle handle = obj as DocumentHandle;
             if (!ReferenceEquals(handle, null))
-                return ID == handle.ID;
+                return Id == handle.Id;
             return false;
         }
 
         public override int GetHashCode()
         {
-            return ID.GetHashCode();
+            return Id.GetHashCode();
         }
 
         public static bool operator ==(DocumentHandle left, DocumentHandle right)
