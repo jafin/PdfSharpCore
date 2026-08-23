@@ -66,19 +66,16 @@ internal sealed class PdfGraphicsState : ICloneable
 
     internal int Level;
 
+    /// <summary>
+    /// The state on <see cref="XGraphics"/>'s own stack this state was pushed for.
+    /// </summary>
+    /// <remarks>
+    /// Written once per save, by <see cref="XGraphicsPdfRenderer.Save"/> and
+    /// <see cref="XGraphicsPdfRenderer.BeginContainer"/>, and read by reference identity when the
+    /// matching restore looks for the frame to pop back to. It is the one link between the two
+    /// stacks; nothing else pairs them.
+    /// </remarks>
     internal InternalGraphicsState InternalState;
-
-    public void PushState()
-    {
-        // BeginGraphic
-        _renderer.Append("q/n");
-    }
-
-    public void PopState()
-    {
-        //BeginGraphic
-        _renderer.Append("Q/n");
-    }
 
     #region Stroke
 

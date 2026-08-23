@@ -824,12 +824,23 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// <summary>
     /// Clones the current graphics state and push it on a stack.
     /// </summary>
+    /// <remarks>
+    /// The line below is one of the two synchronization points between the two graphics state stacks
+    /// — this renderer's <c>_gfxStateStack</c> of realized PDF content-stream state, and
+    /// <see cref="XGraphics"/>'s own stack of <see cref="InternalGraphicsState"/> holding the
+    /// caller-facing transform and handle validity. Naming the current frame's owner is what lets
+    /// the matching <see cref="Restore(XGraphicsState)"/> find the frame to pop back to. It happens
+    /// exactly once per save, immediately before <see cref="SaveState"/> pushes, and it is sound only
+    /// because <c>XGraphics.Save</c> pushes onto its own stack before calling in here: a handle that
+    /// is not on that stack is refused by <see cref="GraphicsStateStack"/> and never reaches us.
+    /// Anything that pushes onto one stack has to push onto the other.
+    /// </remarks>
     public void Save(XGraphicsState state)
     {
         // Before saving, the current transformation matrix must be completely realized.
         BeginGraphicMode();
         RealizeTransform();
-        // Associate the XGraphicsState with the current PdgGraphicsState.
+        // Associate the XGraphicsState with the current PdfGraphicsState.
         _gfxState.InternalState = state.InternalState;
         SaveState();
     }
@@ -840,11 +851,20 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         RestoreState(state.InternalState);
     }
 
+    /// <summary>
+    /// Saves the current graphics state for a container, the same way <see cref="Save"/> does.
+    /// </summary>
+    /// <remarks>
+    /// The line below is the other synchronization point between the two graphics state stacks; see
+    /// <see cref="Save"/> for what it depends on. A container is saved and restored exactly as a
+    /// state is — the only difference above this seam is which token the caller hands back.
+    /// </remarks>
     public void BeginContainer(XGraphicsContainer container, XRect dstrect, XRect srcrect, XGraphicsUnit unit)
     {
         // Before saving, the current transformation matrix must be completely realized.
         BeginGraphicMode();
         RealizeTransform();
+        // Associate the XGraphicsContainer with the current PdfGraphicsState.
         _gfxState.InternalState = container.InternalState;
         SaveState();
     }
@@ -2646,19 +2666,38 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
         Append("Q\n");
     }
 
+    /// <summary>
+    /// Restores the graphical state saved for the given <see cref="InternalGraphicsState"/>, closing
+    /// every state saved after it on the way.
+    /// </summary>
+    /// <remarks>
+    /// The frame is found by reference identity against the cross-link <see cref="Save"/> and
+    /// <see cref="BeginContainer"/> write. No caller can drive that search past the bottom of the
+    /// stack: <see cref="GraphicsStateStack.Restore"/> refuses a handle that is not on
+    /// <see cref="XGraphics"/>'s own stack before this renderer is called at all. So running out of
+    /// frames means the two stacks have been pushed out of lockstep by a change inside this class,
+    /// and saying that is worth more than the bare "Stack empty." <see cref="Stack{T}"/> would throw
+    /// from a frame naming nothing.
+    /// </remarks>
     PdfGraphicsState RestoreState(InternalGraphicsState state)
     {
-        int count = 1;
-        PdfGraphicsState top = _gfxStateStack.Pop();
+        PdfGraphicsState top = Pop();
         while (top.InternalState != state)
         {
             Append("Q\n");
-            count++;
-            top = _gfxStateStack.Pop();
+            top = Pop();
         }
         Append("Q\n");
         _gfxState = top;
         return top;
+
+        PdfGraphicsState Pop() =>
+            _gfxStateStack.Count != 0
+                ? _gfxStateStack.Pop()
+                : throw new InvalidOperationException(
+                    "The two graphics state stacks are out of sync: the state being restored was " +
+                    "never saved on the renderer's stack. Every push onto XGraphics's stack must be " +
+                    "matched by one onto this renderer's, cross-linked in Save and BeginContainer.");
     }
 
     /// <summary>
