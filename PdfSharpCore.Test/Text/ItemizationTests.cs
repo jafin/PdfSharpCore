@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using AwesomeAssertions;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Text;
@@ -14,6 +17,15 @@ namespace PdfSharpCore.Test.Text;
 /// <remarks>
 ///   The bidirectional algorithm has its own conformance suite and is tested by it; what is left
 ///   here is script itemisation, which has no such suite, and the join between the two.
+///   <para>
+///   ScriptItemizer is internal - asked of a paragraph rather than of one bidirectional run it
+///   gives a plausible answer that disagrees with the bidirectional algorithm about where a run
+///   ends, so TextItemizer.Itemize is the only supported way in - and this repository carries no
+///   InternalsVisibleTo, so it is reached by reflection the way CharacterScanningTests reaches
+///   CharacterScanning. The script-only tests below keep asking it directly rather than going
+///   through TextItemizer: several of their inputs are mixed-direction too, so routing them through
+///   TextItemizer would let a script-itemisation regression hide behind correct bidi behaviour.
+///   </para>
 /// </remarks>
 public class ItemizationTests
 {
@@ -33,7 +45,7 @@ public class ItemizationTests
     [Fact]
     public void TextOfOneScriptIsOneRun()
     {
-        var runs = ScriptItemizer.Itemize("Hello");
+        var runs = ItemizeScripts("Hello");
 
         runs.Should().HaveCount(1);
         runs[0].Script.Should().Be(UnicodeScript.Latin);
@@ -44,7 +56,7 @@ public class ItemizationTests
     [Fact]
     public void AChangeOfScriptStartsANewRun()
     {
-        var runs = ScriptItemizer.Itemize("Hi" + Arabic);
+        var runs = ItemizeScripts("Hi" + Arabic);
 
         runs.Select(run => run.Script).Should().Equal(new[]
         {
@@ -59,7 +71,7 @@ public class ItemizationTests
     {
         // A space and a full stop are script Common and say nothing about which script they are
         // in. Sweeping them into the preceding run is the whole of UAX #24's difficulty.
-        var runs = ScriptItemizer.Itemize("Hi. " + Arabic);
+        var runs = ItemizeScripts("Hi. " + Arabic);
 
         runs.Should().HaveCount(2);
         runs[0].Length.Should().Be(4, "the full stop and the space belong to the Latin run");
@@ -71,7 +83,7 @@ public class ItemizationTests
     {
         // Nothing has said what script the text is in yet, so the opening bracket waits for the
         // first character that does and is taken into that run rather than left in one of its own.
-        var runs = ScriptItemizer.Itemize("(Hello)");
+        var runs = ItemizeScripts("(Hello)");
 
         runs.Should().HaveCount(1);
         runs[0].Script.Should().Be(UnicodeScript.Latin);
@@ -82,7 +94,7 @@ public class ItemizationTests
     public void ACombiningMarkTakesTheScriptOfTheLetterItSitsOn()
     {
         // A combining acute is script Inherited, which is Common's counterpart for marks.
-        var runs = ScriptItemizer.Itemize("\u0065\u0301");
+        var runs = ItemizeScripts("\u0065\u0301");
 
         runs.Should().HaveCount(1);
         runs[0].Script.Should().Be(UnicodeScript.Latin);
@@ -91,7 +103,7 @@ public class ItemizationTests
     [Fact]
     public void TextWithNoLettersInItIsOneCommonRun()
     {
-        var runs = ScriptItemizer.Itemize("12 + 34!");
+        var runs = ItemizeScripts("12 + 34!");
 
         runs.Should().HaveCount(1);
         runs[0].Script.Should().Be(UnicodeScript.Common);
@@ -101,7 +113,7 @@ public class ItemizationTests
     [Fact]
     public void NothingIsNoRuns()
     {
-        ScriptItemizer.Itemize(string.Empty).Should().BeEmpty();
+        ItemizeScripts(string.Empty).Should().BeEmpty();
     }
 
     [Fact]
@@ -109,11 +121,55 @@ public class ItemizationTests
     {
         // U+1D400 MATHEMATICAL BOLD CAPITAL A is Common, and its two UTF-16 units must not be
         // read as two characters of possibly different scripts.
-        var runs = ScriptItemizer.Itemize("A\U0001D400B");
+        var runs = ItemizeScripts("A\U0001D400B");
 
         runs.Should().HaveCount(1);
         runs[0].Script.Should().Be(UnicodeScript.Latin);
         runs[0].Length.Should().Be(4, "two Latin letters and one astral character of two units");
+    }
+
+    // ----- the window the itemiser is really asked about ----------------------------------------
+
+    [Fact]
+    public void TheWholeStringIsJustTheWidestWindow()
+    {
+        // The whole-string form is the range form with nothing left out, so generalising the loop
+        // cannot have moved a boundary the eight tests above already pin.
+        const string mixed = "Hi. " + Arabic + " 12 " + Hebrew + "!";
+
+        ItemizeScripts(mixed, 0, mixed.Length).Should().Equal(ItemizeScripts(mixed));
+    }
+
+    [Fact]
+    public void AWindowIsItemisedOnItsOwnAndIndexedIntoTheWholeString()
+    {
+        // What TextItemizer asks once per bidirectional run. The Hebrew is outside the window and
+        // so cannot cut it, and the indices that come back are into the string rather than into the
+        // window - a caller cutting the text at them has only the one set of numbers to get right.
+        const string both = Hebrew + Arabic;
+
+        var runs = ItemizeScripts(both, Hebrew.Length, Arabic.Length);
+
+        runs.Should().HaveCount(1, "there is only one script inside the window");
+        runs[0].Script.Should().Be(UnicodeScript.Arabic);
+        runs[0].Start.Should().Be(2);
+        runs[0].Length.Should().Be(4);
+    }
+
+    [Fact]
+    public void AWindowSweepsPunctuationIntoItselfAndNotIntoWhatSurroundsIt()
+    {
+        // The space is Common and goes with whatever it is beside - and inside this window the only
+        // thing it can be beside is the Arabic, which is the whole point of asking per run rather
+        // than per paragraph. Asked of the whole string it would have gone with the Latin instead.
+        const string mixed = "one " + Arabic;
+
+        var runs = ItemizeScripts(mixed, 3, 1 + Arabic.Length);
+
+        runs.Should().HaveCount(1);
+        runs[0].Script.Should().Be(UnicodeScript.Arabic);
+        runs[0].Start.Should().Be(3, "the space in front of the letters is inside the window");
+        runs[0].Length.Should().Be(5);
     }
 
     // ----- the join with the bidirectional algorithm --------------------------------------------------
@@ -289,5 +345,47 @@ public class ItemizationTests
         var result = BidiAlgorithm.Resolve(Hebrew);
 
         result.VisualOrder.Should().Equal(new[] { 1, 0 });
+    }
+
+    // ----- reaching the internal itemiser --------------------------------------------------------
+
+    static readonly Type ItemizerType = typeof(TextItemizer).Assembly
+        .GetType("PdfSharpCore.Text.ScriptItemizer", throwOnError: true);
+
+    /// <summary>
+    ///   One ScriptRun read off the internal struct, so that an assertion can be written about it
+    ///   without naming a type this assembly cannot see.
+    /// </summary>
+    sealed record ScriptRunView(int Start, int Length, UnicodeScript Script, string ScriptCode);
+
+    static IReadOnlyList<ScriptRunView> ItemizeScripts(string text)
+        => Read(Invoke(new[] { typeof(string) }, text));
+
+    static IReadOnlyList<ScriptRunView> ItemizeScripts(string text, int start, int length)
+        => Read(Invoke(new[] { typeof(string), typeof(int), typeof(int) }, text, start, length));
+
+    static object Invoke(Type[] signature, params object[] args)
+    {
+        var method = ItemizerType.GetMethod(
+            "Itemize", BindingFlags.Public | BindingFlags.Static, binder: null,
+            types: signature, modifiers: null);
+
+        return method.Invoke(null, args);
+    }
+
+    static IReadOnlyList<ScriptRunView> Read(object runs)
+    {
+        var read = new List<ScriptRunView>();
+        foreach (var run in (IEnumerable)runs)
+        {
+            var type = run.GetType();
+            read.Add(new ScriptRunView(
+                (int)type.GetProperty("Start").GetValue(run),
+                (int)type.GetProperty("Length").GetValue(run),
+                (UnicodeScript)type.GetProperty("Script").GetValue(run),
+                (string)type.GetProperty("ScriptCode").GetValue(run)));
+        }
+
+        return read;
     }
 }
