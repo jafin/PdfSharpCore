@@ -4,8 +4,8 @@ using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
+using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 
@@ -144,11 +144,11 @@ public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanage
             Image.Dispose();
         }
 
-        public void SaveAsPdfBitmap(MemoryStream ms)
+        public PixelBuffer GetPixels()
         {
             try
             {
-                EncodeBmp(ms);
+                return ReadPixels();
             }
             catch (Exception ex) when (ImageSharpVersion.IsBindingFailure(ex))
             {
@@ -165,11 +165,37 @@ public class ImageSharpImageSource<TPixel> : ImageSource where TPixel : unmanage
             Image.SaveAsJpeg(ms, new JpegEncoder() { Quality = this._quality });
         }
 
+        /// <summary>
+        /// Converts the decoded image into the one layout <see cref="PixelBuffer"/> describes:
+        /// tightly packed, top-down, B, G, R, A.
+        /// </summary>
+        /// <remarks>
+        /// The channel reorder is done here rather than left to an encoder. It used to happen
+        /// invisibly inside <c>BmpEncoder</c>, which writes B, G, R[, A] whatever
+        /// <typeparamref name="TPixel2"/> holds because that is what a BMP file is; with the BMP
+        /// detour gone nothing performs it for free. <c>ToBgra32Bytes</c> is ImageSharp's own bulk
+        /// conversion for exactly this byte layout, so a source in any pixel format lands in the
+        /// same order Skia decodes into directly.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void EncodeBmp(MemoryStream ms)
+        private PixelBuffer ReadPixels()
         {
-            BmpEncoder bmp = new BmpEncoder { BitsPerPixel = BmpBitsPerPixel.Pixel32 };
-            Image.Save(ms, bmp);
+            int width = Image.Width;
+            int height = Image.Height;
+            int stride = width * PixelBuffer.BytesPerPixel;
+
+            byte[] pixels = new byte[stride * height];
+            var operations = PixelOperations<TPixel2>.Instance;
+            var configuration = Image.GetConfiguration();
+
+            Image.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < height; y++)
+                    operations.ToBgra32Bytes(
+                        configuration, accessor.GetRowSpan(y), pixels.AsSpan(y * stride, stride), width);
+            });
+
+            return new PixelBuffer(width, height, pixels);
         }
     }
 }

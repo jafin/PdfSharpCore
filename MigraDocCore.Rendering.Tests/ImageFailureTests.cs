@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.Rendering.Tests.Helpers;
 using PdfSharpCore.Test.Helpers;
@@ -177,7 +178,12 @@ public class ImageFailureTests
         public int Height => _size();
         public bool Transparent => _transparent();
         public void SaveAsJpeg(MemoryStream ms) => _write();
-        public void SaveAsPdfBitmap(MemoryStream ms) => _write();
+
+        public PixelBuffer GetPixels()
+        {
+            _write();
+            return default;
+        }
 
         /// <summary>No pixels. Nothing throws; the arithmetic divides zero by zero.</summary>
         internal static IImageSource OfNoPixels() =>

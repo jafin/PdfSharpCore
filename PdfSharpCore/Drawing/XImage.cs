@@ -193,13 +193,12 @@ public class XImage : IDisposable
         return ms;
     }
 
-    /// <summary>Encodes the image as a bitmap and returns a stream positioned at its start.</summary>
-    public MemoryStream AsBitmap()
+    /// <summary>
+    /// Gets the decoded pixels, tightly packed top-down BGRA - see <see cref="PixelBuffer"/>.
+    /// </summary>
+    public PixelBuffer GetPixels()
     {
-        var ms = new MemoryStream();
-        _source.SaveAsPdfBitmap(ms);
-        ms.Position = 0;
-        return ms;
+        return _source.GetPixels();
     }
 
     /// <summary>

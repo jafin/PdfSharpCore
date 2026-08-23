@@ -50,13 +50,16 @@ public class ImageSharpVersionTest
         source.Height.Should().Be(512);
         source.Transparent.Should().BeTrue("lenna.png is a PNG, which the backend reports as transparent");
 
-        // Both encoders set an encoder property, the other half of the 3.x incompatibility.
+        // The JPEG encoder sets an encoder property, the other half of the 3.x incompatibility.
         using var jpeg = new MemoryStream();
         source.SaveAsJpeg(jpeg);
         jpeg.Length.Should().BeGreaterThan(0);
 
-        using var bitmap = new MemoryStream();
-        source.SaveAsPdfBitmap(bitmap);
-        bitmap.Length.Should().BeGreaterThan(0);
+        // The FLATE path takes no encoder at all any more, only ImageSharp's own bulk pixel
+        // conversion - which is the other API a version bump would move under this backend.
+        var pixels = source.GetPixels();
+        pixels.Width.Should().Be(512);
+        pixels.Height.Should().Be(512);
+        pixels.Pixels.Length.Should().Be(512 * 512 * 4);
     }
 }

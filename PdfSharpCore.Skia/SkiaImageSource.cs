@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
-using PdfSharpCore.Utils;
 using SkiaSharp;
 
 namespace PdfSharpCore.Skia;
@@ -126,9 +125,26 @@ public class SkiaImageSource
         }
 
 
-        public void SaveAsPdfBitmap(MemoryStream ms)
+        public PixelBuffer GetPixels()
         {
-            PdfBitmapWriter.Write(_bitmap, ms);
+            if (_bitmap.ColorType != SKColorType.Bgra8888)
+                throw new InvalidOperationException(
+                    $"Expected a Bgra8888 bitmap for '{Name}' but got {_bitmap.ColorType}.");
+
+            int width = _bitmap.Width;
+            int height = _bitmap.Height;
+            int stride = width * PixelBuffer.BytesPerPixel;
+
+            // Skia decodes straight into the layout a PixelBuffer promises - top-down, four bytes
+            // per pixel, B, G, R, A - so this is a copy out of native memory and nothing more. Rows
+            // are copied one at a time because SKBitmap.RowBytes may exceed the packed width.
+            byte[] pixels = new byte[stride * height];
+            ReadOnlySpan<byte> source = _bitmap.GetPixelSpan();
+            int rowBytes = _bitmap.RowBytes;
+            for (int y = 0; y < height; y++)
+                source.Slice(y * rowBytes, stride).CopyTo(pixels.AsSpan(y * stride, stride));
+
+            return new PixelBuffer(width, height, pixels);
         }
 
 

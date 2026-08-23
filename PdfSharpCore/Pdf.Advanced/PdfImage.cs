@@ -31,6 +31,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Filters;
 
@@ -138,131 +139,68 @@ public sealed class PdfImage : PdfXObject
     }
 
     /// <summary>
-    /// Creates the keys for a FLATE image.
+    /// Creates the keys for a FLATE image, from the pixels the backend decoded.
     /// </summary>
+    /// <remarks>
+    /// The pixels arrive tightly packed, top-down and BGRA - see <see cref="PixelBuffer"/> - which
+    /// is exactly the layout written out here, one channel reordering aside. Nothing about the
+    /// buffer is validated: the producer and this consumer are two ends of one call, so there is no
+    /// magic number, declared length or compression field between them to disagree about.
+    /// <para>
+    /// Every image is written as 8-bit <c>/DeviceRGB</c>. Grayscale and CMYK are still unsupported,
+    /// deliberately: a <see cref="PixelBuffer"/> says BGRA and nothing else, and neither backend's
+    /// decode step produces CMYK samples in the first place. Both wait on a second buffer shape
+    /// actually existing rather than on a parameter written in advance of one.
+    /// </para>
+    /// </remarks>
     void InitializeNonJpeg()
     {
-        ReadTrueColorMemoryBitmap(3, 8, true);
-    }
-
-    private static int ReadWord(byte[] ab, int offset)
-    {
-        return ab[offset] + 256 * ab[offset + 1];
-    }
-
-    private static int ReadDWord(byte[] ab, int offset)
-    {
-        return ReadWord(ab, offset) + 0x10000 * ReadWord(ab, offset + 2);
-    }
-
-    /// <summary>
-    /// Reads images that are returned from GDI+ without color palette.
-    /// </summary>
-    /// <param name="components">4 (32bpp RGB), 3 (24bpp RGB, 32bpp ARGB)</param>
-    /// <param name="bits">8</param>
-    /// <param name="hasAlpha">true (ARGB), false (RGB)</param>
-    private void ReadTrueColorMemoryBitmap(int components, int bits, bool hasAlpha)
-    {
         int pdfVersion = Owner.Version;
-        MemoryStream memory = new MemoryStream();
-        memory = _image.AsBitmap();
+        PixelBuffer pixels = _image.GetPixels();
 
-        int streamLength = (int)memory.Length;
-        Debug.Assert(streamLength > 0, "Bitmap image encoding failed.");
-        if (streamLength > 0)
+        Debug.Assert(!pixels.IsEmpty, "Image decoding produced no pixels.");
+        if (!pixels.IsEmpty)
         {
-            byte[] imageBits = new byte[streamLength];
-            memory.Seek(0, SeekOrigin.Begin);
-            memory.Read(imageBits, 0, streamLength);
-            memory.Dispose();
+            int width = pixels.Width;
+            int height = pixels.Height;
+            ReadOnlySpan<byte> source = pixels.Pixels.Span;
 
-            int height = _image.PixelHeight;
-            int width = _image.PixelWidth;
-
-            // TODO: we could define structures for
-            //   BITMAPFILEHEADER
-            //   { BITMAPINFO }
-            //   BITMAPINFOHEADER
-            // to avoid ReadWord and ReadDWord ... (but w/o pointers this doesn't help much)
-
-            bool bigHeader = false;
-            if (ReadWord(imageBits, 0) != 0x4d42 || // "BM"
-                ReadDWord(imageBits, 2) != streamLength ||
-                ReadDWord(imageBits, 18) != width ||
-                ReadDWord(imageBits, 22) != height)
-            {
-                throw new NotImplementedException("ReadTrueColorMemoryBitmap: unsupported format");
-            }
-            int infoHeaderSize = ReadDWord(imageBits, 14); // sizeof BITMAPINFOHEADER
-            if (infoHeaderSize != 40 && infoHeaderSize != 108)
-            {
-                throw new NotImplementedException("ReadTrueColorMemoryBitmap: unsupported format #2");
-            }
-            bigHeader = infoHeaderSize == 108;
-            if (ReadWord(imageBits, 26) != 1 ||
-                (!hasAlpha && ReadWord(imageBits, bigHeader?30:28) != components * bits ||
-                 hasAlpha && ReadWord(imageBits, bigHeader?30:28) != (components + 1) * bits) ||
-                bigHeader ? ReadWord(imageBits, 32) != 0 : ReadDWord(imageBits, 30) != 0)
-            {
-                throw new NotImplementedException("ReadTrueColorMemoryBitmap: unsupported format #3");
-            }
-
-            int nFileOffset = ReadDWord(imageBits, 10);
-            int logicalComponents = components;
-            if (components == 4)
-                logicalComponents = 3;
-
-            byte[] imageData = new byte[components * width * height];
+            byte[] imageData = new byte[3 * width * height];
 
             bool hasMask = false;
             bool hasAlphaMask = false;
-            byte[] alphaMask = hasAlpha ? new byte[width * height] : null;
-            MonochromeMask mask = hasAlpha ?
-                new MonochromeMask(width, height) : null;
+            byte[] alphaMask = new byte[width * height];
+            MonochromeMask mask = new MonochromeMask(width, height);
 
-            int nOffsetRead = 0;
-            if (logicalComponents == 3)
+            // Row r of the source is row r of the output: both are top-down and neither pads.
+            int read = 0;
+            int write = 0;
+            int writeAlpha = 0;
+            for (int y = 0; y < height; ++y)
             {
-                for (int y = 0; y < height; ++y)
+                mask.StartLine(y);
+
+                for (int x = 0; x < width; ++x)
                 {
-                    int nOffsetWrite = 3 * (height - 1 - y) * width;
-                    int nOffsetWriteAlpha = 0;
-                    if (hasAlpha)
+                    // BGRA in, RGB out.
+                    imageData[write] = source[read + 2];
+                    imageData[write + 1] = source[read + 1];
+                    imageData[write + 2] = source[read];
+
+                    byte alpha = source[read + 3];
+                    mask.AddPel(alpha);
+                    alphaMask[writeAlpha] = alpha;
+                    if (alpha != 255)
                     {
-                        mask.StartLine(y);
-                        nOffsetWriteAlpha = (height - 1 - y) * width;
+                        hasMask = true;
+                        if (alpha != 0)
+                            hasAlphaMask = true;
                     }
 
-                    for (int x = 0; x < width; ++x)
-                    {
-                        imageData[nOffsetWrite] = imageBits[nFileOffset + nOffsetRead + 2];
-                        imageData[nOffsetWrite + 1] = imageBits[nFileOffset + nOffsetRead + 1];
-                        imageData[nOffsetWrite + 2] = imageBits[nFileOffset + nOffsetRead];
-                        if (hasAlpha)
-                        {
-                            mask.AddPel(imageBits[nFileOffset + nOffsetRead + 3]);
-                            alphaMask[nOffsetWriteAlpha] = imageBits[nFileOffset + nOffsetRead + 3];
-                            if (!hasMask || !hasAlphaMask)
-                            {
-                                if (imageBits[nFileOffset + nOffsetRead + 3] != 255)
-                                {
-                                    hasMask = true;
-                                    if (imageBits[nFileOffset + nOffsetRead + 3] != 0)
-                                        hasAlphaMask = true;
-                                }
-                            }
-                            ++nOffsetWriteAlpha;
-                        }
-                        nOffsetRead += hasAlpha ? 4 : components;
-                        nOffsetWrite += 3;
-                    }
-                    nOffsetRead = 4 * ((nOffsetRead + 3) / 4); // Align to 32 bit boundary
+                    ++writeAlpha;
+                    read += PixelBuffer.BytesPerPixel;
+                    write += 3;
                 }
-            }
-            else if (components == 1)
-            {
-                // Grayscale
-                throw new NotImplementedException("Image format not supported (grayscales).");
             }
 
             FlateDecode fd = new FlateDecode();
@@ -312,28 +250,11 @@ public sealed class PdfImage : PdfXObject
             Elements[Keys.Width] = new PdfInteger(width);
             Elements[Keys.Height] = new PdfInteger(height);
             Elements[Keys.BitsPerComponent] = new PdfInteger(8);
-            // TODO: CMYK
             Elements[Keys.ColorSpace] = new PdfName("/DeviceRGB");
             if (_image.Interpolate)
                 Elements[Keys.Interpolate] = PdfBoolean.True;
         }
     }
-
-    /* BITMAPINFOHEADER struct and byte offsets:
-        typedef struct tagBITMAPINFOHEADER{
-          DWORD  biSize;           // 14
-          LONG   biWidth;          // 18
-          LONG   biHeight;         // 22
-          WORD   biPlanes;         // 26
-          WORD   biBitCount;       // 28
-          DWORD  biCompression;    // 30
-          DWORD  biSizeImage;      // 34
-          LONG   biXPelsPerMeter;  // 38
-          LONG   biYPelsPerMeter;  // 42
-          DWORD  biClrUsed;        // 46
-          DWORD  biClrImportant;   // 50
-        } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
-    */
 
     /// <summary>
     /// Common keys for all streams.
@@ -541,20 +462,19 @@ class MonochromeMask
     public MonochromeMask(int sizeX, int sizeY)
     {
         _sizeX = sizeX;
-        _sizeY = sizeY;
         int byteSize = ((sizeX + 7) / 8) * sizeY;
         _maskData = new byte[byteSize];
         StartLine(0);
     }
 
     /// <summary>
-    /// Starts a new line.
+    /// Starts a new line, counted from the top of the image as the pixels are.
     /// </summary>
     public void StartLine(int newCurrentLine)
     {
         _bitsWritten = 0;
         _byteBuffer = 0;
-        _writeOffset = ((_sizeX + 7) / 8) * (_sizeY - 1 - newCurrentLine);
+        _writeOffset = ((_sizeX + 7) / 8) * newCurrentLine;
     }
 
     /// <summary>
@@ -596,7 +516,6 @@ class MonochromeMask
     }
 
     private readonly int _sizeX;
-    private readonly int _sizeY;
     private int _writeOffset;
     private int _byteBuffer;
     private int _bitsWritten;

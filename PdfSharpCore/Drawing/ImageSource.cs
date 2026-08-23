@@ -59,8 +59,11 @@ public abstract class ImageSource
         /// written alongside it.
         /// </summary>
         bool Transparent { get; }
-        /// <summary>Writes the image to the stream as a bitmap, for a losslessly stored XObject.</summary>
-        void SaveAsPdfBitmap(MemoryStream ms);
+        /// <summary>
+        /// Gets the decoded pixels, for a losslessly stored XObject. See <see cref="PixelBuffer"/>
+        /// for the one layout they come in - tightly packed, top-down, BGRA, straight alpha.
+        /// </summary>
+        PixelBuffer GetPixels();
     }
 
     /// <summary>Decodes an image from a file. Implemented by the backend.</summary>

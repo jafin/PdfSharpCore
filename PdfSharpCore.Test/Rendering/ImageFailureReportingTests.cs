@@ -184,10 +184,12 @@ public class ImageFailureReportingTests
                 throw _exception;
         }
 
-        public void SaveAsPdfBitmap(MemoryStream ms)
+        public PixelBuffer GetPixels()
         {
             if (FailAt(Stage.Drawing))
                 throw _exception;
+
+            return default;
         }
 
         bool FailAt(Stage stage)
