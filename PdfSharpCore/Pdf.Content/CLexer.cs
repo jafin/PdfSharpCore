@@ -340,6 +340,11 @@ public class CLexer
         int decimalDigits = 0;
         bool period = false;
         bool negative = false;
+        // Set once the integer part alone would no longer fit in a long - a nineteen-or-more
+        // digit token, which unchecked arithmetic would otherwise wrap silently rather than
+        // report. Once set, value is no longer trustworthy and the token text is read directly
+        // instead, the same way a real with more than ten decimal digits already is below.
+        bool overflow = false;
 
         ClearToken();
         char ch = _currChar;
@@ -357,7 +362,10 @@ public class CLexer
                 _token.Append(ch);
                 if (decimalDigits < 10)
                 {
-                    value = 10 * value + ch - '0';
+                    if (!period && value > (Int64.MaxValue - 9) / 10)
+                        overflow = true;
+                    else
+                        value = 10 * value + ch - '0';
                     if (period)
                         decimalDigits++;
                 }
@@ -379,7 +387,7 @@ public class CLexer
             value = -value;
         if (period)
         {
-            if (decimalDigits > 0)
+            if (decimalDigits > 0 || overflow)
             {
                 // Read from the token rather than worked out from the digits gathered above.
                 // Those stop at the tenth decimal place, and a matrix written out to the
@@ -395,6 +403,17 @@ public class CLexer
             }
             return CSymbol.Real;
         }
+
+        if (overflow)
+        {
+            // More digits than any Int64 holds - not merely out of range for CSymbol.Integer,
+            // which the check below would otherwise degrade to a real anyway, but out of range
+            // for the accumulator itself. _tokenAsLong is left unset: nothing reads it once the
+            // symbol is Real.
+            _tokenAsReal = double.Parse(_token.ToString(), CultureInfo.InvariantCulture);
+            return CSymbol.Real;
+        }
+
         _tokenAsLong = value;
         _tokenAsReal = Convert.ToDouble(value);
 

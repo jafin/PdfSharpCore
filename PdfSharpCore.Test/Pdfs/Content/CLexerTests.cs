@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -552,6 +553,36 @@ public class CLexerTests
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
         TokensOf(tokens, CSymbol.Real).Should().Equal(content);
+    }
+
+    /// <summary>
+    ///   A token with more digits than Int64 itself holds - not merely more than
+    ///   CSymbol.Integer's Int32 range - overflows the long accumulator ScanNumber builds it in.
+    ///   Unchecked arithmetic wraps rather than throws, and the wrapped value used to be trusted
+    ///   anyway: <c>Debug.Assert(Int64.Parse(...) == value)</c> then called Int64.Parse on a
+    ///   token Int64.Parse itself cannot represent, which throws OverflowException rather than
+    ///   returning false - the assert never got the chance to fail cleanly, and TokenToReal's own
+    ///   assert against a freshly-parsed double would have caught the wrong value even if it had.
+    ///   ScanNumber now stops trusting the accumulator once it can no longer add a digit without
+    ///   overflowing, and reads the real from the token text instead - the same source a real
+    ///   with more than ten decimal digits already used. TokenToReal is internal and this
+    ///   repository carries no InternalsVisibleTo, so it is reached by reflection.
+    /// </summary>
+    [Theory]
+    [InlineData("99999999999999999999999999999")]  // 29 nines - past Int64.MaxValue's own width
+    [InlineData("-99999999999999999999999999999")] // and its negative counterpart
+    public void ScanNumber_degradesAnIntegerBeyondInt64ToARealWithoutOverflowing(string content)
+    {
+        var lexer = new CLexer(Encoding.ASCII.GetBytes(content));
+
+        var symbol = lexer.ScanNextToken();
+
+        symbol.Should().Be(CSymbol.Real);
+        lexer.Token.Should().Be(content);
+        var tokenToReal = typeof(CLexer)
+            .GetProperty("TokenToReal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        ((double)tokenToReal.GetValue(lexer)!).Should()
+            .Be(double.Parse(content, CultureInfo.InvariantCulture));
     }
 
     /// <summary>
