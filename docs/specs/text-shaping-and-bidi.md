@@ -433,13 +433,25 @@ arrive as correctness rather than as regression.
 
 ### What routing them settled
 
-**Measuring and drawing did not agree, and still do not.** `FontHelper.MeasureString` maps a tab to a
-space, drops every other character below 32, and treats `\n` as a line break; `DrawString` emits a
-glyph for all of them. So the two have always disagreed about strings containing control characters.
-Routing both through one seam made this visible and **deliberately preserved it** — the filtering
-stayed at the call site, because changing it is a behaviour change with nothing to do with shaping and
-would have moved output the shaper is supposed to leave alone. It is a real defect and it is written
-down here rather than fixed in passing.
+**Measuring and drawing did not agree, and now do — about every character except `\n`.**
+`FontHelper.MeasureString` maps a tab to a space, drops every other character below 32, and treats
+`\n` as a line break; `DrawString` used to emit a glyph for all of them. So the two had always
+disagreed about strings containing control characters. Routing both through one seam made this
+visible and **deliberately preserved it** — the filtering stayed at the call site, because changing
+it is a behaviour change with nothing to do with shaping and would have moved output the shaper is
+supposed to leave alone. It was written down here rather than fixed in passing, and it is now fixed
+on its own terms. `PdfSharpCore/Fonts/TextNormalization.cs` holds the one rule both sides read — a
+tab becomes a single space, every other character below 32 is dropped, nothing at or above 32 is
+touched — and `DrawString` applies it to the string before it measures it for alignment, shapes it,
+embeds a glyph for it or encodes it as WinAnsi, so every later read is of the one normalized local.
+It runs *before* `ShapeText` rather than inside it because both callers keep using the original
+string afterwards, and a shaper filtering underneath them would hand back cluster indices into a
+string nobody else has. The half that remains is the half that is a product question rather than a
+filtering one:
+`MeasureString` still splits on `\n` and reports several lines, `DrawString` still draws one and now
+drops the `\n` rather than boxing it, and
+`TextStateOperatorTests.ALineFeedIsAbsorbedByDrawStringWhileMeasureStringStillReportsTwoLines`
+fails on purpose the day that changes.
 
 **`WordSpacedGlyphRun` was the first thing to break the one-glyph-per-character assumption**, and it
 had asserted it outright: `Debug.Assert(text.Length == glyphs.Length, "One glyph per character, or

@@ -182,17 +182,12 @@ static class FontHelper
                             continue;
                         }
 
-                        // HACK: Handle tabulator sign as space (\t)
-                        if (ch == 9)
-                        {
-                            ch = ' ';
-                        }
-
-                        // HACK: Unclear what to do here.
-                        if (ch < 32)
-                        {
+                        // A tab becomes a space and every other control character is dropped -
+                        // the rule read from the one place that states it, because
+                        // XGraphicsPdfRenderer.DrawString now filters through the same call and
+                        // the two must not drift apart again.
+                        if (!TextNormalization.TryNormalize(ch, out ch))
                             continue;
-                        }
 
                         if (ch == ' ')
                             spaceCount++;

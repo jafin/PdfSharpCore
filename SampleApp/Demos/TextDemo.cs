@@ -111,11 +111,15 @@ internal sealed class TextDemo : PdfDemo
 
         Heading("DrawString does not wrap", 480);
 
-        // A newline is a character like any other here, and comes out as the box the font
-        // draws for a character it has no glyph for. Wrapping and breaking are
-        // XTextFormatter's job - see the Layout demo.
-        gfx.DrawString("A newline\nbecomes the box between these words, and a long line "
-            + "runs off the edge of the page rather than wrapping", body, XBrushes.Black,
+        // DrawString draws one line. A newline is not a line break here and is not drawn
+        // either - it is dropped, the way MeasureString has always dropped it, so the two
+        // words either side of it run together rather than being separated by the box the
+        // font draws for a character it has no glyph for. A tab is drawn as the single
+        // space it measures as. Wrapping and breaking are XTextFormatter's job - see the
+        // Layout demo.
+        gfx.DrawString("A newline\nvanishes between these words, a tab\tis the space it "
+            + "measures as, and a long line runs off the edge of the page rather than "
+            + "wrapping", body, XBrushes.Black,
             new XPoint(48, 510));
 
         // ---- Page two: the state a string is drawn under -------------------------------

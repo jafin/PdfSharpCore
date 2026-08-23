@@ -210,6 +210,60 @@ public class TextStateMeasurementTests
         split.Should().BeApproximately(oneLine, Tolerance);
     }
 
+    // ----- the characters measured are the characters drawn --------------------------------------
+    //
+    // The per-character half of the slow path - a tab becoming a space, every other control
+    // character dropped - now lives in TextNormalization, which XGraphicsPdfRenderer.DrawString
+    // calls too. These say the measuring side of it is unchanged by the move; that drawing now
+    // agrees is TextStateOperatorTests.
+
+    [Fact]
+    public void ATabIsMeasuredAsASingleSpace()
+    {
+        var gfx = NewGraphics();
+
+        var tabbed = gfx.MeasureString("Hand\tgloves", Font, Format()).Width;
+        var spaced = gfx.MeasureString("Hand gloves", Font, Format()).Width;
+
+        tabbed.Should().BeApproximately(spaced, Tolerance);
+    }
+
+    [Fact]
+    public void ATabIsPaidTheWordSpacingASpaceIsPaid()
+    {
+        var gfx = NewGraphics();
+
+        var format = Format();
+        format.WordSpacing = 7;
+
+        // It is a space by the time anything counts spaces, so it earns the word spacing too -
+        // and the renderer breaks its run at the same place for the same reason.
+        var tabbed = gfx.MeasureString("Hand\tgloves", Font, format).Width;
+        var spaced = gfx.MeasureString("Hand gloves", Font, format).Width;
+
+        tabbed.Should().BeApproximately(spaced, Tolerance);
+    }
+
+    [Theory]
+    [InlineData('\r')]
+    [InlineData('\v')]
+    [InlineData('\f')]
+    [InlineData((char)27)]
+    public void AControlCharacterOtherThanATabAndALineFeedCostsNothingAtAll(char ch)
+    {
+        var gfx = NewGraphics();
+
+        var format = Format();
+        format.CharacterSpacing = 5;
+
+        // Dropped rather than looked up, so it is not even paid a character spacing. \n is the
+        // one exception, and it is a line break rather than a character - see the two tests above.
+        var plain = gfx.MeasureString("abc", Font, format).Width;
+        var carrying = gfx.MeasureString("ab" + ch + "c", Font, format).Width;
+
+        carrying.Should().BeApproximately(plain, Tolerance);
+    }
+
     [Fact]
     public void HorizontalScalingRejectsZeroAndNegativeValues()
     {

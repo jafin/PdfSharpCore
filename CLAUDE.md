@@ -183,6 +183,18 @@ are internal; it carries the already-resolved face and its bytes, so a shaper ca
 renderer about which file a family means. Advances are in **font design units**, read against
 `ShapedRun.UnitsPerEm`.
 
+Both of them also filter the same characters first, through `Fonts/TextNormalization`: **a tab is a
+single space and every other character below 32 is dropped**, `\n` and `\r` included. It runs
+*before* `ShapeText` in both callers rather than inside it, because both keep using the original
+string afterwards — for the text a run stands for, for `/ToUnicode` and for the WinAnsi bytes — so a
+shaper filtering underneath them would answer cluster indices into a string nobody else has.
+`DrawString` normalizes once, before the `font.Unicode` branch, and returns early when nothing
+survives. **It does not split on `\n`**: it draws one line and drops the newline, while
+`MeasureString` still splits and reports several — the one remaining disagreement, pinned on purpose
+by `TextStateOperatorTests.ALineFeedIsAbsorbedByDrawStringWhileMeasureStringStillReportsTwoLines`.
+Multi-line text is `XTextFormatter`'s job and MigraDoc's, and both split before `DrawString` is
+reached.
+
 Both of those call `TextShaping.ShapeText`, not `TextShaping.Shape`: a *string* is not a run, and
 `ShapeText` is where it is cut into runs — one direction and one script each — and each is shaped on
 its own terms. It answers a `ShapedText`, a list of `ShapedSegment` in **visual order**. Drawing them
