@@ -189,8 +189,7 @@ public sealed class PdfString : PdfItem
 
     internal PdfStringFlags Flags => _flags;
 
-    // Not readonly: decrypting a string can reveal that it is UTF-16BE, see EncryptionValue.
-    PdfStringFlags _flags;
+    readonly PdfStringFlags _flags;
 
     /// <summary>
     /// Gets the string value.
@@ -199,38 +198,40 @@ public sealed class PdfString : PdfItem
         // This class must behave like a value type. Therefore it cannot be changed (like System.String).
         _value ?? "";
 
-    string _value;
+    readonly string _value;
 
     /// <summary>
-    /// Gets or sets the string value for encryption purposes.
+    /// Gets the string value as the bytes encryption works on.
     /// </summary>
-    internal byte[] EncryptionValue
-    {
-        get => _value == null ? new byte[0] : GetBytesFromEncoding();
-        // BUG: May lead to trouble with the value semantics of PdfString
-        set
-        {
-            // A text string keeps its byte order mark inside the encrypted bytes, so whether it is
-            // UTF-16BE only becomes apparent once it has been decrypted. The flags were decided by
-            // the lexer, which saw the ciphertext and had nothing to go by, so the mark decides
-            // here and the flags are corrected to match what the value now holds.
-            if (value.Length >= 2 && value[0] == 0xFE && value[1] == 0xFF)
-            {
-                _value = PdfEncoders.RawUnicodeEncoding.GetString(value, 2, value.Length - 2);
-                _flags = (_flags & ~PdfStringFlags.EncodingMask) | PdfStringFlags.Unicode;
-                return;
-            }
+    internal byte[] EncryptionValue => _value == null ? new byte[0] : GetBytesFromEncoding();
 
-            var encoding = (PdfStringEncoding)(_flags & PdfStringFlags.EncodingMask);
-            switch (encoding)
-            {
-                case PdfStringEncoding.Unicode:
-                    _value = PdfEncoders.RawUnicodeEncoding.GetString(value);
-                    break;
-                default:
-                    _value = PdfEncoders.RawEncoding.GetString(value);
-                    break;
-            }
+    /// <summary>
+    /// Builds the string those bytes spell, once encryption has run over them.
+    /// </summary>
+    /// <remarks>
+    /// A text string keeps its byte order mark inside the encrypted bytes, so whether it is
+    /// UTF-16BE only becomes apparent once it has been decrypted. The flags were decided by
+    /// the lexer, which saw the ciphertext and had nothing to go by, so the mark decides
+    /// here and the flags of the string returned say what the value now holds. This is a
+    /// factory rather than a setter because a PdfString is a simple type and must not change
+    /// after it is constructed; the caller replaces the entry that held the old one.
+    /// </remarks>
+    internal static PdfString FromEncryptionValue(byte[] value, PdfStringFlags flags)
+    {
+        if (value.Length >= 2 && value[0] == 0xFE && value[1] == 0xFF)
+        {
+            return new PdfString(
+                PdfEncoders.RawUnicodeEncoding.GetString(value, 2, value.Length - 2),
+                (flags & ~PdfStringFlags.EncodingMask) | PdfStringFlags.Unicode);
+        }
+
+        var encoding = (PdfStringEncoding)(flags & PdfStringFlags.EncodingMask);
+        switch (encoding)
+        {
+            case PdfStringEncoding.Unicode:
+                return new PdfString(PdfEncoders.RawUnicodeEncoding.GetString(value), flags);
+            default:
+                return new PdfString(PdfEncoders.RawEncoding.GetString(value), flags);
         }
     }
 

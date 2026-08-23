@@ -118,6 +118,13 @@ public sealed class PdfStringObject : PdfObject
     /// <summary>
     /// Gets or sets the string value for encryption purposes.
     /// </summary>
+    /// <remarks>
+    /// This still assigns in place where <see cref="PdfString.FromEncryptionValue"/> builds a new
+    /// string instead. The difference is deliberate: the simple-type rule only covers types derived
+    /// from PdfItem but not from PdfObject, and this is a PdfObject. It has identity rather than
+    /// value semantics, it is reached through its own indirect reference rather than held directly
+    /// by a dictionary or array entry, and so there is no entry for a caller to replace.
+    /// </remarks>
     internal byte[] EncryptionValue
     {
         get
