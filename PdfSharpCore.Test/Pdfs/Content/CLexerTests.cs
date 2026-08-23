@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using AwesomeAssertions;
@@ -30,6 +32,43 @@ public class CLexerTests
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
         TokensOf(tokens, CSymbol.Name).Should().Equal("/Foo");
+    }
+
+    // The document lexer treats a vertical tab and a soft hyphen as white space between tokens,
+    // wider than PDF's own list of NUL, HT, LF, FF, CR and SP. A content stream a document lexer
+    // reads should read the same way, rather than folding the separator into one of the operators
+    // either side of it or refusing the byte outright.
+    [Theory(Timeout = 5000)]
+    [InlineData((byte)11)]  // vertical tab
+    [InlineData((byte)173)] // soft hyphen
+    public async Task ScanNextToken_treatsAVerticalTabAndASoftHyphenAsWhiteSpace(byte separator)
+    {
+        var content = new byte[] { (byte)'B', (byte)'T', separator, (byte)'Q' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.Operator).Should().Equal("BT", "Q");
+    }
+
+    // The document lexer treats '{' and '}' as delimiters; CLexer's copy of the list had both
+    // commented out, so a name written hard against one - with no white space to end it instead -
+    // swallowed the brace as if it were one more character of the name. Neither lexer's grammar
+    // has a token that starts with a bare brace, so this scans the one name token rather than
+    // scanning on into what follows it.
+    [Theory(Timeout = 5000)]
+    [InlineData("/Foo{", "/Foo")]
+    [InlineData("/Foo}", "/Foo")]
+    public async Task ScanName_endsAtABraceWithNoWhiteSpaceNeeded(string content, string expected)
+    {
+        var scanned = await Interruptibly.Run(() =>
+        {
+            var lexer = new CLexer(Encoding.ASCII.GetBytes(content));
+            var symbol = lexer.ScanNextToken();
+            return (symbol, lexer.Token);
+        });
+
+        scanned.symbol.Should().Be(CSymbol.Name);
+        scanned.Token.Should().Be(expected);
     }
 
     [Theory(Timeout = 5000)]
@@ -93,7 +132,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        tokens.Should().Contain(token => token.Symbol == CSymbol.String);
+        tokens.Should().Contain(token => token.Symbol == CSymbol.UnicodeString);
     }
 
     [Theory(Timeout = 5000)]
@@ -121,6 +160,31 @@ public class CLexerTests
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
         TokensOf(tokens, CSymbol.HexString).Should().Equal(BytesSpelling(expected));
+    }
+
+    // A hex string carrying the UTF-16BE byte order mark decodes to text either way, but used to
+    // come back as CSymbol.HexString regardless - CParser treats the two symbols alike, so nothing
+    // downstream noticed, but the symbol itself said less than the scanner already knew.
+    [Fact(Timeout = 5000)]
+    public async Task ScanHexadecimalString_isRecognisedByItsByteOrderMark()
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes("<FEFF00480049>")));
+
+        TokensOf(tokens, CSymbol.UnicodeHexString).Should().Equal("HI");
+    }
+
+    // A Unicode hex string short of the low byte of its last character used to be caught only by
+    // a Debug.Assert, which does nothing in a Release build - where the decode loop then read one
+    // character past the end of the string. The missing byte is a zero, the same reading a plain
+    // hex string missing its final digit gets, just above.
+    [Theory(Timeout = 5000)]
+    [InlineData("<FEFF0>")]
+    [InlineData("<FEFF0")]
+    public async Task ScanHexadecimalString_padsAUnicodeHexStringShortOfItsLastByte(string content)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.UnicodeHexString).Should().Equal("\0");
     }
 
     [Theory(Timeout = 5000)]
@@ -242,7 +306,22 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("Hi");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Hi");
+    }
+
+    /// <summary>
+    /// Adobe Reader also accepts the little-endian byte order mark, FF FE, and the document lexer
+    /// decodes it too - CLexer's copy checked for FE FF alone, so the same bytes read as raw pairs
+    /// rather than as the text they spell.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_readsALittleEndianUnicodeStringTheOtherWayRound()
+    {
+        var content = new byte[] { (byte)'(', 0xFF, 0xFE, (byte)'H', 0x00, (byte)'i', 0x00, (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Hi");
     }
 
     /// <summary>
@@ -258,7 +337,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("Ω€");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("Ω€");
     }
 
     [Fact(Timeout = 5000)]
@@ -268,7 +347,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("");
     }
 
     /// <summary>
@@ -341,18 +420,38 @@ public class CLexerTests
     }
 
     [Theory(Timeout = 5000)]
-    [InlineData("(a\\\nb)")]
-    [InlineData("(a\\\rb)")]
-    [InlineData("(a\\\r\nb)")]
+    [InlineData("(a\\\nb)", "ab")]
+    [InlineData("(a\\\rb)", "ab")]
+    // Both bytes of a CR LF pair are read raw here, matching the document lexer's own
+    // ScanLiteralString: the CR after the backslash continues the line, but the LF that follows
+    // it is not itself escaped, so it lands in the string as an ordinary character rather than
+    // being swallowed along with the CR. Lexer does the same - LexerLiteralStringTests would pin
+    // it there too, but no such test existed before this one for either lexer.
+    [InlineData("(a\\\r\nb)", "a\nb")]
     public async Task ScanLiteralString_treatsABackslashBeforeAnEndOfLineAsAContinuation(
-        string content)
+        string content, string expected)
     {
-        // A long string may be broken across lines of the file without the break becoming part
-        // of it. All three spellings of an end of line have to work, which they do because the
-        // scanner turns them all into one before the escape is looked at.
         var tokens = await ScanAll(new CLexer(Encoding.Latin1.GetBytes(content)));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("ab");
+        TokensOf(tokens, CSymbol.String).Should().Equal(expected);
+    }
+
+    /// <summary>
+    ///   A carriage return that is not escaped is not a line continuation and is not folded into
+    ///   a line feed either - the document lexer reads a literal string's characters with folding
+    ///   off throughout, so a bare CR is kept exactly as written. CLexer used to fold every CR to
+    ///   LF unconditionally, escaped or not, which is what made the guard above look unnecessary:
+    ///   the fold did its job by accident. Closing it here is what makes an explicit case for CR
+    ///   in the escape switch load-bearing rather than redundant.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task ScanLiteralString_keepsABareCarriageReturnRatherThanFoldingIt()
+    {
+        var content = new byte[] { (byte)'(', (byte)'a', 0x0D, (byte)'b', (byte)')' };
+
+        var tokens = await ScanAll(new CLexer(content));
+
+        TokensOf(tokens, CSymbol.String).Should().Equal("a\rb");
     }
 
     /// <summary>
@@ -389,7 +488,7 @@ public class CLexerTests
 
         var tokens = await ScanAll(new CLexer(content));
 
-        TokensOf(tokens, CSymbol.String).Should().Equal("A");
+        TokensOf(tokens, CSymbol.UnicodeString).Should().Equal("A");
     }
 
     [Fact(Timeout = 5000)]
@@ -439,6 +538,74 @@ public class CLexerTests
         var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
 
         TokensOf(tokens, CSymbol.Operator).Should().Equal("d");
+    }
+
+    /// <summary>
+    ///   An integer too large for CSymbol.Integer used to be refused outright. The document lexer
+    ///   degrades the same value to a real rather than throw - CSymbol has no separate "long
+    ///   integer" symbol to reach for instead, so a real is the fallback here too.
+    /// </summary>
+    [Theory(Timeout = 5000)]
+    [InlineData("5000000000")]  // past Int32.MaxValue
+    [InlineData("-5000000000")] // and its negative counterpart
+    public async Task ScanNumber_degradesAnIntegerOutOfRangeToAReal(string content)
+    {
+        var tokens = await ScanAll(new CLexer(Encoding.ASCII.GetBytes(content)));
+
+        TokensOf(tokens, CSymbol.Real).Should().Equal(content);
+    }
+
+    /// <summary>
+    ///   A token with more digits than Int64 itself holds - not merely more than
+    ///   CSymbol.Integer's Int32 range - overflows the long accumulator ScanNumber builds it in.
+    ///   Unchecked arithmetic wraps rather than throws, and the wrapped value used to be trusted
+    ///   anyway: <c>Debug.Assert(Int64.Parse(...) == value)</c> then called Int64.Parse on a
+    ///   token Int64.Parse itself cannot represent, which throws OverflowException rather than
+    ///   returning false - the assert never got the chance to fail cleanly, and TokenToReal's own
+    ///   assert against a freshly-parsed double would have caught the wrong value even if it had.
+    ///   ScanNumber now stops trusting the accumulator once it can no longer add a digit without
+    ///   overflowing, and reads the real from the token text instead - the same source a real
+    ///   with more than ten decimal digits already used. TokenToReal is internal and this
+    ///   repository carries no InternalsVisibleTo, so it is reached by reflection.
+    /// </summary>
+    [Theory]
+    [InlineData("99999999999999999999999999999")]  // 29 nines - past Int64.MaxValue's own width
+    [InlineData("-99999999999999999999999999999")] // and its negative counterpart
+    public void ScanNumber_degradesAnIntegerBeyondInt64ToARealWithoutOverflowing(string content)
+    {
+        var lexer = new CLexer(Encoding.ASCII.GetBytes(content));
+
+        var symbol = lexer.ScanNextToken();
+
+        symbol.Should().Be(CSymbol.Real);
+        lexer.Token.Should().Be(content);
+        var tokenToReal = typeof(CLexer)
+            .GetProperty("TokenToReal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        ((double)tokenToReal.GetValue(lexer)!).Should()
+            .Be(double.Parse(content, CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    ///   The document lexer refuses to append the end-of-content marker to a token rather than
+    ///   grow one out of it, and CLexer now carries the same guard. No grammar rule reaches it
+    ///   through the public surface - each of ScanComment, ScanName and ScanOperator checks the
+    ///   character this method returns for the end of content before calling it again - which is
+    ///   exactly why the guard exists: it is what stops a rule that someday does not make that
+    ///   check from reading past the token buffer instead. AppendAndScanNextChar is internal and
+    ///   this repository carries no InternalsVisibleTo, so it is reached by reflection.
+    /// </summary>
+    [Fact]
+    public void AppendAndScanNextChar_refusesToAppendTheEndOfContentMarker()
+    {
+        var lexer = new CLexer(Array.Empty<byte>());
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(CLexer).GetField("_currChar", flags)!.SetValue(lexer, (char)0xFFFF);
+        var method = typeof(CLexer).GetMethod("AppendAndScanNextChar", flags)!;
+
+        Action invoke = () => method.Invoke(lexer, null);
+
+        invoke.Should().Throw<TargetInvocationException>()
+            .WithInnerException<ContentReaderException>();
     }
 
     static IEnumerable<string> TokensOf(IEnumerable<(CSymbol Symbol, string Token)> tokens, CSymbol symbol)

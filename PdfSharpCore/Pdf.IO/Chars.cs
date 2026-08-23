@@ -168,6 +168,10 @@ public sealed class Chars
     /// </summary>
     public const char NumberSign = '#';
     /// <summary>
+    /// The asterisk.
+    /// </summary>
+    public const char Asterisk = '*';
+    /// <summary>
     /// The question mark.
     /// </summary>
     public const char Question = '?';
