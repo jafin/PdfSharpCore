@@ -436,4 +436,109 @@ public class TextStateOperatorTests
         // when it is not. One Tc, for the string that asked for one.
         TextOperators.NumbersGivenTo(page, OpCodeName.Tc).Should().Equal(3);
     }
+
+    // ----- the characters drawn are the characters measured --------------------------------------
+    //
+    // FontHelper.MeasureString has always turned a tab into a space and dropped every other
+    // character below 32; DrawString handed all of them to the cmap as ordinary code points and
+    // drew whatever box came back. Both now filter through TextNormalization, so what is written
+    // here is what was measured. The strings are read back as literals, which is why these use the
+    // WinAnsi font: an Identity-H run writes glyph numbers instead.
+
+    [Fact]
+    public void ATabIsDrawnAsTheSpaceItIsMeasuredAs()
+    {
+        var page = PageShowing("Handgloves\tand quartz", WinAnsiFont, XStringFormats.Default);
+
+        TextOperators.ShownStrings(page).Should().Equal("Handgloves and quartz");
+    }
+
+    [Fact]
+    public void AControlCharacterOtherThanATabIsNotDrawnAtAll()
+    {
+        // A carriage return has never been measured and is now not drawn either. Nothing here
+        // folds it into a line break the way XTextFormatter does - that is a separate question,
+        // and answering it in passing would be a second change wearing this one's clothes.
+        var page = PageShowing("Hand\rgloves", WinAnsiFont, XStringFormats.Default);
+
+        TextOperators.ShownStrings(page).Should().Equal("Handgloves");
+    }
+
+    [Fact]
+    public void AStringOfNothingButControlCharactersDrawsNothingAtAll()
+    {
+        // It normalizes to empty, and an empty string is not a font realization, a pen movement
+        // and a Tj with nothing in it.
+        var page = PageShowing("\r\n\v\f", WinAnsiFont, XStringFormats.Default);
+
+        TextOperators.ShowTextOperators(page).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ATabInAUnicodeRunIsDrawnAsASpaceToo()
+    {
+        // The filtering happens before the font.Unicode branch, so the Identity-H path gets it
+        // for the same one call. Read here as a word spacing rather than as a literal: Tw cannot
+        // reach a two-byte code, so the renderer breaks the run at every space and moves the pen
+        // by hand - and a tab that survived unfiltered would be one glyph and no break.
+        var format = XStringFormats.Default;
+        format.WordSpacing = 4;
+
+        var page = PageShowing("Hand\tgloves", UnicodeFont, format);
+
+        // Two pieces, split at the space the tab became.
+        TextOperators.TJRunCounts(page).Should().Equal(2);
+        TextOperators.TJAdjustments(page).Should().ContainSingle();
+    }
+
+    [Fact]
+    public void AWinAnsiStringIsPlacedByTheWidthMeasureStringReportsForTheCharactersItDraws()
+    {
+        // The assertion this whole change exists to make possible. Far alignment places the
+        // origin at rect.Right - MeasureString(s).Width, so the gap between the right edge and
+        // where the run actually starts is exactly the width that was measured. Before this,
+        // DrawString measured the unfiltered string and then drew a different one.
+        const string text = "Hand\tgloves";
+        var font = WinAnsiFont;
+        var format = XStringFormats.Default;
+        format.Alignment = XStringAlignment.Far;
+
+        var rect = new XRect(20, 40, 300, 0);
+        double measured = 0;
+        var page = PageShowing(gfx =>
+        {
+            measured = gfx.MeasureString(text, font, format).Width;
+            gfx.DrawString(text, font, XBrushes.Black, rect, format);
+        });
+
+        var shown = TextOperators.ShownWithPositions(page);
+        shown.Should().ContainSingle();
+        shown[0].Text.Should().Be("Hand gloves");
+        (rect.Right - shown[0].X).Should().BeApproximately(measured, StreamPrecision);
+    }
+
+    [Fact]
+    public void ALineFeedIsAbsorbedByDrawStringWhileMeasureStringStillReportsTwoLines()
+    {
+        // The one disagreement this change does not close, pinned so that it cannot go silent a
+        // second time. MeasureString splits on \n and reports the height of two lines;
+        // DrawString draws one line with the newline dropped rather than boxed. A future change
+        // that makes DrawString split on \n as well is meant to fail here, on purpose.
+        const string text = "A newline\nbecomes";
+        var font = WinAnsiFont;
+
+        double twoLines = 0, oneLine = 0;
+        var page = PageShowing(gfx =>
+        {
+            twoLines = gfx.MeasureString(text, font, XStringFormats.Default).Height;
+            oneLine = gfx.MeasureString("A newline", font, XStringFormats.Default).Height;
+            gfx.DrawString(text, font, XBrushes.Black, 20, 40, XStringFormats.Default);
+        });
+
+        twoLines.Should().BeGreaterThan(oneLine);
+
+        // One run, both words on it, and no line feed anywhere in what was written.
+        TextOperators.ShowTextOperators(page).Should().Equal(OpCodeName.Tj);
+        TextOperators.ShownStrings(page).Should().Equal("A newlinebecomes");
+    }
 }

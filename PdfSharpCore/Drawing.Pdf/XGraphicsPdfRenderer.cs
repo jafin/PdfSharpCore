@@ -382,6 +382,20 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
 
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect rect, XStringFormat format)
     {
+        // Filtered before anything at all reads it: a tab becomes the space MeasureString has
+        // always measured it as, and every other character below 32 is dropped rather than looked
+        // up in the cmap and drawn as the box the face keeps at .notdef. The width measured for
+        // alignment below, the shaping, the glyphs embedded, what /ToUnicode says they mean and the
+        // WinAnsi branch's bytes all read this one local, so measuring and drawing cannot disagree
+        // about which characters there were. See TextNormalization - and note that \n is dropped
+        // here rather than split on: this draws one line, and XTextFormatter draws several.
+        s = TextNormalization.NormalizeLine(s);
+
+        // A string of nothing but control characters is now nothing. Without this the renderer
+        // would still realize a font, move the pen and write an empty Tj.
+        if (s.Length == 0)
+            return;
+
         double lineSpace = font.GetHeight();
         double cyAscent = lineSpace * font.CellAscent / font.CellSpace;
         double cyDescent = lineSpace * font.CellDescent / font.CellSpace;

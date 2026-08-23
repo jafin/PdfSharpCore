@@ -1180,9 +1180,16 @@ public sealed class XGraphics : IDisposable
     }
 
     // ----- DrawString ---------------------------------------------------------------------------
+    //
+    // Every overload below draws one line. A line break in the string is not a line break here:
+    // a tab is drawn as the single space it is measured as, and every other character below 32 -
+    // \n and \r among them - is dropped, so that the glyphs drawn are the glyphs MeasureString
+    // measured. Wrapping, breaking, tab stops and justification belong to XTextFormatter and to
+    // MigraDoc's ParagraphRenderer, both of which split a paragraph into lines before any of this
+    // is called. See PdfSharpCore/Fonts/TextNormalization.cs for the filtering rule itself.
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string s, XFont font, XBrush brush, XPoint point)
     {
@@ -1191,7 +1198,7 @@ public sealed class XGraphics : IDisposable
 
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string s, XFont font, XBrush brush, XPoint point, XStringFormat format)
     {
@@ -1199,7 +1206,7 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string s, XFont font, XBrush brush, double x, double y)
     {
@@ -1207,7 +1214,7 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string s, XFont font, XBrush brush, double x, double y, XStringFormat format)
     {
@@ -1216,7 +1223,7 @@ public sealed class XGraphics : IDisposable
 
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string s, XFont font, XBrush brush, XRect layoutRectangle)
     {
@@ -1224,7 +1231,7 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string.
+    /// Draws the specified text string as a single line.
     /// </summary>
     public void DrawString(string text, XFont font, XBrush brush, XRect layoutRectangle, XStringFormat format)
     {
@@ -1241,8 +1248,8 @@ public sealed class XGraphics : IDisposable
     // neither is an error, the same way it is for DrawRectangle.
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point)
     {
@@ -1250,8 +1257,8 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, XPoint point, XStringFormat format)
     {
@@ -1259,8 +1266,8 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y)
     {
@@ -1268,8 +1275,8 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, double x, double y, XStringFormat format)
     {
@@ -1277,8 +1284,8 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
     public void DrawString(string s, XFont font, XPen pen, XBrush brush, XRect layoutRectangle)
     {
@@ -1286,9 +1293,24 @@ public sealed class XGraphics : IDisposable
     }
 
     /// <summary>
-    /// Draws the specified text string, filled with the brush and outlined with the pen.
-    /// Either may be null, but not both.
+    /// Draws the specified text string as a single line, filled with the brush and outlined with
+    /// the pen. Either may be null, but not both.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every other <c>DrawString</c> overload comes through here, and none of them draws more than
+    /// one line. A tab in <paramref name="text"/> is drawn as the single space
+    /// <see cref="MeasureString(string, XFont, XStringFormat)"/> measures it as, and every other
+    /// character below 32 - a line feed and a carriage return among them - is dropped rather than
+    /// drawn as whatever the font keeps for a character it has no glyph for.
+    /// </para>
+    /// <para>
+    /// For text that wraps, breaks at a line feed, honours tab stops or is justified, use
+    /// <see cref="PdfSharpCore.Drawing.Layout.XTextFormatter"/>, or render a MigraDoc document.
+    /// Both split a paragraph into lines and place each one themselves, and both call this once
+    /// per line.
+    /// </para>
+    /// </remarks>
     public void DrawString(string text, XFont font, XPen pen, XBrush brush, XRect layoutRectangle, XStringFormat format)
     {
         if (text == null)
