@@ -281,6 +281,26 @@ This file starts at the entry below. Changes before that point are recorded only
   runs off three edges of the page, with the trim edge marked and the five page boxes listed. See
   `docs/specs/demonstration-app.md`.
 
+- **A MigraDoc field can say what it reads as without a renderer.** `FieldEvaluator.Evaluate` takes
+  a field and a `FieldEvaluationContext` — the page and section it is being asked on, the two page
+  counts, the print date, and a way to look a bookmark up — and answers the string the field stands
+  for. `FieldEvaluator.IsField` says which document objects have a value at all.
+
+  ```csharp
+  var context = new FieldEvaluationContext { DisplayPageNumber = 27 };
+  var field = paragraph.AddPageField();
+  field.Format = "ALPHABETIC";
+
+  FieldEvaluator.Evaluate(field, context);   // "AA"
+  ```
+
+  It answers `null` rather than a placeholder when the value is not knowable yet — an unplaced
+  bookmark, or a page count for a document or section still being laid out. What to show in the
+  meantime stays a rendering decision, and `ParagraphRenderer` still makes it.
+
+  `NumberFormatter`, which writes the roman numerals and letter sequences a numeric field's `Format`
+  asks for, moves to `MigraDocCore.DocumentObjectModel` with it and is public for the first time.
+
 ### Changed
 
 - **BREAKING:** `ImageSource.IImageSource.SaveAsPdfBitmap(MemoryStream)` is replaced by
@@ -461,6 +481,15 @@ This file starts at the entry below. Changes before that point are recorded only
   written, so a caller never receives half a document because of it.
 
 ### Fixed
+
+- **A heading containing an `InfoField` lost that text from its outline entry.** The predicate that
+  decided which of a heading's parts contribute to its PDF outline title tested for `DocumentInfo` —
+  the document's own info object, which is never one of a paragraph's parts — and so never
+  recognised the `InfoField` that is. A heading reading "Part One: Annual Report" on the page
+  appeared in the outline as "Part One: ".
+
+  This is an observable change: an outline or table-of-contents entry may now carry text it did not
+  before. Nothing else about how the field draws is affected — it always drew correctly on the page.
 
 - **A drop cap too wide for its column threw the text outside the column.** The cap is scaled to its
   own depth and nothing holds its width to the measure, so a deep cap set into a narrow column can

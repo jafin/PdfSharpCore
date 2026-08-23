@@ -143,24 +143,6 @@ namespace MigraDocCore.Rendering.MigraDoc.Rendering.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The number {0} is too large to be displayed as letters..
-        /// </summary>
-        internal static string NumberTooLargeForLetters {
-            get {
-                return ResourceManager.GetString("NumberTooLargeForLetters", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The number {0} is too large to be displayed as roman..
-        /// </summary>
-        internal static string NumberTooLargeForRoman {
-            get {
-                return ResourceManager.GetString("NumberTooLargeForRoman", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Only images, textframes, charts and paragraphs can be rendered freely..
         /// </summary>
         internal static string ObjectNotRenderable {

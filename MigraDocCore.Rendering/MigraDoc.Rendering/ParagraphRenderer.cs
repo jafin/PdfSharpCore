@@ -31,7 +31,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using MigraDocCore.DocumentObjectModel;
 using PdfSharpCore.Pdf;
@@ -260,79 +259,26 @@ internal class ParagraphRenderer : Renderer
     /// </summary>
     PdfStructureElement labelElement;
 
-    bool IsRenderedField(DocumentObject docObj)
-    {
-        if (docObj is NumericFieldBase)
-            return true;
-
-        if (docObj is DocumentInfo)
-            return true;
-
-        if (docObj is DateField)
-            return true;
-
-        return false;
-    }
-
+    /// <summary>
+    /// What the field reads as, or what to show in its place while the real answer is not in yet.
+    /// The value itself is <see cref="FieldEvaluator"/>'s to work out; what belongs here is the
+    /// choice of stand-in, because that depends on which phase is asking rather than on the field.
+    /// </summary>
     string GetFieldValue(DocumentObject field)
     {
-        if (field is NumericFieldBase)
-        {
-            int number = -1;
-            if (field is PageRefField)
-            {
-                PageRefField pageRefField = (PageRefField)field;
-                number = fieldInfos.GetShownPageNumber(pageRefField.Name);
-                if (number <= 0)
-                {
-                    if (phase == Phase.Formatting)
-                        return "XX";
-                    else
-                        return string.Format(AppResources.BookmarkNotDefined, pageRefField.Name);
-                }
-            }
-            else if (field is SectionField)
-            {
-                number = fieldInfos.section;
-                if (number <= 0)
-                    return "XX";
-            }
-            else if (field is PageField)
-            {
-                number = fieldInfos.displayPageNr;
-                if (number <= 0)
-                    return "XX";
-            }
-            else if (field is NumPagesField)
-            {
-                number = fieldInfos.numPages;
-                if (number <= 0)
-                    return "XXX";
-            }
-            else if (field is SectionPagesField)
-            {
-                number = fieldInfos.sectionPages;
-                if (number <= 0)
-                    return "XX";
-            }
-            return NumberFormatter.Format(number, ((NumericFieldBase)field).Format);
-        }
-        else if (field is DateField)
-        {
-            DateTime dt = (fieldInfos.date);
-            if (dt == DateTime.MinValue)
-                dt = GlobalTimeSettings.Now;
+        string value = FieldEvaluator.Evaluate(field, fieldInfos.ToEvaluationContext());
+        if (value != null)
+            return value;
 
-            return fieldInfos.date.ToString(((DateField)field).Format);
-        }
-        else if (field is InfoField)
-        {
-            return GetDocumentInfo(((InfoField)field).Name);
-        }
-        else
-            Debug.Assert(false, "Given parameter must be a rendered Field");
+        // A bookmark still unresolved while formatting may yet be placed further down the page, so
+        // the line is measured against a two-digit guess and measured again once it is known. By
+        // rendering time there is nothing left to wait for, and the document is told so.
+        if (field is PageRefField pageRefField && phase == Phase.Rendering)
+            return string.Format(AppResources.BookmarkNotDefined, pageRefField.Name);
 
-        return "";
+        // The other two are counts that only the end of formatting can supply, and a document's is
+        // the one that can run to three digits.
+        return field is NumPagesField ? "XXX" : "XX";
     }
 
     string GetOutlineTitle()
@@ -355,7 +301,7 @@ internal class ParagraphRenderer : Renderer
                 title += ((Text)current).Content;
                 ignoreBlank = false;
             }
-            else if (IsRenderedField(current))
+            else if (FieldEvaluator.IsField(current))
             {
                 title += GetFieldValue(current);
                 ignoreBlank = false;
@@ -1450,7 +1396,7 @@ internal class ParagraphRenderer : Renderer
 
     void RenderInfoField(InfoField infoField)
     {
-        RenderWord(GetDocumentInfo(infoField.Name));
+        RenderWord(GetFieldValue(infoField));
     }
 
     void RenderNumPagesField(NumPagesField numPagesField)
@@ -2327,7 +2273,7 @@ internal class ParagraphRenderer : Renderer
         if (IsPlainText(docObj))
             return true;
 
-        if (IsRenderedField(docObj))
+        if (FieldEvaluator.IsField(docObj))
             return true;
 
         if (IsSymbol(docObj))
@@ -2442,26 +2388,11 @@ internal class ParagraphRenderer : Renderer
 
     FormatResult FormatInfoField(InfoField infoField)
     {
-        string fieldValue = GetDocumentInfo(infoField.Name);
+        string fieldValue = GetFieldValue(infoField);
         if (fieldValue != "")
             return FormatWord(fieldValue);
 
         return FormatResult.Continue;
-    }
-
-    string GetDocumentInfo(string name)
-    {
-        string docInfoValue = "";
-        string[] enumNames = Enum.GetNames(typeof(InfoFieldType));
-        foreach (string enumName in enumNames)
-        {
-            if (String.Compare(name, enumName, true) == 0)
-            {
-                docInfoValue = paragraph.Document.Info.GetValue(enumName).ToString();
-                break;
-            }
-        }
-        return docInfoValue;
     }
 
     Area GetShadingArea()

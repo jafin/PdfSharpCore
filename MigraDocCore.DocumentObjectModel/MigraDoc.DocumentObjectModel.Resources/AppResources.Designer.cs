@@ -447,7 +447,25 @@ namespace MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resource
                 return ResourceManager.GetString("NumberExpected", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to The number {0} is too large to be displayed as letters..
+        /// </summary>
+        internal static string NumberTooLargeForLetters {
+            get {
+                return ResourceManager.GetString("NumberTooLargeForLetters", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The number {0} is too large to be displayed as roman..
+        /// </summary>
+        internal static string NumberTooLargeForRoman {
+            get {
+                return ResourceManager.GetString("NumberTooLargeForRoman", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to Syntax error: Operator &apos;{0}&apos; is expected..
         /// </summary>
