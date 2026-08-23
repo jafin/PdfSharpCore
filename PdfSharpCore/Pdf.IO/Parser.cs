@@ -1029,10 +1029,9 @@ internal sealed class Parser
     /// </summary>
     internal void ReadIRefsFromCompressedObject(PdfObjectID objectID)
     {
-        PdfReference iref;
-
-        Debug.Assert(_document._irefTable.ObjectTable.ContainsKey(objectID));
-        if (!_document._irefTable.ObjectTable.TryGetValue(objectID, out iref))
+        Debug.Assert(_document._irefTable.Contains(objectID));
+        PdfReference iref = _document._irefTable[objectID];
+        if (iref == null)
         {
             // We should never come here because the object stream must be a type 1 entry in the xref stream
             // and iref was created before.
@@ -1086,9 +1085,9 @@ internal sealed class Parser
     /// </summary>
     internal PdfReference ReadCompressedObject(PdfObjectID objectID, int index)
     {
-        PdfReference iref;
-        Debug.Assert(_document._irefTable.ObjectTable.ContainsKey(objectID));
-        if (!_document._irefTable.ObjectTable.TryGetValue(objectID, out iref))
+        Debug.Assert(_document._irefTable.Contains(objectID));
+        PdfReference iref = _document._irefTable[objectID];
+        if (iref == null)
         {
             throw new NotImplementedException("This case is not coded or something else went wrong");
         }
@@ -1221,14 +1220,16 @@ internal sealed class Parser
         ReadSymbol(Symbol.StartXRef);
         _lexer.Position = ReadLong();
 
-        // Read all trailers.
+        // Read all trailers. The one to keep is decided here and handed back; the caller is what
+        // puts it on the document, so that reading a trailer writes nothing behind its back.
+        PdfTrailer firstTrailer = null;
         while (true)
         {
             PdfTrailer trailer = ReadXRefTableAndTrailer(_document._irefTable, accuracy);
 
             // 1st trailer seems to be the best.
-            if (_document._trailer == null)
-                _document._trailer = trailer;
+            if (firstTrailer == null)
+                firstTrailer = trailer;
             int prev = trailer != null ? trailer.Elements.GetInteger(PdfTrailer.Keys.Prev) : 0;
             if (prev == 0)
                 break;
@@ -1238,7 +1239,7 @@ internal sealed class Parser
             _lexer.Position = prev;
         }
 
-        return _document._trailer;
+        return firstTrailer;
     }
 
     /// <summary>
@@ -1407,7 +1408,8 @@ internal sealed class Parser
         // Making sure that the iref.Value is set here correctly ensure that the mechanisms in PdfReader will work correctly:
         // 1. It needs to find a PdfCrossReferenceStream in iref.Value in order to resolve compressed objects.
         // 2. If we leave null in iref.Value it would do redundant parsing to resolve the value again.
-        if (xrefTable.ObjectTable.TryGetValue(objectID, out PdfReference iref))
+        PdfReference iref = xrefTable[objectID];
+        if (iref != null)
         {
             if (iref.Value == null)
             {
