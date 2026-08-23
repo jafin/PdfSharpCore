@@ -87,6 +87,16 @@ internal static class DomSR
         return string.Format(AppResources.InvalidFieldFormat, value);
     }
 
+    internal static string NumberTooLargeForRoman(int number)
+    {
+        return string.Format(AppResources.NumberTooLargeForRoman, number);
+    }
+
+    internal static string NumberTooLargeForLetters(int number)
+    {
+        return string.Format(AppResources.NumberTooLargeForLetters, number);
+    }
+
     internal static string InvalidColorString(string color)
     {
         return string.Format(AppResources.InvalidColorString, color);

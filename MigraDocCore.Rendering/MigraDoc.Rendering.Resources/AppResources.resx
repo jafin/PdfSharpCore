@@ -144,12 +144,6 @@
   <data name="InvalidImageType" xml:space="preserve">
     <value>Invalid image type: '{0}'.</value>
   </data>
-  <data name="NumberTooLargeForLetters" xml:space="preserve">
-    <value>The number {0} is too large to be displayed as letters.</value>
-  </data>
-  <data name="NumberTooLargeForRoman" xml:space="preserve">
-    <value>The number {0} is too large to be displayed as roman.</value>
-  </data>
   <data name="ObjectNotRenderable" xml:space="preserve">
     <value>Only images, textframes, charts and paragraphs can be rendered freely.</value>
   </data>

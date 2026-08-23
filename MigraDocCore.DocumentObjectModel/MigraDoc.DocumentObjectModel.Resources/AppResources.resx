@@ -246,6 +246,12 @@
   <data name="NumberExpected" xml:space="preserve">
     <value>Number expected: '{0}'.</value>
   </data>
+  <data name="NumberTooLargeForLetters" xml:space="preserve">
+    <value>The number {0} is too large to be displayed as letters.</value>
+  </data>
+  <data name="NumberTooLargeForRoman" xml:space="preserve">
+    <value>The number {0} is too large to be displayed as roman.</value>
+  </data>
   <data name="OperatorExpected" xml:space="preserve">
     <value>Syntax error: Operator '{0}' is expected.</value>
   </data>

@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using MigraDocCore.DocumentObjectModel.Fields;
 using PdfSharpCore.Drawing;
 
 namespace MigraDocCore.Rendering;
@@ -96,6 +97,28 @@ internal class FieldInfos
       return bi.shownPageNumber;
     }
     return -1;
+  }
+
+  /// <summary>
+  /// The same facts, in the shape <see cref="FieldEvaluator"/> asks for them. The translation lives
+  /// here, beside what is being translated: a count of zero is this class's way of saying the count
+  /// is not known yet, and the evaluator would rather be told that in nulls than have to know it.
+  /// </summary>
+  internal FieldEvaluationContext ToEvaluationContext()
+  {
+    return new FieldEvaluationContext
+    {
+      DisplayPageNumber = displayPageNr,
+      SectionNumber = section,
+      NumberOfPages = numPages > 0 ? numPages : (int?)null,
+      PagesInSection = sectionPages > 0 ? sectionPages : (int?)null,
+      PrintDate = date,
+      ResolveBookmarkPage = name =>
+      {
+        int shownPageNumber = GetShownPageNumber(name);
+        return shownPageNumber > 0 ? shownPageNumber : (int?)null;
+      }
+    };
   }
 
   internal int GetPhysicalPageNumber(string bookmarkName)

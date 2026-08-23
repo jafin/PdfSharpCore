@@ -28,17 +28,28 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
-using MigraDocCore.Rendering.MigraDoc.Rendering.Resources;
 using System;
 using System.Diagnostics;
-namespace MigraDocCore.Rendering;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Resources;
+
+namespace MigraDocCore.DocumentObjectModel.Fields;
 
 /// <summary>
 /// Formats numbers roman or with letters.
 /// </summary>
-internal class NumberFormatter
+/// <remarks>
+/// It sits beside the fields whose <see cref="NumericFieldBase.Format"/> names these formats, and
+/// not with the renderer that used to own it, because turning a number into the text a field reads
+/// as needs nothing a page draw provides.
+/// </remarks>
+public static class NumberFormatter
 {
-    internal static string Format(int number, string format)
+    /// <summary>
+    /// Renders the number in the named format, which is one of the strings
+    /// <see cref="NumericFieldBase.Format"/> accepts. Anything else, the empty string included,
+    /// reads as ordinary digits.
+    /// </summary>
+    public static string Format(int number, string format)
     {
         switch (format)
         {
@@ -62,7 +73,7 @@ internal class NumberFormatter
     {
         if (Math.Abs(number) > 32768)
         {
-            Debug.WriteLine(string.Format(AppResources.NumberTooLargeForRoman, number), "warning");
+            Debug.WriteLine(DomSR.NumberTooLargeForRoman(number), "warning");
             return number.ToString();
         }
         if (number == 0)
@@ -97,7 +108,7 @@ internal class NumberFormatter
     {
         if (Math.Abs(number) > 32768)
         {
-            Debug.WriteLine(string.Format(AppResources.NumberTooLargeForLetters, number));
+            Debug.WriteLine(DomSR.NumberTooLargeForLetters(number));
             return number.ToString();
         }
 

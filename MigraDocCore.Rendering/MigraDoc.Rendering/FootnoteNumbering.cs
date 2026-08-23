@@ -1,4 +1,5 @@
 using MigraDocCore.DocumentObjectModel;
+using MigraDocCore.DocumentObjectModel.Fields;
 
 namespace MigraDocCore.Rendering;
 
