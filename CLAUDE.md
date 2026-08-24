@@ -312,8 +312,26 @@ adds identity and indirect references; `PdfDictionary`/`PdfArray` compose them.
 
 `PdfReader.Open` takes a `PdfDocumentOpenMode` that decides far more than access: `Modify` reads
 everything into memory and lets pages be inserted or deleted but not extracted, `Import` allows
-extraction but no modification, `ReadOnly` preserves the original internal structure. Picking the
-wrong one is a common cause of "this API does nothing".
+extraction but no modification, `ReadOnly` preserves the original internal structure, and `Append`
+is `Modify` that keeps the bytes and the numbers so a revision can be appended.
+
+**That mode is now enforced where it is named, and it used to enforce nothing.** `CanModify`
+returned `true` unconditionally with the real check commented out beside it, so the twelve
+operations that guarded on it — the page-tree methods, `Save`, and the `Version`, `PageLayout` and
+`PageMode` setters — read exactly like a mode check and let everything through. It is `!IsReadOnly`
+now, so there is **one question, asked one way**: `EnsureCanModify` on `PdfDocument`, which
+`PdfPages`, `XGraphics.FromPdfPage` and `PdfPageResizer` all go through, and whose message names
+both the mode the document was opened with and the modes the operation needs. Two of the twelve went
+the other way and are the ones to remember: **`Close` is deliberately unguarded**, because it writes
+only when the document was constructed on an output stream and a document read by `PdfReader` never
+is; and **`PageCount` lost the second way of counting** that sat behind the same dead guard.
+**`InformationOnly` is gone from the enum**, and the four remaining members now state their values
+with **3 left vacant** — the compiler inlines an enum constant at the call site, so letting `Append`
+slide from 4 to 3 to close the gap would have silently redirected every already-compiled caller into
+the removed mode's place. An old assembly passing 3 gets a value the enum does not define, which
+`IsReadOnly` answers as read-only: exactly what `InformationOnly` always did. Add a new member after
+`Append`, never into 3. `OpenModeEnforcementTests` is the matrix of four modes against eighteen
+operations, and `docs/specs/open-mode-enforcement.md` has the rest.
 
 **Strings and names are byte strings, one char per byte.** `Lexer` reads with
 `(char)stream.ReadByte()`, `PdfEncoders.RawEncoding` converts back, and `PdfWriter` asserts

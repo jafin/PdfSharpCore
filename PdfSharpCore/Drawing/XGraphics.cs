@@ -76,8 +76,10 @@ public sealed class XGraphics : IDisposable
         if (page.RenderContent != null)
             throw new InvalidOperationException("An XGraphics object already exists for this page and must be disposed before a new one can be created.");
 
-        if (page.Owner.IsReadOnly)
-            throw new InvalidOperationException("Cannot create XGraphics for a page of a document that cannot be modified. Use PdfDocumentOpenMode.Modify.");
+        // The same question the page tree and the save path ask, asked the same way and answered
+        // with the same message, so that a caller who tries to draw and a caller who tries to add
+        // a page are told the same thing about the mode they chose.
+        page.Owner.EnsureCanModify("drawing on a page");
 
         _gsStack = new GraphicsStateStack(this);
         PdfContent content = null;

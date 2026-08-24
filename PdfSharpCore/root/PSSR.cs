@@ -33,6 +33,7 @@ using System.Reflection;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.Pdf.IO;
 
 
 namespace PdfSharpCore;
@@ -189,7 +190,28 @@ static class PSSR
     public static string UserOrOwnerPasswordRequired => GetString(PSMsgID.UserOrOwnerPasswordRequired);
 
     //get { return "At least a user or an owner password is required to encrypt the document."; }
-    public static string CannotModify => "The document cannot be modified.";
+
+    /// <summary>
+    /// Refuses an operation that would change a document that was not opened for changing, naming
+    /// both the mode it was opened with and the modes the operation needs.
+    /// </summary>
+    /// <param name="operation">
+    /// What the caller was trying to do, as a gerund phrase - "adding a page", "saving the
+    /// document". It is read as the middle of a sentence.
+    /// </param>
+    /// <param name="openMode">The mode the document was actually opened with.</param>
+    /// <remarks>
+    /// This used to be a constant string reading "The document cannot be modified.", which named
+    /// neither mode and so left the caller to find both in the source. Naming them is the whole
+    /// point of the refusal: the mistake is nearly always at the call to
+    /// <see cref="PdfSharpCore.Pdf.IO.PdfReader"/>.Open, not at the operation that reports it.
+    /// </remarks>
+    public static string CannotModify(string operation, PdfDocumentOpenMode openMode)
+    {
+        return String.Format(
+            "This document was opened with PdfDocumentOpenMode.{0} and {1} needs a document opened " +
+            "with PdfDocumentOpenMode.Modify or PdfDocumentOpenMode.Append.", openMode, operation);
+    }
 
     public static string NameMustStartWithSlash =>
         //get { return GetString(PSMsgID.NameMustStartWithSlash); }

@@ -551,11 +551,7 @@ static class PdfPageResizer
     /// </summary>
     static void RefuseWhatCannotBeResized(PdfDocument document)
     {
-        if (document.IsReadOnly)
-        {
-            throw new InvalidOperationException(
-                "A page can only be resized in a document opened with PdfDocumentOpenMode.Modify.");
-        }
+        document.EnsureCanModify("resizing a page");
 
         // What is being refused here is a document that came *out of* an encrypted file, whose
         // streams were decrypted on the way in and have to be encrypted again on the way out.

@@ -27,11 +27,29 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using PdfSharpCore.Pdf;
+
 namespace PdfSharpCore.Pdf.IO;
 
 /// <summary>
 /// Determines how a PDF document is opened. 
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Every member states its value, and 3 is deliberately missing.</b> 3 was
+/// <c>InformationOnly</c>, a mode that named a fast partial read which was never written; it was
+/// removed rather than left offering something it did not do. The values are written out because the
+/// C# compiler inlines an enum constant at the call site, so an assembly compiled against an earlier
+/// version goes on passing the number it was compiled with: letting <see cref="Append"/> slide from
+/// 4 to 3 to close the gap would have silently redirected every such caller into the removed mode's
+/// place. An old assembly passing 3 now hands over a value this enum does not define, which
+/// <see cref="PdfDocument.IsReadOnly"/> answers as read-only - the same behaviour
+/// <c>InformationOnly</c> always had.
+/// </para>
+/// <para>
+/// A new member goes after <see cref="Append"/> with the next free number, and 3 stays vacant.
+/// </para>
+/// </remarks>
 public enum PdfDocumentOpenMode
 {
     /// <summary>
@@ -39,26 +57,21 @@ public enum PdfDocumentOpenMode
     /// inserted, but it is not possible to extract pages. This mode is useful for modifying an
     /// existing PDF document.
     /// </summary>
-    Modify,
+    Modify = 0,
 
     /// <summary>
     /// The PDF stream is opened for importing pages from it. A document opened in this mode cannot
     /// be modified.
     /// </summary>
-    Import,
+    Import = 1,
 
     /// <summary>
     /// The PDF stream is completely read into memory, but cannot be modified. This mode preserves the
     /// original internal structure of the document and is useful for analyzing existing PDF files.
     /// </summary>
-    ReadOnly,
+    ReadOnly = 2,
 
-    /// <summary>
-    /// The PDF stream is partially read for information purposes only. The only valid operation is to
-    /// call the Info property at the imported document. This option is very fast and needs less memory
-    /// and is e.g. useful for browsing information about a collection of PDF documents in a user interface.
-    /// </summary>
-    InformationOnly,  // TODO: not yet implemented
+    // 3 was InformationOnly. Left vacant on purpose - see the remarks on the enum.
 
     /// <summary>
     /// As <see cref="Modify"/>, but the document keeps the bytes it was read from and the object
@@ -78,11 +91,11 @@ public enum PdfDocumentOpenMode
     /// help with, and still worth knowing before choosing this mode by default.
     /// </para>
     /// <para>
-    /// <b>Last on purpose.</b> This enum pins no explicit values, so adding a member anywhere but the
-    /// end shifts the ones after it — and the C# compiler inlines an enum constant at the call site,
-    /// so an assembly already compiled against an earlier version would go on passing the old number
-    /// and silently get the wrong mode. Add here, never in the middle.
+    /// <b>Last on purpose, and 4 on purpose.</b> It has always been 4, and it stays 4 now that 3 is
+    /// vacant: an assembly compiled against an earlier version passes the number it was compiled
+    /// with, so closing the gap would silently redirect every such caller. Add a new member after
+    /// this one, never in the middle, and never into 3.
     /// </para>
     /// </remarks>
-    Append,
+    Append = 4,
 }

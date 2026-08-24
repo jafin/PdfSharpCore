@@ -317,14 +317,38 @@ public class IncrementalUpdateTests
     [Fact]
     public void TheOpenModesKeepTheNumbersTheyAlwaysHad()
     {
-        // This enum pins no values, and the compiler inlines an enum constant at the call site — so
-        // an assembly compiled against an earlier version goes on passing the old number. Adding
-        // Append anywhere but the end would silently redirect Import to it.
+        // The compiler inlines an enum constant at the call site, so an assembly compiled against an
+        // earlier version goes on passing the old number. Adding a member anywhere but the end, or
+        // closing the gap left by a removed one, silently redirects every such caller.
         ((int)PdfDocumentOpenMode.Modify).Should().Be(0);
         ((int)PdfDocumentOpenMode.Import).Should().Be(1);
         ((int)PdfDocumentOpenMode.ReadOnly).Should().Be(2);
-        ((int)PdfDocumentOpenMode.InformationOnly).Should().Be(3);
         ((int)PdfDocumentOpenMode.Append).Should().Be(4);
+    }
+
+    [Fact]
+    public void ThreeStaysVacantWhereInformationOnlyWas()
+    {
+        // InformationOnly is gone, and the number it had must not be reused: an assembly compiled
+        // against it still passes 3, and giving 3 to another mode would silently hand that caller a
+        // mode it never asked for. Append staying at 4 is the same rule seen from the other side.
+        Enum.IsDefined(typeof(PdfDocumentOpenMode), 3).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ADocumentOpenedWithTheVacantNumberIsReadOnly()
+    {
+        // What an assembly compiled against InformationOnly does now. The value is not one this
+        // enum defines, and IsReadOnly answers every mode that is not Modify or Append the same
+        // way - so such a caller gets exactly the behaviour InformationOnly always had.
+        using var source = new MemoryStream(OriginalDocument());
+
+        var document = Reader.Open(source, (PdfDocumentOpenMode)3);
+
+        document.IsReadOnly.Should().BeTrue();
+        document.PageCount.Should().Be(2);
+        var adding = () => document.AddPage();
+        adding.Should().Throw<InvalidOperationException>();
     }
 
     /// <summary>A document to append to, with more than one page so a change is visibly partial.</summary>
