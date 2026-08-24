@@ -196,20 +196,46 @@ public sealed class PdfDocument : PdfObject, IDisposable
     }
     static int _nameCount;
 
-    internal bool CanModify
+    /// <summary>
+    /// Whether this document may be changed. The same question <see cref="IsReadOnly"/> answers,
+    /// asked the way round the operations that refuse ask it.
+    /// </summary>
+    /// <remarks>
+    /// This answered <c>true</c> unconditionally for years, with the real check commented out
+    /// beside it, so every operation that guarded on it enforced nothing at all - a caller who
+    /// opened a document <see cref="PdfDocumentOpenMode.ReadOnly"/> and added a page got the page
+    /// and found out much later, if at all, that none of it would be written. It is defined in
+    /// terms of <see cref="IsReadOnly"/> rather than repeating the mode comparison so that the two
+    /// cannot drift apart again: there is one question here, not two.
+    /// </remarks>
+    internal bool CanModify => !IsReadOnly;
+
+    /// <summary>
+    /// Refuses an operation that changes the document when the document was not opened for
+    /// changing, with a message naming both the mode it was opened with and the modes the
+    /// operation needs.
+    /// </summary>
+    /// <param name="operation">
+    /// What the caller was trying to do, as a gerund phrase - "adding a page", "saving the
+    /// document". It is read as the middle of a sentence.
+    /// </param>
+    internal void EnsureCanModify(string operation)
     {
-        //get {return _state == DocumentState.Created || _state == DocumentState.Modifyable;}
-        get { return true; }
+        if (!CanModify)
+            throw new InvalidOperationException(PSSR.CannotModify(operation, _openMode));
     }
 
     /// <summary>
     /// Closes this instance.
     /// </summary>
+    /// <remarks>
+    /// Deliberately not guarded by the open mode, where the other operations that write are.
+    /// Closing a document is not changing it, and this writes only when the document was
+    /// constructed on an output stream - which a document read by <see cref="PdfReader"/> never
+    /// is. For a read-only document there is nothing here to refuse.
+    /// </remarks>
     public void Close()
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
-
         if (_outStream != null)
         {
             // Get security handler if document gets encrypted
@@ -234,8 +260,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// </summary>
     public void Save(string path)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
+        EnsureCanModify("saving the document");
 
 
         using (Stream stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -249,8 +274,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// </summary>
     public void Save(Stream stream, bool closeStream)
     {
-        if (!CanModify)
-            throw new InvalidOperationException(PSSR.CannotModify);
+        EnsureCanModify("saving the document");
 
         // TODO: more diagnostic checks
         string message = "";
@@ -345,7 +369,10 @@ public sealed class PdfDocument : PdfObject, IDisposable
 
         if (_originalBytes == null)
             throw new InvalidOperationException(
-                "Only a document opened with PdfDocumentOpenMode.Append can be saved incrementally. "
+                (IsImported
+                    ? "This document was opened with PdfDocumentOpenMode." + _openMode + ". "
+                    : "This document was created rather than opened. ")
+                + "Only a document opened with PdfDocumentOpenMode.Append can be saved incrementally. "
                 + "Modify renumbers every object, which makes the appended definitions shadow the "
                 + "wrong ones, and a document created from scratch has nothing to append to.");
 
@@ -863,8 +890,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
         get { return _version; }
         set
         {
-            if (!CanModify)
-                throw new InvalidOperationException(PSSR.CannotModify);
+            EnsureCanModify("setting the PDF version");
             if ((value < 12 || value > 17) && value != 20) // TODO not really implemented
                 throw new ArgumentException(PSSR.InvalidVersionNumber, nameof(value));
             _version = value;
@@ -875,16 +901,17 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// <summary>
     /// Gets the number of pages in the document.
     /// </summary>
+    /// <remarks>
+    /// There was a second way of counting here, taken when <see cref="CanModify"/> was false and
+    /// labelled "PdfOpenMode is InformationOnly": it read <c>/Count</c> off the page tree root
+    /// instead of walking the tree. <see cref="CanModify"/> answered true unconditionally, so no
+    /// document ever took it. Making that guard live would have taken it for the first time, in a
+    /// branch nothing had ever exercised - and needlessly, because every open mode reads the file
+    /// in full and builds the page tree. One way of counting is enough.
+    /// </remarks>
     public int PageCount
     {
-        get
-        {
-            if (CanModify)
-                return Pages.Count;
-            // PdfOpenMode is InformationOnly
-            PdfDictionary pageTreeRoot = (PdfDictionary)Catalog.Elements.GetObject(PdfCatalog.Keys.Pages);
-            return pageTreeRoot.Elements.GetInteger(PdfPages.Keys.Count);
-        }
+        get { return Pages.Count; }
     }
 
     /// <summary>
@@ -1008,8 +1035,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
         get { return Catalog.PageLayout; }
         set
         {
-            if (!CanModify)
-                throw new InvalidOperationException(PSSR.CannotModify);
+            EnsureCanModify("setting the page layout");
             Catalog.PageLayout = value;
         }
     }
@@ -1022,8 +1048,7 @@ public sealed class PdfDocument : PdfObject, IDisposable
         get { return Catalog.PageMode; }
         set
         {
-            if (!CanModify)
-                throw new InvalidOperationException(PSSR.CannotModify);
+            EnsureCanModify("setting the page mode");
             Catalog.PageMode = value;
         }
     }

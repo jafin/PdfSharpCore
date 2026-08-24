@@ -303,6 +303,44 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Changed
 
+- **BREAKING: the open mode is enforced where it is named.** `PdfReader.Open` has always taken a
+  `PdfDocumentOpenMode`, and twelve operations have always guarded on `PdfDocument.CanModify` before
+  changing the document. `CanModify` returned `true` unconditionally, with the real check commented
+  out beside it, so none of those guards enforced anything. A caller who opened a document
+  `ReadOnly` or `Import` and then added a page got the page, and found out much later — if at all —
+  that none of it was going to be written, usually through a failure from a module three layers away
+  that mentioned a different concept.
+
+  `CanModify` is now `!IsReadOnly`, which is the check that already worked and was already public.
+  These now throw `InvalidOperationException` on a document opened `Import` or `ReadOnly`, where
+  before they silently did the wrong thing:
+
+  `PdfDocument.AddPage`, `InsertPage`, `PlacePage`, `ImportPage`, `DuplicatePage`, `MovePage`,
+  `Save`, and the `Version`, `PageLayout` and `PageMode` setters; `PdfDocument.Pages.Add`, `Insert`,
+  `Place`, `Import`, `Duplicate`, `MovePage`, `InsertRange`, `Remove` and `RemoveAt`.
+
+  `XGraphics.FromPdfPage` and `PdfPageResizer` refused these documents already and still do; they
+  now say so in the same words. **If your code is affected, it was producing a document that would
+  not have been written correctly** — open with `Modify` (or `Append`, for an incremental save)
+  instead. The break is a refusal rather than a silent difference, on purpose: you find out at the
+  call.
+
+  Every refusal now names both the mode the document was opened with and the modes the operation
+  needs, because the mistake is nearly always at the call to `Open` rather than at the operation
+  that reports it:
+
+  ```
+  This document was opened with PdfDocumentOpenMode.ReadOnly and adding a page needs a document
+  opened with PdfDocumentOpenMode.Modify or PdfDocumentOpenMode.Append.
+  ```
+
+  Two things deliberately did **not** become refusals. `PdfDocument.Close` dropped its guard rather
+  than gaining teeth — closing a document is not changing it, and it writes only when the document
+  was constructed on an output stream, which a document read by `PdfReader` never is. And
+  `PdfDocument.PageCount` had a second way of counting behind the same dead guard, labelled
+  "PdfOpenMode is InformationOnly", which no document had ever taken; it is gone rather than being
+  taken for the first time, because every mode reads the file in full and builds the page tree.
+
 - **BREAKING:** `ImageSource.IImageSource.SaveAsPdfBitmap(MemoryStream)` is replaced by
   `PixelBuffer GetPixels()`, and `XImage.AsBitmap()` by `XImage.GetPixels()`. Anyone who has written
   an implementation of that interface has to change the member; anyone who called `AsBitmap()` for
@@ -586,6 +624,23 @@ This file starts at the entry below. Changes before that point are recorded only
   a debug assertion while the page was being imported. A null now reads as the absent entry it is.
 
 ### Removed
+
+- **BREAKING:** `PdfDocumentOpenMode.InformationOnly`. It carried `// TODO: not yet implemented`
+  beside it from the beginning and never was implemented: the fast partial read it named — stop at
+  the trailer so that `Info` can be had cheaply for a directory full of files — does not exist, and
+  the reader has always read every object whatever mode it was handed. What a caller actually got
+  was a document read in full that could not be modified, which is `ReadOnly` under another name.
+  Code that names it will no longer compile; use `PdfDocumentOpenMode.ReadOnly`, which is what it
+  was doing.
+
+  **The other four members now state their values, and `3` is deliberately left vacant.** The C#
+  compiler inlines an enum constant at the call site, so an assembly compiled against an earlier
+  version goes on passing the number it was compiled with. Letting `Append` slide from `4` to `3` to
+  close the gap would have silently redirected every such caller into the removed mode's place —
+  the exact failure the enum's own note has warned about since `Append` was added. An old assembly
+  passing `3` now hands over a value the enum does not define, and `IsReadOnly` answers anything
+  that is not `Modify` or `Append` the same way, so that caller keeps the behaviour
+  `InformationOnly` always had. A new member goes after `Append`; `3` stays vacant.
 
 - **BREAKING:** `PdfSharpCore.Text.ScriptItemizer` and `PdfSharpCore.Text.ScriptRun` are internal.
   Script itemisation asked of a whole paragraph gives a plausible answer that disagrees with the

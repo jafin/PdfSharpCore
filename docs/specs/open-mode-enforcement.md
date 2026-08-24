@@ -5,10 +5,59 @@ deliberately leaves out.
 
 | item | what | status |
 |---|---|---|
-| 1 | `CanModify` reading the open mode again | proposed |
-| 2 | Every refusal naming the mode it wanted | proposed |
-| 3 | Twelve dead guards made live or removed | proposed |
-| 4 | `InformationOnly` implemented or removed | proposed |
+| 1 | `CanModify` reading the open mode again, as `!IsReadOnly` | done |
+| 2 | Every refusal naming both the mode used and the modes wanted | done |
+| 3 | Twelve dead guards made live, one removed, the thirteenth fork deleted | done |
+| 4 | `InformationOnly` decided: removed from the enum, its number left vacant | done |
+| 5 | The matrix of four modes against seventeen operations, pinned | done |
+| 6 | `PdfPages.Remove` and `RemoveAt`, which were never guarded at all | done |
+
+## What shipped
+
+`CanModify` is `!IsReadOnly`. The ten guards on `PdfDocument` and `PdfPages` that were meant to
+refuse now refuse, `PSSR.CannotModify` became a method taking the operation and the open mode, and
+`XGraphics.FromPdfPage` and `PdfPageResizer` were routed through the same message so that a caller
+who tries to draw and a caller who tries to add a page are told the same thing about the mode they
+chose. `OpenModeEnforcementTests` is the matrix.
+
+Two of the twelve were decided the other way, which is the part worth carrying:
+
+**`Close` lost its guard rather than gaining teeth.** Closing a document is not changing it, and
+`Close` writes only when the document was constructed on an output stream — which a document read by
+`PdfReader` never is. There was nothing there for a read-only document to be refused.
+
+**`PageCount`'s second way of counting is gone.** The fork labelled *"PdfOpenMode is
+InformationOnly"* read `/Count` off the page tree root instead of walking the tree, and no document
+had ever taken it. Making the guard live would have taken it for the first time, in a branch nothing
+had ever exercised — and needlessly, because every open mode reads the file in full and builds the
+page tree.
+
+**`InformationOnly` was removed from the enum.** Implementing the partial read it named would have
+changed the reader, which this spec rules out, so the choice was between a mode documented as a
+synonym for `ReadOnly` and no mode at all — and a mode whose whole content is "it is really that
+other one" is the same offer-that-does-nothing the dead guards were.
+
+What removing it costs is that the compiler inlines an enum constant at the call site, so an
+assembly compiled against `InformationOnly` goes on passing `3` however the source changes. **The
+four remaining members therefore state their values and 3 is left vacant.** Letting `Append` slide
+from 4 to 3 to close the gap would have silently redirected every such caller into the removed
+mode's place — the exact failure the enum's own note has warned about since `Append` was added. An
+old assembly passing 3 now hands over a value the enum does not define, and `IsReadOnly` answers
+anything that is not `Modify` or `Append` the same way, so that caller keeps the behaviour it always
+had. `ThreeStaysVacantWhereInformationOnlyWas` and `ADocumentOpenedWithTheVacantNumberIsReadOnly`
+pin both halves.
+
+Two things this spec asked for and did not need. Restoring the guards refused nothing the demos, the
+suite or the corpus rely on: 3,941 tests, 37 demos and all six conformance documents pass unchanged,
+so the change never met the first real caller the Further Notes anticipated. And `SaveIncremental`'s
+refusal was already correct; it only gained the mode in its message, and a separate sentence for a
+document that was created rather than opened, where naming the mode would have named the enum's
+default and been a lie.
+
+**`PdfPages.Remove` and `RemoveAt` were never guarded at all**, which is why neither was among the
+twelve: removing a page from a read-only document silently succeeded and wrote nothing, the same
+defect one method along. Both now refuse, both with "removing a page". Neither has a `PdfDocument`
+counterpart, so `document.Pages` is the only way to reach them and the matrix covers them there.
 
 ## Problem Statement
 

@@ -151,10 +151,13 @@ caller asks for rather than something `Modify` started doing. `CLAUDE.md` notes 
 "decides far more than access" and that picking the wrong one is a common cause of "this API does
 nothing"; a fifth thing for it to decide belongs in that list, and is in it.
 
-`Append` is declared **last** in the enum. The members carry no explicit values, so putting it after
-`Modify` would have renumbered `Import`, `ReadOnly` and `InformationOnly` — and because the C#
-compiler inlines an enum constant at the call site, an assembly compiled against an earlier version
-would go on passing the old number and silently open in the wrong mode.
+`Append` is declared **last** in the enum, and is 4. The members carried no explicit values when it
+was added, so putting it after `Modify` would have renumbered `Import`, `ReadOnly` and
+`InformationOnly` — and because the C# compiler inlines an enum constant at the call site, an
+assembly compiled against an earlier version would go on passing the old number and silently open in
+the wrong mode. The same rule later decided what happened when `InformationOnly` was removed: every
+member now states its value and 3 is left vacant rather than `Append` sliding down into it. See
+`docs/specs/open-mode-enforcement.md`.
 
 `SaveIncremental` must refuse — clearly, not silently — a document opened `Import` or `ReadOnly`, or one
 built from scratch.
