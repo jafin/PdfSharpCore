@@ -37,8 +37,13 @@ public sealed class PdfSignatureField : PdfAcroField
     /// <summary>
     /// Initializes a new instance of PdfSignatureField.
     /// </summary>
-    internal PdfSignatureField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// A place for a signature, and nothing more: this is a field type, not a signing
+    /// implementation. <c>PdfSharpCore.Signing</c> is what signs a document.
+    /// </remarks>
+    public PdfSignatureField(PdfDocument document)
+        : base(document, "/Sig")
     { }
 
     internal PdfSignatureField(PdfDictionary dict)

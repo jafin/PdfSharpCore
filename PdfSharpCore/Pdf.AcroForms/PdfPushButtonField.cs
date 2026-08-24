@@ -37,10 +37,17 @@ public sealed class PdfPushButtonField : PdfButtonField
     /// <summary>
     /// Initializes a new instance of PdfPushButtonField.
     /// </summary>
-    internal PdfPushButtonField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// The <c>Pushbutton</c> flag is set here for the same reason the radio group sets
+    /// <c>Radio</c>: it is what tells the three kinds of <c>/Btn</c> apart, and a push button
+    /// without it is read back as a check box.
+    /// </remarks>
+    public PdfPushButtonField(PdfDocument document)
+        : base(document, "/Btn")
     {
         _document = document;
+        Flags = PdfAcroFieldFlags.Pushbutton;
     }
 
     internal PdfPushButtonField(PdfDictionary dict)

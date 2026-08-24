@@ -47,6 +47,15 @@ public abstract class PdfButtonField : PdfAcroField
     { }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="PdfButtonField"/> class of the named type.
+    /// </summary>
+    /// <param name="document">The document the field belongs to.</param>
+    /// <param name="fieldType">The value of <c>/FT</c>, which for every button is <c>/Btn</c>.</param>
+    private protected PdfButtonField(PdfDocument document, string fieldType)
+        : base(document, fieldType)
+    { }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PdfButtonField"/> class.
     /// </summary>
     protected PdfButtonField(PdfDictionary dict)
