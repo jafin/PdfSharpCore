@@ -172,6 +172,59 @@ public class LineAnnotationTests : IDisposable
     }
 
     [Fact]
+    public void AnInteriorColourSurvivesTheFile()
+    {
+        PdfLineAnnotation line = OnAPage();
+        line.Interior = XColor.FromArgb(127, 127, 127);
+
+        // What the file carries. A component goes out as a fraction of 255 to the seven decimal
+        // places PdfWriter gives a real, so 127 becomes 0.4980392 - and reading it back is a
+        // separate document's problem, since reopening one gives a PdfGenericAnnotation rather
+        // than this class.
+        PdfDocument reopened = SaveAndReopen(line.Owner);
+        PdfArray written = reopened.Pages[0].Annotations[0].Elements.GetArray("/IC");
+        written.Elements.GetReal(0).Should().BeApproximately(0.4980392, 1e-9);
+
+        // And what this class makes of it. 0.4980392 times 255 is 126.999996, so truncating loses
+        // a value the file all but said, and the grey a caller asked for comes back a shade
+        // darker every time it is saved.
+        PdfLineAnnotation read = OnAPage();
+        read.Elements["/IC"] = new PdfArray(
+            read.Owner, new PdfReal(0.4980392), new PdfReal(0.4980392), new PdfReal(0.4980392));
+
+        read.Interior.R.Should().Be(127);
+        read.Interior.G.Should().Be(127);
+        read.Interior.B.Should().Be(127);
+    }
+
+    [Fact]
+    public void ALineTooThinToMakeAFormOfIsLeftUndrawnRatherThanRefused()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        PdfLineAnnotation line = new PdfLineAnnotation
+        {
+            Start = new XPoint(100, 700),
+            End = new XPoint(300, 700),
+        };
+        page.Annotations.Add(line);
+
+        // A hairline lying flat is half its width either side of the line and no more, which is
+        // under XForm's floor of a point. The guard used to be against zero, so this got past it
+        // and threw out of a property setter.
+        Action thinning = () => line.BorderWidth = 0.5;
+
+        thinning.Should().NotThrow();
+        line.Elements.ContainsKey("/AP").Should().BeFalse();
+
+        // A point of height is enough, and then it does draw.
+        line.BorderWidth = 1;
+
+        line.Elements.ContainsKey("/AP").Should().BeTrue();
+    }
+
+    [Fact]
     public void MovingTheLineStampsTheModificationDate()
     {
         PdfLineAnnotation line = OnAPage();

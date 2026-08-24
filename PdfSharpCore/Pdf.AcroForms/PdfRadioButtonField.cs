@@ -56,6 +56,8 @@ public sealed class PdfRadioButtonField : PdfButtonField
         : base(dict)
     { }
 
+    private protected override PdfAcroFieldFlags KindFlags => PdfAcroFieldFlags.Radio;
+
     /// <summary>
     /// The export value of each button in the group, in the order of the widgets under
     /// <c>/Kids</c> - the <c>/Opt</c> array, which is what <see cref="SelectedIndex"/> turns an

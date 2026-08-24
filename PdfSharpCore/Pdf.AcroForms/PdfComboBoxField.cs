@@ -55,6 +55,8 @@ public sealed class PdfComboBoxField : PdfChoiceField
         : base(dict)
     { }
 
+    private protected override PdfAcroFieldFlags KindFlags => PdfAcroFieldFlags.Combo;
+
     /// <summary>
     /// Gets or sets the index of the selected item.
     /// </summary>

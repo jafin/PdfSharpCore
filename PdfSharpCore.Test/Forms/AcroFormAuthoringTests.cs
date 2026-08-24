@@ -510,6 +510,149 @@ public class AcroFormAuthoringTests
         field.Elements.GetArray("/Kids").Elements.Count.Should().Be(2);
     }
 
+    [Fact]
+    public void AFieldNestedUnderAnotherPointsBackAtIt()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfAcroForm form = document.GetOrCreateAcroForm();
+
+        PdfTextField group = new PdfTextField(document) { Name = "name" };
+        form.Fields.Add(group);
+
+        PdfTextField full = new PdfTextField(document) { Name = "full" };
+        group.Fields.Add(full);
+
+        // ISO 32000-1 Table 220: /Parent is required of a field that is the child of another.
+        // Nothing here needs it - every lookup in this library walks down from /Fields - but a
+        // reader assembling a field's full name walks up, and has nothing to walk up.
+        full.Elements.GetReference(PdfAcroField.Keys.Parent).Value.Should().BeSameAs(group);
+    }
+
+    [Fact]
+    public void ARootFieldPointsBackAtNothing()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfAcroForm form = document.GetOrCreateAcroForm();
+
+        PdfTextField field = new PdfTextField(document) { Name = "fullName" };
+        form.Fields.Add(field);
+
+        // The same collection class is a form's /Fields and a field's /Kids, and the entry is
+        // required of the one and forbidden of the other. A root field having one would claim a
+        // parent that does not list it.
+        field.Elements.ContainsKey(PdfAcroField.Keys.Parent).Should().BeFalse();
+    }
+
+    [Fact]
+    public void TheParentChainSurvivesTheFile()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        PdfAcroForm form = document.GetOrCreateAcroForm();
+
+        PdfTextField group = new PdfTextField(document) { Name = "name" };
+        form.Fields.Add(group);
+
+        PdfTextField full = new PdfTextField(document) { Name = "full" };
+        group.Fields.Add(full);
+        full.AddWidget(page, new PdfRectangle(new XRect(60, 700, 200, 20)));
+
+        PdfDocument reopened = SaveAndReopen(document);
+
+        PdfAcroField read = reopened.AcroForm.Fields["name.full"];
+        PdfDictionary parent = (PdfDictionary)read.Elements.GetReference(PdfAcroField.Keys.Parent).Value;
+
+        parent.Elements.GetString(PdfAcroField.Keys.T).Should().Be("name");
+    }
+
+    [Theory]
+    [InlineData("combo")]
+    [InlineData("radio")]
+    [InlineData("push")]
+    public void AssigningFlagsDoesNotAssignAwayWhatKindOfFieldItIs(string kind)
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        PdfAcroForm form = document.GetOrCreateAcroForm();
+
+        // The bit that says which kind of /Btn or /Ch this is written by the constructor, and the
+        // public Flags setter replaces /Ff outright - so a caller asking for one unrelated flag
+        // used to hand back a field of a different type, and only reopening the file said so.
+        PdfAcroField field = kind switch
+        {
+            "combo" => new PdfComboBoxField(document),
+            "radio" => new PdfRadioButtonField(document),
+            _ => new PdfPushButtonField(document),
+        };
+        field.Name = kind;
+        form.Fields.Add(field);
+        field.AddWidget(page, new PdfRectangle(new XRect(60, 700, 120, 20)));
+        field.Flags = PdfAcroFieldFlags.Required;
+
+        field.Flags.Should().HaveFlag(PdfAcroFieldFlags.Required);
+
+        PdfAcroField read = SaveAndReopen(document).AcroForm.Fields[kind];
+
+        switch (kind)
+        {
+            case "combo":
+                read.Should().BeOfType<PdfComboBoxField>();
+                break;
+            case "radio":
+                read.Should().BeOfType<PdfRadioButtonField>();
+                break;
+            default:
+                read.Should().BeOfType<PdfPushButtonField>();
+                break;
+        }
+    }
+
+    [Fact]
+    public void AKindOfFieldCannotBeAssignedOntoAnother()
+    {
+        PdfDocument document = new PdfDocument();
+
+        // The other direction: a check box is the /Btn that says neither Pushbutton nor Radio, so
+        // a caller writing Radio onto one is describing a field the class is not.
+        PdfCheckBoxField box = new PdfCheckBoxField(document);
+        box.Flags = PdfAcroFieldFlags.Radio | PdfAcroFieldFlags.Required;
+
+        box.Flags.Should().Be(PdfAcroFieldFlags.Required);
+
+        // And a list box is the /Ch that does not say Combo.
+        PdfListBoxField list = new PdfListBoxField(document);
+        list.Flags = PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.MultiSelect;
+
+        list.Flags.Should().Be(PdfAcroFieldFlags.MultiSelect);
+    }
+
+    [Fact]
+    public void AFieldOfNoRoomToDrawInIsLeftUndrawnRatherThanRefused()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+        PdfAcroForm form = document.GetOrCreateAcroForm();
+
+        PdfTextField field = new PdfTextField(document) { Name = "sliver" };
+        form.Fields.Add(field);
+
+        // Asked for something, so that it is the size and not the emptiness that stops the
+        // drawing - a field asked for nothing removes its appearance either way.
+        field.BackColor = XColors.White;
+
+        // XForm's floor is a point in each direction, and the guard used to be against zero - so
+        // a rectangle between the two got past it and threw out of a property setter.
+        Action placing = () => field.AddWidget(page, new PdfRectangle(new XRect(60, 700, 200, 0.5)));
+
+        placing.Should().NotThrow();
+        page.Annotations[0].Elements.ContainsKey("/AP").Should().BeFalse();
+
+        // A point high is enough, and then it does draw.
+        field.AddWidget(page, new PdfRectangle(new XRect(60, 660, 200, 1)));
+
+        page.Annotations[1].Elements.ContainsKey("/AP").Should().BeTrue();
+    }
+
     static PdfDocument SaveAndReopen(PdfDocument document)
     {
         using MemoryStream stream = new MemoryStream();

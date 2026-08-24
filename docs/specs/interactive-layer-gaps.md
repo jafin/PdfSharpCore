@@ -163,6 +163,31 @@ appearance rather than writing an empty one, so a field decorated through `/MK` 
 reader to draw. `PdfAcroField.OnWidgetAdded` is what makes the order not matter: a field described
 before it is placed draws itself when the widget arrives.
 
+#### Three more, found in review
+
+**`Add` wrote no `/Parent`.** The same collection class is a form's `/Fields` and a field's `/Kids`,
+and ISO 32000-1 Table 220 requires the back-reference of the second and forbids it of the first — so
+the collection has to be told which it is, and could not work it out. Nothing here reads `/Parent`,
+because every lookup walks *down* from `/Fields`; that is exactly why the omission was invisible
+from inside. A reader assembling a field's fully qualified name walks up, and had nothing to walk.
+`PdfAcroField.Fields` now names its owner when it materialises the collection, and
+`PdfAcroForm.Fields` leaves it unnamed.
+
+**The `Flags` setter assigned away what kind of field it was.** A `/Btn` is a push button, a radio
+group or a check box by two bits and a `/Ch` is a combo or a list box by one; the constructor writes
+them, and the setter replaced `/Ff` outright. So `new PdfComboBoxField(document) { Flags = Required }`
+— the shape of the example at the top of this file — wrote a `/Ch` with no `Combo` bit, which *is* a
+list box, and only reopening the file said so. Each class now declares a `KindMask` and a
+`KindFlags`, and the setter keeps those bits while assigning the rest. The `Forms` demo re-stated
+`Combo` and `Radio` in its own initialisers, which is the workaround this removes.
+
+**The size guard was against zero where `XForm` refuses below one.** A rectangle between the two got
+past `PdfTextField.RenderAppearanceOn` and threw `ArgumentNullException` out of a property setter,
+and it would have passed a negative width to `DrawRectangle` on the way. The same off-by-one was in
+all three of the annotations that draw themselves; it bites `PdfLineAnnotation` hardest, where a
+hairline lying flat makes a box half its width high and no more. All four test against 1 now and
+remove the appearance rather than throwing.
+
 #### What is still the caller's
 
 `/MK` — the background and border a reader paints a field's box from when it builds the appearance
@@ -171,7 +196,7 @@ itself — has no wrapper, and nor does a push button's `/A` action. Those are t
 `PdfSignatureField` is still a field type rather than a signature implementation:
 `PdfSharpCore.Signing` is what signs a document.
 
-`PdfSharpCore.Test/Forms/AcroFormAuthoringTests.cs` has 33 tests. The one that matters saves the form
+`PdfSharpCore.Test/Forms/AcroFormAuthoringTests.cs` has 41 tests. The one that matters saves the form
 and reads it back through `PdfReader`, because a form that is right in memory and wrong in the file
 looks identical from the calling side.
 
@@ -373,6 +398,11 @@ at whatever it has just written, because an appearance nobody is showing is invi
 almost never what a caller meant by adding one — but a radio group is exactly the case where several
 widgets share a value and only one may be on, so there has to be a way to say which. It is `/AS`
 with its solidus, and null when the annotation has a single appearance rather than a set.
+
+Its setter refuses the empty name the way `SetAppearance(state, form)` always has. It used to read
+the first character to decide whether to add a solidus and so threw `IndexOutOfRangeException`,
+which names neither the parameter nor the mistake — and the test was redundant besides, because
+`SetName` adds the solidus itself.
 
 ### 6 — `PdfFileAttachmentAnnotation.Icon`'s getter always threw — **fixed**
 

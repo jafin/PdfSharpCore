@@ -223,9 +223,11 @@ public sealed class PdfTextField : PdfAcroField
     {
         PdfRectangle rect = annotation.Elements.GetRectangle(PdfAnnotation.Keys.Rect);
 
-        // A rectangle of no size draws nothing, and XForm refuses to be made of one. A field
-        // reaches this while it is still being assembled, so it is a stage rather than a fault.
-        if (rect.Width <= 0 || rect.Height <= 0)
+        // A rectangle too small to draw in draws nothing, and XForm refuses to be made of one:
+        // its floor is a point in each direction, so the test is against 1 rather than against 0.
+        // A field reaches this while it is still being assembled, so it is a stage rather than a
+        // fault. It also keeps the border below from being given a negative width.
+        if (rect.Width < 1 || rect.Height < 1)
             return;
 
         // Nothing asked for. An appearance is what a reader shows in place of building one from

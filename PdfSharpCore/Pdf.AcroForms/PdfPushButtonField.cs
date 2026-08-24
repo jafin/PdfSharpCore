@@ -54,6 +54,8 @@ public sealed class PdfPushButtonField : PdfButtonField
         : base(dict)
     { }
 
+    private protected override PdfAcroFieldFlags KindFlags => PdfAcroFieldFlags.Pushbutton;
+
     /// <summary>
     /// Predefined keys of this dictionary. 
     /// The description comes from PDF 1.4 Reference.

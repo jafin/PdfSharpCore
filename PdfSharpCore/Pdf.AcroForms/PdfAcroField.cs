@@ -143,16 +143,41 @@ public abstract class PdfAcroField : PdfDictionary
     /// Gets or sets the field flags of this instance.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Writing them is what a form being authored needs, and what nothing outside this assembly
     /// could do: the flags could be read through this property and set only through
     /// <c>Elements.SetInteger("/Ff", …)</c>, which loses the enumeration.
+    /// </para>
+    /// <para>
+    /// The bits that say what <em>kind</em> of field this is are not the caller's to assign, and
+    /// are put back on the way through - see <see cref="KindMask"/>. Assigning them away would
+    /// otherwise change the field's type behind the caller's back:
+    /// <c>new PdfComboBoxField(document) { Flags = PdfAcroFieldFlags.Required }</c> reads like a
+    /// combo box that has to be filled in, and without this would write a <c>/Ch</c> with no
+    /// <c>Combo</c> bit - which is a list box, and is what reopening the file would give back.
+    /// </para>
     /// </remarks>
     public PdfAcroFieldFlags Flags
     {
         // TODO: This entry is inheritable, thus the implementation is incorrect...
         get => (PdfAcroFieldFlags)Elements.GetInteger(Keys.Ff);
-        set => Elements.SetInteger(Keys.Ff, (int)value);
+        set => Elements.SetInteger(Keys.Ff, (int)((value & ~KindMask) | KindFlags));
     }
+
+    /// <summary>
+    /// The bits of <c>/Ff</c> that say what kind of field this is rather than how it behaves, and
+    /// which <see cref="Flags"/> therefore keeps rather than letting a caller assign over. Zero
+    /// for a field whose kind <c>/FT</c> settles on its own, which is every field but a button
+    /// and a choice.
+    /// </summary>
+    private protected virtual PdfAcroFieldFlags KindMask => 0;
+
+    /// <summary>
+    /// What those bits are for this kind of field. Zero is an answer rather than an absence: a
+    /// check box is the <c>/Btn</c> that says neither <c>Pushbutton</c> nor <c>Radio</c>, and a
+    /// list box the <c>/Ch</c> that does not say <c>Combo</c>.
+    /// </summary>
+    private protected virtual PdfAcroFieldFlags KindFlags => 0;
 
     internal PdfAcroFieldFlags SetFlags
     {
@@ -462,6 +487,12 @@ public abstract class PdfAcroField : PdfDictionary
             {
                 object o = Elements.GetValue(Keys.Kids, VCF.CreateIndirect);
                 _fields = (PdfAcroFieldCollection)o;
+
+                // Whose /Kids this is. The same class serves as a form's /Fields, where there is
+                // nobody to be under, so the collection cannot work it out for itself - and a
+                // field added to /Kids needs the /Parent back-reference that a root field must
+                // not have.
+                _fields.SetParentField(this);
             }
             return _fields;
         }
@@ -480,6 +511,17 @@ public abstract class PdfAcroField : PdfDictionary
         PdfAcroFieldCollection(PdfDocument document)
             : base(document)
         { }
+
+        /// <summary>
+        /// The field this collection is the <c>/Kids</c> of, or null when it is a form's
+        /// <c>/Fields</c> and the fields in it are therefore root fields.
+        /// </summary>
+        PdfAcroField _parent;
+
+        internal void SetParentField(PdfAcroField parent)
+        {
+            _parent = parent;
+        }
 
         /// <summary>
         /// Adds a field to this collection, making it an indirect object of the document if it is
@@ -510,6 +552,15 @@ public abstract class PdfAcroField : PdfDictionary
                 Owner.Internals.AddObject(field);
 
             Elements.Add(field.Reference);
+
+            // ISO 32000-1 Table 220: /Parent is required of a field that is the child of another
+            // and absent otherwise. Nothing in this library needs it - every lookup here walks
+            // down from /Fields - but a reader working out what a field is called walks up, and
+            // a validator checks that the two directions agree.
+            if (_parent != null)
+                field.Elements.SetReference(Keys.Parent, _parent);
+            else
+                field.Elements.Remove(Keys.Parent);
         }
 
         /// <summary>

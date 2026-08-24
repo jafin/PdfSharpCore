@@ -62,6 +62,12 @@ public abstract class PdfChoiceField : PdfAcroField
     { }
 
     /// <summary>
+    /// A <c>/Ch</c> is a combo box or a list box according to this one bit, so it belongs to the
+    /// class rather than to the caller.
+    /// </summary>
+    private protected override PdfAcroFieldFlags KindMask => PdfAcroFieldFlags.Combo;
+
+    /// <summary>
     /// The options the field offers, in the order a reader lists them - the <c>/Opt</c> array,
     /// which is what a choice field is for and what it has nothing to choose between without.
     /// </summary>

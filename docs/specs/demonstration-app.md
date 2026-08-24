@@ -308,7 +308,7 @@ each, enrolled in the smoke test by being added to the registry.
 
 | name | shows |
 |---|---|
-| `Forms` | an AcroForm: four text fields (plain, required, password, multiline), a check box, a three-widget radio group, a combo box, a list box, a push button carrying a URI action |
+| `Forms` | an AcroForm: five text fields (plain, required, password, comb, multiline), a check box, a three-widget radio group, a combo box, a list box, a push button carrying a URI action |
 | `Annotations` | the four text markup subtypes over the words they mark, a markup spanning a line break as two quads in one annotation, the seven note icons, web/page/named links, a file attachment carrying its bytes, four rubber stamps, and a parity table against PDFKit |
 | `Outline` | a three-level bookmark tree, entries landing on the heading rather than the page, the entry styles and colours, and all eight destination types |
 
@@ -329,7 +329,7 @@ through `PdfInternals.AddObject` and `PdfInternals.Catalog` — and page two of 
 of what the typed API *did* offer, so the demo was a workaround and the documentation of why one was
 needed at the same time.
 
-**That gap is closed**, and the demo is now what it always should have been: nine fields made with
+**That gap is closed**, and the demo is now what it always should have been: ten fields made with
 `new`, named, flagged, added to `document.GetOrCreateAcroForm()` and placed with
 `PdfAcroField.AddWidget`, with every appearance stream drawn through `XGraphics.FromForm`. Page two
 is still a table, but of where each capability lives rather than of what is missing. Two entries are

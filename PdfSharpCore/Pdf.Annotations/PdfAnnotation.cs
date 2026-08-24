@@ -206,10 +206,14 @@ public abstract class PdfAnnotation : PdfDictionary
                 if (array.Elements.Count == 3)
                 {
                     // TODO: an array.GetColor() function may be useful here
+                    // Rounded rather than truncated. A component is written as a fraction of 255
+                    // to the seven decimal places PdfWriter gives a real, so 127 goes out as
+                    // 0.4980392 and comes back as 126.999996 - and truncating that loses a value
+                    // the file all but said.
                     return XColor.FromArgb(
-                        (int)(array.Elements.GetReal(0) * 255),
-                        (int)(array.Elements.GetReal(1) * 255),
-                        (int)(array.Elements.GetReal(2) * 255));
+                        (int)Math.Round(array.Elements.GetReal(0) * 255),
+                        (int)Math.Round(array.Elements.GetReal(1) * 255),
+                        (int)Math.Round(array.Elements.GetReal(2) * 255));
                 }
             }
             return XColors.Black;
@@ -352,7 +356,14 @@ public abstract class PdfAnnotation : PdfDictionary
                 return;
             }
 
-            Elements.SetName(Keys.AS, value[0] == '/' ? value : "/" + value);
+            // Refused the same way SetAppearance(string, XForm) refuses it, and for the same
+            // reason: /AS names a state, and the empty name names none. Checked here rather than
+            // left to SetName, which would happily write a solidus and nothing after it.
+            if (value.Length == 0)
+                throw new ArgumentException("An appearance state must be named.", nameof(value));
+
+            // SetName adds the solidus itself.
+            Elements.SetName(Keys.AS, value);
         }
     }
 

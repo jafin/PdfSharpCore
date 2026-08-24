@@ -393,6 +393,25 @@ no name; and `PdfTextField` renders its value onto each kid that has a `/Rect`, 
 joins partial names into the path `Fields["name.full"]` looks a field up by — so writing one produces
 a field that cannot be found. Nest the fields instead.
 
+**The same collection is a form's `/Fields` and a field's `/Kids`, and `Add` writes `/Parent` for
+the second.** ISO 32000-1 Table 220 requires the back-reference of a field that is the child of
+another and forbids it of a root field, and the collection cannot tell which it is from the outside —
+so `PdfAcroField.Fields` tells it, and `PdfAcroForm.Fields` leaves it unset. Nothing here reads
+`/Parent`; every lookup walks *down* from `/Fields`, which is why its absence went unnoticed. A
+reader assembling a field's full name walks up.
+
+**A field's kind is written in `/Ff`, and the `Flags` setter puts those bits back.** `/Btn` is a push
+button, a radio group or a check box by two bits and `/Ch` is a combo or a list box by one, so
+assigning `Flags` outright would change the field's *type* behind the caller —
+`new PdfComboBoxField(document) { Flags = Required }` used to write a list box, and only reopening
+the file said so. `KindMask` and `KindFlags` are what each class declares; the other flags assign
+normally, and `SetFlags` (internal) bypasses the whole thing because it only ever sets one bit.
+
+**An appearance cannot be made of a rectangle under a point.** `XForm` throws below 1 in either
+direction, so every class that draws its own appearance tests against 1 rather than against 0 and
+removes the appearance instead. It bites a `/Line` most: a hairline lying flat is half its width
+either side and no more.
+
 **A text field's own appearance suppresses `/MK`.** An appearance is what a reader shows *in place
 of* building one from the appearance characteristics, so `PdfTextField` removes `/AP` when it has no
 background, no border and no value, and `BorderColor` exists so that a field which does draw itself

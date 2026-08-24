@@ -131,10 +131,13 @@ public sealed class PdfLineAnnotation : PdfAnnotation
             if (colour == null || colour.Elements.Count < 3)
                 return XColor.Empty;
 
+            // Rounded rather than truncated. A component is written as a fraction of 255 to the
+            // seven decimal places PdfWriter gives a real, so 127 goes out as 0.4980392 and comes
+            // back as 126.999996 - and truncating that loses a value the file all but said.
             return XColor.FromArgb(
-                (int)(colour.Elements.GetReal(0) * 255),
-                (int)(colour.Elements.GetReal(1) * 255),
-                (int)(colour.Elements.GetReal(2) * 255));
+                (int)Math.Round(colour.Elements.GetReal(0) * 255),
+                (int)Math.Round(colour.Elements.GetReal(1) * 255),
+                (int)Math.Round(colour.Elements.GetReal(2) * 255));
         }
         set
         {
@@ -262,10 +265,17 @@ public sealed class PdfLineAnnotation : PdfAnnotation
         double y2 = Math.Max(start.Y, end.Y) + reach;
         Elements.SetRectangle(Keys.Rect, new PdfRectangle(new XPoint(x1, y1), new XPoint(x2, y2)));
 
-        // Nothing to draw: no width to draw it with, or no line to draw. The appearance already
-        // there has to go, or the annotation keeps showing what it was last asked for rather than
-        // what it is being asked for now - a width set back to nothing would stay on the page.
-        if (width <= 0 || (start.X == end.X && start.Y == end.Y))
+        double boxWidth = x2 - x1;
+        double boxHeight = y2 - y1;
+
+        // Nothing to draw: no width to draw it with, no line to draw, or a box too small to draw
+        // it in. That last is XForm's floor of a point in each direction, which a hairline lying
+        // flat can fall under - half its width either side of a horizontal line is all the height
+        // the box has. The appearance already there has to go, or the annotation keeps showing
+        // what it was last asked for rather than what it is being asked for now - a width set back
+        // to nothing would stay on the page.
+        if (width <= 0 || (start.X == end.X && start.Y == end.Y)
+            || boxWidth < 1 || boxHeight < 1)
         {
             Elements.Remove(Keys.AP);
 
@@ -274,9 +284,6 @@ public sealed class PdfLineAnnotation : PdfAnnotation
             Elements.Remove(Keys.AS);
             return;
         }
-
-        double boxWidth = x2 - x1;
-        double boxHeight = y2 - y1;
 
         // The form is drawn on with the origin at its top left and y running down, as every other
         // XGraphics surface is, while the endpoints above are default user space with y running

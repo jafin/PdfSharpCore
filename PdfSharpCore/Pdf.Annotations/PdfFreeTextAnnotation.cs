@@ -232,7 +232,9 @@ public sealed class PdfFreeTextAnnotation : PdfAnnotation
         // Nothing to draw: no room to draw it in, or nothing asked for. The appearance already
         // there has to go, or the annotation keeps showing what it was last asked for rather than
         // what it is being asked for now - text cleared away would stay on the page.
-        if (width <= 0 || height <= 0 || (text.Length == 0 && border <= 0 && !hasBackground))
+        // Measured against 1 rather than against 0 because that is XForm's floor: a rectangle
+        // under a point in either direction is one no appearance can be made of.
+        if (width < 1 || height < 1 || (text.Length == 0 && border <= 0 && !hasBackground))
         {
             Elements.Remove(Keys.AP);
 

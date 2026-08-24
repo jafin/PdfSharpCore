@@ -63,6 +63,13 @@ public abstract class PdfButtonField : PdfAcroField
     { }
 
     /// <summary>
+    /// A <c>/Btn</c> is a push button, a radio group or a check box according to these two bits,
+    /// so they belong to the class rather than to the caller.
+    /// </summary>
+    private protected override PdfAcroFieldFlags KindMask
+        => PdfAcroFieldFlags.Pushbutton | PdfAcroFieldFlags.Radio;
+
+    /// <summary>
     /// Gets the name which represents the opposite of /Off.
     /// </summary>
     protected string GetNonOffValue()
