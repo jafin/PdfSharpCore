@@ -17,7 +17,8 @@ namespace PdfSharpCore.Test.IO;
 ///   commented out beside it, so the operations that guarded on it enforced nothing: a caller who
 ///   opened a document <see cref="PdfDocumentOpenMode.ReadOnly"/> and added a page got the page and
 ///   found out only later, if at all, that none of it would be written. This is the matrix that
-///   makes the mode a specified thing rather than an emergent one. The fifth mode that used to be in
+///   makes the mode a specified thing rather than an emergent one, and the place a newly guarded
+///   operation is added. The fifth mode that used to be in
 ///   it, <c>InformationOnly</c>, was removed from the enum rather than specified; the number it had
 ///   is pinned vacant by <c>IncrementalUpdateTests</c>.
 ///   </para>
@@ -87,6 +88,8 @@ public class OpenModeEnforcementTests
         ["PdfDocument.PageMode"] =
             new Mutation("setting the page mode",
                 (document, _) => document.PageMode = PdfPageMode.UseOutlines),
+        ["PdfDocument.Language"] =
+            new Mutation("setting the document language", (document, _) => document.Language = "en-GB"),
         ["PdfDocument.ResizePages"] =
             new Mutation("resizing a page", (document, _) => document.ResizePages(PageSize.A5)),
     };

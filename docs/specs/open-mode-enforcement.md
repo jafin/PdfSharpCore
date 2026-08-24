@@ -9,8 +9,8 @@ deliberately leaves out.
 | 2 | Every refusal naming both the mode used and the modes wanted | done |
 | 3 | Twelve dead guards made live, one removed, the thirteenth fork deleted | done |
 | 4 | `InformationOnly` decided: removed from the enum, its number left vacant | done |
-| 5 | The matrix of four modes against seventeen operations, pinned | done |
-| 6 | `PdfPages.Remove` and `RemoveAt`, which were never guarded at all | done |
+| 5 | The matrix of four modes against eighteen operations, pinned | done |
+| 6 | `PdfPages.Remove`, `RemoveAt` and `PdfDocument.Language`, never guarded at all | done |
 
 ## What shipped
 
@@ -48,7 +48,7 @@ had. `ThreeStaysVacantWhereInformationOnlyWas` and `ADocumentOpenedWithTheVacant
 pin both halves.
 
 Two things this spec asked for and did not need. Restoring the guards refused nothing the demos, the
-suite or the corpus rely on: 3,941 tests, 37 demos and all six conformance documents pass unchanged,
+suite or the corpus rely on: 3,940 tests, 37 demos and all six conformance documents pass unchanged,
 so the change never met the first real caller the Further Notes anticipated. And `SaveIncremental`'s
 refusal was already correct; it only gained the mode in its message, and a separate sentence for a
 document that was created rather than opened, where naming the mode would have named the enum's
@@ -58,6 +58,10 @@ default and been a lie.
 twelve: removing a page from a read-only document silently succeeded and wrote nothing, the same
 defect one method along. Both now refuse, both with "removing a page". Neither has a `PdfDocument`
 counterpart, so `document.Pages` is the only way to reach them and the matrix covers them there.
+
+**`PdfDocument.Language` was the same omission**, one property along from `PageLayout` and
+`PageMode`: it writes `/Lang` to the catalog and was the only one of the three that let a read-only
+document through. It refuses now, with "setting the document language".
 
 ## Problem Statement
 

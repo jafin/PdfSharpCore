@@ -316,7 +316,7 @@ This file starts at the entry below. Changes before that point are recorded only
   before they silently did the wrong thing:
 
   `PdfDocument.AddPage`, `InsertPage`, `PlacePage`, `ImportPage`, `DuplicatePage`, `MovePage`,
-  `Save`, and the `Version`, `PageLayout` and `PageMode` setters; `PdfDocument.Pages.Add`, `Insert`,
+  `Save`, and the `Version`, `PageLayout`, `PageMode` and `Language` setters; `PdfDocument.Pages.Add`, `Insert`,
   `Place`, `Import`, `Duplicate`, `MovePage`, `InsertRange`, `Remove` and `RemoveAt`.
 
   `XGraphics.FromPdfPage` and `PdfPageResizer` refused these documents already and still do; they
@@ -329,7 +329,7 @@ This file starts at the entry below. Changes before that point are recorded only
   needs, because the mistake is nearly always at the call to `Open` rather than at the operation
   that reports it:
 
-  ```
+  ```text
   This document was opened with PdfDocumentOpenMode.ReadOnly and adding a page needs a document
   opened with PdfDocumentOpenMode.Modify or PdfDocumentOpenMode.Append.
   ```

@@ -1094,7 +1094,11 @@ public sealed class PdfDocument : PdfObject, IDisposable
     public string Language
     {
         get { return Catalog.Language; }
-        set { Catalog.Language = value; }
+        set
+        {
+            EnsureCanModify("setting the document language");
+            Catalog.Language = value;
+        }
         //get { return Catalog.Elements.GetString(PdfCatalog.Keys.Lang); }
         //set { Catalog.Elements.SetString(PdfCatalog.Keys.Lang, value); }
     }

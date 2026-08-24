@@ -330,7 +330,7 @@ with **3 left vacant** — the compiler inlines an enum constant at the call sit
 slide from 4 to 3 to close the gap would have silently redirected every already-compiled caller into
 the removed mode's place. An old assembly passing 3 gets a value the enum does not define, which
 `IsReadOnly` answers as read-only: exactly what `InformationOnly` always did. Add a new member after
-`Append`, never into 3. `OpenModeEnforcementTests` is the matrix of four modes against seventeen
+`Append`, never into 3. `OpenModeEnforcementTests` is the matrix of four modes against eighteen
 operations, and `docs/specs/open-mode-enforcement.md` has the rest.
 
 **Strings and names are byte strings, one char per byte.** `Lexer` reads with
