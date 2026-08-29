@@ -1,29 +1,29 @@
+using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.AcroForms;
+using PdfSharpCore.Pdf.Annotations;
 using SampleApp.Infrastructure;
 
 namespace SampleApp.Demos;
 
 /// <summary>
 ///   An interactive form - text boxes, check boxes, radio buttons, a combo box, a list box and a
-///   push button - built through the object model, because the typed AcroForm API cannot author one.
+///   push button - built through the typed AcroForm API.
 /// </summary>
 /// <remarks>
 ///   <para>
-///     This demo is the odd one out. Every other demo calls a method the library offers; this one
-///     writes dictionaries by hand, because <see cref="PdfAcroForm"/> and every
-///     <see cref="PdfAcroField"/> under it have <c>internal</c> constructors. The typed API reads
-///     and fills a form somebody else wrote. It cannot make one.
+///     This demo used to be the odd one out. Every other demo called a method the library offers;
+///     this one wrote dictionaries by hand, because <see cref="PdfAcroForm"/> and every
+///     <see cref="PdfAcroField"/> under it had an <c>internal</c> constructor, the field collection
+///     had no <c>Add</c>, and <see cref="PdfWidgetAnnotation"/> was internal too. The typed API
+///     could fill in a form somebody else wrote. It could not make one.
 ///   </para>
 ///   <para>
-///     So the demo is two things at once: a working interactive form, and the shortest honest
-///     answer to "how do I create a form field with PdfSharpCore" - which is that you assemble
-///     ISO 32000-1 section 12.7 yourself out of <see cref="PdfDictionary"/>. Page two writes that
-///     down rather than leaving it to be rediscovered.
+///     It can now, and this is what that looks like: no <c>PdfDictionary</c>, no content-stream
+///     operators, and every appearance stream drawn with <see cref="XGraphics"/> like the rest of
+///     the library. Page two sets out what changed and what is still the caller's problem.
 ///   </para>
 /// </remarks>
 internal sealed class FormsDemo : PdfDemo
@@ -40,7 +40,7 @@ internal sealed class FormsDemo : PdfDemo
         "A check box and a radio group, each with the appearance streams a viewer toggles between",
         "A combo box and a list box, both from an /Opt array, one of them editable",
         "A push button carrying a URI action",
-        "That every field here is a hand-built dictionary, because the typed AcroForm API is read-only",
+        "That every field here is made through the typed API rather than assembled by hand",
     };
 
     public override int PageCount => 2;
@@ -60,148 +60,27 @@ internal sealed class FormsDemo : PdfDemo
         XFont labelFont = new XFont(Sans, 9, XFontStyle.Bold);
         XFont noteFont = new XFont(Sans, 7.5);
 
-        // ---- The plumbing every field needs ------------------------------------------
+        // ---- The form ----------------------------------------------------------------
         //
-        // PdfInternals.CreateIndirectObject is not usable - its body never assigns the
-        // constructor it looks for, so it returns null. AddObject is the working route: make
-        // the dictionary owned by the document, then hand it to the reference table.
-        PdfDictionary NewObject()
-        {
-            PdfDictionary dictionary = new PdfDictionary(document);
-            document.Internals.AddObject(dictionary);
-            return dictionary;
-        }
+        // GetOrCreateAcroForm makes the form, makes it indirect and puts it in the catalogue.
+        // PdfDocument.AcroForm only reads, and answers null until this has been called.
+        PdfAcroForm form = document.GetOrCreateAcroForm();
 
-        // The two standard-14 faces a form needs. Neither is embedded and neither has to be:
-        // Helvetica draws the field values, ZapfDingbats draws the tick and the radio dot.
-        PdfDictionary StandardFont(string baseFont, bool winAnsi)
-        {
-            PdfDictionary font = NewObject();
-            font.Elements.SetName("/Type", "/Font");
-            font.Elements.SetName("/Subtype", "/Type1");
-            font.Elements.SetName("/BaseFont", baseFont);
-            if (winAnsi)
-                font.Elements.SetName("/Encoding", "/WinAnsiEncoding");
-            return font;
-        }
+        // /NeedAppearances asks the viewer to build the appearance streams for the text and
+        // choice fields, which is what saves this demo from laying out their glyphs. The buttons
+        // below still carry their own, because a check box's appearance is the thing being
+        // toggled rather than a rendering of its value.
+        form.NeedAppearances = true;
 
-        PdfDictionary fonts = NewObject();
-        fonts.Elements.SetReference("/Helv", StandardFont("/Helvetica", winAnsi: true));
-        fonts.Elements.SetReference("/ZaDb", StandardFont("/ZapfDingbats", winAnsi: false));
+        // A real size, not the "/Helv 0 Tf" most examples show. Zero means auto-size, and what a
+        // viewer makes of that on a multiline box is its own business: Ghostscript scales the
+        // first line to the height of the whole box, which fills the page with one word.
+        form.DefaultAppearance = "/Helv 9 Tf 0 g";
 
-        // The resource dictionary is shared by every appearance stream and by the form's /DR,
-        // so it is indirect. A direct dictionary hung off several parents would be written out
-        // once per parent.
-        PdfDictionary resources = NewObject();
-        resources.Elements.SetReference("/Font", fonts);
-
-        // The form itself. /NeedAppearances asks the viewer to build the appearance streams for
-        // the text and choice fields, which is what saves this demo from laying out their glyphs
-        // by hand. The buttons below still carry their own, because a check box's appearance is
-        // the thing being toggled rather than a rendering of its value.
-        PdfArray fields = new PdfArray(document);
-
-        PdfDictionary acroForm = NewObject();
-        acroForm.Elements["/Fields"] = fields;
-        acroForm.Elements.SetBoolean("/NeedAppearances", true);
-        acroForm.Elements.SetString("/DA", "/Helv 0 Tf 0 g");
-        acroForm.Elements.SetReference("/DR", resources);
-
-        // PdfDocument.Catalog is internal; Internals.Catalog is the public way in. It is a
-        // PdfDictionary underneath, so the key can be set even though the typed AcroForm
-        // property could never be assigned from out here.
-        document.Internals.Catalog.Elements.SetReference("/AcroForm", acroForm);
-
-        // Widgets are annotations, and the page's typed Annotations collection only accepts a
-        // PdfAnnotation - whose one general-purpose subclass is internal. So /Annots is built
-        // directly too.
-        PdfArray annotations = new PdfArray(document);
-        page.Elements["/Annots"] = annotations;
-
-        // ---- One field, in the shape a viewer expects --------------------------------
-        //
-        // Field and widget are merged into a single dictionary. The specification allows that
-        // whenever a field has exactly one widget, which is every field here except the radio
-        // group, and it halves the number of objects.
-        PdfDictionary Field(string fieldType, string name, string tooltip, XRect box)
-        {
-            PdfDictionary field = NewObject();
-            field.Elements.SetName("/Type", "/Annot");
-            field.Elements.SetName("/Subtype", "/Widget");
-            field.Elements.SetName("/FT", fieldType);
-            field.Elements.SetString("/T", name);
-            field.Elements.SetString("/TU", tooltip);
-            field.Elements.SetInteger("/F", 4);              // bit 3, Print
-            field.Elements.SetReference("/P", page);
-
-            // A size of its own, rather than the form's "/Helv 0 Tf". Zero means auto-size, and
-            // what a viewer makes of that on a multiline box is its own business: Ghostscript
-            // scales the first line to the height of the whole box, which fills the page with
-            // one word. Naming the size is the difference between a form that looks the same
-            // everywhere and one that does not.
-            if (fieldType != "/Btn")
-                field.Elements.SetString("/DA", "/Helv 9 Tf 0 g");
-
-            // The drawing above is in world space, measured down from the top left. An
-            // annotation is placed in default page space, measured up from the bottom left.
-            field.Elements.SetRectangle("/Rect",
-                new PdfRectangle(gfx.Transformer.WorldToDefaultPage(box)));
-
-            fields.Elements.Add(field.Reference);
-            annotations.Elements.Add(field.Reference);
-            return field;
-        }
-
-        // /MK is what a viewer paints the field's box and border from.
-        void Decorate(PdfDictionary field, double grey)
-        {
-            PdfDictionary appearance = new PdfDictionary(document);
-            appearance.Elements["/BG"] = new PdfArray(document, new PdfReal(grey));
-            appearance.Elements["/BC"] = new PdfArray(document, new PdfReal(0.45));
-            field.Elements["/MK"] = appearance;
-            field.Elements["/BS"] = new PdfLiteral("<</W 1/S/S>>");
-        }
-
-        void SetFlags(PdfDictionary field, PdfAcroFieldFlags flags)
-        {
-            field.Elements.SetInteger("/Ff", (int)flags);
-        }
-
-        // A circle as the four Bezier curves a PDF path is limited to. The magic number is the
-        // usual one: a control point 0.5523 of the radius along the tangent puts the curve
-        // within a thousandth of a true arc.
-        string Circle(double centreX, double centreY, double radius)
-        {
-            double k = radius * 0.5523;
-
-            string Point(double x, double y) =>
-                x.ToString("0.###", CultureInfo.InvariantCulture) + " "
-                + y.ToString("0.###", CultureInfo.InvariantCulture);
-
-            return $"{Point(centreX + radius, centreY)} m "
-                + $"{Point(centreX + radius, centreY + k)} {Point(centreX + k, centreY + radius)} "
-                + $"{Point(centreX, centreY + radius)} c "
-                + $"{Point(centreX - k, centreY + radius)} {Point(centreX - radius, centreY + k)} "
-                + $"{Point(centreX - radius, centreY)} c "
-                + $"{Point(centreX - radius, centreY - k)} {Point(centreX - k, centreY - radius)} "
-                + $"{Point(centreX, centreY - radius)} c "
-                + $"{Point(centreX + k, centreY - radius)} {Point(centreX + radius, centreY - k)} "
-                + $"{Point(centreX + radius, centreY)} c h";
-        }
-
-        // An appearance stream is a form XObject: a BBox, some resources, and a content stream
-        // in exactly the operators XGraphics would have emitted.
-        PdfDictionary Appearance(XRect box, string content)
-        {
-            PdfDictionary form = NewObject();
-            form.Elements.SetName("/Type", "/XObject");
-            form.Elements.SetName("/Subtype", "/Form");
-            form.Elements["/BBox"] = new PdfArray(document,
-                new PdfReal(0), new PdfReal(0), new PdfReal(box.Width), new PdfReal(box.Height));
-            form.Elements.SetReference("/Resources", resources);
-            form.CreateStream(Encoding.ASCII.GetBytes(content));
-            return form;
-        }
+        // The two standard-14 faces a form needs, named as /DA refers to them. Neither is
+        // embedded and neither has to be: these are the faces every viewer already has.
+        form.AddStandardFont("/Helv", "/Helvetica");
+        form.AddStandardFont("/ZaDb", "/ZapfDingbats");
 
         gfx.DrawString("Interactive form", titleFont, XBrushes.Black, new XPoint(56, 68));
         gfx.DrawLine(new XPen(XColors.SteelBlue, 1.5), 56, 78, 539, 78);
@@ -229,37 +108,124 @@ internal sealed class FormsDemo : PdfDemo
             cursor = box.Bottom + 28;
         }
 
+        // ---- Putting a field on the page ---------------------------------------------
+        //
+        // A field says what it is and what it holds; a widget says where on a page it is drawn.
+        // AddWidget makes one and links the two - always a separate annotation under /Kids, so a
+        // field that gains a second widget later does not change shape.
+        //
+        // The drawing above is in world space, measured down from the top left. A widget is
+        // placed in default page space, measured up from the bottom left.
+        PdfWidgetAnnotation Place(PdfAcroField field, XRect box)
+        {
+            return field.AddWidget(page, new PdfRectangle(gfx.Transformer.WorldToDefaultPage(box)));
+        }
+
+        // /MK is what a viewer paints a field's box and border from when it is building the
+        // appearance itself, which for the two choice fields below it is. It is appearance
+        // characteristics rather than an appearance, and the library wraps no part of it, so
+        // this and the push button's action are the only entries the demo still writes by name.
+        void Decorate(PdfWidgetAnnotation widget, double grey)
+        {
+            PdfDictionary appearance = new PdfDictionary(document);
+            appearance.Elements["/BG"] = new PdfArray(document, new PdfReal(grey));
+            appearance.Elements["/BC"] = new PdfArray(document, new PdfReal(0.45));
+            widget.Elements["/MK"] = appearance;
+        }
+
+        // A text field draws its own appearance out of these, from the value in /V - so the box a
+        // reader shows is the library's drawing rather than something built from /MK, and naming
+        // the colours here is what stops a field losing its box the moment it is given a value.
+        // The size in /DA is the field's own rather than the form's, for the same reason the form
+        // names one at all.
+        void StyleText(PdfTextField field)
+        {
+            field.BackColor = XColor.FromArgb(245, 245, 245);
+            field.BorderColor = XColor.FromArgb(115, 115, 115);
+            field.DefaultAppearance = "/Helv 9 Tf 0 g";
+        }
+
+        // An appearance stream is a form XObject, and XGraphics draws onto one exactly as it
+        // draws onto a page - which is what SetAppearance takes. This demo's first draft drew
+        // its radio rings with an "arc" operator, which is PostScript: a PDF path knows only
+        // m, l, c, v, y, re and h, and a viewer handed an operator it does not know draws
+        // nothing and reports nothing. Drawing through XGraphics puts that mistake out of reach.
+        XForm Appearance(XRect box, Action<XGraphics> draw)
+        {
+            XForm appearance = new XForm(document, new XSize(box.Width, box.Height));
+            using (XGraphics into = XGraphics.FromForm(appearance))
+                draw(into);
+            return appearance;
+        }
+
         // ---- Text fields -------------------------------------------------------------
         XRect fullNameBox = Row("Full name", 20);
-        PdfDictionary fullName = Field("/Tx", "name.full", "Your name as it appears on your passport",
-            fullNameBox);
-        fullName.Elements.SetString("/V", "Ada Lovelace");
-        fullName.Elements.SetInteger("/Q", 0);              // 0 left, 1 centre, 2 right
-        Decorate(fullName, 0.96);
-        EndRow(fullNameBox, "A value in /V, a tooltip in /TU, and /Q for the alignment.");
+        PdfTextField fullName = new PdfTextField(document)
+        {
+            Name = "fullName",
+            ToolTip = "Your name as it appears on your passport",
+        };
+        form.Fields.Add(fullName);
+        StyleText(fullName);
+        Place(fullName, fullNameBox);
+        fullName.Text = "Ada Lovelace";
+        EndRow(fullNameBox, "A value in /V, a tooltip in /TU, and a box the library draws itself.");
 
         XRect emailBox = Row("Email", 20);
-        PdfDictionary email = Field("/Tx", "name.email", "Required - we will not use it for anything",
-            emailBox);
-        SetFlags(email, PdfAcroFieldFlags.Required);
-        Decorate(email, 0.96);
+        PdfTextField email = new PdfTextField(document)
+        {
+            Name = "email",
+            ToolTip = "Required - we will not use it for anything",
+            Flags = PdfAcroFieldFlags.Required,
+        };
+        form.Fields.Add(email);
+        StyleText(email);
+        Place(email, emailBox);
         EndRow(emailBox, "Required, so a reader marks it when the form is submitted empty.");
 
         XRect secretBox = Row("Passphrase", 20);
-        PdfDictionary secret = Field("/Tx", "name.secret", "Typed back as bullets", secretBox);
-        SetFlags(secret, PdfAcroFieldFlags.Password);
-        Decorate(secret, 0.96);
+        PdfTextField secret = new PdfTextField(document)
+        {
+            Name = "secret",
+            ToolTip = "Typed back as bullets",
+            Password = true,
+        };
+        form.Fields.Add(secret);
+        StyleText(secret);
+        Place(secret, secretBox);
         // The flag masks what is typed and nothing more. ISO 32000-1 Table 228 adds only a note
         // that a reader "should never store the value", which is advice to the reader rather than
         // a guarantee to the author - so a form field is not somewhere to keep a secret.
         EndRow(secretBox, "Password: echoed as bullets. Advisory only - not secret storage.");
 
+        XRect postcodeBox = Row("Postcode", 20);
+        PdfTextField postcode = new PdfTextField(document)
+        {
+            Name = "postcode",
+            ToolTip = "Six cells, one character each",
+            MaxLength = 6,
+            Flags = PdfAcroFieldFlags.Comb,
+        };
+        form.Fields.Add(postcode);
+        StyleText(postcode);
+        Place(postcode, postcodeBox);
+        // Comb is bit 25, and was the one field flag PdfAcroFieldFlags did not have. It divides
+        // the box into as many equal cells as /MaxLen allows characters, which is how a form
+        // draws the boxes for a postcode or a card number.
+        EndRow(postcodeBox, "Comb + MaxLength: one character per cell, evenly spaced.");
+
         XRect notesBox = Row("Notes", 56);
-        PdfDictionary notes = Field("/Tx", "name.notes", "Anything else we should know", notesBox);
-        SetFlags(notes, PdfAcroFieldFlags.Multiline);
-        notes.Elements.SetString("/V", "Multiline: this box wraps and scrolls.\nA newline is a newline.");
-        Decorate(notes, 0.96);
-        EndRow(notesBox, "Multiline, and pre-filled with a value containing a line break.");
+        PdfTextField notes = new PdfTextField(document)
+        {
+            Name = "notes",
+            ToolTip = "Anything else we should know",
+            MultiLine = true,
+        };
+        form.Fields.Add(notes);
+        StyleText(notes);
+        Place(notes, notesBox);
+        notes.Text = "Multiline: this box wraps and scrolls.";
+        EndRow(notesBox, "Multiline, so a reader wraps the value rather than scrolling it sideways.");
 
         // ---- A check box -------------------------------------------------------------
         //
@@ -267,154 +233,162 @@ internal sealed class FormsDemo : PdfDemo
         // shows IS its value, so the two streams are the field rather than a rendering of it.
         XRect tickBox = Row("Subscribe", 16);
         tickBox = new XRect(tickBox.X, tickBox.Y, 16, 16);
-        PdfDictionary subscribe = Field("/Btn", "prefs.subscribe", "Send me the newsletter", tickBox);
 
-        const string BoxOutline = "0.45 G 1 w 0.5 0.5 15 15 re S\n";
-        PdfDictionary ticked = Appearance(tickBox,
-            "q 1 1 1 rg 0 0 16 16 re f Q\n" + BoxOutline
-            + "q 0 g BT /ZaDb 12 Tf 2.5 3.5 Td (4) Tj ET Q\n");   // ZapfDingbats '4' is a tick
-        PdfDictionary unticked = Appearance(tickBox, "q 1 1 1 rg 0 0 16 16 re f Q\n" + BoxOutline);
+        PdfCheckBoxField subscribe = new PdfCheckBoxField(document)
+        {
+            Name = "subscribe",
+            ToolTip = "Send me the newsletter",
+        };
+        form.Fields.Add(subscribe);
+        PdfWidgetAnnotation tick = Place(subscribe, tickBox);
 
-        PdfDictionary tickStates = new PdfDictionary(document);
-        tickStates.Elements.SetReference("/Yes", ticked);
-        tickStates.Elements.SetReference("/Off", unticked);
-        PdfDictionary tickAppearance = new PdfDictionary(document);
-        tickAppearance.Elements["/N"] = tickStates;
-        subscribe.Elements["/AP"] = tickAppearance;
+        XPen boxOutline = new XPen(XColors.Gray, 1);
+        XRect inside = new XRect(0.5, 0.5, 15, 15);
 
-        // /AS names which of the two streams is showing; /V is the field's value. They agree
-        // here, and a viewer keeps them in step as the box is clicked.
-        subscribe.Elements.SetName("/AS", "/Yes");
-        subscribe.Elements.SetName("/V", "/Yes");
-        subscribe.Elements.SetName("/DV", "/Yes");
+        tick.SetAppearance("/Yes", Appearance(tickBox, into =>
+        {
+            into.DrawRectangle(boxOutline, XBrushes.White, inside);
+            into.DrawLines(new XPen(XColors.Black, 2),
+                new[] { new XPoint(3.5, 8), new XPoint(6.5, 11.5), new XPoint(12.5, 4.5) });
+        }));
+        tick.SetAppearance("/Off", Appearance(tickBox, into =>
+            into.DrawRectangle(boxOutline, XBrushes.White, inside)));
+
+        // /AS names which of the two streams is showing; /V is the field's value. Checked keeps
+        // them in step, reading the names out of the appearances the widget was just given.
+        subscribe.Checked = true;
         EndRow(tickBox, "/AP /N holds one stream per state; /AS names the one on show.");
 
         // ---- A radio group -----------------------------------------------------------
         //
-        // The one field here that cannot be merged with its widget: three widgets share a
-        // parent, and the parent is what holds the name and the value.
+        // One field, three widgets. The field holds the name and the value; each widget's "on"
+        // state is named after the choice it stands for, and that name is what /V is compared
+        // against - so the two have to agree exactly.
         XRect deliveryRow = Row("Delivery", 14);
 
-        PdfDictionary delivery = NewObject();
-        delivery.Elements.SetName("/FT", "/Btn");
-        delivery.Elements.SetString("/T", "order.delivery");
-        delivery.Elements.SetString("/TU", "How soon do you want it");
-        delivery.Elements.SetInteger("/Ff",
-            (int)(PdfAcroFieldFlags.Radio | PdfAcroFieldFlags.NoToggleToOff));
-        delivery.Elements.SetName("/V", "/Standard");
-        PdfArray kids = new PdfArray(document);
-        delivery.Elements["/Kids"] = kids;
-        fields.Elements.Add(delivery.Reference);
+        PdfRadioButtonField delivery = new PdfRadioButtonField(document)
+        {
+            Name = "delivery",
+            ToolTip = "How soon do you want it",
+            Flags = PdfAcroFieldFlags.Radio | PdfAcroFieldFlags.NoToggleToOff,
+        };
+        form.Fields.Add(delivery);
 
         string[] choices = { "Standard", "Express", "Collect" };
+        delivery.Options = choices;
+
+        const int Chosen = 0;
+
         for (int index = 0; index < choices.Length; index++)
         {
             XRect dot = new XRect(FieldX + index * 100, deliveryRow.Y, 14, 14);
+            PdfWidgetAnnotation button = Place(delivery, dot);
 
-            PdfDictionary widget = NewObject();
-            widget.Elements.SetName("/Type", "/Annot");
-            widget.Elements.SetName("/Subtype", "/Widget");
-            widget.Elements.SetInteger("/F", 4);
-            widget.Elements.SetReference("/P", page);
-            widget.Elements.SetReference("/Parent", delivery);
-            widget.Elements.SetRectangle("/Rect",
-                new PdfRectangle(gfx.Transformer.WorldToDefaultPage(dot)));
+            XRect ring = new XRect(0.5, 0.5, 13, 13);
+            XRect pip = new XRect(3.5, 3.5, 7, 7);
 
-            // Each widget's "on" state is named after the choice it stands for. That name is
-            // what the parent's /V is compared against, so the names have to match exactly.
-            //
-            // The ring is four Beziers. A content stream has no arc operator - that is
-            // PostScript - and a viewer handed one draws nothing at all rather than complaining,
-            // which is how the first draft of this demo ended up with two invisible radio
-            // buttons and one that only showed because its dot is a ZapfDingbats glyph.
-            string ring = Circle(7, 7, 6.5);
-            string blank = $"q 1 1 1 rg {ring} f Q\n0.45 G 1 w {ring} S\n";
+            button.SetAppearance("/" + choices[index], Appearance(dot, into =>
+            {
+                into.DrawEllipse(boxOutline, XBrushes.White, ring);
+                into.DrawEllipse(XBrushes.Black, pip);
+            }));
+            button.SetAppearance("/Off", Appearance(dot, into =>
+                into.DrawEllipse(boxOutline, XBrushes.White, ring)));
 
-            PdfDictionary on = Appearance(dot,
-                blank + $"q 0 g {Circle(7, 7, 3.2)} f Q\n");
-            PdfDictionary off = Appearance(dot, blank);
-
-            PdfDictionary states = new PdfDictionary(document);
-            states.Elements.SetReference("/" + choices[index], on);
-            states.Elements.SetReference("/Off", off);
-            PdfDictionary appearance = new PdfDictionary(document);
-            appearance.Elements["/N"] = states;
-            widget.Elements["/AP"] = appearance;
-            widget.Elements.SetName("/AS", index == 0 ? "/" + choices[index] : "/Off");
-
-            kids.Elements.Add(widget.Reference);
-            annotations.Elements.Add(widget.Reference);
+            // Both states are in the file; /AS picks the one on show. SetAppearance points it at
+            // whichever it has just written, so exactly one button has to be told otherwise -
+            // and a radio group where two are on is the mistake this prevents.
+            button.AppearanceState = index == Chosen ? "/" + choices[index] : "/Off";
 
             gfx.DrawString(choices[index], noteFont, XBrushes.Black,
                 new XPoint(FieldX + index * 100 + 19, deliveryRow.Y + 11));
         }
+
+        // Which one the field holds. SelectedIndex looks the choice up in /Opt and writes /V as
+        // the name the chosen widget's "on" state is called by.
+        delivery.SelectedIndex = Chosen;
         EndRow(deliveryRow,
-            "One field, three widgets under /Kids. The parent holds the name and the value.");
+            "One field, three widgets under /Kids. The field holds the name and the value.");
 
         // ---- Choice fields -----------------------------------------------------------
         XRect countryBox = Row("Country", 20);
-        PdfDictionary country = Field("/Ch", "address.country", "Pick one, or type your own",
-            countryBox);
-        SetFlags(country, PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit | PdfAcroFieldFlags.Sort);
-        country.Elements["/Opt"] = new PdfArray(document,
-            new PdfString("Australia"), new PdfString("Canada"), new PdfString("Ireland"),
-            new PdfString("New Zealand"), new PdfString("United Kingdom"));
-        country.Elements.SetString("/V", "United Kingdom");
-        Decorate(country, 0.96);
+        PdfComboBoxField country = new PdfComboBoxField(document)
+        {
+            Name = "country",
+            ToolTip = "Pick one, or type your own",
+            Flags = PdfAcroFieldFlags.Combo | PdfAcroFieldFlags.Edit | PdfAcroFieldFlags.Sort,
+            Options = new[]
+            {
+                "Australia", "Canada", "Ireland", "New Zealand", "United Kingdom",
+            },
+        };
+        form.Fields.Add(country);
+        country.DefaultAppearance = "/Helv 9 Tf 0 g";
+        Decorate(Place(country, countryBox), 0.96);
+        country.SelectedIndex = 4;
         EndRow(countryBox,
             "Combo + Edit, so the list can also be typed into. Sort orders it for display.");
 
         XRect interestsBox = Row("Interests", 56);
-        PdfDictionary interests = Field("/Ch", "prefs.interests", "Choose as many as you like",
-            interestsBox);
-        SetFlags(interests, PdfAcroFieldFlags.MultiSelect);
-        interests.Elements["/Opt"] = new PdfArray(document,
-            new PdfString("Typography"), new PdfString("Colour management"),
-            new PdfString("Page imposition"), new PdfString("Tagged PDF"));
-        interests.Elements["/V"] = new PdfArray(document,
-            new PdfString("Typography"), new PdfString("Tagged PDF"));
-        interests.Elements["/I"] = new PdfArray(document, new PdfInteger(0), new PdfInteger(3));
-        Decorate(interests, 0.96);
+        PdfListBoxField interests = new PdfListBoxField(document)
+        {
+            Name = "interests",
+            ToolTip = "Choose as many as you like",
+            Flags = PdfAcroFieldFlags.MultiSelect,
+            Options = new[]
+            {
+                "Typography", "Colour management", "Page imposition", "Tagged PDF",
+            },
+        };
+        form.Fields.Add(interests);
+        interests.DefaultAppearance = "/Helv 9 Tf 0 g";
+        Decorate(Place(interests, interestsBox), 0.96);
+        interests.SelectedIndices = new[] { 0, 3 };
         EndRow(interestsBox,
             "A list box is a choice field without the Combo flag. /I carries the selected rows.");
 
         // ---- A push button -----------------------------------------------------------
         //
         // A push button has no value at all - it exists for its action. This one opens a URL,
-        // which is the only action type this library writes without help.
+        // which lives on the widget rather than on the field, because an action is something a
+        // person does to an annotation.
         XRect buttonBox = Row("Then", 24);
         buttonBox = new XRect(buttonBox.X, buttonBox.Y, 140, 24);
-        PdfDictionary button = Field("/Btn", "actions.help", "Opens the PdfSharpCore repository",
-            buttonBox);
-        SetFlags(button, PdfAcroFieldFlags.Pushbutton);
-        button.Elements["/A"] = new PdfLiteral(
+
+        PdfPushButtonField help = new PdfPushButtonField(document)
+        {
+            Name = "help",
+            ToolTip = "Opens the PdfSharpCore repository",
+        };
+        form.Fields.Add(help);
+        PdfWidgetAnnotation face = Place(help, buttonBox);
+
+        face.Elements["/A"] = new PdfLiteral(
             "<</S/URI/URI(https://github.com/ststeiger/PdfSharpCore)>>");
 
         PdfDictionary caption = new PdfDictionary(document);
         caption.Elements.SetString("/CA", "Read the manual");
-        button.Elements["/MK"] = caption;
+        face.Elements["/MK"] = caption;
 
         // Unlike the text fields, a push button gets no help from /NeedAppearances, so its face
-        // is drawn here in the same operators a content stream uses.
-        button.Elements["/AP"] = NormalAppearance(Appearance(buttonBox,
-            "q 0.85 0.89 0.94 rg 0 0 140 24 re f Q\n"
-            + "0.35 0.45 0.6 RG 1 w 0.5 0.5 139 23 re S\n"
-            + "q 0.1 0.2 0.35 rg BT /Helv 10 Tf 22 8.5 Td (Read the manual) Tj ET Q\n"));
+        // is drawn here - with the same XGraphics calls that drew the page.
+        XFont buttonFont = new XFont(Sans, 10);
+        face.SetAppearance(Appearance(buttonBox, into =>
+        {
+            into.DrawRectangle(new XPen(XColor.FromArgb(89, 115, 153), 1),
+                new XSolidBrush(XColor.FromArgb(217, 227, 240)), new XRect(0.5, 0.5, 139, 23));
+            into.DrawString("Read the manual", buttonFont,
+                new XSolidBrush(XColor.FromArgb(26, 51, 89)),
+                new XRect(0, 0, 140, 24), XStringFormats.Center);
+        }));
         EndRow(buttonBox,
             "A push button carries an action instead of a value: /A here is a URI action.");
-
-        PdfDictionary NormalAppearance(PdfDictionary normal)
-        {
-            PdfDictionary appearance = new PdfDictionary(document);
-            appearance.Elements.SetReference("/N", normal);
-            return appearance;
-        }
 
         // ---- Page two: what the typed API can and cannot do ---------------------------
         PdfPage notesPage = document.AddPage();
         XGraphics notesGfx = XGraphics.FromPdfPage(notesPage);
 
-        notesGfx.DrawString("Why this demo writes dictionaries", titleFont, XBrushes.Black,
+        notesGfx.DrawString("What the typed AcroForm API does", titleFont, XBrushes.Black,
             new XPoint(56, 68));
         notesGfx.DrawLine(new XPen(XColors.SteelBlue, 1.5), 56, 78, 539, 78);
 
@@ -423,16 +397,14 @@ internal sealed class FormsDemo : PdfDemo
 
         string[] paragraphs =
         {
-            "PdfSharpCore ships a typed AcroForm API - PdfAcroForm, PdfTextField, PdfCheckBoxField,",
-            "PdfRadioButtonField, PdfComboBoxField, PdfListBoxField, PdfPushButtonField and",
-            "PdfSignatureField. Every one of them has an internal constructor, and so does",
-            "PdfWidgetAnnotation. They are reached by opening a document that already has a form:",
-            "PdfReader.Open(path, PdfDocumentOpenMode.Modify).AcroForm.Fields[\"name.full\"].",
+            "Every field on page one is a PdfTextField, PdfCheckBoxField, PdfRadioButtonField,",
+            "PdfComboBoxField, PdfListBoxField or PdfPushButtonField, made with new, named, given",
+            "flags, added to the form and put on the page. None of it is assembled by hand.",
             "",
-            "That API fills a form. It does not create one, and there is no public seam that would",
-            "let it - PdfAcroFieldCollection has no Add, and PdfDocument.Catalog is internal.",
-            "So page one is built the only way it can be from outside the assembly: as the",
-            "dictionaries of ISO 32000-1 section 12.7, hung off /AcroForm and off the page's /Annots.",
+            "It used to be. Every constructor under PdfSharpCore.Pdf.AcroForms was internal,",
+            "PdfAcroFieldCollection had no Add, PdfWidgetAnnotation was internal and there was no",
+            "way to make a form at all - so the only route was to write the dictionaries of",
+            "ISO 32000-1 section 12.7 yourself and hang them off the catalogue's /AcroForm.",
         };
 
         double lineY = 104;
@@ -444,17 +416,21 @@ internal sealed class FormsDemo : PdfDemo
 
         (string Capability, string State)[] table =
         {
-            ("Create a field of any type", "not offered - hand-built here"),
-            ("Read a field's name, type and flags", "PdfAcroField.Name, .Flags"),
-            ("Fill a field's value", "PdfAcroField.Value"),
+            ("Make a form", "PdfDocument.GetOrCreateAcroForm()"),
+            ("Create a field of any type", "new PdfTextField(document), and so on"),
+            ("Add a field to a form or a field", "PdfAcroFieldCollection.Add"),
+            ("Put a field on a page", "PdfAcroField.AddWidget"),
+            ("Name it, describe it, flag it", "Name, ToolTip, Flags"),
+            ("Give a widget an appearance", "PdfAnnotation.SetAppearance"),
+            ("Offer choices", "PdfChoiceField.Options"),
+            ("Read and fill a form somebody wrote", "AcroForm.Fields[name].Value"),
             ("Make every field read-only", "PdfDocument.MakeAcroFormsReadOnly()"),
-            ("Walk a hierarchy of fields", "PdfAcroField.Fields, .GetDescendantNames()"),
-            ("Sign a document", "PdfSignatureField exists; no signing"),
+            ("Sign a document", "PdfSharpCore.Signing - see the Signing demo"),
             ("Flatten a form into page content", "not offered"),
         };
 
         lineY += 16;
-        notesGfx.DrawString("What the typed API does with a form it did not write", labelFont,
+        notesGfx.DrawString("One capability to a line, and where it lives", labelFont,
             XBrushes.Black, new XPoint(56, lineY));
         lineY += 8;
         notesGfx.DrawLine(XPens.LightGray, 56, lineY, 539, lineY);
@@ -463,22 +439,27 @@ internal sealed class FormsDemo : PdfDemo
         foreach ((string Capability, string State) row in table)
         {
             notesGfx.DrawString(row.Capability, body, XBrushes.Black, new XPoint(56, lineY));
-            notesGfx.DrawString(row.State, mono, XBrushes.DimGray, new XPoint(290, lineY));
+            notesGfx.DrawString(row.State, mono, XBrushes.DimGray, new XPoint(250, lineY));
             lineY += 16;
         }
 
         lineY += 14;
-        notesGfx.DrawString(
-            "One trap worth knowing: PdfDocument.AcroForm casts whatever /AcroForm holds to",
-            body, XBrushes.Black, new XPoint(56, lineY));
-        lineY += 14;
-        notesGfx.DrawString(
-            "PdfAcroForm. A form built as a plain dictionary - as this one is - is only typed on the",
-            body, XBrushes.Black, new XPoint(56, lineY));
-        lineY += 14;
-        notesGfx.DrawString(
-            "way back in, when PdfReader transforms it. Reading it from the live document does not.",
-            body, XBrushes.Black, new XPoint(56, lineY));
+        string[] closing =
+        {
+            "Two entries above are still written by name, because nothing wraps them: /MK, which a",
+            "viewer paints a field's box from when it builds the appearance itself, and the push",
+            "button's /A action. Everything else on page one goes through a property or a method.",
+            "",
+            "One rule to know. A partial field name may not contain a period, because a period is",
+            "what joins nested names into the path a field is found by - so Name = \"name.full\" is",
+            "refused at the call rather than left to produce a field nobody can look up.",
+        };
+
+        foreach (string line in closing)
+        {
+            notesGfx.DrawString(line, body, XBrushes.Black, new XPoint(56, lineY));
+            lineY += 14;
+        }
         #endregion
 
         return document;

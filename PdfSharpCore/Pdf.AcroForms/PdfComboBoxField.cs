@@ -39,13 +39,23 @@ public sealed class PdfComboBoxField : PdfChoiceField
     /// <summary>
     /// Initializes a new instance of PdfComboBoxField.
     /// </summary>
-    internal PdfComboBoxField(PdfDocument document)
-        : base(document)
-    { }
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// The <c>Combo</c> flag is set here rather than left to the caller, because it is what tells
+    /// a combo box from a list box: a <c>/Ch</c> without it is a list box, and reading the
+    /// document back would make one.
+    /// </remarks>
+    public PdfComboBoxField(PdfDocument document)
+        : base(document, "/Ch")
+    {
+        Flags = PdfAcroFieldFlags.Combo;
+    }
 
     internal PdfComboBoxField(PdfDictionary dict)
         : base(dict)
     { }
+
+    private protected override PdfAcroFieldFlags KindFlags => PdfAcroFieldFlags.Combo;
 
     /// <summary>
     /// Gets or sets the index of the selected item.
