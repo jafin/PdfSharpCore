@@ -74,6 +74,17 @@ public static class PdfSigner
 
         options ??= new PdfSignatureOptions();
 
+        // A document can carry only one certifying signature, and it must be the first signature
+        // applied. EnsureCanModify above already refuses this signature if an existing certification
+        // forbids FormFieldValues; this refuses the narrower case it lets through — a document still
+        // open to signing (FormFillingAllowed or above) but already certified — where Certify below
+        // would otherwise silently replace the certification a reader has already relied on.
+        if (options.Certification != PdfCertificationLevel.NotCertified
+            && PdfSignatures.CertificationOf(document) != PdfCertificationLevel.NotCertified)
+            throw new InvalidOperationException(
+                "The document is already certified. A document can carry only one certifying "
+                + "signature, and it must be the first signature applied to the document.");
+
         if (signer.EstimatedSignatureSize < 1)
             throw new ArgumentOutOfRangeException(nameof(signer),
                 "The signer must reserve at least one byte for its signature.");

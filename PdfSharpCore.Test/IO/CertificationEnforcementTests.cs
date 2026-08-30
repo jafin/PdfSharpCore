@@ -119,6 +119,44 @@ public class CertificationEnforcementTests
         signingAgain.Should().NotThrow();
     }
 
+    /// <summary>
+    ///   FormFillingAllowed lets an ordinary signature through, but a document can carry only one
+    ///   certifying signature and it must be the first one applied — so asking to certify again, even
+    ///   at a level that would itself permit the change, is refused rather than silently replacing the
+    ///   certification a reader has already relied on.
+    /// </summary>
+    [Fact]
+    public void CertifyingAnAlreadyCertifiedDocumentIsRefused()
+    {
+        var certified = Certified(UnsignedWithAField(), PdfCertificationLevel.FormFillingAllowed);
+
+        Action reCertifying = () => Sign(certified, new PdfSignatureOptions
+        {
+            FieldName = "Signature2",
+            Certification = PdfCertificationLevel.NoChangesAllowed
+        });
+
+        reCertifying.Should().Throw<InvalidOperationException>().WithMessage("*already certified*");
+    }
+
+    /// <summary>
+    ///   <c>/P</c> is optional and defaults to 2 (FormFillingAllowed) when a certifying signature omits
+    ///   it — <see cref="PdfSigner"/> always writes it explicitly, so this builds the dictionary by
+    ///   hand the way an incomplete but genuine certification from another producer would look.
+    /// </summary>
+    [Fact]
+    public void ACertifyingSignatureWithNoExplicitPDefaultsToFormFillingAllowed()
+    {
+        var document = OpenedForAppend(CertifiedWithNoExplicitP(UnsignedWithAField()));
+
+        Action filling = () => Field(document).Value = new PdfString("filled");
+        filling.Should().NotThrow();
+
+        Action addingAPage = () => document.AddPage();
+        addingAPage.Should().Throw<InvalidOperationException>()
+            .WithMessage("*FormFillingAllowed*");
+    }
+
     [Fact]
     public void FormFillingAndAnnotationsAllowedPermitsBothAndStillRefusesThePageTree()
     {
@@ -233,6 +271,41 @@ public class CertificationEnforcementTests
 
     static byte[] Certified(byte[] document, PdfCertificationLevel level) =>
         Sign(document, new PdfSignatureOptions { Certification = level });
+
+    static byte[] CertifiedWithNoExplicitP(byte[] document)
+    {
+        // Appended rather than fully saved: setting /Perms/DocMDP below makes the in-memory document
+        // certified before a byte is written, and a full Save is itself a document-structure change
+        // that certification refuses. SaveIncremental is not gated the same way - it is what
+        // PdfSigner itself writes the certifying revision with, for exactly this reason.
+        var opened = Reader.Open(new MemoryStream(document), PdfDocumentOpenMode.Append);
+
+        var parameters = new PdfDictionary(opened);
+        parameters.Elements.SetName("/Type", "/TransformParams");
+        parameters.Elements.SetName("/V", "/1.2");
+        // Deliberately no /P: the case this test exists to cover.
+
+        var reference = new PdfDictionary(opened);
+        reference.Elements.SetName("/Type", "/SigRef");
+        reference.Elements.SetName("/TransformMethod", "/DocMDP");
+        reference.Elements["/TransformParams"] = parameters;
+
+        var references = new PdfArray(opened);
+        references.Elements.Add(reference);
+
+        var signature = new PdfDictionary(opened);
+        signature.Elements.SetName("/Type", "/Sig");
+        signature.Elements["/Reference"] = references;
+        opened.Internals.AddObject(signature);
+
+        var permissions = new PdfDictionary(opened);
+        permissions.Elements["/DocMDP"] = signature.Reference;
+        opened.Internals.Catalog.Elements["/Perms"] = permissions;
+
+        using var output = new MemoryStream();
+        opened.SaveIncremental(output);
+        return output.ToArray();
+    }
 
     static byte[] Sign(byte[] document, PdfSignatureOptions options)
     {

@@ -144,7 +144,14 @@ public static class PdfSignatures
 
             var parameters = reference.Elements.GetDictionary("/TransformParams");
             if (parameters != null)
-                return parameters.Elements.GetInteger("/P");
+            {
+                // /P is optional and defaults to 2 (FormFillingAllowed) when absent — the spec's
+                // default, not this library's. Reading it as 0 here would read an incomplete but
+                // otherwise genuine certification as NotCertified and enforce nothing at all.
+                return parameters.Elements.ContainsKey("/P")
+                    ? parameters.Elements.GetInteger("/P")
+                    : (int)PdfCertificationLevel.FormFillingAllowed;
+            }
         }
 
         return 0;
