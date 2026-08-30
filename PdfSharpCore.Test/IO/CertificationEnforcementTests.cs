@@ -52,6 +52,41 @@ public class CertificationEnforcementTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
     }
 
+    /// <summary>
+    ///   Every field type that keeps its own value has to go through the same guard as a text
+    ///   field's <c>Value</c> - a choice, radio or check box field writes <c>/V</c> a different way
+    ///   and each has its own entry point, so each has its own place the guard could have been
+    ///   missing from.
+    /// </summary>
+    [Fact]
+    public void NoChangesAllowedRefusesEveryKindOfFieldValueSetter()
+    {
+        var document = OpenedForAppend(
+            Certified(UnsignedWithOneOfEachFieldKind(), PdfCertificationLevel.NoChangesAllowed));
+
+        var fields = document.Internals.Catalog.AcroForm.Fields;
+        var checkBox = (PdfCheckBoxField)fields["Check1"];
+        var radio = (PdfRadioButtonField)fields["Radio1"];
+        var combo = (PdfComboBoxField)fields["Combo1"];
+        var list = (PdfListBoxField)fields["List1"];
+
+        checkBox.Should().BeOfType<PdfCheckBoxField>();
+        radio.Should().BeOfType<PdfRadioButtonField>();
+        combo.Should().BeOfType<PdfComboBoxField>();
+        list.Should().BeOfType<PdfListBoxField>();
+
+        ((Action)(() => checkBox.Checked = true))
+            .Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
+        ((Action)(() => radio.SelectedIndex = 0))
+            .Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
+        ((Action)(() => combo.SelectedIndex = 0))
+            .Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
+        ((Action)(() => combo.Value = new PdfString("A")))
+            .Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
+        ((Action)(() => list.SelectedIndices = new[] { 0 }))
+            .Should().Throw<InvalidOperationException>().WithMessage("*NoChangesAllowed*");
+    }
+
     [Fact]
     public void NoChangesAllowedRefusesAddingAnAnnotationToo()
     {
@@ -168,6 +203,28 @@ public class CertificationEnforcementTests
     static byte[] UnsignedWithAField()
     {
         var opened = new AcroFormBuilder().With("/Tx", "Field1").Build();
+
+        using var output = new MemoryStream();
+        opened.Save(output, false);
+        return output.ToArray();
+    }
+
+    static byte[] UnsignedWithOneOfEachFieldKind()
+    {
+        var opened = new AcroFormBuilder()
+            .With("/Btn", "Check1")
+            .With("/Btn", "Radio1", field =>
+            {
+                AcroFormBuilder.WithFlags(field, PdfAcroFieldFlags.Radio);
+                AcroFormBuilder.WithOptions(field, "A", "B");
+            })
+            .With("/Ch", "Combo1", field =>
+            {
+                AcroFormBuilder.WithFlags(field, PdfAcroFieldFlags.Combo);
+                AcroFormBuilder.WithOptions(field, "A", "B");
+            })
+            .With("/Ch", "List1", field => AcroFormBuilder.WithOptions(field, "A", "B"))
+            .Build();
 
         using var output = new MemoryStream();
         opened.Save(output, false);

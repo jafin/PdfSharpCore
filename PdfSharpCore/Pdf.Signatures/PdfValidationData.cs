@@ -24,6 +24,16 @@ namespace PdfSharpCore.Pdf.Signatures;
 /// <b>Available separately from signing.</b> The document being archived was often signed by someone
 /// else, so adding validation data is its own call rather than an option on <see cref="PdfSigner"/>'s.
 /// </para>
+/// <para>
+/// <b>Not gated by a certifying signature's <c>/DocMDP</c> level, deliberately.</b> Every other change
+/// this library makes to a document goes through <c>PdfDocument.EnsureCanModify</c>, which a
+/// certification of <see cref="PdfCertificationLevel.NoChangesAllowed"/> refuses outright — but this
+/// does not call it. A document certified against all further change is exactly the kind of document
+/// LTV exists to keep verifiable for: the store adds evidence about what the document already was, it
+/// does not change what the document says, and refusing it here would defeat the archival workflow
+/// PAdES B-LT is for. The only gate that applies is the same one every incremental write needs — the
+/// document has to have been opened with <see cref="PdfSharpCore.Pdf.IO.PdfDocumentOpenMode.Append"/>.
+/// </para>
 /// </remarks>
 public static class PdfValidationData
 {

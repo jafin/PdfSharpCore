@@ -85,7 +85,7 @@ public static class PdfSignatureVerifier
 
         try
         {
-            var encoded = Trimmed(signature.Contents);
+            var encoded = CmsEncoding.Trimmed(signature.Contents);
 
             var signed = new SignedCms(new ContentInfo(covered), detached: true);
             signed.Decode(encoded);
@@ -165,21 +165,4 @@ public static class PdfSignatureVerifier
         return null;
     }
 
-    /// <summary>
-    /// The encoded signature without the zero padding that follows it.
-    /// </summary>
-    /// <remarks>
-    /// The room for a signature is reserved before its length is known, so what is written into
-    /// <c>/Contents</c> is the signature followed by however many zeros are left over. Reading the
-    /// first DER value out of it is what says where the signature actually ends — its own encoded
-    /// length is the only thing that does.
-    /// </remarks>
-    static byte[] Trimmed(byte[] contents)
-    {
-        if (contents == null || contents.Length == 0)
-            throw new ArgumentException("The signature is empty.", nameof(contents));
-
-        var reader = new AsnReader(contents, AsnEncodingRules.BER);
-        return reader.PeekEncodedValue().ToArray();
-    }
 }

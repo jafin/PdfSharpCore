@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace PdfSharpCore.Signing;
 
@@ -80,7 +81,7 @@ public sealed class OcspRevocationDataProvider : IRevocationDataProvider, IDispo
             var responseBytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
             return new RevocationData(new[] { responseBytes }, null);
         }
-        catch (HttpRequestException)
+        catch (Exception problem) when (problem is HttpRequestException or TaskCanceledException)
         {
             return RevocationData.None;
         }

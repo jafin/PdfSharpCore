@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using PdfSharpCore.Pdf.Signatures;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -101,6 +102,8 @@ public sealed class PdfListBoxField : PdfChoiceField
         get => SelectedIndicesFromValue();
         set
         {
+            Owner?.EnsureCanModify("filling in a form field", PdfChangeKind.FormFieldValues);
+
             int[] indices = Ordered(value);
 
             if (indices.Length > 1 && !AllowsMultipleSelection)

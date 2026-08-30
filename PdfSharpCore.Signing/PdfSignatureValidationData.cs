@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Formats.Asn1;
 using System.IO;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
@@ -70,25 +69,11 @@ public static class PdfSignatureValidationData
     /// </summary>
     static X509Certificate2Collection CertificatesOf(PdfSignatureInfo signature)
     {
-        var encoded = Trimmed(signature.Contents);
+        var encoded = CmsEncoding.Trimmed(signature.Contents);
 
         var signed = new SignedCms();
         signed.Decode(encoded);
 
         return signed.Certificates;
-    }
-
-    /// <summary>
-    /// The encoded signature without the zero padding reserved for it that follows it. The same
-    /// trim <see cref="PdfSignatureVerifier"/> applies before decoding, needed here for the same
-    /// reason: the DER length is the only thing that says where the real signature ends.
-    /// </summary>
-    static byte[] Trimmed(byte[] contents)
-    {
-        if (contents == null || contents.Length == 0)
-            throw new ArgumentException("The signature is empty.", nameof(contents));
-
-        var reader = new AsnReader(contents, AsnEncodingRules.BER);
-        return reader.PeekEncodedValue().ToArray();
     }
 }

@@ -32,6 +32,7 @@ using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf.Advanced;
 using PdfSharpCore.Pdf.Annotations;
 using PdfSharpCore.Pdf.Internal;
+using PdfSharpCore.Pdf.Signatures;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -61,6 +62,8 @@ public sealed class PdfTextField : PdfAcroField
         get => Elements.GetString(Keys.V);
         set
         {
+            Owner?.EnsureCanModify("filling in a form field", PdfChangeKind.FormFieldValues);
+
             Elements.SetString(Keys.V, value);
             RenderAppearance();
         } //HACK in PdfTextField

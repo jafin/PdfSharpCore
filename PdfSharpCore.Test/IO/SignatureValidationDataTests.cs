@@ -87,6 +87,20 @@ public class SignatureValidationDataTests
     }
 
     [Fact]
+    public void ValidationDataCanBeAddedToADocumentCertifiedAgainstAllOtherChange()
+    {
+        // Deliberately not gated by /DocMDP: a document certified NoChangesAllowed is exactly the
+        // kind LTV exists to keep verifiable, and refusing to add evidence about it would defeat
+        // the archival workflow this feature is for. See the remarks on PdfValidationData.
+        var certified = Sign(Unsigned(), PdfCertificationLevel.NoChangesAllowed);
+
+        var withData = AddValidationData(certified, new StubRevocationDataProvider());
+
+        var document = Reader.Open(new MemoryStream(withData), PdfDocumentOpenMode.ReadOnly);
+        PdfValidationData.IsPresent(document).Should().BeTrue();
+    }
+
+    [Fact]
     public void AddingValidationDataToADocumentNotOpenedForAppendingIsRefused()
     {
         var document = new PdfDocument();
@@ -119,12 +133,13 @@ public class SignatureValidationDataTests
         return output.ToArray();
     }
 
-    static byte[] Sign(byte[] document)
+    static byte[] Sign(byte[] document, PdfCertificationLevel certification = PdfCertificationLevel.NotCertified)
     {
         using var input = new MemoryStream(document);
         using var output = new MemoryStream();
 
-        PdfSigner.Sign(input, output, new Pkcs7Signer(SigningCertificates.Default));
+        PdfSigner.Sign(input, output, new Pkcs7Signer(SigningCertificates.Default),
+            new PdfSignatureOptions { Certification = certification });
         return output.ToArray();
     }
 
