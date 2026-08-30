@@ -139,12 +139,19 @@ public static class PdfUaValidator
     /// identifier cannot be pointed at, so a reader has no way to offer the jump from the mark to the
     /// note or back again. The identifier is also what the structure tree root's <c>/IDTree</c> is
     /// keyed by, so an unnamed note is absent from that index as well.
+    /// <para>
+    /// Checked against both <see cref="PdfTag.Note"/> and <see cref="PdfTag.FootnoteOrEndnote"/>: a
+    /// PDF/UA-2 document has already been retagged from the first to the second by the time this
+    /// runs — see <see cref="PdfStructureBuilder.PrepareForSave"/> — and the rule is the same
+    /// footnote citation problem under either name.
+    /// </para>
     /// </remarks>
     static void RequireIdentifiedNotes(PdfDocument document)
     {
         foreach (var element in Elements(document))
         {
-            if (element.Elements.GetName(PdfStructureElement.Keys.S) != PdfTag.Note.Name)
+            var type = element.Elements.GetName(PdfStructureElement.Keys.S);
+            if (type != PdfTag.Note.Name && type != PdfTag.FootnoteOrEndnote.Name)
                 continue;
 
             if (string.IsNullOrEmpty(element.Elements.GetString(PdfStructureElement.Keys.ID)))

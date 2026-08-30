@@ -189,6 +189,9 @@ public sealed class PdfStructureBuilder
         Root.SetIdTree(NamedElements());
         Root.PrepareForSave();
 
+        if (_document.Options.UAConformance == PdfUAConformance.PdfUA2)
+            ApplyPdf20Namespace();
+
         var catalog = _document.Catalog;
         catalog.Elements[PdfCatalog.Keys.StructTreeRoot] = Root.Reference;
 
@@ -201,6 +204,73 @@ public sealed class PdfStructureBuilder
         if (!string.IsNullOrEmpty(Language))
             catalog.Elements.SetString(PdfCatalog.Keys.Lang, Language);
     }
+
+    /// <summary>
+    /// Retags <c>/Note</c> as <c>/FENote</c>, and puts the root's <c>/Document</c> child and every
+    /// retagged element explicitly in the PDF 2.0 structure namespace — ISO 14289-2 clauses 8.2.5.2
+    /// and 8.2.5.14.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>/NS</c> only where it is needed, found by trial against veraPDF rather than assumed from
+    /// the specification's inheritance rule for namespaces, which did not hold up here: a validator
+    /// left unnamespaced held every element down the tree to the PDF 1.7 default regardless of what
+    /// an ancestor declared, and held <em>every</em> element explicitly renamespaced to the PDF 2.0
+    /// one instead — including <c>/Reference</c>, which that namespace does not recognise as a
+    /// standard type but the PDF 1.7 default does.
+    /// </para>
+    /// <para>
+    /// So this sets <c>/NS</c> on exactly the two kinds of element that need it: the root's single
+    /// <c>/Document</c> child, which the rule names outright, and <c>/FENote</c>, PDF 2.0's
+    /// replacement for <c>/Note</c> and a type the PDF 1.7 default does not recognise. Everything
+    /// else — <c>/Sect</c>, <c>/P</c>, <c>/L</c>, <c>/Lbl</c>, <c>/LI</c>, <c>/Reference</c> among
+    /// them — is left with no <c>/NS</c> of its own, exactly as it already validated correctly under
+    /// PDF/UA-1.
+    /// </para>
+    /// </remarks>
+    void ApplyPdf20Namespace()
+    {
+        var ns = new PdfDictionary(_document);
+        ns.Elements.SetName("/Type", "/Namespace");
+        ns.Elements.SetString("/NS", "http://iso.org/pdf2/ssn");
+        _document._irefTable.Add(ns);
+
+        if (Root.Elements[PdfStructureTreeRoot.Keys.K] is PdfArray kids && kids.Elements.Count == 1
+            && Resolve(kids.Elements[0]) is PdfStructureElement document && document.Tag.Name == "/Document")
+        {
+            document.Elements[PdfStructureElement.Keys.NS] = ns.Reference;
+        }
+
+        RetagNotes(Root.Elements[PdfStructureTreeRoot.Keys.K], ns, 0);
+    }
+
+    static void RetagNotes(PdfItem item, PdfDictionary pdf20Namespace, int depth)
+    {
+        if (item == null || depth > MaxTreeDepth)
+            return;
+
+        item = Resolve(item);
+
+        if (item is PdfArray array)
+        {
+            for (int idx = 0; idx < array.Elements.Count; idx++)
+                RetagNotes(array.Elements[idx], pdf20Namespace, depth + 1);
+            return;
+        }
+
+        if (item is not PdfStructureElement element)
+            return;
+
+        if (element.Tag.Name == PdfTag.Note.Name)
+        {
+            element.Elements.SetName(PdfStructureElement.Keys.S, PdfTag.FootnoteOrEndnote.Name);
+            element.Elements[PdfStructureElement.Keys.NS] = pdf20Namespace.Reference;
+        }
+
+        RetagNotes(element.Elements[PdfStructureElement.Keys.K], pdf20Namespace, depth + 1);
+    }
+
+    static PdfItem Resolve(PdfItem item) => item is PdfReference reference ? reference.Value : item;
 
     /// <summary>
     /// Every element that carries an <see cref="PdfStructureElement.Id"/>, sorted by it, ready to be

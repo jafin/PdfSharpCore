@@ -349,12 +349,25 @@ internal sealed class StructureTagger
         if (_listRun == null || _listRunType != type || !ReferenceEquals(_listRunParent, parent))
         {
             _listRun = _document.Structure.CreateElement(PdfTag.L, parent);
+            _listRun.SetListNumbering(ListNumberingOf(type));
             _listRunParent = parent;
             _listRunType = type;
         }
 
         return Element(paragraph, PdfTag.LI, _listRun);
     }
+
+    /// <summary>
+    /// The list-numbering scheme a <c>ListType</c> announces itself as. MigraDoc does not vary the
+    /// bullet glyph by level, so every bulleted level reads the same; every numbered level reads as
+    /// plain decimal, which is what MigraDoc actually renders.
+    /// </summary>
+    static PdfListNumbering ListNumberingOf(ListType type) => type switch
+    {
+        ListType.BulletList1 or ListType.BulletList2 or ListType.BulletList3 => PdfListNumbering.Disc,
+        ListType.NumberList1 or ListType.NumberList2 or ListType.NumberList3 => PdfListNumbering.Decimal,
+        _ => PdfListNumbering.None,
+    };
 
     /// <summary>
     /// Ends the run of list paragraphs, so that the next one starts a new list. Called by every

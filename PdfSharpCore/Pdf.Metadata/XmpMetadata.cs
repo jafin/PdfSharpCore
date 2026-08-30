@@ -248,6 +248,13 @@ public sealed class XmpMetadata
         // both — writing a pdfuaid:conformance to match the pdfaid one above is a common mistake and
         // a validator objects to it.
         AppendSimple(xmp, "pdfuaid:part", UAConformance == PdfUAConformance.PdfUA2 ? "2" : "1");
+
+        // ISO 14289-2 clause 5 requires the revision year alongside the part, because part 2 of
+        // the standard has already had one revision — 2024 is the only value that exists so far,
+        // and part 1 carries no such property at all.
+        if (UAConformance == PdfUAConformance.PdfUA2)
+            AppendSimple(xmp, "pdfuaid:rev", "2024");
+
         xmp.Append("  </rdf:Description>\n");
     }
 
