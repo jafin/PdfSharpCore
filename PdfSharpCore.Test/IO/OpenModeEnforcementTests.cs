@@ -92,6 +92,8 @@ public class OpenModeEnforcementTests
             new Mutation("setting the document language", (document, _) => document.Language = "en-GB"),
         ["PdfDocument.ResizePages"] =
             new Mutation("resizing a page", (document, _) => document.ResizePages(PageSize.A5)),
+        ["PdfDocument.GetOrCreateAcroForm"] =
+            new Mutation("creating an interactive form", (document, _) => document.GetOrCreateAcroForm()),
     };
 
     /// <summary>The modes that let a document be changed.</summary>

@@ -27,6 +27,8 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
+
 namespace PdfSharpCore.Pdf.AcroForms;
 
 /// <summary>
@@ -38,7 +40,14 @@ public sealed class PdfAcroForm : PdfDictionary
     /// <summary>
     /// Initializes a new instance of AcroForm.
     /// </summary>
-    internal PdfAcroForm(PdfDocument document)
+    /// <param name="document">The document the form belongs to.</param>
+    /// <remarks>
+    /// Constructing one does not attach it to anything.
+    /// <see cref="PdfDocument.GetOrCreateAcroForm"/> is what a caller authoring a form wants: it
+    /// makes the form, makes it indirect and puts it in the catalogue, and answers the one the
+    /// document already has when it has one.
+    /// </remarks>
+    public PdfAcroForm(PdfDocument document)
         : base(document)
     {
         _document = document;
@@ -47,6 +56,122 @@ public sealed class PdfAcroForm : PdfDictionary
     internal PdfAcroForm(PdfDictionary dictionary)
         : base(dictionary)
     { }
+
+    /// <summary>
+    /// Whether a reader should build the appearance streams of this form's fields for itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is how a text or choice field gets drawn without the author laying out its glyphs: the
+    /// reader renders the value using <see cref="DefaultAppearance"/> and the resources in
+    /// <see cref="DefaultResources"/>. Buttons get no help from it, because what a check box or a
+    /// radio button shows <em>is</em> its value rather than a rendering of one, so their
+    /// appearance streams are the field and have to be written.
+    /// </para>
+    /// <para>
+    /// Not every reader honours it, and one that does may draw the field only once it has been
+    /// clicked into. A form that must look right unopened carries its own appearances.
+    /// </para>
+    /// </remarks>
+    public bool NeedAppearances
+    {
+        get => Elements.GetBoolean(Keys.NeedAppearances);
+        set => Elements.SetBoolean(Keys.NeedAppearances, value);
+    }
+
+    /// <summary>
+    /// The default appearance string every field of this form falls back on - <c>/DA</c>, a
+    /// fragment of content stream naming the font, the size and the colour a value is drawn in.
+    /// </summary>
+    /// <remarks>
+    /// The font is named by the key it has in <see cref="DefaultResources"/>, so
+    /// <c>"/Helv 9 Tf 0 g"</c> wants a <c>/Helv</c> there - which
+    /// <see cref="AddStandardFont"/> puts in.
+    /// <para>
+    /// Name a real size. Zero means auto-size, and what a reader makes of that on a multiline
+    /// field is its own business: Ghostscript scales the first line to the height of the whole
+    /// box, so a two-line value fills the page. It is the natural thing to write at form level
+    /// and the reason a form can look right in one reader and wrong in another.
+    /// </para>
+    /// </remarks>
+    public string DefaultAppearance
+    {
+        get => Elements.GetString(Keys.DA);
+        set => Elements.SetString(Keys.DA, value);
+    }
+
+    /// <summary>
+    /// The resource dictionary <see cref="DefaultAppearance"/> and every field's own <c>/DA</c>
+    /// look their font up in - <c>/DR</c>, made on first use.
+    /// </summary>
+    /// <remarks>
+    /// Indirect, because it is shared: the form refers to it and so may every appearance stream in
+    /// the document, and a direct dictionary hung off several parents is written out once per
+    /// parent.
+    /// </remarks>
+    public PdfDictionary DefaultResources
+    {
+        get
+        {
+            PdfDictionary resources = Elements.GetDictionary(Keys.DR);
+            if (resources == null)
+            {
+                resources = new PdfDictionary(Owner);
+                Owner.Internals.AddObject(resources);
+                Elements.SetReference(Keys.DR, resources);
+            }
+            return resources;
+        }
+    }
+
+    /// <summary>
+    /// Names one of the fourteen standard faces in <see cref="DefaultResources"/>, so that a
+    /// default appearance string may refer to it.
+    /// </summary>
+    /// <param name="resourceName">
+    /// The name a <c>/DA</c> string calls it by - <c>/Helv</c> by convention for Helvetica,
+    /// <c>/ZaDb</c> for ZapfDingbats. A leading solidus is added if it is left off.
+    /// </param>
+    /// <param name="baseFont">
+    /// The face, as ISO 32000-1 Table 109 names it: <c>/Helvetica</c>, <c>/Times-Roman</c>,
+    /// <c>/Courier</c>, <c>/Symbol</c>, <c>/ZapfDingbats</c> and the rest. A leading solidus is
+    /// added if it is left off.
+    /// </param>
+    /// <remarks>
+    /// Not embedded, and not required to be: the fourteen standard faces are the ones a reader
+    /// already has. The encoding is WinAnsi for the text faces and left alone for Symbol and
+    /// ZapfDingbats, which carry a built-in encoding of their own that WinAnsi would override -
+    /// and ZapfDingbats is how a check box draws its tick.
+    /// </remarks>
+    public void AddStandardFont(string resourceName, string baseFont)
+    {
+        if (string.IsNullOrWhiteSpace(resourceName))
+            throw new ArgumentException("A font in the default resources has to be named.", nameof(resourceName));
+        if (string.IsNullOrWhiteSpace(baseFont))
+            throw new ArgumentException("A standard font has to be named.", nameof(baseFont));
+
+        string key = resourceName[0] == '/' ? resourceName : "/" + resourceName;
+        string face = baseFont[0] == '/' ? baseFont : "/" + baseFont;
+
+        PdfDictionary font = new PdfDictionary(Owner);
+        Owner.Internals.AddObject(font);
+        font.Elements.SetName("/Type", "/Font");
+        font.Elements.SetName("/Subtype", "/Type1");
+        font.Elements.SetName("/BaseFont", face);
+
+        if (face != "/Symbol" && face != "/ZapfDingbats")
+            font.Elements.SetName("/Encoding", "/WinAnsiEncoding");
+
+        PdfDictionary resources = DefaultResources;
+        PdfDictionary fonts = resources.Elements.GetDictionary("/Font");
+        if (fonts == null)
+        {
+            fonts = new PdfDictionary(Owner);
+            resources.Elements["/Font"] = fonts;
+        }
+
+        fonts.Elements.SetReference(key, font);
+    }
 
     /// <summary>
     /// Gets the fields collection of this form.

@@ -114,6 +114,16 @@ public enum PdfAcroFieldFlags
     /// </summary>
     DoNotScroll = 1 << (24 - 1),
 
+    /// <summary>
+    /// (PDF 1.5) If set, the field is divided into as many equally spaced cells as the
+    /// MaxLen entry says the value may be characters long, and the text is laid out one
+    /// character to a cell - which is how a form draws the boxes for a postcode or a card
+    /// number.
+    /// Meaningful only if MaxLen is present and none of Multiline, Password and FileSelect
+    /// is set; a field breaking any of that is what a reader is free to do anything with.
+    /// </summary>
+    Comb = 1 << (25 - 1),
+
     // ----- Specific to choice fields ------------------------------------------------------------
 
     /// <summary>

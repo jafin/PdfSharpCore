@@ -308,7 +308,7 @@ each, enrolled in the smoke test by being added to the registry.
 
 | name | shows |
 |---|---|
-| `Forms` | an AcroForm: four text fields (plain, required, password, multiline), a check box, a three-widget radio group, a combo box, a list box, a push button carrying a URI action |
+| `Forms` | an AcroForm: five text fields (plain, required, password, comb, multiline), a check box, a three-widget radio group, a combo box, a list box, a push button carrying a URI action |
 | `Annotations` | the four text markup subtypes over the words they mark, a markup spanning a line break as two quads in one annotation, the seven note icons, web/page/named links, a file attachment carrying its bytes, four rubber stamps, and a parity table against PDFKit |
 | `Outline` | a three-level bookmark tree, entries landing on the heading rather than the page, the entry styles and colours, and all eight destination types |
 
@@ -318,20 +318,27 @@ from outside. That is also what makes the gaps below findable.
 
 ### `Forms` is the odd one out, and says so on the page
 
-**The typed AcroForm API cannot author a form.** `PdfAcroForm`, all eight `PdfAcroField` subclasses
-and `PdfWidgetAnnotation` have `internal` constructors; `PdfAcroFieldCollection` has no `Add`; and
-`PdfDocument.Catalog` is `internal`. The API reads and fills a form somebody else wrote, which is a
-real and useful thing, and is not the thing anybody asking "how do I add a text box" wants.
+**The typed AcroForm API could not author a form.** `PdfAcroForm`, all eight `PdfAcroField`
+subclasses and `PdfWidgetAnnotation` had `internal` constructors; `PdfAcroFieldCollection` had no
+`Add`; and `PdfDocument.Catalog` is still `internal`. The API read and filled a form somebody else
+wrote, which is a real and useful thing, and was not the thing anybody asking "how do I add a text
+box" wants.
 
-So the demo assembles ISO 32000-1 §12.7 out of `PdfDictionary` — which is possible from outside the
-assembly, through `PdfInternals.AddObject` and `PdfInternals.Catalog`. Page two of the PDF is the
-table of what the typed API *does* offer, so the demo is a workaround and the documentation of why
-one is needed at the same time.
+So the demo assembled ISO 32000-1 §12.7 out of `PdfDictionary` — possible from outside the assembly
+through `PdfInternals.AddObject` and `PdfInternals.Catalog` — and page two of the PDF was the table
+of what the typed API *did* offer, so the demo was a workaround and the documentation of why one was
+needed at the same time.
+
+**That gap is closed**, and the demo is now what it always should have been: ten fields made with
+`new`, named, flagged, added to `document.GetOrCreateAcroForm()` and placed with
+`PdfAcroField.AddWidget`, with every appearance stream drawn through `XGraphics.FromForm`. Page two
+is still a table, but of where each capability lives rather than of what is missing. Two entries are
+still written by name because nothing wraps them: `/MK` and the push button's `/A` action.
+`interactive-layer-gaps.md` item 1 has the design and the four defects that closing it uncovered.
 
 It round-trips: reopening the file gives `PdfTextField`, `PdfCheckBoxField`, `PdfRadioButtonField`,
 `PdfComboBoxField`, `PdfListBoxField` and `PdfPushButtonField`, each with the right flags and, where
 the field type has one, the right value — a push button has none, since it exists for its action.
-The dictionaries are right, in other words; only the way in is missing.
 
 ### Four things these three found
 
