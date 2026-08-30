@@ -11,10 +11,10 @@ Gap **G5** of the competitive gap analysis.
 | 4 | Visible appearance drawn through `XGraphics` | done |
 | 5 | Certifying signatures — `/DocMDP` and `/Perms` | done |
 | 6 | `PdfSignatures` / `PdfSignatureVerifier` — read back, and check integrity and coverage | done |
-| 7 | PAdES B-T — an RFC 3161 timestamp | not done |
-| 8 | PAdES B-LT / LTV — a DSS dictionary with OCSP and CRL data | not done |
+| 7 | PAdES B-T — an RFC 3161 timestamp | done, [signature-lifetime.md](signature-lifetime.md) |
+| 8 | PAdES B-LT / LTV — a DSS dictionary with OCSP and CRL data | done, [signature-lifetime.md](signature-lifetime.md) |
 | 9 | Chain building, trust stores, revocation checking | not done, **deliberately** |
-| 10 | Enforcing what a `/DocMDP` level permits | not done |
+| 10 | Enforcing what a `/DocMDP` level permits | done, [signature-lifetime.md](signature-lifetime.md) |
 
 Covered by `PdfSharpCore.Test/IO/SigningTests.cs`.
 

@@ -2261,6 +2261,26 @@ public sealed class XGraphics : IDisposable
         readonly XGraphics _gfx;
 
         /// <summary>
+        /// Gets the point in default page space units that the specified point in world space
+        /// units falls on.
+        /// </summary>
+        /// <remarks>
+        /// The rectangle overload cannot answer this: a rectangle is enclosed rather than mapped,
+        /// so which of its corners a given point became is lost. Annotations placed by a point
+        /// rather than by a box - a <see cref="PdfSharpCore.Pdf.Annotations.PdfLineAnnotation"/>'s
+        /// two ends, above all - need the point itself.
+        /// </remarks>
+        public XPoint WorldToDefaultPage(XPoint point)
+        {
+            XPoint[] points = { point };
+
+            XMatrix matrix = _gfx.Transform;
+            matrix.TransformPoints(points);
+
+            return new XPoint(points[0].X, _gfx.PageSize.Height - points[0].Y);
+        }
+
+        /// <summary>
         /// Gets the smallest rectangle in default page space units that completely encloses the specified rect
         /// in world space units.
         /// </summary>
