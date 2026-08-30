@@ -1090,6 +1090,37 @@ public sealed class PdfDocument : PdfObject, IDisposable
     }
 
     /// <summary>
+    /// Gets this document's interactive form, making one and putting it in the catalogue if there
+    /// is not one yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The way in to authoring a form. <see cref="AcroForm"/> only reads, and every constructor
+    /// under <c>PdfSharpCore.Pdf.AcroForms</c> used to be internal, so a caller who wanted to
+    /// <em>make</em> a form had to assemble ISO 32000-1 section 12.7 out of raw dictionaries.
+    /// </para>
+    /// <para>
+    /// A getter that creates would be a trap - reading a property would write an interactive form
+    /// into every document that asked whether it had one - so this is a method and
+    /// <see cref="AcroForm"/> is left answering null.
+    /// </para>
+    /// </remarks>
+    public PdfAcroForm GetOrCreateAcroForm()
+    {
+        EnsureCanModify("creating an interactive form");
+
+        PdfAcroForm form = Catalog.AcroForm;
+        if (form == null)
+        {
+            form = new PdfAcroForm(this);
+            Internals.AddObject(form);
+            Catalog.Elements.SetReference(PdfCatalog.Keys.AcroForm, form);
+        }
+
+        return form;
+    }
+
+    /// <summary>
     /// Gets or sets the default language of the document.
     /// </summary>
     public string Language

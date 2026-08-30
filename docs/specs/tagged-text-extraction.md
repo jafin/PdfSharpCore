@@ -4,6 +4,29 @@ The remaining half of gap **G7** in the competitive gap analysis, and the piece 
 extraction the thing no untagged reader can match. `docs/specs/text-extraction.md` is the note for
 what shipped; this one is for what it does not yet do.
 
+| item | what | status |
+|---|---|---|
+| 1 | The extractor reads `BDC`, `BMC` and `EMC`, inline and named property lists | done |
+| 2 | `PdfTextRun.Tag`, `.ActualText`, `.MarkedContentId` — which sequence a run was drawn inside | done |
+| 3 | `ExtractText` skips `/Artifact` runs and prefers a sequence's `/ActualText`, once per sequence | done |
+| 4 | Malformed marked content degrades rather than aborts; a depth cap of 1024 | done |
+| 5 | A document with no marked content extracts byte-for-byte as before | done, pinned |
+| 6 | A word MigraDoc hyphenates extracts whole | done, **by changing the writer** — see below |
+| 7 | Reading order, per-glyph boxes, alternate text off the tree, the structure tree itself | not done, **deliberately** |
+
+Covered by `PdfSharpCore.Test/IO/TaggedTextExtractionTests.cs` and
+`MigraDocCore.Rendering.Tests/TaggedOutputTests.AWordBrokenAtAHyphenExtractsWhole`.
+
+**One thing here departs from the spec as written.** It says nothing about the written file changes.
+Building it found that MigraDoc's soft-hyphen renderer set `/ActualText` on the *structure element*
+alone — `XGraphics.BeginMarkedContent(element)` wrote only the tag and `/MCID` into the content
+stream — so under the rule that the extractor never consults the structure tree, story 1 was not
+reachable from the page. Rather than break that rule, the writer now also states an element's
+`/ActualText` inline in its own `BDC` properties beside `/MCID`, the standard
+`/Span <</MCID n /ActualText (…)>> BDC` form, on both `BeginMarkedContent(element)` and
+`ResumeMarkedContent`. An element that never set it writes exactly the bytes it wrote before, and the
+conformance corpus still validates. Nothing else about the written file changed.
+
 ## Problem Statement
 
 A caller who extracts text from a document **this library produced** gets answers that are wrong in

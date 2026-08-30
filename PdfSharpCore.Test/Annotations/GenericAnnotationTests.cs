@@ -187,6 +187,45 @@ public class GenericAnnotationTests
         states.Elements.ContainsKey("/Off").Should().BeTrue();
     }
 
+    [Fact]
+    public void TheShowingStateCanBeNamedWithOrWithoutItsSolidus()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        PdfGenericAnnotation widget = new PdfGenericAnnotation("/Square");
+        page.Annotations.Add(widget);
+
+        widget.SetAppearance("/Off", Filled(document, new XSize(16, 16), XColors.White));
+        widget.SetAppearance("/Yes", Filled(document, new XSize(16, 16), XColors.Black));
+
+        widget.AppearanceState = "Off";
+        widget.AppearanceState.Should().Be("/Off");
+
+        widget.AppearanceState = "/Yes";
+        widget.AppearanceState.Should().Be("/Yes");
+
+        widget.AppearanceState = null;
+        widget.Elements.ContainsKey("/AS").Should().BeFalse();
+    }
+
+    [Fact]
+    public void AnAppearanceStateWithNoNameIsRefusedTheWaySettingOneIs()
+    {
+        PdfDocument document = new PdfDocument();
+        PdfPage page = document.AddPage();
+
+        PdfGenericAnnotation widget = new PdfGenericAnnotation("/Square");
+        page.Annotations.Add(widget);
+
+        // /AS names a state and the empty name names none. SetAppearance has always said so;
+        // this used to read the first character of an empty string and throw an
+        // IndexOutOfRangeException, which names neither the parameter nor the mistake.
+        Action naming = () => widget.AppearanceState = "";
+
+        naming.Should().Throw<ArgumentException>().WithParameterName("value");
+    }
+
     /// <summary>
     ///   An appearance stream that fills itself with one colour, which is the smallest drawing
     ///   that proves a reader painted it.

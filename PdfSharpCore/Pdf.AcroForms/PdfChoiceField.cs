@@ -45,11 +45,64 @@ public abstract class PdfChoiceField : PdfAcroField
     { }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PdfChoiceField"/> class.
+    /// Initializes a new instance of the <see cref="PdfChoiceField"/> class of the named type.
+    /// </summary>
+    /// <param name="document">The document the field belongs to.</param>
+    /// <param name="fieldType">The value of <c>/FT</c>, which for every choice is <c>/Ch</c>.</param>
+    private protected PdfChoiceField(PdfDocument document, string fieldType)
+        : base(document, fieldType)
+    { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfChoiceField"/> class. Used for type
+    /// transformation.
     /// </summary>
     protected PdfChoiceField(PdfDictionary dict)
         : base(dict)
     { }
+
+    /// <summary>
+    /// A <c>/Ch</c> is a combo box or a list box according to this one bit, so it belongs to the
+    /// class rather than to the caller.
+    /// </summary>
+    private protected override PdfAcroFieldFlags KindMask => PdfAcroFieldFlags.Combo;
+
+    /// <summary>
+    /// The options the field offers, in the order a reader lists them - the <c>/Opt</c> array,
+    /// which is what a choice field is for and what it has nothing to choose between without.
+    /// </summary>
+    /// <remarks>
+    /// An option may be written either as one text string or as a pair of them, an export value
+    /// and the text shown for it. Reading answers the export value, because that is what
+    /// <c>/V</c> is matched against; writing writes the plain form, one string per option.
+    /// </remarks>
+    public string[] Options
+    {
+        get
+        {
+            PdfArray options = Elements.GetArray(Keys.Opt);
+            if (options == null)
+                return new string[0];
+
+            int count = options.Elements.Count;
+            string[] text = new string[count];
+            for (int idx = 0; idx < count; idx++)
+                text[idx] = ValueInOptArray(idx);
+
+            return text;
+        }
+        set
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
+            PdfArray options = new PdfArray(Owner);
+            foreach (string option in value)
+                options.Elements.Add(new PdfString(option ?? ""));
+
+            Elements[Keys.Opt] = options;
+        }
+    }
 
     /// <summary>
     /// Gets the index of the specified string in the /Opt array or -1, if no such string exists.

@@ -7,47 +7,26 @@ covers.
 
 | item | what | status |
 |---|---|---|
-| 1 | The page-resource walk, lifted out of the pruner into `PdfPageWalk` so a second caller can ask it what a page uses | done |
-| 2 | The four rules the walk answers: no transparency and no JPEG 2000 under PDF/A-1, no interpolated image under any archival profile, no device colour the output intent does not describe | done |
-| 3 | PDF/A's `A` levels — `PdfA1A`, `PdfA2A`, `PdfA3A`, each the archival rules of its part plus the tagging rules `PdfUaValidator` already enforces, refused at the claim on an untagged document | done |
-| 4 | PDF/UA-2 | done, **but not a claim the library can stand behind yet** |
-| 5 | A corpus document per new claim, validated by veraPDF | done for every claim but PDF/UA-2 |
+| 1 | `PdfPageWalk` — the pruner's resource walk lifted into a base class; `PdfPageResourceUsage` is its second caller | done |
+| 2 | Transparency and JPXDecode refused under PDF/A-1; `/Interpolate true` refused under every part | done |
+| 3 | A colour space the output intent does not describe is refused, judged by component count over the whole document | done |
+| 4 | `PdfAConformance.PdfA1A` / `PdfA2A` / `PdfA3A` — the `A` levels, requiring a tagged document that passes `PdfUaValidator` | done, and veraPDF passes all three |
+| 5 | `PdfUAConformance.PdfUA2` — `pdfuaid:part 2`, `rev 2024`, PDF 2.0 namespace, `/FENote`, `/ListNumbering` | done, **but not validated** — see below |
+| 6 | Every link annotation carries `/F` with Print set — the flags PDF/A and PDF/UA-2 require and the writer never wrote | done, found by veraPDF |
+| 7 | A Factur-X invoice attaching to a prior PDF/A-3a claim keeps it rather than downgrading it | done, found on the way |
+| 8 | A page whose content walk gives up is unchecked rather than refused; per-page colour-space judgement | not done, **deliberately** |
 
 Covered by `PdfSharpCore.Test/IO/ResourceConformanceRulesTests.cs`,
-`MigraDocCore.Rendering.Tests/PdfUaConformanceTests.cs` and `PdfSharpCore.Test/Pdfs/EInvoiceTests.cs`.
+`PdfSharpCore.Test/Annotations/LinkAnnotationConformanceTests.cs`, the `A`-level and PDF/UA-2 tests in
+`MigraDocCore.Rendering.Tests/PdfUaConformanceTests.cs`, and `EInvoiceTests`. The corpus grew from six
+documents to nine gated ones — `pdfa-1a`, `pdfa-2a`, `pdfa-3a` — and all nine conform.
 
-## What is honestly not finished
-
-**PDF/UA-2 is real and untested against the one clause that matters most for it.** All four of its
-own rules this library could enforce are: `pdfuaid:rev` written as `2024` alongside the part,
-the structure tree root's `/Document` child put explicitly in the PDF 2.0 namespace, `/Note`
-retagged as `/FENote` — PDF 2.0's replacement, ISO 14289-2 clause 8.2.5.14 — and a `/ListNumbering`
-attribute on every list, ISO 14289-2 clause 8.2.5.25. Working out which elements needed the PDF 2.0
-namespace and which did not took three rounds against veraPDF, because the specification's own
-inheritance rule for namespaces did not hold up against it: an element several levels under an
-explicitly-namespaced `/Document` was still held to the PDF 1.7 default, and namespacing every
-element instead got `/Reference` refused as non-standard in the PDF 2.0 namespace where the PDF 1.7
-default already recognises it. What works — `/NS` on the root `/Document` and on `/FENote` alone —
-is recorded in `PdfStructureBuilder`'s own remarks.
-
-**One clause is not enforced, and no document claiming PDF/UA-2 is in the gated corpus because of
-it.** ISO 14289-2 clause 8.8 requires every destination internal to the document — outline items,
-links, an `OpenAction` — to be a "structure destination" through the `/SD` entry ISO 32000-2:2020
-introduced, and this library still writes the page-relative kind PDF 1.7 always has. `/SD` is
-unresolved in the published standard itself: `pdf-association/pdf-issues#162` is an open, unfixed
-errata report stating ISO 32000-2:2020 never defines what it contains or how a reader is meant to
-use it. Guessing at a mechanism the standard's own editors have not pinned down risks a destination
-that neither validates nor navigates correctly in a real reader, which is worse than the explicit
-one that works everywhere today — so it was not attempted. `PdfUAConformance.PdfUA2`'s own remarks
-say the same thing, and `ConformanceCorpus.Corpus.Documents` says why no `pdfua-2` document is
-built: the corpus has no mechanism for a document that is built but not gated, and every document in
-it makes a claim and is held to it. Adding one back is a matter of building the corpus again once
-`/SD` has an answer.
-
-**Everything else shipped and is gated.** The four resource-walk rules, the three PDF/A `A` levels,
-and the writer defect they turned up along the way — `PdfLinkAnnotation` never wrote `/F` at all,
-which every PDF/A part but the first and PDF/UA-2 alike refuse of a non-Popup annotation — are all
-enforced, tested, and validated: `./verapdf-check.ps1` passes 9 of 9.
+**PDF/UA-2 is the one claim veraPDF does not yet pass.** A document claiming it fails a single clause,
+8.8: every destination inside the document must be a *structure destination*, a PDF 2.0 `/SD` whose
+contents ISO 32000-2 never actually defines (pdf-association/pdf-issues#162 is the open erratum). Rather
+than guess at a syntax and ship links that may not navigate, `pdfua-2` is kept out of the gated corpus,
+`PdfUA2` says so in its own remarks, and the four rules that *were* fixed for it stay fixed. It is a
+claim the library can make and cannot yet stand behind, and the enum member says which.
 
 ## Problem Statement
 
