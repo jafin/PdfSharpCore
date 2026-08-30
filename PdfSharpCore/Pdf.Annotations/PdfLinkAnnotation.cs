@@ -51,6 +51,7 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
     {
         _linkType = LinkType.None;
         Elements.SetName(PdfAnnotation.Keys.Subtype, "/Link");
+        Flags = PdfAnnotationFlags.Print;
     }
 
     /// <summary>
@@ -61,6 +62,7 @@ public sealed class PdfLinkAnnotation : PdfAnnotation
     {
         _linkType = LinkType.None;
         Elements.SetName(PdfAnnotation.Keys.Subtype, "/Link");
+        Flags = PdfAnnotationFlags.Print;
     }
 
     /// <summary>
