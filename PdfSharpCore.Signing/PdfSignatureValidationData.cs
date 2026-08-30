@@ -29,6 +29,8 @@ public static class PdfSignatureValidationData
     {
         if (document == null)
             throw new ArgumentNullException(nameof(document));
+        if (output == null)
+            throw new ArgumentNullException(nameof(output));
         if (provider == null)
             throw new ArgumentNullException(nameof(provider));
 

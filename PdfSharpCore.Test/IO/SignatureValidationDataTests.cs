@@ -113,6 +113,22 @@ public class SignatureValidationDataTests
     }
 
     /// <summary>
+    ///   A null output stream is refused before any certificate is decoded or any provider asked
+    ///   for evidence — <see cref="ThrowingRevocationDataProvider"/> proves it, by throwing if it is
+    ///   ever reached, rather than the refusal merely happening to arrive before a provider call that
+    ///   ran anyway.
+    /// </summary>
+    [Fact]
+    public void AddingValidationDataWithNoOutputStreamIsRefusedBeforeAskingAProviderForAnything()
+    {
+        var document = Reader.Open(new MemoryStream(Sign(Unsigned())), PdfDocumentOpenMode.Append);
+
+        Action adding = () => PdfSignatureValidationData.Add(document, null, new ThrowingRevocationDataProvider());
+
+        adding.Should().Throw<ArgumentNullException>().WithParameterName("output");
+    }
+
+    /// <summary>
     ///   Hands back fixed bytes rather than a real OCSP response — "responses it minted itself", in
     ///   the spec's words. Nothing downstream checks OCSP semantics, only that whatever a provider
     ///   returns is what ends up stored, so a real response would test nothing this doesn't.
@@ -121,6 +137,12 @@ public class SignatureValidationDataTests
     {
         public RevocationData GetRevocationData(X509Certificate2 certificate, X509Certificate2Collection chain) =>
             new(new[] { new byte[] { 0x30, 0x03, 0x0A, 0x01, 0x00 } }, Array.Empty<byte[]>());
+    }
+
+    sealed class ThrowingRevocationDataProvider : IRevocationDataProvider
+    {
+        public RevocationData GetRevocationData(X509Certificate2 certificate, X509Certificate2Collection chain) =>
+            throw new InvalidOperationException("Should not be reached when output is null.");
     }
 
     static byte[] Unsigned()
