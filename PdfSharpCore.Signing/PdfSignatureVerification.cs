@@ -24,13 +24,14 @@ namespace PdfSharpCore.Signing;
 public sealed class PdfSignatureVerification
 {
     internal PdfSignatureVerification(PdfSignatureInfo signature, bool isIntact, bool coversWholeDocument,
-        X509Certificate2 signerCertificate, string problem)
+        X509Certificate2 signerCertificate, string problem, DateTimeOffset? timestamp = null)
     {
         Signature = signature;
         IsIntact = isIntact;
         CoversWholeDocument = coversWholeDocument;
         SignerCertificate = signerCertificate;
         Problem = problem;
+        Timestamp = timestamp;
     }
 
     /// <summary>
@@ -62,4 +63,22 @@ public sealed class PdfSignatureVerification
     /// Whether the signature is intact and covers the whole document.
     /// </summary>
     public bool IsValid => IsIntact && CoversWholeDocument;
+
+    /// <summary>
+    /// When a time-stamping authority's token says this signature was made, or null if it carries
+    /// none — an ordinary PAdES B-B signature, or one whose token this could not read.
+    /// </summary>
+    /// <remarks>
+    /// This is a structural read of the token, not a validation of it: whether the token's own
+    /// signature is trustworthy is exactly the kind of trust decision <see cref="PdfSignatureVerifier"/>
+    /// does not make, for the same reason it makes none for the signature itself. What this answers is
+    /// what the token <em>says</em>, so an auditor can judge when the signature was made rather than
+    /// trust the producer's own clock in <see cref="PdfSignatureInfo.SigningTime"/>.
+    /// </remarks>
+    public DateTimeOffset? Timestamp { get; }
+
+    /// <summary>
+    /// Whether this signature carries a timestamp at all.
+    /// </summary>
+    public bool HasTimestamp => Timestamp.HasValue;
 }

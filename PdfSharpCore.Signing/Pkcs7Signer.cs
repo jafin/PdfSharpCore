@@ -1,5 +1,4 @@
 using System;
-using System.Formats.Asn1;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
@@ -27,12 +26,13 @@ namespace PdfSharpCore.Signing;
 /// </remarks>
 public sealed class Pkcs7Signer : IPdfSigner
 {
-    /// <summary>id-aa-signingCertificateV2, RFC 5035.</summary>
-    const string SigningCertificateV2Oid = "1.2.840.113549.1.9.16.2.47";
+    /// <summary>id-aa-signatureTimeStampToken, RFC 3161 / RFC 5035.</summary>
+    const string SignatureTimeStampTokenOid = "1.2.840.113549.1.9.16.2.14";
 
     readonly X509Certificate2 _certificate;
     readonly X509Certificate2Collection _chain;
     readonly HashAlgorithmName _hashAlgorithm;
+    readonly ITimestampProvider _timestampProvider;
 
     /// <summary>
     /// Signs with the given certificate, which must have a usable private key.
@@ -46,8 +46,15 @@ public sealed class Pkcs7Signer : IPdfSigner
     /// Intermediate certificates to embed alongside the signing one, so a verifier that does not
     /// already hold them can still build the chain. The signing certificate is always embedded.
     /// </param>
+    /// <param name="timestampProvider">
+    /// Left unset, this produces a PAdES B-B signature exactly as before. Given one, the signature
+    /// carries a trusted timestamp — PAdES B-T — folded in as an unsigned attribute of the CMS
+    /// <c>SignerInfo</c>, after the signature itself has been computed. A failure fetching the token
+    /// fails the whole signing rather than falling back silently.
+    /// </param>
     public Pkcs7Signer(X509Certificate2 certificate, PdfSignatureFormat format = PdfSignatureFormat.Pades,
-        HashAlgorithmName? hashAlgorithm = null, X509Certificate2Collection chain = null)
+        HashAlgorithmName? hashAlgorithm = null, X509Certificate2Collection chain = null,
+        ITimestampProvider timestampProvider = null)
     {
         _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
 
@@ -64,6 +71,7 @@ public sealed class Pkcs7Signer : IPdfSigner
 
         Format = format;
         _chain = chain;
+        _timestampProvider = timestampProvider;
         IncludeSigningTime = format == PdfSignatureFormat.Pkcs7;
     }
 
@@ -110,7 +118,7 @@ public sealed class Pkcs7Signer : IPdfSigner
 
         var signer = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, _certificate)
         {
-            DigestAlgorithm = new Oid(OidOf(_hashAlgorithm)),
+            DigestAlgorithm = new Oid(HashAlgorithmOids.Of(_hashAlgorithm)),
             IncludeOption = X509IncludeOption.WholeChain
         };
 
@@ -124,63 +132,42 @@ public sealed class Pkcs7Signer : IPdfSigner
             signer.SignedAttributes.Add(new Pkcs9SigningTime(GlobalTimeSettings.Now));
 
         if (Format == PdfSignatureFormat.Pades)
-            signer.SignedAttributes.Add(SigningCertificateV2());
+            signer.SignedAttributes.Add(SigningCertificateAttribute.Build(_certificate, _hashAlgorithm));
 
         signed.ComputeSignature(signer);
+
+        if (_timestampProvider != null)
+            Timestamp(signed);
+
         return signed.Encode();
     }
 
     /// <summary>
-    /// The signing-certificate-v2 signed attribute: a hash of the signing certificate, inside what
-    /// is signed.
+    /// Folds a timestamp token for the signature just computed into the message as an unsigned
+    /// attribute, so it travels inside the same blob <see cref="Sign"/> always returned.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// This is the whole difference between a PKCS#7 signature and a CAdES one, and it closes a real
-    /// hole. Without it, the certificate is merely carried alongside the signature, and an attacker
-    /// who can find a second certificate whose key verifies the same signature can swap it in and
-    /// change who the document appears to have been signed by. Hashing the certificate into the
-    /// signed attributes makes the pairing part of what was signed.
-    /// </para>
-    /// <para>
-    /// <c>ESSCertIDv2</c> (RFC 5035) defaults its hash algorithm to SHA-256, so for SHA-256 the
-    /// algorithm identifier is left out — a DER encoder must omit a field that equals its default,
-    /// and a verifier reading it back supplies SHA-256. The issuer and serial are optional and are
-    /// left out too; the certificate hash alone is what does the binding.
-    /// </para>
+    /// The token covers the signature value itself — the CAdES signature-timestamp, not a timestamp
+    /// over the document — which is what lets a verifier believe the signature existed at the time
+    /// the token was issued regardless of what happens to the certificate afterwards.
     /// </remarks>
-    AsnEncodedData SigningCertificateV2()
+    void Timestamp(SignedCms signed)
     {
-        var hash = _certificate.GetCertHash(_hashAlgorithm);
+        var signerInfo = signed.SignerInfos[0];
+        var messageImprint = HashOf(signerInfo.GetSignature(), _hashAlgorithm);
+        var token = _timestampProvider.GetTimestamp(messageImprint, _hashAlgorithm);
 
-        var writer = new AsnWriter(AsnEncodingRules.DER);
-        using (writer.PushSequence())        // SigningCertificateV2
-        using (writer.PushSequence())        // certs SEQUENCE OF ESSCertIDv2
-        using (writer.PushSequence())        // ESSCertIDv2
-        {
-            if (_hashAlgorithm != HashAlgorithmName.SHA256)
-            {
-                using (writer.PushSequence())
-                    writer.WriteObjectIdentifier(OidOf(_hashAlgorithm));
-            }
+        if (token == null || token.Length == 0)
+            throw new InvalidOperationException("The timestamp provider returned no timestamp token.");
 
-            writer.WriteOctetString(hash);
-        }
-
-        return new AsnEncodedData(new Oid(SigningCertificateV2Oid), writer.Encode());
+        signerInfo.AddUnsignedAttribute(new AsnEncodedData(new Oid(SignatureTimeStampTokenOid), token));
     }
 
-    static string OidOf(HashAlgorithmName algorithm)
+    static byte[] HashOf(byte[] data, HashAlgorithmName algorithm)
     {
-        if (algorithm == HashAlgorithmName.SHA256)
-            return "2.16.840.1.101.3.4.2.1";
-        if (algorithm == HashAlgorithmName.SHA384)
-            return "2.16.840.1.101.3.4.2.2";
-        if (algorithm == HashAlgorithmName.SHA512)
-            return "2.16.840.1.101.3.4.2.3";
-
-        throw new ArgumentException(
-            "Only SHA-256, SHA-384 and SHA-512 are supported for signing.", nameof(algorithm));
+        using var hasher = IncrementalHash.CreateHash(algorithm);
+        hasher.AppendData(data);
+        return hasher.GetHashAndReset();
     }
 
     static byte[] ReadAll(Stream stream)
