@@ -30,15 +30,37 @@
 namespace PdfSharpCore.Pdf.Annotations;
 
 /// <summary>
-/// Represents a text annotation.
+/// The appearance of an interactive form field on a page - ISO 32000-1 section 12.5.6.19.
 /// </summary>
-internal sealed class PdfWidgetAnnotation : PdfAnnotation
+/// <remarks>
+/// <para>
+/// A field says what it is and what it holds; a widget says where on a page it is drawn and what
+/// it looks like there. They are separate objects because one field may appear in several places,
+/// which is what a radio group is: one field, one value, and a widget for each button.
+/// </para>
+/// <para>
+/// This was <c>internal</c>, which meant nothing outside the assembly could put a form field on a
+/// page - the last of the four things that made <c>PdfSharpCore.Pdf.AcroForms</c> a read-only API.
+/// <see cref="AcroForms.PdfAcroField.AddWidget"/> is what makes one; it is public so that a caller
+/// can go on to give it an appearance through
+/// <see cref="PdfAnnotation.SetAppearance(string, PdfSharpCore.Drawing.XForm)"/>, which is how a
+/// check box or a radio button carries the drawing for each of its states.
+/// </para>
+/// </remarks>
+public sealed class PdfWidgetAnnotation : PdfAnnotation
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfWidgetAnnotation"/> class.
+    /// </summary>
     public PdfWidgetAnnotation()
     {
         Initialize();
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfWidgetAnnotation"/> class.
+    /// </summary>
+    /// <param name="document">The document.</param>
     public PdfWidgetAnnotation(PdfDocument document)
         : base(document)
     {

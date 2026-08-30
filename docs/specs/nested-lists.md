@@ -4,6 +4,22 @@ The last open item of gap **G2**. `docs/specs/tagged-pdf-accessibility.md` is th
 output as a whole and records this one as blocked on the document object model rather than on the
 tagger, which is where it still is.
 
+| item | what | status |
+|---|---|---|
+| 1 | `ListInfo.NestingLevel` on the DOM — one-based, default 1, set directly or by a style, round-trips through MDDDL | done |
+| 2 | The tagger nests a deeper item's list inside the previous item's `/LBody`; shallower closes it | done |
+| 3 | A skipped level opens one list, not several; levels compare only as deeper/shallower | done |
+| 4 | Every list item has an `/LBody`, nested or not | done, **was already true** |
+| 5 | A document that never sets a level produces exactly the tree it produced before | done, pinned |
+| 6 | Nesting survives a page break; an outer list resumes its count after an inner one | done |
+| 7 | A list object in the DOM, `/Lbl` elements, inferring depth from indentation, outline numbering | not done, **deliberately** |
+
+Covered by `MigraDocCore.DocumentObjectModel.Tests/ListNestingLevelTests.cs` and the nesting tests in
+`MigraDocCore.Rendering.Tests/TaggedOutputTests.cs`. veraPDF still passes the corpus.
+
+The property is called `NestingLevel`, after `ParagraphFormat.OutlineLevel`; the spec left it unnamed.
+Dropping below the outermost level a run has seen closes everything and starts a fresh top-level list.
+
 ## Problem Statement
 
 A nested list is one of the commonest things in a document and one of the few this library cannot
