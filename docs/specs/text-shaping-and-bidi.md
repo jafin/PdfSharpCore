@@ -696,10 +696,11 @@ Three things needed care:
   the last**, which is one rectangle across a line that is no longer contiguous - backwards, and
   over the words between. While reordering, each leaf gets its own; where a stretch is still
   contiguous the pieces abut and the result is the same line.
-- **A line with a tab in it is left alone.** A tab's width comes from a list built during
-  formatting and consumed in order, so the line cannot be walked twice - and where a tabbed line's
-  columns belong in a right-to-left paragraph is a question this does not answer. Guessing would be
-  worse than leaving it, and `ALineWithATabInItKeepsTheOrderItWasWritten` pins that it is left.
+- **A line with a tab in it is reordered segment by segment.** The tabs stay where formatting put
+  them and the text between two of them is ordered on its own, the tab-width list being replayed for
+  the second walk. Where a tab *stop* belongs in a right-to-left paragraph is still not answered;
+  [tabbed-bidirectional-lines.md](tabbed-bidirectional-lines.md) says why that is the narrowest
+  defensible answer.
 
 A left-to-right paragraph is not measured twice at all: the scan that decides answers from the
 characters alone, and nothing below `U+0590` is written right to left.
@@ -879,9 +880,10 @@ half closed, and one is still a question rather than a task.
    open**: a line may only be broken at a cluster boundary and nothing in the line breaker knows
    that. It does not split a conjunct at the widths tested, and a test pins that, so a breaker that
    starts cutting into clusters is caught here rather than in somebody's document.
-2. **A tabbed line in a right-to-left paragraph**, which is left in the order it was written. Where
-   a tab stop belongs when the text runs the other way is a design question before it is an
-   implementation one. **Still open, and deliberately: it wants deciding, not building.**
+2. **A tabbed line in a right-to-left paragraph** — **done**, by reordering each segment between
+   tabs within itself and leaving the tabs where they are. Where a tab *stop* belongs when the text
+   runs the other way is the part that wanted deciding, and it is still deliberately undecided; see
+   [tabbed-bidirectional-lines.md](tabbed-bidirectional-lines.md).
 3. **A `cmap` format 12 reader** — **done**. All three failures went together, because all three go
    through `OpenTypeDescriptor.CharCodeToGlyphIndex`: a surrogate pair drew `.notdef` twice, coverage
    could not answer for an astral character, and so font fallback could not be offered one. An emoji
