@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using PdfSharpCore.Pdf;
@@ -28,6 +29,10 @@ namespace PdfSharpCore.Signing;
 /// </remarks>
 public static class PdfSignatureVerifier
 {
+    /// <summary>id-aa-signatureTimeStampToken, RFC 3161 / RFC 5035.</summary>
+    const string SignatureTimeStampTokenOid = "1.2.840.113549.1.9.16.2.14";
+
+
     /// <summary>
     /// Checks every signature in a signed file.
     /// </summary>
@@ -80,14 +85,15 @@ public static class PdfSignatureVerifier
 
         try
         {
-            var encoded = Trimmed(signature.Contents);
+            var encoded = CmsEncoding.Trimmed(signature.Contents);
 
             var signed = new SignedCms(new ContentInfo(covered), detached: true);
             signed.Decode(encoded);
             signed.CheckSignature(verifySignatureOnly: true);
 
             var certificate = signed.SignerInfos.Count > 0 ? signed.SignerInfos[0].Certificate : null;
-            return new PdfSignatureVerification(signature, true, covers, certificate, null);
+            var timestamp = signed.SignerInfos.Count > 0 ? TimestampOf(signed.SignerInfos[0]) : null;
+            return new PdfSignatureVerification(signature, true, covers, certificate, null, timestamp);
         }
         catch (Exception problem) when (problem is System.Security.Cryptography.CryptographicException
                                             or AsnContentException
@@ -129,20 +135,34 @@ public static class PdfSignatureVerifier
     }
 
     /// <summary>
-    /// The encoded signature without the zero padding that follows it.
+    /// Reads the moment a signature-timestamp attribute claims, if the signer carries one.
     /// </summary>
     /// <remarks>
-    /// The room for a signature is reserved before its length is known, so what is written into
-    /// <c>/Contents</c> is the signature followed by however many zeros are left over. Reading the
-    /// first DER value out of it is what says where the signature actually ends — its own encoded
-    /// length is the only thing that does.
+    /// This decodes the token's own structure to answer what it says; it does not check that the
+    /// token's signature verifies or that its issuer is trusted, for the same reason the signature
+    /// itself is checked without either. A token this cannot decode is treated as absent rather than
+    /// as a failure of the whole verification — one signature's malformed attribute is that
+    /// signature's problem, exactly as a malformed byte range is.
     /// </remarks>
-    static byte[] Trimmed(byte[] contents)
+    static DateTimeOffset? TimestampOf(SignerInfo signerInfo)
     {
-        if (contents == null || contents.Length == 0)
-            throw new ArgumentException("The signature is empty.", nameof(contents));
+        foreach (CryptographicAttributeObject attribute in signerInfo.UnsignedAttributes)
+        {
+            if (attribute.Oid?.Value != SignatureTimeStampTokenOid || attribute.Values.Count == 0)
+                continue;
 
-        var reader = new AsnReader(contents, AsnEncodingRules.BER);
-        return reader.PeekEncodedValue().ToArray();
+            try
+            {
+                if (Rfc3161TimestampToken.TryDecode(attribute.Values[0].RawData, out var token, out _))
+                    return token.TokenInfo.Timestamp;
+            }
+            catch (CryptographicException)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
+
 }

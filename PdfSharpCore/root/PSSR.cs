@@ -34,6 +34,7 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Pdf.Signatures;
 
 
 namespace PdfSharpCore;
@@ -211,6 +212,18 @@ static class PSSR
         return String.Format(
             "This document was opened with PdfDocumentOpenMode.{0} and {1} needs a document opened " +
             "with PdfDocumentOpenMode.Modify or PdfDocumentOpenMode.Append.", openMode, operation);
+    }
+
+    /// <summary>
+    /// Refuses an operation that a certifying signature's <c>/DocMDP</c> level does not permit, naming
+    /// the level rather than the open mode — the other reason <see cref="CannotModify"/> refuses, and
+    /// the point of having two messages rather than one is so a caller can tell which of them applies.
+    /// </summary>
+    public static string CertificationForbids(string operation, PdfCertificationLevel level)
+    {
+        return String.Format(
+            "This document was certified with PdfCertificationLevel.{0} and {1} is not permitted by " +
+            "that certification.", level, operation);
     }
 
     public static string NameMustStartWithSlash =>

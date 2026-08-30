@@ -67,7 +67,23 @@ public static class PdfSigner
                 + "in memory, save it first and open the result for appending — the Sign overload "
                 + "taking a stream does exactly that.");
 
+        // Signing is a form field value in DocMDP's terms — the standard groups digital signing with
+        // form fill-in — so a document certified against changes, or certified for form fill-in and
+        // above, is asked the same question filling in an ordinary field is.
+        document.EnsureCanModify("signing the document", PdfChangeKind.FormFieldValues);
+
         options ??= new PdfSignatureOptions();
+
+        // A document can carry only one certifying signature, and it must be the first signature
+        // applied. EnsureCanModify above already refuses this signature if an existing certification
+        // forbids FormFieldValues; this refuses the narrower case it lets through — a document still
+        // open to signing (FormFillingAllowed or above) but already certified — where Certify below
+        // would otherwise silently replace the certification a reader has already relied on.
+        if (options.Certification != PdfCertificationLevel.NotCertified
+            && PdfSignatures.CertificationOf(document) != PdfCertificationLevel.NotCertified)
+            throw new InvalidOperationException(
+                "The document is already certified. A document can carry only one certifying "
+                + "signature, and it must be the first signature applied to the document.");
 
         if (signer.EstimatedSignatureSize < 1)
             throw new ArgumentOutOfRangeException(nameof(signer),

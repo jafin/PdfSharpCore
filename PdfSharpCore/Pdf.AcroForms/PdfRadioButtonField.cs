@@ -28,6 +28,7 @@
 #endregion
 
 using System;
+using PdfSharpCore.Pdf.Signatures;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -111,6 +112,8 @@ public sealed class PdfRadioButtonField : PdfButtonField
         }
         set
         {
+            Owner?.EnsureCanModify("filling in a form field", PdfChangeKind.FormFieldValues);
+
             PdfArray opt = Elements[Keys.Opt] as PdfArray;
 
             if (opt == null)
