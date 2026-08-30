@@ -95,6 +95,20 @@ public partial class ListInfo : DocumentObject
   }
   [DV]
   internal bool? continuePreviousList;
+
+  /// <summary>
+  /// Gets or sets how deep this list item is nested, one-based. An item that never sets this is
+  /// level one, which is today's flat list; a nested item says it is at level two or deeper. This
+  /// says nothing about indentation, which is controlled separately - a tagger reads it to build a
+  /// list inside a list in the structure tree, and nothing about where the item is drawn changes.
+  /// </summary>
+  public int NestingLevel
+  {
+    get => nestingLevel ?? 1;
+    set => nestingLevel = value;
+  }
+  [DV]
+  internal int? nestingLevel;
   #endregion
 
   #region Internal
@@ -109,6 +123,8 @@ public partial class ListInfo : DocumentObject
       serializer.WriteSimpleAttribute("ListInfo.NumberPosition", NumberPosition);
     if (continuePreviousList != null)
       serializer.WriteSimpleAttribute("ListInfo.ContinuePreviousList", ContinuePreviousList);
+    if (nestingLevel != null)
+      serializer.WriteSimpleAttribute("ListInfo.NestingLevel", NestingLevel);
   }
 
   #endregion
