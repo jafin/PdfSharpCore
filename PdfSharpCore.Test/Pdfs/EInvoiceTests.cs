@@ -81,6 +81,21 @@ public class EInvoiceTests
     }
 
     [Fact]
+    public void APriorPdfA3aClaimSurvivesAttachingTheInvoice()
+    {
+        // PDF/A-3a is PDF/A-3b plus a tagged structure tree, and it may carry a file for exactly
+        // the reason PDF/A-3b may: attaching must neither refuse it, the way it refuses every part
+        // but 3, nor silently downgrade it to the B level nobody asked for.
+        var document = Prepared();
+        document.Options.Conformance = PdfAConformance.PdfA3A;
+
+        new FacturXInvoice(Xml()).AttachTo(document);
+
+        document.Options.Conformance.Should().Be(PdfAConformance.PdfA3A,
+            "a caller who asked for an accessible hybrid invoice keeps that claim");
+    }
+
+    [Fact]
     public void AnInvoiceNeedsSomeXmlToBe()
     {
         var withNothing = () => new FacturXInvoice(null);
