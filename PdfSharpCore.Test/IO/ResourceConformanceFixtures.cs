@@ -85,6 +85,82 @@ internal static class ResourceConformanceFixtures
     }
 
     /// <summary>
+    ///   A page selecting DeviceCMYK by name and setting its components afterwards, rather than
+    ///   painting them outright with <c>k</c>. No resource dictionary ever names the space.
+    /// </summary>
+    internal static byte[] PageSelectingDeviceCmykByName()
+    {
+        return OnePageDocument("", "/DeviceCMYK cs 0 0 0 1 sc 0 0 100 100 re f");
+    }
+
+    /// <summary>
+    ///   A page with no resource dictionary at all, painting CMYK outright. Nothing to look up, and
+    ///   still something to find.
+    /// </summary>
+    internal static byte[] PageWithNoResourcesPaintingCmyk()
+    {
+        return RawPdf.Build(new List<string>
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R>>",
+            Draw("0 0 0 1 k 0 0 100 100 re f"),
+        });
+    }
+
+    /// <summary>
+    ///   A page drawing a 4-component ICC-based image while the output intent describes sRGB. The
+    ///   image says for itself what its numbers mean, so the output intent has nothing to answer
+    ///   for. It paints RGB outright as well, so that there is a device family to compare against
+    ///   and the test is not passed by there being nothing to check.
+    /// </summary>
+    internal static byte[] PageWithAnIccBasedCmykImage()
+    {
+        return OnePageDocument(
+            "/XObject<</Im0 5 0 R>>",
+            "1 0 0 rg 0 0 50 50 re f /Im0 Do",
+            RawPdf.Stream(
+                "/Type/XObject/Subtype/Image/Width 4/Height 4/BitsPerComponent 8"
+                + "/ColorSpace[/ICCBased 6 0 R]",
+                new string('A', 64)),
+            RawPdf.Stream("/N 4", new string('P', 8)));
+    }
+
+    /// <summary>
+    ///   A page painting through a separation whose alternate space is DeviceCMYK. The separation is
+    ///   not itself device colour, but a reader without the ink falls back on those four numbers.
+    /// </summary>
+    internal static byte[] PageWithASeparationOverCmyk()
+    {
+        return OnePageDocument(
+            "/ColorSpace<</CS0 5 0 R>>",
+            "/CS0 cs 1 sc 0 0 100 100 re f",
+            "[/Separation/Spot/DeviceCMYK 6 0 R]",
+            RawPdf.Stream("/FunctionType 2/Domain[0 1]/C0[0 0 0 0]/C1[0 0 0 1]/N 1", ""));
+    }
+
+    /// <summary>
+    ///   A form with no resources of its own, drawn twice: once from inside another form and once
+    ///   from the page. It names <c>/CS0</c>, which the two scopes answer differently — the outer
+    ///   form calls it an ICC-based RGB space, the page calls it a separation over DeviceCMYK — so
+    ///   the second reading is the only one that finds the CMYK the output intent cannot describe.
+    ///   Drawn from inside the outer form first, so that a walk remembering only the stream would
+    ///   have read it in the wrong scope and skipped the right one.
+    /// </summary>
+    internal static byte[] PageDrawingOneFormInTwoScopes()
+    {
+        return OnePageDocument(
+            "/XObject<</FmShared 5 0 R/FmOuter 6 0 R>>/ColorSpace<</CS0 9 0 R>>",
+            "/FmOuter Do /FmShared Do",
+            Form("", "/CS0 cs 1 sc 0 0 100 100 re f"),
+            Form("/Resources<</XObject<</FmShared 5 0 R>>/ColorSpace<</CS0 7 0 R>>>>", "/FmShared Do"),
+            "[/ICCBased 8 0 R]",
+            RawPdf.Stream("/N 3", new string('P', 8)),
+            "[/Separation/Spot/DeviceCMYK 10 0 R]",
+            RawPdf.Stream("/FunctionType 2/Domain[0 1]/C0[0 0 0 0]/C1[0 0 0 1]/N 1", ""));
+    }
+
+    /// <summary>
     ///   A single page document whose page names the resources given and draws the content given.
     ///   The objects that follow the page are numbered from five.
     /// </summary>

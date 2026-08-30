@@ -117,6 +117,62 @@ public class ResourceConformanceRulesTests
     }
 
     [Fact]
+    public void SelectingADeviceColourSpaceByNameCountsAsPaintingInIt()
+    {
+        // "/DeviceCMYK cs 0 0 0 1 sc" paints the same four numbers "0 0 0 1 k" does. The walk
+        // deliberately does not look those three names up in a resource dictionary, so noticing
+        // them is the operator's job rather than the resolver's.
+        var saving = Saving(PdfAConformance.PdfA2B, PageSelectingDeviceCmykByName());
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*output intent*").WithMessage("*4-component*");
+    }
+
+    [Fact]
+    public void APageWithNoResourceDictionaryIsStillWalked()
+    {
+        // Nothing to look up is not nothing to find: the content still names a colour outright.
+        var saving = Saving(PdfAConformance.PdfA2B, PageWithNoResourcesPaintingCmyk());
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*output intent*").WithMessage("*4-component*");
+    }
+
+    [Fact]
+    public void AnIccBasedImageIsNotHeldToTheOutputIntent()
+    {
+        // The output intent exists to say what uncalibrated device numbers mean. An ICC-based space
+        // carries that mapping itself, so a CMYK one is exactly as valid in an sRGB document as it
+        // is anywhere else — refusing it would refuse an arrangement PDF/A permits outright.
+        var saving = Saving(PdfAConformance.PdfA2B, PageWithAnIccBasedCmykImage());
+
+        saving.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ASeparationIsHeldToTheDeviceSpaceItFallsBackOn()
+    {
+        // The other half of the same rule: a separation is not device colour, but a reader without
+        // the ink paints its alternate space for real, so a CMYK alternate is CMYK on the page.
+        var saving = Saving(PdfAConformance.PdfA2B, PageWithASeparationOverCmyk());
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*output intent*").WithMessage("*4-component*");
+    }
+
+    [Fact]
+    public void AFormDrawnInTwoScopesIsReadInBothOfThem()
+    {
+        // A form without resources of its own resolves its names against whatever drew it, so the
+        // same form reached twice is two different sets of names. Remembering only the stream would
+        // leave the second reading unmade, and the CMYK it names there unfound.
+        var saving = Saving(PdfAConformance.PdfA2B, PageDrawingOneFormInTwoScopes());
+
+        saving.Should().Throw<InvalidOperationException>()
+            .WithMessage("*output intent*").WithMessage("*4-component*");
+    }
+
+    [Fact]
     public void ADocumentClaimingNothingIsUnaffectedByAnyOfThis()
     {
         // The whole point of walking only when a profile is claimed: a document that never asks for

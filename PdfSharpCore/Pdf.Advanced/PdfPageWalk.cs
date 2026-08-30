@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfSharpCore.Internal;
 using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;
@@ -40,8 +41,11 @@ internal abstract class PdfPageWalk
     /// <summary>The resource dictionary the page itself was given.</summary>
     protected PdfDictionary PageResources { get; }
 
-    /// <summary>The streams already read, so that a form drawing itself does not go round forever.</summary>
-    readonly Dictionary<string, object> _read = new();
+    /// <summary>
+    /// The streams already read, each paired with the scope it was read in, so that a form drawing
+    /// itself does not go round forever.
+    /// </summary>
+    readonly HashSet<StreamInScope> _read = new();
 
     /// <summary>Whether everything read so far was understood.</summary>
     protected bool _understood = true;
@@ -285,7 +289,9 @@ internal abstract class PdfPageWalk
     /// </summary>
     void ReadNested(PdfDictionary stream, PdfDictionary owningResources, PdfDictionary scope, int depth)
     {
-        if (!MarkAsRead(stream))
+        PdfDictionary nested = ScopeOf(owningResources, scope);
+
+        if (!MarkAsRead(stream, nested))
             return;
 
         if (!TryGetContent(stream, out var content))
@@ -295,7 +301,7 @@ internal abstract class PdfPageWalk
             return;
         }
 
-        Read(content, ScopeOf(owningResources, scope), depth + 1);
+        Read(content, nested, depth + 1);
     }
 
     void ReadCharProcs(PdfDictionary font, PdfDictionary scope, int depth)
@@ -311,7 +317,7 @@ internal abstract class PdfPageWalk
             if (procedure == null)
                 continue;
 
-            if (!MarkAsRead(procedure))
+            if (!MarkAsRead(procedure, fontScope))
                 continue;
 
             if (!TryGetContent(procedure, out var content))
@@ -397,20 +403,58 @@ internal abstract class PdfPageWalk
     }
 
     /// <summary>
-    /// Notes that the stream has been read, and says whether it had not been read already.
+    /// Notes that the stream has been read in this scope, and says whether it had not been read in
+    /// this scope already.
     /// </summary>
-    bool MarkAsRead(PdfDictionary stream)
+    /// <remarks>
+    /// The scope is part of what "already read" means. A stream with no resources of its own
+    /// resolves its names against whatever drew it, so the same form reached once inside another
+    /// form and once from the page is two different sets of names — and remembering only the stream
+    /// would leave the second reading unmade. That matters to both callers:
+    /// <see cref="PdfResourcePruner"/> would not record the names the form uses at page scope and
+    /// could prune away an entry the page still draws with, and
+    /// <see cref="PdfPageResourceUsage"/> would miss whatever is reachable only that way while
+    /// still answering <see cref="Understood"/>. The depth bound, not this, is what stops a form
+    /// drawing itself from running away.
+    /// </remarks>
+    bool MarkAsRead(PdfDictionary stream, PdfDictionary scope)
     {
         // A direct stream cannot be shared and so cannot be drawn within itself.
         if (!stream.IsIndirect)
             return true;
 
-        string id = stream.ObjectID.ToString();
-        if (_read.ContainsKey(id))
+        var key = new StreamInScope(stream.ObjectID, scope);
+        if (_read.Contains(key))
             return false;
 
-        _read[id] = null;
+        _read.Add(key);
         return true;
+    }
+
+    /// <summary>
+    /// A stream read in one particular scope. The scope is compared by identity rather than by
+    /// value: two resource dictionaries holding the same entries are still two scopes, and
+    /// comparing their contents would be both slow and wrong for a dictionary edited between
+    /// readings.
+    /// </summary>
+    readonly struct StreamInScope : IEquatable<StreamInScope>
+    {
+        readonly PdfObjectID _stream;
+        readonly PdfDictionary _scope;
+
+        internal StreamInScope(PdfObjectID stream, PdfDictionary scope)
+        {
+            _stream = stream;
+            _scope = scope;
+        }
+
+        public bool Equals(StreamInScope other) =>
+            _stream == other._stream && ReferenceEquals(_scope, other._scope);
+
+        public override bool Equals(object obj) => obj is StreamInScope other && Equals(other);
+
+        public override int GetHashCode() =>
+            _stream.GetHashCode() ^ RuntimeHelpers.GetHashCode(_scope);
     }
 
     #endregion

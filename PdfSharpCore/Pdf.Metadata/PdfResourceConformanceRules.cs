@@ -61,14 +61,24 @@ internal static class PdfResourceConformanceRules
         usage.Images.Any(image => image.Elements.GetBoolean("/Interpolate"));
 
     /// <summary>
-    /// Adds the component count of every device colour family the page paints with — 1 for grey, 3
-    /// for RGB, 4 for CMYK, and whatever an ICC-based, indexed, separation or device-N colour space
-    /// resolves to underneath — to <paramref name="families"/>.
+    /// Adds the component count of every <em>device</em> colour family the page paints with — 1 for
+    /// grey, 3 for RGB, 4 for CMYK, and whatever an indexed, separation, device-N or uncoloured
+    /// pattern space resolves to underneath — to <paramref name="families"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Reported as component counts rather than as colour spaces, because that is the one fact
     /// <see cref="PdfConformanceWriter"/> can compare against an output intent's own <c>/N</c> — the
     /// two do not have to be the same kind of colour space to agree, only the same size.
+    /// </para>
+    /// <para>
+    /// Device colour alone, because the output intent exists to say what those four uncalibrated
+    /// numbers mean and nothing else needs saying: an <c>/ICCBased</c>, <c>/CalGray</c>,
+    /// <c>/CalRGB</c> or <c>/Lab</c> space already carries its own mapping to a
+    /// device-independent model, so PDF/A lets it stand whatever the output intent describes.
+    /// Counting those would refuse a CMYK ICC-based image in an sRGB document, which is exactly
+    /// the arrangement PDF/A permits.
+    /// </para>
     /// </remarks>
     internal static void CollectDeviceColorFamilies(PdfPageResourceUsage usage, HashSet<int> families)
     {
@@ -81,26 +91,27 @@ internal static class PdfResourceConformanceRules
 
         foreach (var image in usage.Images)
         {
-            var components = ComponentsOf(image.Elements["/ColorSpace"], 0);
+            var components = DeviceComponentsOf(image.Elements["/ColorSpace"], 0);
             if (components != null)
                 families.Add(components.Value);
         }
 
         foreach (var colorSpace in usage.NamedColorSpaces)
         {
-            var components = ComponentsOf(colorSpace, 0);
+            var components = DeviceComponentsOf(colorSpace, 0);
             if (components != null)
                 families.Add(components.Value);
         }
     }
 
     /// <summary>
-    /// How many components a colour space has, resolving an indexed, separation, device-N or
-    /// pattern space to the components of the space underneath. Null for a space this cannot read —
-    /// an unrecognised name, an ICC profile with no <c>/N</c>, or nesting deep enough that this has
-    /// given up understanding it, which is the same defensive limit the walk itself uses.
+    /// How many components the device colour space underneath this one has, following an indexed,
+    /// separation, device-N or uncoloured pattern space down to the space it is really painted in.
+    /// Null for anything that is not device colour — a calibrated or ICC-based space, an
+    /// unrecognised name, or nesting deep enough that this has given up understanding it, which is
+    /// the same defensive limit the walk itself uses.
     /// </summary>
-    static int? ComponentsOf(PdfItem colorSpace, int depth)
+    static int? DeviceComponentsOf(PdfItem colorSpace, int depth)
     {
         if (depth > 8)
             return null;
@@ -112,63 +123,55 @@ internal static class PdfResourceConformanceRules
             case PdfName name:
                 return DeviceFamilyOf(name.Value);
 
-            case PdfDictionary stream when stream.Elements.ContainsKey("/N"):
-                // An ICC-based profile referenced directly, rather than through the usual
-                // [/ICCBased ref] array — unusual, but the array form below reaches the same
-                // dictionary through its second element.
-                return stream.Elements.GetInteger("/N");
-
             case PdfArray array when array.Elements.Count > 0:
-                return ComponentsOfArray(array, depth);
+                return DeviceComponentsOfArray(array, depth);
 
             default:
+                // An ICC profile stream referenced directly rather than through the usual
+                // [/ICCBased ref] array included: device-independent either way.
                 return null;
         }
     }
 
-    static int? ComponentsOfArray(PdfArray array, int depth)
+    static int? DeviceComponentsOfArray(PdfArray array, int depth)
     {
         var head = Resolve(array.Elements[0]) as PdfName;
         switch (head?.Value)
         {
-            case "/ICCBased":
-                return array.Elements.Count > 1
-                    && Resolve(array.Elements[1]) is PdfDictionary profile
-                    && profile.Elements.ContainsKey("/N")
-                    ? profile.Elements.GetInteger("/N")
-                    : null;
-
             case "/Indexed":
-                return array.Elements.Count > 1 ? ComponentsOf(array.Elements[1], depth + 1) : null;
+                return array.Elements.Count > 1 ? DeviceComponentsOf(array.Elements[1], depth + 1) : null;
 
             case "/Separation":
             case "/DeviceN":
                 // [/Separation name alternateSpace tintTransform] and
                 // [/DeviceN names alternateSpace tintTransform ...] agree on where the space
-                // a reader without the separation ink actually paints in sits.
-                return array.Elements.Count > 2 ? ComponentsOf(array.Elements[2], depth + 1) : null;
-
-            case "/CalGray":
-                return 1;
-
-            case "/CalRGB":
-            case "/Lab":
-                return 3;
+                // a reader without the separation ink actually paints in sits. A separation is not
+                // itself device colour, but its alternate may be, and a reader that has to fall
+                // back on the alternate paints those numbers for real — so it is held to the
+                // output intent exactly as painting them outright would be.
+                return array.Elements.Count > 2 ? DeviceComponentsOf(array.Elements[2], depth + 1) : null;
 
             case "/Pattern":
                 // An uncoloured tiling pattern names the space its colour operands are given in;
                 // a coloured one and a shading pattern carry no colour of their own to ask about.
-                return array.Elements.Count > 1 ? ComponentsOf(array.Elements[1], depth + 1) : null;
+                return array.Elements.Count > 1 ? DeviceComponentsOf(array.Elements[1], depth + 1) : null;
 
             default:
+                // /ICCBased, /CalGray, /CalRGB and /Lab all reach here, and all say for themselves
+                // what their numbers mean. So does a name this does not know.
                 return null;
         }
     }
 
+    /// <summary>
+    /// The component count of a device colour space named outright. The three short spellings are
+    /// only legal inside an inline image dictionary, which defeats the walk before this is ever
+    /// asked — they are here because they mean the same three spaces, not because they are reached.
+    /// </summary>
     static int? DeviceFamilyOf(string name) => name switch
     {
-        "/DeviceGray" or "/CalGray" or "/G" => 1,
-        "/DeviceRGB" or "/CalRGB" or "/RGB" or "/Lab" => 3,
+        "/DeviceGray" or "/G" => 1,
+        "/DeviceRGB" or "/RGB" => 3,
         "/DeviceCMYK" or "/CMYK" => 4,
         _ => null,
     };

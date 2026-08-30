@@ -34,13 +34,22 @@ internal sealed class PdfPageResourceUsage : PdfPageWalk
     /// </summary>
     internal List<PdfItem> NamedColorSpaces { get; } = new();
 
-    /// <summary>Whether the page's content sets grey directly, with <c>g</c> or <c>G</c>.</summary>
+    /// <summary>
+    /// Whether the page's content sets grey directly — with <c>g</c> or <c>G</c>, or by selecting
+    /// <c>/DeviceGray</c> with <c>cs</c> or <c>CS</c>.
+    /// </summary>
     internal bool UsesDeviceGray { get; private set; }
 
-    /// <summary>Whether the page's content sets RGB directly, with <c>rg</c> or <c>RG</c>.</summary>
+    /// <summary>
+    /// Whether the page's content sets RGB directly — with <c>rg</c> or <c>RG</c>, or by selecting
+    /// <c>/DeviceRGB</c> with <c>cs</c> or <c>CS</c>.
+    /// </summary>
     internal bool UsesDeviceRgb { get; private set; }
 
-    /// <summary>Whether the page's content sets CMYK directly, with <c>k</c> or <c>K</c>.</summary>
+    /// <summary>
+    /// Whether the page's content sets CMYK directly — with <c>k</c> or <c>K</c>, or by selecting
+    /// <c>/DeviceCMYK</c> with <c>cs</c> or <c>CS</c>.
+    /// </summary>
     internal bool UsesDeviceCmyk { get; private set; }
 
     /// <summary>
@@ -50,13 +59,13 @@ internal sealed class PdfPageResourceUsage : PdfPageWalk
     /// </summary>
     internal static PdfPageResourceUsage Walk(PdfPage page)
     {
-        var resources = page.Elements.GetDictionary(PdfPage.Keys.Resources);
+        // A page with no resource dictionary still has to be walked. It can name nothing to draw
+        // with, but it can paint a device colour outright — "0 0 0 1 k" names no resource — and its
+        // annotations can carry appearance streams with resources of their own. Skipping it would
+        // hand the caller an empty answer that says Understood, which is a page judged on a guess.
+        var resources = page.Elements.GetDictionary(PdfPage.Keys.Resources) ?? new PdfDictionary();
         var usage = new PdfPageResourceUsage(resources);
-
-        // A page with no resource dictionary at all cannot name anything to draw with, so there is
-        // nothing to walk and nothing it could have failed to understand.
-        if (resources != null)
-            usage.ReadPage(page);
+        usage.ReadPage(page);
 
         return usage;
     }
@@ -83,8 +92,32 @@ internal sealed class PdfPageResourceUsage : PdfPageWalk
             case OpCodeName.K:
                 UsesDeviceCmyk = true;
                 break;
+
+            case OpCodeName.cs:
+            case OpCodeName.CS:
+                // The other way to paint a device colour: select the space by name and set the
+                // components afterwards with sc or scn. The walk deliberately does not look these
+                // three names up — no resource dictionary ever holds them — so they would otherwise
+                // go unrecorded, and a page painting "/DeviceCMYK cs 0 0 0 1 sc" would read as
+                // painting nothing at all.
+                switch (NameOfFirstOperand(op))
+                {
+                    case "/DeviceGray":
+                        UsesDeviceGray = true;
+                        break;
+                    case "/DeviceRGB":
+                        UsesDeviceRgb = true;
+                        break;
+                    case "/DeviceCMYK":
+                        UsesDeviceCmyk = true;
+                        break;
+                }
+                break;
         }
     }
+
+    static string NameOfFirstOperand(COperator op) =>
+        op.Operands.Count > 0 && op.Operands[0] is CName name ? name.Name : null;
 
     protected override void RecordResolved(string category, string name, PdfItem resolved)
     {
