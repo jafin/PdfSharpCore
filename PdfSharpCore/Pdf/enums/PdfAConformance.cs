@@ -8,8 +8,10 @@ namespace PdfSharpCore.Pdf;
 /// rule of the profile it claims, because a conformance claim discovered to be false by a validator
 /// — or by a customer — is worse than no claim at all.
 /// <para>
-/// Only the <c>B</c> ("basic") levels are here. The <c>A</c> ("accessible") levels additionally
-/// require a full tagged structure tree, so they belong with that work and not with this.
+/// The <c>A</c> ("accessible") levels are here as well as the <c>B</c> ("basic") ones. An <c>A</c>
+/// level is the archival rules of its part plus the tagging rules
+/// <see cref="Structure.PdfUaValidator"/> already holds a document to — checked at the claim as well
+/// as at <c>Save</c>, because a document with no structure tree cannot become tagged by being saved.
 /// </para>
 /// </remarks>
 public enum PdfAConformance
@@ -36,4 +38,27 @@ public enum PdfAConformance
     /// any kind — which is what hybrid e-invoices such as ZUGFeRD and Factur-X are built on.
     /// </summary>
     PdfA3B,
+
+    /// <summary>
+    /// PDF/A-1a (ISO 19005-1). PDF/A-1b plus a tagged structure tree — the oldest and strictest
+    /// archival profile, made available to a document MigraDoc or the caller has tagged.
+    /// </summary>
+    /// <remarks>
+    /// Appended rather than inserted next to <see cref="PdfA1B"/>, along with the two after it: the
+    /// compiler inlines an enum constant at the call site, so renumbering an existing member would
+    /// silently redirect a caller compiled against the old assembly into a different profile.
+    /// </remarks>
+    PdfA1A,
+
+    /// <summary>
+    /// PDF/A-2a (ISO 19005-2). PDF/A-2b plus a tagged structure tree — archival and accessible
+    /// under one claim.
+    /// </summary>
+    PdfA2A,
+
+    /// <summary>
+    /// PDF/A-3a (ISO 19005-3). PDF/A-3b plus a tagged structure tree, so a hybrid e-invoice can be
+    /// accessible as well as carry its attachment.
+    /// </summary>
+    PdfA3A,
 }

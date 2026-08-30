@@ -135,10 +135,71 @@ public class PdfUaConformanceTests
         saved.Pages[0].Elements.GetName("/Tabs").Should().Be("/S");
     }
 
+    [Fact]
+    public void ClaimingPdfUa2WritesPartTwoRatherThanPartOne()
+    {
+        var renderer = Tagged();
+        renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA2;
+
+        var metadata = MetadataOf(Save(renderer));
+
+        metadata.Should().Contain("<pdfuaid:part>2</pdfuaid:part>");
+        metadata.Should().NotContain("<pdfuaid:part>1</pdfuaid:part>");
+    }
+
+    [Theory]
+    [InlineData(PdfAConformance.PdfA1A, "1")]
+    [InlineData(PdfAConformance.PdfA2A, "2")]
+    [InlineData(PdfAConformance.PdfA3A, "3")]
+    public void EachArchivalALevelCanBeClaimedSavedAndReopened(PdfAConformance conformance, string part)
+    {
+        var renderer = Tagged();
+        renderer.PdfDocument.Options.Conformance = conformance;
+
+        var saved = Save(renderer);
+        var metadata = MetadataOf(saved);
+
+        // Both halves of the conjunction: the archival identifier at the A level, and the tagging
+        // rules PdfUaValidator already holds a PDF/UA claim to — checked here by the fact that
+        // Save did not refuse, rather than restated as a second assertion of the same thing.
+        metadata.Should().Contain("<pdfaid:part>" + part + "</pdfaid:part>");
+        metadata.Should().Contain("<pdfaid:conformance>A</pdfaid:conformance>");
+        saved.ViewerPreferences.DisplayDocTitle.Should().BeTrue();
+
+        // An A-level claim is not itself a PDF/UA claim — the two are separate standards, and this
+        // document asked only for the first of them.
+        metadata.Should().NotContain("pdfuaid");
+    }
+
+    [Fact]
+    public void AnALevelClaimOnAnUntaggedDocumentIsRefusedAtTheClaim()
+    {
+        var renderer = Tagged(tagged: false);
+
+        var claiming = () => renderer.PdfDocument.ClaimConformance(PdfAConformance.PdfA2A);
+
+        claiming.Should().Throw<InvalidOperationException>()
+            .WithMessage("*tagged*", "a document with no structure tree cannot become tagged by saving");
+        renderer.PdfDocument.Options.Conformance.Should().Be(PdfAConformance.None,
+            "a refused claim must not half-set what it refused to make");
+    }
+
     /// <summary>
     ///   A rendered document claiming PDF/UA-1, ready to be saved.
     /// </summary>
     static PdfDocumentRenderer Claiming(bool tagged = true, string language = "en-GB")
+    {
+        var renderer = Tagged(tagged, language);
+        renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA1;
+        return renderer;
+    }
+
+    /// <summary>
+    ///   A rendered document meeting every rule <see cref="PdfSharpCore.Pdf.Structure.PdfUaValidator"/>
+    ///   checks, claiming nothing yet — what an accessibility claim and an A-level archival claim
+    ///   alike are held to.
+    /// </summary>
+    static PdfDocumentRenderer Tagged(bool tagged = true, string language = "en-GB")
     {
         var document = new Document();
         var section = document.AddSection();
@@ -154,7 +215,6 @@ public class PdfUaConformanceTests
 
         renderer.RenderDocument();
         renderer.PdfDocument.Info.Title = "Statement of account";
-        renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA1;
         return renderer;
     }
 

@@ -67,7 +67,12 @@ static class PdfTransparencyDetector
     /// to render the way it was meant to.
     /// </para>
     /// </summary>
-    static bool ImagePaints(PdfDictionary image)
+    /// <remarks>
+    /// Internal rather than private: <c>Metadata.PdfResourceConformanceRules</c> asks the same
+    /// question of an image a page-resource walk found, and answering it twice would let the two
+    /// definitions of "transparent" drift apart.
+    /// </remarks>
+    internal static bool ImagePaints(PdfDictionary image)
     {
         if (IsSomethingOtherThanNone(image.Elements["/SMask"]))
             return true;
@@ -128,7 +133,11 @@ static class PdfTransparencyDetector
     /// Whether a graphics state paints anything other than opaquely: less than full alpha, a
     /// blend mode that reads what is underneath, or a soft mask.
     /// </summary>
-    static bool StatePaints(PdfDictionary state)
+    /// <remarks>
+    /// Internal for the same reason <see cref="ImagePaints"/> is — shared with
+    /// <c>Metadata.PdfResourceConformanceRules</c> rather than answered a second way.
+    /// </remarks>
+    internal static bool StatePaints(PdfDictionary state)
     {
         if (state == null)
             return false;

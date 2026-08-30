@@ -233,7 +233,7 @@ public sealed class XmpMetadata
 
         xmp.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n");
         AppendSimple(xmp, "pdfaid:part", PartOf(Conformance));
-        AppendSimple(xmp, "pdfaid:conformance", "B");
+        AppendSimple(xmp, "pdfaid:conformance", LevelOf(Conformance));
         xmp.Append("  </rdf:Description>\n");
     }
 
@@ -244,10 +244,10 @@ public sealed class XmpMetadata
 
         xmp.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\">\n");
 
-        // No conformance letter to go with it. PDF/UA-1 has parts and no levels, where PDF/A has
+        // No conformance letter to go with it. PDF/UA has parts and no levels, where PDF/A has
         // both — writing a pdfuaid:conformance to match the pdfaid one above is a common mistake and
         // a validator objects to it.
-        AppendSimple(xmp, "pdfuaid:part", "1");
+        AppendSimple(xmp, "pdfuaid:part", UAConformance == PdfUAConformance.PdfUA2 ? "2" : "1");
         xmp.Append("  </rdf:Description>\n");
     }
 
@@ -342,10 +342,23 @@ public sealed class XmpMetadata
     /// </summary>
     internal static string PartOf(PdfAConformance conformance) => conformance switch
     {
-        PdfAConformance.PdfA1B => "1",
-        PdfAConformance.PdfA2B => "2",
-        PdfAConformance.PdfA3B => "3",
+        PdfAConformance.PdfA1B or PdfAConformance.PdfA1A => "1",
+        PdfAConformance.PdfA2B or PdfAConformance.PdfA2A => "2",
+        PdfAConformance.PdfA3B or PdfAConformance.PdfA3A => "3",
         _ => null,
+    };
+
+    /// <summary>
+    /// The conformance letter a profile writes as <c>pdfaid:conformance</c> — <c>A</c> for a level
+    /// that additionally requires a tagged structure tree, <c>B</c> for the basic level, and
+    /// <c>null</c> for no claim at all, which is what stops <see cref="AppendConformance"/> writing
+    /// the element.
+    /// </summary>
+    internal static string LevelOf(PdfAConformance conformance) => conformance switch
+    {
+        PdfAConformance.None => null,
+        PdfAConformance.PdfA1A or PdfAConformance.PdfA2A or PdfAConformance.PdfA3A => "A",
+        _ => "B",
     };
 
     private static void AppendSimple(StringBuilder xmp, string element, string value)

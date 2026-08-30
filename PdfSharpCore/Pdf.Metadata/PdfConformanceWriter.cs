@@ -36,6 +36,7 @@ internal static class PdfConformanceWriter
         var options = document.Options;
         var claimsConformance = options.Conformance != PdfAConformance.None;
         var claimsAccessibility = options.UAConformance != PdfUAConformance.None;
+        var requiresTagging = RequiresTagging(options.Conformance);
 
         if (!claimsConformance && !claimsAccessibility && !options.WriteXmpMetadata)
             return;
@@ -46,11 +47,29 @@ internal static class PdfConformanceWriter
             AttachOutputIntent(document);
         }
 
-        if (claimsAccessibility)
+        // An A-level archival claim is held to the same tagging rules a PDF/UA claim is, without
+        // itself writing a PDF/UA identifier — the two are separate standards, and claiming one
+        // does not claim the other. What is shared is the checking, not the metadata.
+        if (claimsAccessibility || requiresTagging)
             EnforceAccessibility(document);
 
         AttachMetadata(document);
     }
+
+    /// <summary>
+    /// Whether the claimed archival profile is an <c>A</c> level, which additionally requires the
+    /// document to be tagged.
+    /// </summary>
+    internal static bool RequiresTagging(PdfAConformance conformance) => conformance is
+        PdfAConformance.PdfA1A or PdfAConformance.PdfA2A or PdfAConformance.PdfA3A;
+
+    /// <summary>Whether the claimed profile is part 1 of ISO 19005, whichever level.</summary>
+    static bool IsPart1(PdfAConformance conformance) =>
+        conformance is PdfAConformance.PdfA1B or PdfAConformance.PdfA1A;
+
+    /// <summary>Whether the claimed profile is part 3 of ISO 19005, whichever level.</summary>
+    static bool IsPart3(PdfAConformance conformance) =>
+        conformance is PdfAConformance.PdfA3B or PdfAConformance.PdfA3A;
 
     /// <summary>
     /// Settles the two things a PDF/UA claim implies rather than asks for, and then holds the
@@ -98,6 +117,16 @@ internal static class PdfConformanceWriter
         if (conformance == PdfAConformance.None)
             return;
 
+        // Settleable immediately, unlike the rest of what tagging implies: a document with no
+        // structure tree cannot become tagged by being saved, so there is nothing to gain by
+        // waiting for Save to say so.
+        if (RequiresTagging(conformance) && !document.IsTagged)
+            throw new InvalidOperationException(
+                conformance + " additionally requires the document to be tagged, and this one is "
+                + "not — a document with no structure tree cannot become tagged by being saved. "
+                + "Build one through PdfDocument.Structure before claiming " + conformance + ", or "
+                + "claim the B level instead, which does not require tagging.");
+
         if (document.SecuritySettings.DocumentSecurityLevel != PdfDocumentSecurityLevel.None)
             throw new InvalidOperationException(
                 "A PDF/A document may not be encrypted. Either drop the conformance claim or clear "
@@ -139,7 +168,7 @@ internal static class PdfConformanceWriter
     /// </summary>
     internal static void CheckVersionAgainstProfile(PdfDocument document, PdfAConformance conformance)
     {
-        if (conformance != PdfAConformance.PdfA1B)
+        if (!IsPart1(conformance))
             return;
 
         // PDF/A-1 is defined against PDF 1.4 and the later parts against PDF 1.7. Raising a low
@@ -164,14 +193,6 @@ internal static class PdfConformanceWriter
     /// <summary>
     /// The rules of the claimed profile that can be settled by looking at the document.
     /// </summary>
-    /// <remarks>
-    /// Deliberately not all of them. Checking that a PDF/A-1 document uses no transparency means
-    /// walking every page's resources — <see cref="PdfTransparencyDetector"/> can answer it for one
-    /// XObject but not yet for a page — and checking for JPXDecode means walking every image. Both
-    /// are real rules and neither is checked here. What is checked is checked properly; what is not
-    /// is said plainly rather than implied by silence, so nobody reads a successful save as a
-    /// validator's verdict.
-    /// </remarks>
     static void Enforce(PdfDocument document)
     {
         var options = document.Options;
@@ -180,7 +201,7 @@ internal static class PdfConformanceWriter
 
         var attachments = EmbeddedFiles(document);
 
-        if (options.Conformance != PdfAConformance.PdfA3B && attachments.Count != 0)
+        if (!IsPart3(options.Conformance) && attachments.Count != 0)
             throw new InvalidOperationException(
                 options.Conformance + " may not carry an embedded file unless that file is itself "
                 + "PDF/A — and nothing here can establish that, so the claim is refused rather than "
@@ -189,15 +210,99 @@ internal static class PdfConformanceWriter
                 + "restriction, which is why hybrid e-invoices such as ZUGFeRD and Factur-X are "
                 + "built on it.");
 
-        if (options.Conformance == PdfAConformance.PdfA3B)
+        if (IsPart3(options.Conformance))
             EnforceAssociation(document, attachments);
 
         CheckVersionAgainstProfile(document, options.Conformance);
+        CheckResourceRules(document, options.Conformance);
 
         // Raise rather than set, so a document that has already asked for more keeps it. See
         // PdfVersionRequirements for the other two features that raise this floor.
-        var floor = options.Conformance == PdfAConformance.PdfA1B ? 14 : 17;
+        var floor = IsPart1(options.Conformance) ? 14 : 17;
         PdfVersionRequirements.Require(document, floor);
+    }
+
+    /// <summary>
+    /// The four rules a page's content and resources can break, none of which a claim-time check
+    /// can settle — what a page will contain is not knowable until it is drawn. Transparency and a
+    /// JPEG 2000 image are refused for part 1 alone and permitted by the later parts; an
+    /// interpolated image is refused under every archival profile; and a device colour space the
+    /// output intent does not describe is refused wherever an output intent is required, which is
+    /// every archival profile.
+    /// </summary>
+    /// <remarks>
+    /// Walking a page's resources is <see cref="PdfResourcePruner"/>'s job as well as this one — see
+    /// <see cref="PdfPageResourceUsage"/> — so the two cannot disagree about what a page uses. A page
+    /// whose content could not be fully understood is left unchecked here exactly as it is left
+    /// unpruned there, rather than refused on a guess: what is checked is checked properly, and a
+    /// document this library itself writes never reaches that path.
+    /// </remarks>
+    static void CheckResourceRules(PdfDocument document, PdfAConformance conformance)
+    {
+        if (conformance == PdfAConformance.None)
+            return;
+
+        var families = new HashSet<int>();
+
+        for (var index = 0; index < document.PageCount; index++)
+        {
+            var usage = PdfPageResourceUsage.Walk(document.Pages[index]);
+            if (!usage.Understood)
+                continue;
+
+            if (IsPart1(conformance))
+            {
+                if (PdfResourceConformanceRules.UsesTransparency(usage))
+                    throw new InvalidOperationException(
+                        "PDF/A-1 forbids transparency, and page " + (index + 1) + " paints with it "
+                        + "— found by walking every resource the page reaches, not only what its "
+                        + "content names outright. Claim PDF/A-2 or later, which permits it, or "
+                        + "remove the transparency.");
+
+                if (PdfResourceConformanceRules.UsesJpxImage(usage))
+                    throw new InvalidOperationException(
+                        "PDF/A-1 forbids a JPEG 2000 image, and page " + (index + 1) + " carries "
+                        + "one. Claim PDF/A-2 or later, which permits it, or re-encode the image.");
+            }
+
+            if (PdfResourceConformanceRules.UsesInterpolatedImage(usage))
+                throw new InvalidOperationException(
+                    conformance + " forbids an image set to interpolate, and page " + (index + 1)
+                    + " carries one. Clear XImage.Interpolate before saving.");
+
+            PdfResourceConformanceRules.CollectDeviceColorFamilies(usage, families);
+        }
+
+        if (families.Count == 0)
+            return;
+
+        var options = document.Options;
+        var componentsOfIntent = ComponentsOf(
+            HasProfile(options) ? options.OutputIntentIccProfile : PdfOutputIntents.SrgbProfile,
+            options.ColorMode);
+
+        // A device colour of one component, DeviceGray, never conflicts with an output intent of
+        // any size: grey is unambiguous in any working space, which is what makes it the one
+        // family this loop leaves alone.
+        var mismatched = new List<int>();
+        foreach (var family in families)
+        {
+            if (family != 1 && family != componentsOfIntent)
+                mismatched.Add(family);
+        }
+
+        if (mismatched.Count != 0)
+        {
+            mismatched.Sort();
+            throw new InvalidOperationException(
+                conformance + " requires the output intent to describe every device colour the "
+                + "document paints, and its profile describes a " + componentsOfIntent
+                + "-component space while a page paints with a " + string.Join(" and ",
+                    mismatched.ConvertAll(count => count + "-component"))
+                + " device colour. Set Options.ColorMode and Options.OutputIntentIccProfile to "
+                + "agree with what the pages actually paint, or stop mixing colour spaces the "
+                + "intent cannot describe together.");
+        }
     }
 
     /// <summary>
@@ -209,7 +314,7 @@ internal static class PdfConformanceWriter
     /// so that every rule PDF/A implies is reachable from one place, including the ones a font
     /// dictionary has to act on well before <see cref="PrepareForSave"/> runs.
     /// </remarks>
-    internal static bool RequiresCidSet(PdfAConformance conformance) => conformance == PdfAConformance.PdfA1B;
+    internal static bool RequiresCidSet(PdfAConformance conformance) => IsPart1(conformance);
 
     /// <summary>
     /// The rules PDF/A-3 adds by permitting attachments at all: each has to be attached <em>to</em>
@@ -277,11 +382,10 @@ internal static class PdfConformanceWriter
     /// this cannot read would turn a writer into a validator it has never claimed to be.
     /// </para>
     /// <para>
-    /// What is still <em>not</em> checked is that every device colour space the document actually
-    /// uses is the one the output intent describes. A document in
-    /// <see cref="PdfColorMode.Undefined"/> may hold RGB and CMYK together, and finding out means
-    /// walking every page's resources — the same walk the transparency rule needs and does not get.
-    /// Said plainly here rather than implied by silence.
+    /// What this answers for the output intent, <see cref="CheckResourceRules"/> compares against
+    /// what a page-resource walk finds the document actually paints with — a document in
+    /// <see cref="PdfColorMode.Undefined"/> may hold RGB and CMYK together, and the output intent
+    /// this method describes has to be one of them or the other.
     /// </para>
     /// </remarks>
     static int ComponentsOf(byte[] profile, PdfColorMode mode)

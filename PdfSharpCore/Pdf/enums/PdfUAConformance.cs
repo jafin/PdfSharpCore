@@ -26,4 +26,12 @@ public enum PdfUAConformance
     /// PDF/UA-1 (ISO 14289-1). What every tool validates against today.
     /// </summary>
     PdfUA1,
+
+    /// <summary>
+    /// PDF/UA-2 (ISO 14289-2). The current accessibility standard. Held to the same rules
+    /// <see cref="Structure.PdfUaValidator"/> already checks; appended after
+    /// <see cref="PdfUA1"/> rather than inserted, for the same reason <see cref="PdfAConformance"/>
+    /// appends its own new members.
+    /// </summary>
+    PdfUA2,
 }
