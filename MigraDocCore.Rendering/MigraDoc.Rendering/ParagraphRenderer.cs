@@ -862,6 +862,12 @@ internal class ParagraphRenderer : Renderer
     /// Where each leaf of the line should be drawn, or null when the line reads the way it was
     /// written and nothing needs moving.
     /// </summary>
+    /// <remarks>
+    /// A tab is a boundary, not a character with a direction: it divides the line into segments and
+    /// each segment is reordered within itself, exactly as a whole line with no tabs in it would be.
+    /// The tabs themselves never move - a leaf's default position is where it was written, and only
+    /// a segment that turns out to hold something right to left has that default overwritten.
+    /// </remarks>
     XUnit[] PlacedInVisualOrder(LineInfo lineInfo)
     {
         if (!MayNeedReordering(lineInfo))
@@ -869,35 +875,89 @@ internal class ParagraphRenderer : Renderer
 
         var widths = new List<XUnit>();
         var spans = new List<(int Start, int Length)>();
-        string text = Probe(lineInfo, widths, spans);
+        var isTab = new List<bool>();
+        string text = Probe(lineInfo, widths, spans, isTab);
 
-        var bidi = BidiAlgorithm.Resolve(text, ParagraphDirection);
+        var writtenX = new XUnit[widths.Count];
+        XUnit cursor = StartXPosition;
+        for (int idx = 0; idx < widths.Count; idx++)
+        {
+            writtenX[idx] = cursor;
+            cursor += widths[idx];
+        }
+
+        var placed = (XUnit[])writtenX.Clone();
+        bool anyReordered = false;
+
+        int segmentStart = 0;
+        for (int idx = 0; idx <= isTab.Count; idx++)
+        {
+            if (idx == isTab.Count || isTab[idx])
+            {
+                if (idx > segmentStart)
+                    anyReordered |= ReorderSegment(segmentStart, idx, text, widths, spans, writtenX, placed);
+
+                segmentStart = idx + 1;
+            }
+        }
+
+        return anyReordered ? placed : null;
+    }
+
+    /// <summary>
+    /// Reorders one segment of a line - the whole line, when it holds no tab - in place. Answers
+    /// whether the segment held anything right to left, which is what decides whether the line is
+    /// drawn from <paramref name="placed"/> at all.
+    /// </summary>
+    bool ReorderSegment(int start, int end, string text, List<XUnit> widths,
+        List<(int Start, int Length)> spans, XUnit[] writtenX, XUnit[] placed)
+    {
+        int textStart = spans[start].Start;
+        var lastSpan = spans[end - 1];
+        int textEnd = lastSpan.Start + lastSpan.Length;
+        string segmentText = text.Substring(textStart, textEnd - textStart);
+
+        var localSpans = new List<(int Start, int Length)>(end - start);
+        for (int idx = start; idx < end; idx++)
+            localSpans.Add((spans[idx].Start - textStart, spans[idx].Length));
+
+        var bidi = BidiAlgorithm.Resolve(segmentText, ParagraphDirection);
         bool anyRightToLeft = false;
         foreach (var run in bidi.Runs())
             anyRightToLeft |= run.Direction == XTextDirection.RightToLeft;
 
         if (!anyRightToLeft)
-            return null;
+            return false;
 
-        var order = VisualOrder.Of(bidi, spans);
-        var placed = new XUnit[widths.Count];
-        XUnit x = StartXPosition;
-        foreach (int leaf in order)
+        var order = VisualOrder.Of(bidi, localSpans);
+        XUnit x = writtenX[start];
+        foreach (int local in order)
         {
+            int leaf = start + local;
             placed[leaf] = x;
             x += widths[leaf];
         }
 
-        return placed;
+        return true;
     }
 
     /// <summary>
-    /// Walks the line without drawing it, collecting what each leaf says and how wide it is.
+    /// Walks the line without drawing it, collecting what each leaf says, how wide it is, and
+    /// whether it is a tab - the boundary a reordered segment must not cross.
     /// </summary>
-    string Probe(LineInfo lineInfo, List<XUnit> widths, List<(int Start, int Length)> spans)
+    /// <remarks>
+    /// A tab's width comes from <see cref="tabOffsets"/>, read in order and advanced by
+    /// <see cref="NextTabOffset"/> as the walk passes each one. That read position is state the
+    /// probing walk disturbs exactly as it disturbs <see cref="currentLeaf"/> and
+    /// <see cref="currentXPosition"/>, so it is saved and restored alongside them - a walk that
+    /// left it consumed would hand the real walk behind it either the wrong tab's width or none at
+    /// all.
+    /// </remarks>
+    string Probe(LineInfo lineInfo, List<XUnit> widths, List<(int Start, int Length)> spans, List<bool> isTab)
     {
         var savedLeaf = currentLeaf;
         var savedPosition = currentXPosition;
+        var savedTabIdx = tabIdx;
 
         probedText = new StringBuilder();
         probing = true;
@@ -912,6 +972,7 @@ internal class ParagraphRenderer : Renderer
                 int start = probedText.Length;
                 XUnit before = currentXPosition;
 
+                isTab.Add(IsTab(currentLeaf.Current));
                 RenderElement(currentLeaf.Current);
 
                 widths.Add(currentXPosition - before);
@@ -927,6 +988,7 @@ internal class ParagraphRenderer : Renderer
             probedText = null;
             currentLeaf = savedLeaf;
             currentXPosition = savedPosition;
+            tabIdx = savedTabIdx;
         }
     }
 
@@ -934,12 +996,9 @@ internal class ParagraphRenderer : Renderer
     /// Whether the line could possibly want reordering, asked before anything is measured.
     /// </summary>
     /// <remarks>
-    /// Two answers matter here. A line with nothing right to left in it and no direction declared
-    /// cannot need moving, and this is what keeps every left-to-right document paying one cheap
-    /// scan rather than an extra walk of every line. And <b>a line with a tab in it is left
-    /// alone</b>: a tab's width is taken from a list built during formatting and consumed in order,
-    /// so walking the line twice would consume it twice - and where a tabbed line's columns belong
-    /// in a right-to-left paragraph is a question nothing here answers.
+    /// A line with nothing right to left in it and no direction declared cannot need moving, and
+    /// this is what keeps every left-to-right document paying one cheap scan rather than an extra
+    /// walk of every line - tab or no tab.
     /// </remarks>
     bool MayNeedReordering(LineInfo lineInfo)
     {
@@ -949,9 +1008,6 @@ internal class ParagraphRenderer : Renderer
         var leaf = lineInfo.startIter;
         while (leaf != null)
         {
-            if (leaf.Current is Character character && character.SymbolName == SymbolName.Tab)
-                return false;
-
             if (!found && leaf.Current is Text text && text.Content != null)
             {
                 foreach (char ch in text.Content)

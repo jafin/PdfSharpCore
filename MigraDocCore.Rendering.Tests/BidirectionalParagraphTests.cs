@@ -3,6 +3,8 @@ using System.Linq;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.Rendering.Tests.Helpers;
+using PdfSharpCore.Pdf.Annotations;
+using PdfSharpCore.Test.Helpers;
 using PdfSharpCore.Text;
 using Xunit;
 
@@ -52,6 +54,9 @@ public class BidirectionalParagraphTests
     ///   no whitespace glyph is ever shown.
     /// </summary>
     static IReadOnlyList<int> Drawn(string letters) => letters.Select(GlyphOf).ToList();
+
+    /// <summary>Several glyph sequences, concatenated - for a line with more than one segment.</summary>
+    static IReadOnlyList<int> Joined(params IReadOnlyList<int>[] parts) => parts.SelectMany(part => part).ToList();
 
     // ----- the defect ------------------------------------------------------------------------------
 
@@ -112,16 +117,230 @@ public class BidirectionalParagraphTests
     }
 
     [Fact]
-    public void ALineWithATabInItKeepsTheOrderItWasWritten()
+    public void ALineWithATabAndOneWordEitherSideOfItIsUnchangedBecauseThereIsNothingToSwap()
     {
-        // The documented limitation. A tab's width comes from a list built while the paragraph was
-        // formatted and consumed in order, so a line holding one cannot be walked twice - and where
-        // a tabbed line's columns belong in a right-to-left paragraph is a question this does not
-        // answer. Such a line is left alone rather than guessed at.
+        // What used to be the documented limitation, kept as the baseline it now is. A tab divides
+        // this line into two segments of one word each, and a segment of one word has nothing to
+        // reorder against - so the outcome is the same as when reordering was skipped outright, and
+        // for a different reason: each word was already turned round inside itself by DrawString,
+        // and there is only ever one leaf per segment here for the tab boundary to leave alone.
         var page = Rendered.FirstPageOf(Paragraph(First + "\t" + Second));
 
         Glyphs.AcrossThePage(page).Should().Equal(Drawn("\u05D1\u05D0\u05D3\u05D2"),
-            "each word is still turned round inside itself; only their order is left as written");
+            "each word is turned round inside itself; a segment of one word has no order to fix");
+    }
+
+    // ----- the fix: a tab divides the line, and each segment reorders on its own -------------------
+
+    [Fact]
+    public void ARightToLeftLineWithOneTabReordersBothSegmentsIndependently()
+    {
+        // The case the old guard got backwards. Each side of the tab holds two words, so each side
+        // has an order of its own to fix, and the tab itself must not move either segment into the
+        // other's territory.
+        var page = Rendered.FirstPageOf(Paragraph(First + " " + Second + "\t" + Second + " " + First));
+
+        Glyphs.AcrossThePage(page).Should().Equal(
+            Joined(Drawn("\u05D3\u05D2\u05D1\u05D0"), Drawn("\u05D1\u05D0\u05D3\u05D2")),
+            "the segment before the tab reorders on its own, and so does the segment after it");
+    }
+
+    [Fact]
+    public void SeveralTabsReorderEverySegmentIndependently()
+    {
+        var page = Rendered.FirstPageOf(Paragraph(
+            First + " " + Second + "\t" + Second + " " + First + "\t" + First + " " + Second));
+
+        Glyphs.AcrossThePage(page).Should().Equal(
+            Joined(
+                Drawn("\u05D3\u05D2\u05D1\u05D0"),
+                Drawn("\u05D1\u05D0\u05D3\u05D2"),
+                Drawn("\u05D3\u05D2\u05D1\u05D0")),
+            "a three-column tabbed layout reorders every column, not only the first");
+    }
+
+    [Fact]
+    public void ALeftToRightPhraseInsideATabbedRightToLeftSegmentKeepsItsOwnWordOrder()
+    {
+        // The tabbed sibling of AnEnglishPhraseInsideAHebrewParagraphKeepsItsOwnWordOrder: a segment
+        // is ordered exactly as a whole line is, so an English phrase inside one still keeps its own
+        // internal order rather than being reversed word by word.
+        var page = Rendered.FirstPageOf(Paragraph(First + " one two " + Second + "\t" + First));
+
+        Glyphs.AcrossThePage(page).Should().Equal(
+            Joined(Drawn("\u05D3\u05D2" + "one" + "two" + "\u05D1\u05D0"), Drawn("\u05D1\u05D0")),
+            "one and two keep their own order although the Hebrew around them is reordered");
+    }
+
+    [Fact]
+    public void ALeftToRightTabbedLineIsUnaffected()
+    {
+        // The regression every existing document depends on: nothing right to left anywhere on the
+        // line, so the cheap scan answers no and the tab is drawn exactly as it always was.
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph();
+        paragraph.AddText("abc");
+        paragraph.AddTab();
+        paragraph.AddText("def");
+
+        var page = Rendered.FirstPageOf(document);
+
+        Glyphs.On(page).Should().Equal(Glyphs.AcrossThePage(page),
+            "written order and reading order are the same line when nothing on it is right to left");
+        Glyphs.On(page).Should().Equal(Drawn("abc").Concat(Drawn("def")).ToList());
+    }
+
+    [Fact]
+    public void TheMarksOfATabbedReorderedLineStayInTheOrderTheTextIsRead()
+    {
+        // The extension of TheMarksStayInTheOrderTheTextIsRead to a line with a tab in it. Only
+        // where a word lands changed - the leaves are still walked, and so marked, in the order
+        // they were written.
+        var page = Rendered.FirstPageOf(Paragraph(First + " " + Second + "\t" + Second + " " + First));
+
+        Glyphs.On(page).Should().Equal(
+            Joined(Drawn("\u05D1\u05D0" + "\u05D3\u05D2"), Drawn("\u05D3\u05D2" + "\u05D1\u05D0")),
+            "written in the order the words were written, tab or no tab");
+        Glyphs.AcrossThePage(page).Should().Equal(
+            Joined(Drawn("\u05D3\u05D2\u05D1\u05D0"), Drawn("\u05D1\u05D0\u05D3\u05D2")),
+            "and placed in the order they are read");
+    }
+
+    [Fact]
+    public void ADecimalTabStillAlignsOnTheSeparatorWithRightToLeftTextBeforeIt()
+    {
+        // The mechanical half of the fix: the tab width list has to be replayable rather than
+        // consumed, because this line now gets walked twice (RTL label found before the tab), and a
+        // decimal tab is the one kind whose position a corrupted read would visibly move. If the
+        // probing walk left the list's read position consumed, the real walk would read the wrong
+        // tab's width - or none at all - and the point would not land on the stop any more.
+        double WhereTheNumberStarts(string number)
+        {
+            var document = new Document();
+            var paragraph = document.AddSection().AddParagraph();
+            paragraph.Format.TabStops.AddTabStop(Unit.FromCentimeter(6), TabAlignment.Decimal);
+            paragraph.AddText(First + " " + Second);
+            paragraph.AddTab();
+            paragraph.AddText(number);
+
+            var runs = TextBaselines.PositionsOf(Rendered.FirstPageOf(document));
+            return runs.Max(run => run.X);
+        }
+
+        WhereTheNumberStarts("1.5").Should().BeGreaterThan(WhereTheNumberStarts("1234.5"),
+            "however many digits come before the point, the point itself lands on the stop");
+    }
+
+    [Fact]
+    public void ADecimalTabInADeclaredRightToLeftParagraphWithNoActualRightToLeftTextStillAligns()
+    {
+        // A paragraph can declare a direction without holding anything that direction actually
+        // affects. The declaration alone makes the cheap scan answer yes and starts the probing
+        // walk - and because nothing in the line ever turns out to need reordering, the real walk
+        // falls straight back to plain incremental positioning, which is exactly what a tab width
+        // list left consumed rather than replayed would corrupt. The line above this one is probed
+        // too, but every leaf's real position comes off the reordered array regardless of the tab's
+        // own corrupted width; this is the line where nothing shields the bug.
+        double WhereTheNumberStarts(string number)
+        {
+            var document = new Document();
+            var paragraph = document.AddSection().AddParagraph();
+            paragraph.Format.TextDirection = BidiParagraphDirection.RightToLeft;
+            paragraph.Format.TabStops.AddTabStop(Unit.FromCentimeter(6), TabAlignment.Decimal);
+            paragraph.AddText("label");
+            paragraph.AddTab();
+            paragraph.AddText(number);
+
+            var runs = TextBaselines.PositionsOf(Rendered.FirstPageOf(document));
+            return runs.Max(run => run.X);
+        }
+
+        WhereTheNumberStarts("1.5").Should().BeGreaterThan(WhereTheNumberStarts("1234.5"),
+            "a probed line that never actually reorders must still get the tab's width right");
+    }
+
+    [Fact]
+    public void UnderlineOnAReorderedTabbedLineDrawsNoBackwardsRule()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph();
+        var left = paragraph.AddFormattedText(First + " " + Second);
+        left.Font.Underline = Underline.Single;
+        paragraph.AddTab();
+        var right = paragraph.AddFormattedText(Second + " " + First);
+        right.Font.Underline = Underline.Single;
+
+        var page = Rendered.FirstPageOf(document);
+        var rules = StrokedLines.Of(page).Where(line => line.IsHorizontal).ToList();
+
+        rules.Should().NotBeEmpty();
+        rules.Should().OnlyContain(line => line.X1 <= line.X2,
+            "reordering a tabbed segment must not turn its underline into a rule that runs backwards");
+    }
+
+    [Fact]
+    public void StrikethroughOnAReorderedTabbedLineDrawsNoBackwardsRule()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph();
+        var left = paragraph.AddFormattedText(First + " " + Second);
+        left.Font.Strikethrough = Strikethrough.Single;
+        paragraph.AddTab();
+        var right = paragraph.AddFormattedText(Second + " " + First);
+        right.Font.Strikethrough = Strikethrough.Single;
+
+        var page = Rendered.FirstPageOf(document);
+        var rules = StrokedLines.Of(page).Where(line => line.IsHorizontal).ToList();
+
+        rules.Should().NotBeEmpty();
+        rules.Should().OnlyContain(line => line.X1 <= line.X2,
+            "reordering a tabbed segment must not turn its strikethrough into a rule that runs backwards");
+    }
+
+    [Fact]
+    public void AHyperlinkInsideATabbedRightToLeftLineKeepsItsClickableAreaWhereTheTextIs()
+    {
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph();
+        paragraph.AddText("one two");
+        paragraph.AddTab();
+        paragraph.AddHyperlink("https://example.com", HyperlinkType.Web).AddText(Second);
+        paragraph.AddText(" " + First);
+
+        var page = Rendered.FirstPageOf(document);
+
+        var linkGlyphs = Drawn("\u05D3\u05D2");
+        var firstWordGlyphs = Drawn("\u05D1\u05D0");
+
+        var placed = Glyphs.PlacedOn(page);
+        var linkRun = placed.Single(run => run.Run.SequenceEqual(linkGlyphs));
+        var firstWordRun = placed.Single(run => run.Run.SequenceEqual(firstWordGlyphs));
+
+        linkRun.X.Should().BeGreaterThan(firstWordRun.X,
+            "the word written first is rightmost once the segment is read right to left");
+
+        var rect = page.Annotations[0].Elements.GetRectangle("/Rect");
+        rect.X1.Should().BeApproximately(linkRun.X, 0.5,
+            "the clickable area has to start where the reordered word was actually drawn, not where "
+            + "it was written");
+    }
+
+    [Fact]
+    public void ATabbedLineInATableCellReordersToo()
+    {
+        var document = new Document();
+        var table = document.AddSection().AddTable();
+        table.AddColumn(Unit.FromCentimeter(8));
+        var paragraph = table.AddRow().Cells[0].AddParagraph();
+        paragraph.AddText(First + " " + Second);
+        paragraph.AddTab();
+        paragraph.AddText(Second + " " + First);
+
+        var page = Rendered.FirstPageOf(document);
+
+        Glyphs.AcrossThePage(page).Should().Equal(
+            Joined(Drawn("\u05D3\u05D2\u05D1\u05D0"), Drawn("\u05D1\u05D0\u05D3\u05D2")),
+            "the fix is not silently limited to body paragraphs");
     }
 
     [Fact]
