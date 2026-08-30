@@ -235,6 +235,13 @@ public sealed class PdfStructureBuilder
         ns.Elements.SetString("/NS", "http://iso.org/pdf2/ssn");
         _document._irefTable.Add(ns);
 
+        // ISO 32000-2 14.7.4.1: the root lists every namespace the tree names. An element's /NS is
+        // a pointer into this array rather than a declaration of its own, so a namespace that
+        // appears only on the element is one a reader has nothing to resolve it against.
+        var namespaces = new PdfArray(_document);
+        namespaces.Elements.Add(ns.Reference);
+        Root.Elements[PdfStructureTreeRoot.Keys.Namespaces] = namespaces;
+
         if (Root.Elements[PdfStructureTreeRoot.Keys.K] is PdfArray kids && kids.Elements.Count == 1
             && Resolve(kids.Elements[0]) is PdfStructureElement document && document.Tag.Name == "/Document")
         {

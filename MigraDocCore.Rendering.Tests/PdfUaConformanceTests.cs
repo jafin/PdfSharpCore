@@ -230,6 +230,39 @@ public class PdfUaConformanceTests
     }
 
     [Fact]
+    public void TheNamespaceTheDocumentRootNamesIsListedInTheStructureTreeRoot()
+    {
+        // ISO 32000-2 14.7.4.1: an element's /NS points into the root's /Namespaces rather than
+        // declaring anything itself, so a namespace named on an element and nowhere else is one a
+        // reader has no dictionary for. The same object both times, not two saying the same thing.
+        var renderer = Tagged();
+        renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA2;
+
+        var saved = Save(renderer);
+
+        var root = saved.Internals.Catalog.Elements.GetDictionary("/StructTreeRoot");
+        var namespaces = root.Elements.GetArray("/Namespaces");
+        namespaces.Elements.Count.Should().Be(1);
+
+        var listed = (PdfReference)namespaces.Elements[0];
+        ((PdfDictionary)listed.Value).Elements.GetString("/NS").Should().Be("http://iso.org/pdf2/ssn");
+
+        var document = (PdfDictionary)((PdfReference)root.Elements.GetArray("/K").Elements[0]).Value;
+        document.Elements["/NS"].Should().BeSameAs(listed);
+    }
+
+    [Fact]
+    public void ClaimingPdfUa1WritesNoNamespaceList()
+    {
+        // /Namespaces is PDF 2.0's, and a PDF/UA-1 document names no namespace to list.
+        var saved = Save(Claiming());
+
+        var root = saved.Internals.Catalog.Elements.GetDictionary("/StructTreeRoot");
+
+        root.Elements.ContainsKey("/Namespaces").Should().BeFalse();
+    }
+
+    [Fact]
     public void ClaimingPdfUa1LeavesTheDocumentRootWithNoExplicitNamespace()
     {
         // The rule above is PDF/UA-2's alone — nothing about PDF/UA-1 or a plain tagged document
