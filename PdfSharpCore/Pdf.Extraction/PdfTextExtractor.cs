@@ -256,11 +256,16 @@ public static class PdfTextExtractor
                 case OpCodeName.BMC:
                     // No properties are possible on this form, so no /MCID and no /ActualText —
                     // just the tag, straight off the operand the content parser gave it.
-                    _markedContent.Push(new MarkedContentScope(NameOperand(op, 0), null, null));
+                    PushScope(new MarkedContentScope(NameOperand(op, 0), null, null));
                     break;
 
                 case OpCodeName.EMC:
-                    if (_markedContent.Count > 0)
+                    // A sequence opened past the depth cap was never pushed, so its end must not
+                    // pop one that was — that would take back a scope some run still inside it is
+                    // relying on. The uncapped count is what tells the two apart.
+                    if (_uncappedMarkedContentDepth > 0)
+                        _uncappedMarkedContentDepth--;
+                    else if (_markedContent.Count > 0)
                         _markedContent.Pop();
                     break;
 
@@ -326,14 +331,37 @@ public static class PdfTextExtractor
                 tag = NameOperand(op, 0);
             }
 
-            // A nesting depth past anything sane is content that has gone wrong rather than a
-            // document that means it; further sequences opened past it are not tracked, so a run
-            // drawn inside them still reports the deepest one that was.
+            PushScope(new MarkedContentScope(tag, actualText, mcid));
+        }
+
+        /// <summary>
+        /// Opens a sequence, tracking it on the stack unless doing so would take the nesting depth
+        /// past anything sane — content that has gone wrong rather than a document that means it.
+        /// </summary>
+        /// <remarks>
+        /// A sequence past the cap is still counted, in <see cref="_uncappedMarkedContentDepth"/>
+        /// rather than on the stack itself, so that its own <c>EMC</c> is recognised as its own
+        /// rather than mistaken for the deepest tracked sequence's — which would pop a scope some
+        /// run still inside it is relying on, and desynchronise every tag, MCID and ActualText
+        /// reported for the rest of the page. A run drawn inside an uncapped sequence still reports
+        /// the deepest tracked one, which is the graceful degradation this cap exists for.
+        /// </remarks>
+        void PushScope(MarkedContentScope scope)
+        {
             if (_markedContent.Count < MaximumMarkedContentDepth)
-                _markedContent.Push(new MarkedContentScope(tag, actualText, mcid));
+                _markedContent.Push(scope);
+            else
+                _uncappedMarkedContentDepth++;
         }
 
         const int MaximumMarkedContentDepth = 1024;
+
+        /// <summary>
+        /// How many open sequences past <see cref="MaximumMarkedContentDepth"/> have not been
+        /// closed yet — each one's own <c>EMC</c> to come, still owed before the stack's own
+        /// entries may be popped again.
+        /// </summary>
+        int _uncappedMarkedContentDepth;
 
         PdfDictionary PropertiesFor(string name)
         {

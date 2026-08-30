@@ -223,6 +223,28 @@ public class TaggedTextExtractionTests
         extracting.Should().NotThrow();
     }
 
+    [Fact]
+    public void AnEndPastTheDepthCapClosesItsOwnSequenceRatherThanATrackedOne()
+    {
+        // A thousand plain sequences push the tracked stack to its cap; the next one past it is
+        // counted rather than tracked. Its own EMC has to know that - popping the tracked stack
+        // instead would take back the /Marker scope the Tj below is still inside, and every tag,
+        // MCID and ActualText reported for the rest of the page would come from the wrong sequence.
+        var filler = string.Concat(Enumerable.Repeat("/Filler BMC\n", 1023));
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            filler
+            + "/Marker <</MCID 9999>> BDC "
+            + "/Extra <</MCID 1>> BDC "
+            + "EMC "
+            + $"BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj ET\n"));
+
+        var run = PdfTextExtractor.ExtractRuns(page).Single();
+
+        run.Tag.Should().Be(new PdfTag("/Marker"),
+            "the run is still inside the 1024th sequence, the deepest one that was tracked");
+        run.MarkedContentId.Should().Be(9999);
+    }
+
     private static XFont Font => new("Arial", 12);
 
     /// <summary>
