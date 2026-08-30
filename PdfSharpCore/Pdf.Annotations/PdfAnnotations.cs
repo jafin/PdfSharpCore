@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.Collections;
 using PdfSharpCore.Pdf.Advanced;
+using PdfSharpCore.Pdf.Signatures;
 using System.Collections.Generic;
 
 namespace PdfSharpCore.Pdf.Annotations;
@@ -54,6 +55,8 @@ public sealed class PdfAnnotations : PdfArray
     /// <param name="annotation">The annotation.</param>
     public void Add(PdfAnnotation annotation)
     {
+        Owner.EnsureCanModify("adding an annotation", PdfChangeKind.Annotations);
+
         annotation.Document = Owner;
         Owner._irefTable.Add(annotation);
         Elements.Add(annotation.Reference);
@@ -67,6 +70,8 @@ public sealed class PdfAnnotations : PdfArray
     {
         if (annotation.Owner != Owner)
             throw new InvalidOperationException("The annotation does not belong to this document.");
+
+        Owner.EnsureCanModify("removing an annotation", PdfChangeKind.Annotations);
 
         Owner.Internals.RemoveObject(annotation);
         Elements.Remove(annotation.Reference);

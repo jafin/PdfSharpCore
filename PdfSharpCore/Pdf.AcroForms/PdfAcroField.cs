@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using PdfSharpCore.Pdf.Advanced;
+using PdfSharpCore.Pdf.Signatures;
 
 namespace PdfSharpCore.Pdf.AcroForms;
 
@@ -88,6 +89,9 @@ public abstract class PdfAcroField : PdfDictionary
         {
             if (ReadOnly)
                 throw new InvalidOperationException("The field is read only.");
+
+            Owner?.EnsureCanModify("filling in a form field", PdfChangeKind.FormFieldValues);
+
             if (value is PdfString || value is PdfName)
                 Elements[Keys.V] = value;
             else

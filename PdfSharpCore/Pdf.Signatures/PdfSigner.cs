@@ -67,6 +67,11 @@ public static class PdfSigner
                 + "in memory, save it first and open the result for appending — the Sign overload "
                 + "taking a stream does exactly that.");
 
+        // Signing is a form field value in DocMDP's terms — the standard groups digital signing with
+        // form fill-in — so a document certified against changes, or certified for form fill-in and
+        // above, is asked the same question filling in an ordinary field is.
+        document.EnsureCanModify("signing the document", PdfChangeKind.FormFieldValues);
+
         options ??= new PdfSignatureOptions();
 
         if (signer.EstimatedSignatureSize < 1)

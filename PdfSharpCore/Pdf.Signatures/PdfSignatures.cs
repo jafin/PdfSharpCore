@@ -151,4 +151,48 @@ public static class PdfSignatures
     }
 
     static string NullIfEmpty(string value) => String.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>
+    /// The document's own certification level, read from <c>/Perms/DocMDP</c> — the signature, if
+    /// there is one, that certifies the whole document rather than merely approving it.
+    /// </summary>
+    /// <remarks>
+    /// A structural read, not a cryptographic one: this says what the document <em>claims</em>, which
+    /// is exactly what <see cref="PdfDocument.EnsureCanModify"/> needs to enforce the claim, the same
+    /// way it already enforces the open mode without asking whether the file's contents can be
+    /// trusted.
+    /// </remarks>
+    internal static PdfCertificationLevel CertificationOf(PdfDocument document)
+    {
+        var perms = document.Catalog.Elements.GetDictionary("/Perms");
+        var signature = perms?.Elements.GetDictionary("/DocMDP");
+
+        return signature == null
+            ? PdfCertificationLevel.NotCertified
+            : (PdfCertificationLevel)CertificationLevelOf(signature);
+    }
+
+    /// <summary>
+    /// Whether a document certified at <paramref name="level"/> permits a change of kind
+    /// <paramref name="kind"/>.
+    /// </summary>
+    /// <remarks>
+    /// A document's structure and content are never permitted to change once certified, at any level
+    /// — that is the whole point of certifying against "no changes" and remains true even for the two
+    /// levels that permit something. The other two kinds nest: form field values (including signing)
+    /// are permitted from <see cref="PdfCertificationLevel.FormFillingAllowed"/> up, and annotations
+    /// only at <see cref="PdfCertificationLevel.FormFillingAndAnnotationsAllowed"/>.
+    /// </remarks>
+    internal static bool Permits(PdfCertificationLevel level, PdfChangeKind kind)
+    {
+        return level switch
+        {
+            PdfCertificationLevel.NotCertified => true,
+            PdfCertificationLevel.NoChangesAllowed => false,
+            PdfCertificationLevel.FormFillingAllowed => kind == PdfChangeKind.FormFieldValues,
+            PdfCertificationLevel.FormFillingAndAnnotationsAllowed =>
+                kind == PdfChangeKind.FormFieldValues || kind == PdfChangeKind.Annotations,
+            _ => false
+        };
+    }
 }

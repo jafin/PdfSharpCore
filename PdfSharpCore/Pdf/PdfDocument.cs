@@ -41,6 +41,7 @@ using PdfSharpCore.Pdf.Internal;
 using PdfSharpCore.Pdf.IO;
 using PdfSharpCore.Pdf.AcroForms;
 using PdfSharpCore.Pdf.Security;
+using PdfSharpCore.Pdf.Signatures;
 
 // ReSharper disable ConvertPropertyToExpressionBody
 
@@ -212,17 +213,34 @@ public sealed class PdfDocument : PdfObject, IDisposable
 
     /// <summary>
     /// Refuses an operation that changes the document when the document was not opened for
-    /// changing, with a message naming both the mode it was opened with and the modes the
-    /// operation needs.
+    /// changing, or when a certifying signature does not permit this kind of change, with a message
+    /// naming whichever of the two refused.
     /// </summary>
     /// <param name="operation">
     /// What the caller was trying to do, as a gerund phrase - "adding a page", "saving the
     /// document". It is read as the middle of a sentence.
     /// </param>
-    internal void EnsureCanModify(string operation)
+    /// <param name="kind">
+    /// What kind of change this is, in the terms a <c>/DocMDP</c> certification distinguishes.
+    /// Defaults to <see cref="PdfChangeKind.DocumentStructure"/>, which is right for every operation
+    /// that changes something other than a form field's value or an annotation - and is also the kind
+    /// no certification level ever permits, so an operation that does not pass this explicitly is
+    /// refused by any certifying signature exactly as it should be.
+    /// </param>
+    /// <remarks>
+    /// The open mode is checked first. A document opened <see cref="PdfDocumentOpenMode.ReadOnly"/>
+    /// that also happens to be certified is refused for the mode, because that is the more fundamental
+    /// reason and the one a caller needs to act on first - reopening the document differently, rather
+    /// than wondering whether some other change would have been permitted.
+    /// </remarks>
+    internal void EnsureCanModify(string operation, PdfChangeKind kind = PdfChangeKind.DocumentStructure)
     {
         if (!CanModify)
             throw new InvalidOperationException(PSSR.CannotModify(operation, _openMode));
+
+        var certification = PdfSignatures.CertificationOf(this);
+        if (!PdfSignatures.Permits(certification, kind))
+            throw new InvalidOperationException(PSSR.CertificationForbids(operation, certification));
     }
 
     /// <summary>
