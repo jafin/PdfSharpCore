@@ -7,7 +7,7 @@ Gap **G4** of the competitive gap analysis.
 |---|---|---|
 | 1 | An XMP metadata writer, synchronised with the info dictionary | done, **and PDF/UA now shares it** |
 | 2 | Output intent with an embedded ICC profile | done, **and an RGB document is given one** |
-| 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, **partially** |
+| 3 | `PdfDocumentOptions.Conformance` that **enforces** rather than labels | done, the resource rules in [conformance-completeness.md](conformance-completeness.md) |
 | 4 | PDF/A-3 attachments — `/AFRelationship` and catalog `/AF` | done |
 | 5 | `PdfSharpCore.EInvoice` — a ZUGFeRD / Factur-X helper | done |
 
@@ -49,12 +49,12 @@ files are byte-for-byte the size they were when the profile was passed in by han
 present, an output intent profile present, embedded files only under PDF/A-3, every attachment of a
 PDF/A-3 document both associated and carrying a relationship, and the version floor
 and version ceiling for the claimed part — PDF/A-1 is refused outright for a document already past
-PDF 1.4, and for one asking for a cross-reference stream, which is a PDF 1.5 construction. These are
-**not** checked: no transparency and no JPXDecode under PDF/A-1 (both
-need a walk of every page's resources — `PdfTransparencyDetector` answers the question for one
-XObject, not for a page), and `/Interpolate true` on images. A successful save is therefore not a
-validator's verdict, and `Enforce` says so in its own remarks rather than leaving silence to imply
-otherwise.
+PDF 1.4, and for one asking for a cross-reference stream, which is a PDF 1.5 construction. The resource rules —
+no transparency and no JPXDecode under PDF/A-1, no `/Interpolate true` on images, no colour space the
+output intent does not describe — were not checked when this was written, because each needs a walk
+of every page's resources. They are now: `PdfPageResourceUsage` is that walk, lifted out of the
+pruner, and [conformance-completeness.md](conformance-completeness.md) has the rest. A successful save
+is still not a validator's verdict, and veraPDF keeps the last word.
 
 **veraPDF is now in CI**, and the claim is no longer self-certified — see
 `docs/specs/verapdf-validation.md`, which covers this spec and
@@ -180,8 +180,8 @@ discover from a validator, or from their customer, that it does not conform. So 
 | Document `/ID` present | all parts | yes — `_trailer.CreateNewDocumentIDs()` |
 | Title in both info dictionary and XMP | all parts | item 1 |
 | Output intent for device colour | all parts | item 2 |
-| No transparency, no JPXDecode | **A-1 only** | must be enforced — the repo has soft masks and transparency groups |
-| No `/Interpolate true` on images | all parts | must be enforced |
+| No transparency, no JPXDecode | **A-1 only** | enforced — [conformance-completeness.md](conformance-completeness.md) |
+| No `/Interpolate true` on images | all parts | enforced — [conformance-completeness.md](conformance-completeness.md) |
 | No embedded files | **A-1 outright; A-2 unless the file is itself PDF/A**; A-3 permits any | refused for A-1 and A-2 |
 | Every attachment associated, and saying what it is and what type it is | **A-3 only** — the other parts carry none | item 4 |
 
@@ -191,9 +191,9 @@ attachment is — so the claim is refused rather than made on trust. A document 
 attachment and a conformance claim it can stand behind should claim PDF/A-3, which has no such
 restriction and is what the hybrid e-invoice profiles are built on.
 
-The A-1 transparency rule is the one that will bite: this fork has transparency groups, soft masks and
-gradient soft masks, and a document using them cannot be PDF/A-1. Saying so at save time, in a message
-that names the feature and the page, is the entire value of the option.
+The A-1 transparency rule is the one that bites: this fork has transparency groups, soft masks and
+gradient soft masks, and a document using them cannot be PDF/A-1. It is now said at save time, in a
+message that names the feature and the page, which is the entire value of the option.
 
 ## Items 4 and 5 — the hybrid invoice
 

@@ -21,7 +21,9 @@ Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 **veraPDF runs the same script CI does, and it gates.** `ConformanceCorpus` writes one PDF per claim
 the library can make into `artifacts/conformance-corpus`; each document *makes* a claim, because
 flavour detection is automatic and a file claiming nothing would be held to the fallback flavour and
-fail for saying nothing. All six conform, so a failure is a regression.
+fail for saying nothing. All nine conform, so a failure is a regression. A tenth, claiming PDF/UA-2,
+is built but not gated: it fails one clause, structure destinations, whose syntax the standard's own
+errata leave undefined — `docs/specs/conformance-completeness.md` says why it is left there.
 
 Its first run found three defects, all in the writer and none reachable by any test here — worth
 knowing because two of them are easy to reintroduce. **`/Length` counts the stream data alone**: the
@@ -32,7 +34,7 @@ loud**, because PDF/A and PDF/UA require what ISO 32000-1 leaves to a default. A
 written for PDF/A-1 alone**, the one profile that asks for it. `StreamLengthTests` and
 `CidFontConformanceTests` pin all three.
 
-A sixth document sets a page in a face with **PostScript outlines**, which is the one path where a
+One document sets a page in a face with **PostScript outlines**, which is the one path where a
 CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
 as a subset, both the opposite of every other document.
 

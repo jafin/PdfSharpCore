@@ -5,6 +5,29 @@ shipped. `docs/specs/pdf-a-conformance.md` is the note for what was built and
 `docs/specs/verapdf-validation.md` for how it is validated; this one is for the two things neither
 covers.
 
+| item | what | status |
+|---|---|---|
+| 1 | `PdfPageWalk` — the pruner's resource walk lifted into a base class; `PdfPageResourceUsage` is its second caller | done |
+| 2 | Transparency and JPXDecode refused under PDF/A-1; `/Interpolate true` refused under every part | done |
+| 3 | A colour space the output intent does not describe is refused, judged by component count over the whole document | done |
+| 4 | `PdfAConformance.PdfA1A` / `PdfA2A` / `PdfA3A` — the `A` levels, requiring a tagged document that passes `PdfUaValidator` | done, and veraPDF passes all three |
+| 5 | `PdfUAConformance.PdfUA2` — `pdfuaid:part 2`, `rev 2024`, PDF 2.0 namespace, `/FENote`, `/ListNumbering` | done, **but not validated** — see below |
+| 6 | Every link annotation carries `/F` with Print set — the flags PDF/A and PDF/UA-2 require and the writer never wrote | done, found by veraPDF |
+| 7 | A Factur-X invoice attaching to a prior PDF/A-3a claim keeps it rather than downgrading it | done, found on the way |
+| 8 | A page whose content walk gives up is unchecked rather than refused; per-page colour-space judgement | not done, **deliberately** |
+
+Covered by `PdfSharpCore.Test/IO/ResourceConformanceRulesTests.cs`,
+`PdfSharpCore.Test/Annotations/LinkAnnotationConformanceTests.cs`, the `A`-level and PDF/UA-2 tests in
+`MigraDocCore.Rendering.Tests/PdfUaConformanceTests.cs`, and `EInvoiceTests`. The corpus grew from six
+documents to nine gated ones — `pdfa-1a`, `pdfa-2a`, `pdfa-3a` — and all nine conform.
+
+**PDF/UA-2 is the one claim veraPDF does not yet pass.** A document claiming it fails a single clause,
+8.8: every destination inside the document must be a *structure destination*, a PDF 2.0 `/SD` whose
+contents ISO 32000-2 never actually defines (pdf-association/pdf-issues#162 is the open erratum). Rather
+than guess at a syntax and ship links that may not navigate, `pdfua-2` is kept out of the gated corpus,
+`PdfUA2` says so in its own remarks, and the four rules that *were* fixed for it stay fixed. It is a
+claim the library can make and cannot yet stand behind, and the enum member says which.
+
 ## Problem Statement
 
 **Four archival rules are real, and none of them is checked.** A document may claim PDF/A-1 and paint
