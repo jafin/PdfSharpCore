@@ -4,6 +4,7 @@ using System.Text;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;
+using PdfSharpCore.Pdf.Structure;
 
 namespace PdfSharpCore.Pdf.Extraction;
 
@@ -49,20 +50,49 @@ public static class PdfTextExtractor
     /// The text of the page, with a line break wherever the baseline moves.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A convenience over <see cref="ExtractRuns"/> and no cleverer than it: runs sharing a
     /// baseline are joined with a space when there is a gap between them and directly when there is
     /// not, and a new baseline starts a new line. That is right for ordinary running text and wrong
     /// for a two-column page, which is what the note about layout analysis above is warning of.
+    /// </para>
+    /// <para>
+    /// <b>Runs <see cref="PdfTextRun.IsArtifact"/> are left out</b> — a running head or a folio is
+    /// on the page and not part of what it says, and <see cref="ExtractRuns"/> still returns them
+    /// for a caller who wants them anyway. And <b>a run whose <see cref="PdfTextRun.ActualText"/> is
+    /// declared contributes that text once</b>, at the position of the first run of the sequence
+    /// that declared it, rather than its own glyph text at every run the sequence spans — which is
+    /// what turns a hyphenated word drawn as two runs back into one word.
+    /// </para>
     /// </remarks>
     public static string ExtractText(PdfPage page)
     {
         var text = new StringBuilder();
         double? baseline = null;
         var endOfPrevious = 0.0;
+        var contributed = new HashSet<object>();
 
         foreach (var run in ExtractRuns(page))
         {
-            if (run.Text.Length == 0)
+            if (run.IsArtifact)
+                continue;
+
+            string shown;
+            if (run.ActualTextScope != null)
+            {
+                // The sequence that declared this text may span several runs, and it is only the
+                // first of them that gets to say it — the rest were already shown once, by it.
+                if (!contributed.Add(run.ActualTextScope))
+                    continue;
+
+                shown = run.ActualText;
+            }
+            else
+            {
+                shown = run.Text;
+            }
+
+            if (shown.Length == 0)
                 continue;
 
             if (baseline == null || Math.Abs(run.Origin.Y - baseline.Value) > 0.5)
@@ -78,7 +108,7 @@ public static class PdfTextExtractor
                 text.Append(' ');
             }
 
-            text.Append(run.Text);
+            text.Append(shown);
             endOfPrevious = run.Origin.X + run.Width;
         }
 
@@ -93,6 +123,7 @@ public static class PdfTextExtractor
         readonly PdfPage _page;
         readonly Dictionary<string, FontInfo> _fonts = new();
         readonly Stack<XMatrix> _graphicsStack = new();
+        readonly Stack<MarkedContentScope> _markedContent = new();
 
         XMatrix _ctm = XMatrix.Identity;
         XMatrix _textMatrix = XMatrix.Identity;
@@ -116,18 +147,19 @@ public static class PdfTextExtractor
         /// Indexed rather than iterated. <see cref="CSequence"/> implements
         /// <c>IEnumerable&lt;CObject&gt;</c> and its generic enumerator throws
         /// <see cref="NotImplementedException"/>, so a foreach over one compiles and then fails at
-        /// run time.
+        /// run time. Indexing also lets <see cref="BeginTag"/> look one item back, which a
+        /// <c>BDC</c> declaring its properties inline needs — see its remarks.
         /// </remarks>
         public void Walk(CSequence content)
         {
             for (var index = 0; index < content.Count; index++)
             {
                 if (content[index] is COperator op)
-                    Execute(op);
+                    Execute(content, index, op);
             }
         }
 
-        void Execute(COperator op)
+        void Execute(CSequence content, int index, COperator op)
         {
             switch (op.OpCode.OpCodeName)
             {
@@ -216,8 +248,131 @@ public static class PdfTextExtractor
                     Displace(0, -_leading);
                     Show(op.Operands, 2);
                     break;
+
+                case OpCodeName.BDC:
+                    BeginTag(content, index, op);
+                    break;
+
+                case OpCodeName.BMC:
+                    // No properties are possible on this form, so no /MCID and no /ActualText —
+                    // just the tag, straight off the operand the content parser gave it.
+                    PushScope(new MarkedContentScope(NameOperand(op, 0), null, null));
+                    break;
+
+                case OpCodeName.EMC:
+                    // A sequence opened past the depth cap was never pushed, so its end must not
+                    // pop one that was — that would take back a scope some run still inside it is
+                    // relying on. The uncapped count is what tells the two apart.
+                    if (_uncappedMarkedContentDepth > 0)
+                        _uncappedMarkedContentDepth--;
+                    else if (_markedContent.Count > 0)
+                        _markedContent.Pop();
+                    break;
+
+                // The content parser has no dictionary grammar, so a BDC that declares its
+                // properties inline is split in two: this pseudo-operator carries the tag and the
+                // raw dictionary text, and the BDC that follows carries neither. Handled by looking
+                // back for it from BeginTag rather than here, because by itself it opens nothing.
+                case OpCodeName.Dictionary:
+                    break;
             }
         }
+
+        /// <summary>
+        /// Opens a marked-content sequence with properties, resolving them whichever way the
+        /// producer wrote them.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Named properties are a real dictionary already</b> — reached through the page's own
+        /// resources, in their <c>/Properties</c> category, the same way a font is reached through
+        /// its <c>/Font</c> category. A name that resolves to nothing is a sequence with no
+        /// properties, not an error.
+        /// </para>
+        /// <para>
+        /// <b>Inline properties never became an object</b>, so the item just before this one in the
+        /// sequence — the <c>Dictionary</c> pseudo-operator <see cref="CParser"/> emits for exactly
+        /// this case — carries the tag and the raw text together, and this <c>BDC</c> itself carries
+        /// neither operand. See <see cref="InlineMarkedContentProperties"/> for what is read out of
+        /// it.
+        /// </para>
+        /// </remarks>
+        void BeginTag(CSequence content, int index, COperator op)
+        {
+            string tag = null;
+            string actualText = null;
+            int? mcid = null;
+
+            if (op.Operands.Count >= 2 && op.Operands[0] is CName direct)
+            {
+                tag = direct.Name;
+                var properties = PropertiesFor(NameOperand(op, 1));
+                if (properties != null)
+                {
+                    actualText = properties.Elements.TryGetString("/ActualText", out var declared)
+                        ? declared : null;
+                    mcid = properties.Elements.ContainsKey("/MCID") ? properties.Elements.GetInteger("/MCID") : (int?)null;
+                }
+            }
+            else if (index > 0 && content[index - 1] is COperator prior
+                     && prior.OpCode.OpCodeName == OpCodeName.Dictionary
+                     && prior.Operands.Count >= 2
+                     && prior.Operands[0] is CName inlineTag
+                     && prior.Operands[1] is CString inlineDictionary)
+            {
+                tag = inlineTag.Name;
+                (actualText, mcid) = InlineMarkedContentProperties.Read(inlineDictionary.Value);
+            }
+            else
+            {
+                // Neither shape matched — a BDC with too few operands and nothing to look back to.
+                // Malformed input degrades rather than aborts: whatever tag can be salvaged is kept
+                // and the sequence carries no properties.
+                tag = NameOperand(op, 0);
+            }
+
+            PushScope(new MarkedContentScope(tag, actualText, mcid));
+        }
+
+        /// <summary>
+        /// Opens a sequence, tracking it on the stack unless doing so would take the nesting depth
+        /// past anything sane — content that has gone wrong rather than a document that means it.
+        /// </summary>
+        /// <remarks>
+        /// A sequence past the cap is still counted, in <see cref="_uncappedMarkedContentDepth"/>
+        /// rather than on the stack itself, so that its own <c>EMC</c> is recognised as its own
+        /// rather than mistaken for the deepest tracked sequence's — which would pop a scope some
+        /// run still inside it is relying on, and desynchronise every tag, MCID and ActualText
+        /// reported for the rest of the page. A run drawn inside an uncapped sequence still reports
+        /// the deepest tracked one, which is the graceful degradation this cap exists for.
+        /// </remarks>
+        void PushScope(MarkedContentScope scope)
+        {
+            if (_markedContent.Count < MaximumMarkedContentDepth)
+                _markedContent.Push(scope);
+            else
+                _uncappedMarkedContentDepth++;
+        }
+
+        const int MaximumMarkedContentDepth = 1024;
+
+        /// <summary>
+        /// How many open sequences past <see cref="MaximumMarkedContentDepth"/> have not been
+        /// closed yet — each one's own <c>EMC</c> to come, still owed before the stack's own
+        /// entries may be popped again.
+        /// </summary>
+        int _uncappedMarkedContentDepth;
+
+        PdfDictionary PropertiesFor(string name)
+        {
+            if (name == null)
+                return null;
+
+            return ResourceCategory("/Properties")?.Elements.GetDictionary(name);
+        }
+
+        static string NameOperand(COperator op, int index) =>
+            index < op.Operands.Count && op.Operands[index] is CName name ? name.Name : null;
 
         void SelectFont(COperator op)
         {
@@ -275,8 +430,12 @@ public static class PdfTextExtractor
                 // contract. A test that only translates cannot see it, because a translation scales
                 // by one.
                 var scale = ScaleOf(Multiply(_textMatrix, _ctm));
+                var innermost = _markedContent.Count > 0 ? _markedContent.Peek() : null;
+                var declaring = DeclaringScope();
                 Runs.Add(new PdfTextRun(text.ToString(), origin, advance * scale,
-                    _fontSize * scale, _fontName));
+                    _fontSize * scale, _fontName,
+                    string.IsNullOrEmpty(innermost?.Tag) ? (PdfTag?)null : new PdfTag(innermost.Tag),
+                    declaring?.ActualText, innermost?.Mcid, declaring, IsInsideArtifact()));
             }
 
             _textMatrix = Multiply(new XMatrix(1, 0, 0, 1, advance, 0), _textMatrix);
@@ -314,19 +473,63 @@ public static class PdfTextExtractor
         XPoint OriginOfCurrentPoint() =>
             Multiply(_textMatrix, _ctm).Transform(new XPoint(0, _rise));
 
+        /// <summary>
+        /// The innermost open sequence that declares <c>/ActualText</c>, searching from the top of
+        /// the marked-content stack outward — so a plain span inside a sequence that declares
+        /// substitute text still reports that text, and one drawn inside two such sequences reports
+        /// the nearer one.
+        /// </summary>
+        MarkedContentScope DeclaringScope()
+        {
+            foreach (var scope in _markedContent)
+            {
+                if (scope.ActualText != null)
+                    return scope;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Whether an artifact sequence is open anywhere on the stack, not only innermost. An
+        /// artifact is not a container its contents can opt out of — this library's own writer never
+        /// nests a structural sequence inside one, but a document from another producer is free to,
+        /// and glyphs drawn there are still furniture whatever the nearer tag claims to be.
+        /// </summary>
+        bool IsInsideArtifact()
+        {
+            foreach (var scope in _markedContent)
+            {
+                if (scope.Tag == ArtifactTagName)
+                    return true;
+            }
+
+            return false;
+        }
+
+        const string ArtifactTagName = "/Artifact";
+
         FontInfo FontFor(string name)
         {
             if (_fonts.TryGetValue(name, out var known))
                 return known;
 
-            var fonts = _page.Elements.GetDictionary("/Resources")?.Elements.GetDictionary("/Font")
-                        ?? _page.Resources?.Elements.GetDictionary("/Font");
-            var dictionary = fonts?.Elements.GetDictionary(name);
+            var dictionary = ResourceCategory("/Font")?.Elements.GetDictionary(name);
 
             var info = dictionary == null ? null : FontInfo.From(dictionary);
             _fonts[name] = info;
             return info;
         }
+
+        /// <summary>
+        /// A category of the page's resources — <c>/Font</c>, <c>/Properties</c> and so on — read
+        /// the way every resource lookup in this class does: through the page's own
+        /// <c>/Resources</c> entry first, and through the object model's own copy when that entry
+        /// is missing or was never linked back to the page it belongs to.
+        /// </summary>
+        PdfDictionary ResourceCategory(string category) =>
+            _page.Elements.GetDictionary("/Resources")?.Elements.GetDictionary(category)
+            ?? _page.Resources?.Elements.GetDictionary(category);
 
         static XMatrix Multiply(XMatrix first, XMatrix second) => XMatrix.Multiply(first, second);
 
@@ -345,5 +548,25 @@ public static class PdfTextExtractor
             index < op.Operands.Count && op.Operands[index] is CNumber number
                 ? (number is CInteger integer ? integer.Value : ((CReal)number).Value)
                 : 0;
+    }
+
+    /// <summary>
+    /// One open <c>BDC</c> or <c>BMC</c> sequence, as far as extraction cares what it says: its tag,
+    /// the text it declares its glyphs stand for if it declares any, and its <c>/MCID</c> if it
+    /// carries one. The identity of the instance is what <see cref="PdfTextRun.ActualTextScope"/>
+    /// hands back — a run inside this sequence, not a copy of what it says.
+    /// </summary>
+    sealed class MarkedContentScope
+    {
+        internal MarkedContentScope(string tag, string actualText, int? mcid)
+        {
+            Tag = tag;
+            ActualText = actualText;
+            Mcid = mcid;
+        }
+
+        internal string Tag { get; }
+        internal string ActualText { get; }
+        internal int? Mcid { get; }
     }
 }

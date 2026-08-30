@@ -11,6 +11,7 @@ using MigraDocCore.DocumentObjectModel.Tables;
 using MigraDocCore.Rendering.Tests.Helpers;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
+using PdfSharpCore.Pdf.Extraction;
 using PdfSharpCore.Pdf.IO;
 // The content-stream readers are linked in from the other test project and keep their namespace.
 using PdfSharpCore.Test.Helpers;
@@ -229,6 +230,21 @@ public class TaggedOutputTests
         // a marked-content sequence cannot cross a page boundary, and this has to work when the
         // break happens to be one.
         span.MarkCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AWordBrokenAtAHyphenExtractsWhole()
+    {
+        // docs/specs/tagged-text-extraction.md gap G7: the extractor is page-scoped and never
+        // consults the structure tree, so the only way it can read what the test above just proved
+        // is on the element - "demonstrate" - is for the BDC that wraps each fragment to say the
+        // same thing inline, beside its /MCID.
+        var page = Rendered.FirstPageOf(Hyphenated());
+
+        // Exact rather than Contain: the word is drawn as two content items of the same element,
+        // one per line, and each used to repeat the whole word inline - "In demonstrate\ndemonstrate"
+        // passed a Contain assertion just as easily as the single, correct occurrence does.
+        PdfTextExtractor.ExtractText(page).Should().Be("In demonstrate");
     }
 
     [Fact]
