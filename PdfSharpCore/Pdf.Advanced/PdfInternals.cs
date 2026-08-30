@@ -31,6 +31,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using System.IO;
@@ -179,18 +180,50 @@ public class PdfInternals // TODO: PdfDocumentInternals... PdfPageInternals etc.
     /// Creates the indirect object of the specified type, adds it to the document, and
     /// returns the object.
     /// </summary>
-    public T CreateIndirectObject<T>() where T : PdfObject
+    /// <typeparam name="T">
+    /// The type to make. It must declare a constructor taking a single <see cref="PdfDocument"/>,
+    /// which may be non-public - most of the object model's are internal.
+    /// </typeparam>
+    /// <exception cref="InvalidOperationException">
+    /// <typeparamref name="T"/> declares no constructor taking a <see cref="PdfDocument"/>.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// This never worked. The constructor it invoked was a local assigned <c>null</c> and never
+    /// assigned again, so the body was unreachable and every call answered <c>null</c> for every
+    /// type - a <c>Debug.Assert</c> in a debug build, and silence in a release one, where the
+    /// caller then met a <see cref="NullReferenceException"/> somewhere else entirely.
+    /// </para>
+    /// <para>
+    /// The constructor is looked up the way the rest of the object model looks one up, in
+    /// <c>PdfDictionary.DictionaryElements</c>: over the declared constructors rather than through
+    /// <c>Type.GetConstructor</c>, because the one wanted is usually not public.
+    /// </para>
+    /// </remarks>
+    public T CreateIndirectObject<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] T>()
+        where T : PdfObject
     {
-        T result = null;
-        ConstructorInfo ctorInfo = null; // TODO
-        if (ctorInfo != null)
+        ConstructorInfo ctorInfo = null;
+        foreach (ConstructorInfo candidate in typeof(T).GetTypeInfo().DeclaredConstructors)
         {
-            result = (T)ctorInfo.Invoke(new object[] { _document });
-            Debug.Assert(result != null);
-            AddObject(result);
+            ParameterInfo[] parameters = candidate.GetParameters();
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(PdfDocument))
+            {
+                ctorInfo = candidate;
+                break;
+            }
         }
 
-        Debug.Assert(result != null, "CreateIndirectObject failed with type " + typeof(T).FullName);
+        if (ctorInfo == null)
+        {
+            throw new InvalidOperationException(
+                typeof(T).FullName + " cannot be created this way: it declares no constructor "
+                + "taking a PdfDocument. Construct it yourself and hand it to AddObject instead.");
+        }
+
+        T result = (T)ctorInfo.Invoke(new object[] { _document });
+        AddObject(result);
         return result;
     }
 

@@ -13,7 +13,7 @@ Gap **G7** of the competitive gap analysis.
 | 6 | Layout analysis — columns, blocks, reading order | not done, **deliberately** |
 | 7 | `bfrange` in both forms, and multi-unit destinations | done |
 
-Covered by `PdfSharpCore.Test/IO/TextExtractionTests.cs`.
+Covered by `PdfSharpCore.Test/IO/TextExtractionTests.cs` and `TaggedTextExtractionTests.cs`.
 
 ---
 

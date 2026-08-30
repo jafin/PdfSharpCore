@@ -43,8 +43,14 @@ public sealed class PdfCheckBoxField : PdfButtonField
     /// <summary>
     /// Initializes a new instance of PdfCheckBoxField.
     /// </summary>
-    internal PdfCheckBoxField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// A check box is a button field with neither the <c>Radio</c> nor the <c>Pushbutton</c> flag
+    /// set, so it needs no flag of its own: the three kinds of button are told apart by what a
+    /// check box does not say.
+    /// </remarks>
+    public PdfCheckBoxField(PdfDocument document)
+        : base(document, "/Btn")
     {
         _document = document;
     }

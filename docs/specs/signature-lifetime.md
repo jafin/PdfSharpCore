@@ -4,6 +4,25 @@ The remainder of gap **G5**. `docs/specs/digital-signatures.md` is the note for 
 signing seam, PAdES B-B, certifying signatures and verification — and records these three as open.
 This is the spec for them.
 
+| item | what | status |
+|---|---|---|
+| 1 | `ITimestampProvider` in `PdfSharpCore.Signing`; `Rfc3161TimestampProvider` over HTTP; `LocalTimestampAuthority` for tests | done |
+| 2 | PAdES B-T — the token folded into the CMS as an unsigned `signature-time-stamp` attribute; verification reports it | done |
+| 3 | `IRevocationDataProvider`; `OcspRevocationDataProvider` (OCSP only, CRL fetch left empty) | done |
+| 4 | PAdES B-LT — `PdfValidationData.Add` writes `/DSS` and `/VRI` through an incremental save, leaving every signature intact | done |
+| 5 | A certifying signature's `/DocMDP` level enforced through `EnsureCanModify`, by `PdfChangeKind` | done |
+| 6 | A full `Save` of a certified document is refused; the incremental save is the permitted route | done |
+| 7 | B-LTA, chain building, trust, revocation *checking*, a timestamped corpus document | not done, **deliberately** |
+
+Covered by `PdfSharpCore.Test/IO/SignatureTimestampTests.cs`, `SignatureValidationDataTests.cs` and
+`CertificationEnforcementTests.cs`. Neither network provider is exercised by the suite.
+
+Two things were decided while building it. **Adding validation data is not gated by the certification
+level** — a `/DSS` is what LTV exists for and is not a change `/DocMDP` restricts. And
+**`PdfAcroField.Value` and `PdfAnnotations.Add`/`Remove` gained the open-mode guard they never had**, because
+routing them through `EnsureCanModify` for certification widened both at once; signing itself counts as
+form fill-in, as `/DocMDP` groups it.
+
 ## Problem Statement
 
 **A signature made today cannot be shown to have been made today.** The shipped signer can record a

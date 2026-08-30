@@ -40,15 +40,61 @@ public sealed class PdfRadioButtonField : PdfButtonField
     /// <summary>
     /// Initializes a new instance of PdfRadioButtonField.
     /// </summary>
-    internal PdfRadioButtonField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// The <c>Radio</c> flag is set here rather than left to the caller, because it is not a
+    /// property of the field so much as the answer to "what kind of button is this": a
+    /// <c>/Btn</c> without it is a check box, and reading the document back would make one.
+    /// </remarks>
+    public PdfRadioButtonField(PdfDocument document)
+        : base(document, "/Btn")
     {
         _document = document;
+        Flags = PdfAcroFieldFlags.Radio;
     }
 
     internal PdfRadioButtonField(PdfDictionary dict)
         : base(dict)
     { }
+
+    private protected override PdfAcroFieldFlags KindFlags => PdfAcroFieldFlags.Radio;
+
+    /// <summary>
+    /// The export value of each button in the group, in the order of the widgets under
+    /// <c>/Kids</c> - the <c>/Opt</c> array, which is what <see cref="SelectedIndex"/> turns an
+    /// index into and what the field's value is one of.
+    /// </summary>
+    /// <remarks>
+    /// Each entry has to match the name of the corresponding widget's "on" appearance state, or
+    /// the value the field holds names a state no widget can show.
+    /// </remarks>
+    public string[] Options
+    {
+        get
+        {
+            PdfArray options = Elements.GetArray(Keys.Opt);
+            if (options == null)
+                return new string[0];
+
+            int count = options.Elements.Count;
+            string[] text = new string[count];
+            for (int idx = 0; idx < count; idx++)
+                text[idx] = TextOfOption(options.Elements[idx]);
+
+            return text;
+        }
+        set
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
+            PdfArray options = new PdfArray(Owner);
+            foreach (string option in value)
+                options.Elements.Add(new PdfString(option ?? ""));
+
+            Elements[Keys.Opt] = options;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the index of the selected radio button in a radio button group.

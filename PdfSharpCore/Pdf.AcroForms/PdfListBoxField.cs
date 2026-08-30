@@ -40,8 +40,13 @@ public sealed class PdfListBoxField : PdfChoiceField
     /// <summary>
     /// Initializes a new instance of PdfListBoxField.
     /// </summary>
-    internal PdfListBoxField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    /// <remarks>
+    /// A list box is a choice field without the <c>Combo</c> flag, so it needs no flag of its
+    /// own: the two kinds of choice are told apart by what a list box does not say.
+    /// </remarks>
+    public PdfListBoxField(PdfDocument document)
+        : base(document, "/Ch")
     { }
 
     internal PdfListBoxField(PdfDictionary dict)

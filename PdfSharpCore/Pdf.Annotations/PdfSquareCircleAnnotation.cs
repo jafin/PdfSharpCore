@@ -182,8 +182,10 @@ public abstract class PdfSquareCircleAnnotation : PdfAnnotation
         // to go, or the annotation keeps showing what it was last asked for rather than what it
         // is being asked for now - a border set back to nothing would stay on the page.
         //
-        // Measured before any XRect is made of it, because XRect refuses a negative width.
-        if (width <= 0 || height <= 0 || drawnWidth <= 0 || drawnHeight <= 0
+        // Measured before any XRect is made of it, because XRect refuses a negative width. The
+        // outer pair are measured against 1 rather than against 0 because that is XForm's floor:
+        // a rectangle under a point in either direction is one no appearance can be made of.
+        if (width < 1 || height < 1 || drawnWidth <= 0 || drawnHeight <= 0
             || (pen == null && brush == null))
         {
             Elements.Remove(Keys.AP);

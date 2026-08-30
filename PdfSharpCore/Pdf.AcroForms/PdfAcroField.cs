@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using PdfSharpCore.Pdf.Advanced;
+using PdfSharpCore.Pdf.Annotations;
 using PdfSharpCore.Pdf.Signatures;
 
 namespace PdfSharpCore.Pdf.AcroForms;
@@ -48,6 +49,24 @@ public abstract class PdfAcroField : PdfDictionary
     { }
 
     /// <summary>
+    /// Initializes a new instance of <see cref="PdfAcroField"/> of the named type.
+    /// </summary>
+    /// <param name="document">The document the field belongs to.</param>
+    /// <param name="fieldType">
+    /// The value of <c>/FT</c> - <c>/Btn</c>, <c>/Tx</c>, <c>/Ch</c> or <c>/Sig</c>.
+    /// </param>
+    /// <remarks>
+    /// The type has to be written by the constructor rather than left to the caller, because it
+    /// is what tells a reader - and <c>PdfAcroFieldCollection</c> reading the document back - what
+    /// kind of field this is. A field carrying none is a <c>PdfGenericField</c> to everybody.
+    /// </remarks>
+    private protected PdfAcroField(PdfDocument document, string fieldType)
+        : base(document)
+    {
+        Elements.SetName(Keys.FT, fieldType);
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PdfAcroField"/> class. Used for type transformation.
     /// </summary>
     protected PdfAcroField(PdfDictionary dict)
@@ -55,8 +74,25 @@ public abstract class PdfAcroField : PdfDictionary
     { }
 
     /// <summary>
-    /// Gets the name of this field.
+    /// Gets or sets the partial name of this field - <c>/T</c> - which is what
+    /// <see cref="PdfAcroFieldCollection.this[string]"/> looks a field up by, and what the dotted
+    /// path of a nested field is assembled from.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A root field with no name cannot be found, filled or submitted, so a form authored without
+    /// one is a form that silently does nothing. An empty name is not refused, though, because a
+    /// field that is one widget of a parent legitimately has none.
+    /// </para>
+    /// <para>
+    /// A period <em>is</em> refused. ISO 32000-1 section 12.7.3.2 says a partial name shall not
+    /// contain one, because a period is what joins two partial names into the path a field is
+    /// known by - so <c>Name = "name.full"</c> reads like the obvious thing to write and produces
+    /// a field that <c>Fields["name.full"]</c> cannot find, having split the name at the period
+    /// and gone looking for a field called <c>name</c> with a child called <c>full</c>. Nest the
+    /// fields instead, which is what the path means.
+    /// </para>
+    /// </remarks>
     public string Name
     {
         get
@@ -64,20 +100,161 @@ public abstract class PdfAcroField : PdfDictionary
             string name = Elements.GetString(Keys.T);
             return name;
         }
+        set
+        {
+            if (value != null && value.IndexOf('.') != -1)
+            {
+                throw new ArgumentException(
+                    "A field's partial name cannot contain a period: '" + value + "'. A period "
+                    + "joins the partial names of nested fields into the path the innermost one "
+                    + "is known by, so a name with one in it cannot be looked up.", nameof(value));
+            }
+
+            Elements.SetString(Keys.T, value);
+        }
     }
 
     /// <summary>
-    /// Gets the field flags of this instance.
+    /// Gets or sets the alternate field name - <c>/TU</c> - which a reader shows in place of
+    /// <see cref="Name"/> wherever the field has to be identified to a person, and which every
+    /// reader in practice shows as the field's tooltip.
     /// </summary>
-    public PdfAcroFieldFlags Flags =>
+    public string ToolTip
+    {
+        get => Elements.GetString(Keys.TU);
+        set => Elements.SetString(Keys.TU, value);
+    }
+
+    /// <summary>
+    /// Gets or sets this field's own default appearance string - <c>/DA</c>, which overrides the
+    /// one <see cref="PdfAcroForm.DefaultAppearance"/> sets for the whole form.
+    /// </summary>
+    /// <remarks>
+    /// Worth setting per field even when the form has one, for the reason
+    /// <see cref="PdfAcroForm.DefaultAppearance"/> gives: a size of zero means auto-size, and what
+    /// a reader makes of that differs from reader to reader.
+    /// </remarks>
+    public string DefaultAppearance
+    {
+        get => Elements.GetString(Keys.DA);
+        set => Elements.SetString(Keys.DA, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the field flags of this instance.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Writing them is what a form being authored needs, and what nothing outside this assembly
+    /// could do: the flags could be read through this property and set only through
+    /// <c>Elements.SetInteger("/Ff", …)</c>, which loses the enumeration.
+    /// </para>
+    /// <para>
+    /// The bits that say what <em>kind</em> of field this is are not the caller's to assign, and
+    /// are put back on the way through - see <see cref="KindMask"/>. Assigning them away would
+    /// otherwise change the field's type behind the caller's back:
+    /// <c>new PdfComboBoxField(document) { Flags = PdfAcroFieldFlags.Required }</c> reads like a
+    /// combo box that has to be filled in, and without this would write a <c>/Ch</c> with no
+    /// <c>Combo</c> bit - which is a list box, and is what reopening the file would give back.
+    /// </para>
+    /// </remarks>
+    public PdfAcroFieldFlags Flags
+    {
         // TODO: This entry is inheritable, thus the implementation is incorrect...
-        (PdfAcroFieldFlags)Elements.GetInteger(Keys.Ff);
+        get => (PdfAcroFieldFlags)Elements.GetInteger(Keys.Ff);
+        set => Elements.SetInteger(Keys.Ff, (int)((value & ~KindMask) | KindFlags));
+    }
+
+    /// <summary>
+    /// The bits of <c>/Ff</c> that say what kind of field this is rather than how it behaves, and
+    /// which <see cref="Flags"/> therefore keeps rather than letting a caller assign over. Zero
+    /// for a field whose kind <c>/FT</c> settles on its own, which is every field but a button
+    /// and a choice.
+    /// </summary>
+    private protected virtual PdfAcroFieldFlags KindMask => 0;
+
+    /// <summary>
+    /// What those bits are for this kind of field. Zero is an answer rather than an absence: a
+    /// check box is the <c>/Btn</c> that says neither <c>Pushbutton</c> nor <c>Radio</c>, and a
+    /// list box the <c>/Ch</c> that does not say <c>Combo</c>.
+    /// </summary>
+    private protected virtual PdfAcroFieldFlags KindFlags => 0;
 
     internal PdfAcroFieldFlags SetFlags
     {
         get => (PdfAcroFieldFlags)Elements.GetInteger(Keys.Ff);
         set => Elements.SetInteger(Keys.Ff, (int)value);
     }
+
+    /// <summary>
+    /// Puts this field on a page, as the widget annotation a reader draws and a person clicks.
+    /// </summary>
+    /// <param name="page">The page the field appears on.</param>
+    /// <param name="rectangle">
+    /// Where on the page, in default user space - the space measured up from the bottom left, not
+    /// the top-left world space <c>XGraphics</c> draws in. <c>gfx.Transformer.WorldToDefaultPage</c>
+    /// converts.
+    /// </param>
+    /// <returns>
+    /// The widget, so that a caller can give it the appearance streams a check box or a radio
+    /// button needs one of per state.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// The field has not been added to a form yet, so there is nothing for the widget to point at.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Always a separate annotation under <c>/Kids</c>, never the field dictionary doing double
+    /// duty. ISO 32000-1 section 12.7.3.1 allows the two to be merged whenever a field has exactly
+    /// one widget, and this deliberately does not: a caller who may add a second widget later would
+    /// otherwise have to know that the first one changes shape when they do.
+    /// </para>
+    /// <para>
+    /// The widget is marked as printing. A form field that is not is one that vanishes when the
+    /// page is put on paper, which is almost never what an author means and is invisible until
+    /// somebody prints.
+    /// </para>
+    /// </remarks>
+    public PdfWidgetAnnotation AddWidget(PdfPage page, PdfRectangle rectangle)
+    {
+        if (page == null)
+            throw new ArgumentNullException(nameof(page));
+
+        if (Reference == null)
+        {
+            throw new InvalidOperationException(
+                "The field does not belong to a form yet. Add it - form.Fields.Add(field) - "
+                + "before putting it on a page, or the widget has no parent to point at.");
+        }
+
+        PdfWidgetAnnotation widget = new PdfWidgetAnnotation(Owner);
+        page.Annotations.Add(widget);
+
+        widget.Rectangle = rectangle;
+        widget.Flags = PdfAnnotationFlags.Print;
+
+        // /P, the page the widget is drawn on. Named through this class's own Keys because
+        // PdfAnnotation.Keys leaves the entry out - it is listed there as a comment and nothing
+        // more.
+        widget.Elements.SetReference(Keys.P, page);
+        widget.Elements.SetReference(Keys.Parent, this);
+
+        Fields.Elements.Add(widget.Reference);
+
+        OnWidgetAdded();
+        return widget;
+    }
+
+    /// <summary>
+    /// Called once a widget has been added, and so once the field has somewhere to be drawn.
+    /// </summary>
+    /// <remarks>
+    /// A field that draws its own appearance cannot draw it until there is a rectangle to draw
+    /// in, and a caller describes a field before placing it as often as the other way round. This
+    /// is what makes the order not matter.
+    /// </remarks>
+    internal virtual void OnWidgetAdded()
+    { }
 
     /// <summary>
     /// Gets or sets the value of the field.
@@ -134,16 +311,23 @@ public abstract class PdfAcroField : PdfDictionary
     /// <summary>
     /// Indicates whether the field has child fields.
     /// </summary>
+    /// <remarks>
+    /// The reference is followed. <c>/Kids</c> may be an indirect array as well as a direct one -
+    /// and is one for every field this library builds, because <see cref="Fields"/> asks for it
+    /// with <c>VCF.CreateIndirect</c> - where this used to answer false for anything that was not
+    /// a <c>PdfArray</c> outright. A field whose children it could not see was treated as a
+    /// terminal field, so a check box with a widget of its own toggled the field's own appearance
+    /// state and left its widget showing whatever it showed before.
+    /// </remarks>
     public bool HasKids
     {
         get
         {
             PdfItem item = Elements[Keys.Kids];
-            if (item == null)
-                return false;
-            if (item is PdfArray)
-                return ((PdfArray)item).Elements.Count > 0;
-            return false;
+            if (item is PdfReference reference)
+                item = reference.Value;
+
+            return item is PdfArray array && array.Elements.Count > 0;
         }
     }
 
@@ -267,34 +451,33 @@ public abstract class PdfAcroField : PdfDictionary
         };
     }
 
+    /// <remarks>
+    /// <para>
+    /// <c>/Kids</c> holds two different things - the fields nested under this one, and the widget
+    /// annotations this field is drawn as - and only the first sort has a name. This used to
+    /// assume every kid was a field, so a widget reached here with no <c>/T</c>, tripped a
+    /// <c>Debug.Assert</c> and contributed nothing; and a field whose only kids were its widgets
+    /// took the "has children" branch and so never reported its own name at all.
+    /// </para>
+    /// <para>
+    /// A field is terminal when nothing underneath it contributed a name, which is the same thing
+    /// said without having to ask what each kid is.
+    /// </para>
+    /// </remarks>
     internal virtual void GetDescendantNames(ref List<string> names, string partialName)
     {
+        string t = Elements.GetString(Keys.T);
+        if (t.Length == 0)
+            return;
+
+        string path = String.IsNullOrEmpty(partialName) ? t : partialName + "." + t;
+
+        int before = names.Count;
         if (HasKids)
-        {
-            PdfAcroFieldCollection fields = Fields;
-            string t = Elements.GetString(Keys.T);
-            Debug.Assert(t != "");
-            if (t.Length > 0)
-            {
-                if (!String.IsNullOrEmpty(partialName))
-                    partialName += "." + t;
-                else
-                    partialName = t;
-                fields.GetDescendantNames(ref names, partialName);
-            }
-        }
-        else
-        {
-            string t = Elements.GetString(Keys.T);
-            Debug.Assert(t != "");
-            if (t.Length > 0)
-            {
-                if (!String.IsNullOrEmpty(partialName))
-                    names.Add(partialName + "." + t);
-                else
-                    names.Add(t);
-            }
-        }
+            Fields.GetDescendantNames(ref names, path);
+
+        if (names.Count == before)
+            names.Add(path);
     }
 
     /// <summary>
@@ -308,6 +491,12 @@ public abstract class PdfAcroField : PdfDictionary
             {
                 object o = Elements.GetValue(Keys.Kids, VCF.CreateIndirect);
                 _fields = (PdfAcroFieldCollection)o;
+
+                // Whose /Kids this is. The same class serves as a form's /Fields, where there is
+                // nobody to be under, so the collection cannot work it out for itself - and a
+                // field added to /Kids needs the /Parent back-reference that a root field must
+                // not have.
+                _fields.SetParentField(this);
             }
             return _fields;
         }
@@ -327,6 +516,56 @@ public abstract class PdfAcroField : PdfDictionary
             : base(document)
         { }
 
+        /// <summary>
+        /// The field this collection is the <c>/Kids</c> of, or null when it is a form's
+        /// <c>/Fields</c> and the fields in it are therefore root fields.
+        /// </summary>
+        PdfAcroField _parent;
+
+        internal void SetParentField(PdfAcroField parent)
+        {
+            _parent = parent;
+        }
+
+        /// <summary>
+        /// Adds a field to this collection, making it an indirect object of the document if it is
+        /// not one already.
+        /// </summary>
+        /// <param name="field">The field.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The field belongs to another document.
+        /// </exception>
+        /// <remarks>
+        /// This collection is both an interactive form's <c>/Fields</c> and a field's
+        /// <c>/Kids</c>, and the same method serves for both - a root field goes in the one, a
+        /// field nested under another goes in the other. A <em>widget</em> nested under a field is
+        /// not a field and does not come this way;
+        /// <see cref="PdfAcroField.AddWidget"/> puts one there.
+        /// </remarks>
+        public void Add(PdfAcroField field)
+        {
+            if (field == null)
+                throw new ArgumentNullException(nameof(field));
+
+            if (field.Owner != null && field.Owner != Owner)
+                throw new InvalidOperationException("The field belongs to another document.");
+
+            // A field's entry in /Fields is required to be an indirect reference, so the field has
+            // to be in the reference table before there is anything to write.
+            if (field.Reference == null)
+                Owner.Internals.AddObject(field);
+
+            Elements.Add(field.Reference);
+
+            // ISO 32000-1 Table 220: /Parent is required of a field that is the child of another
+            // and absent otherwise. Nothing in this library needs it - every lookup here walks
+            // down from /Fields - but a reader working out what a field is called walks up, and
+            // a validator checks that the two directions agree.
+            if (_parent != null)
+                field.Elements.SetReference(Keys.Parent, _parent);
+            else
+                field.Elements.Remove(Keys.Parent);
+        }
 
         /// <summary>
         /// Gets the names of all fields in the collection.

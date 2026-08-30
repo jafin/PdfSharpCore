@@ -175,7 +175,12 @@ public abstract class PdfAnnotation : PdfDictionary
     /// annotation does not display text, an alternate description of the annotation’s
     /// contents in human-readable form.
     /// </summary>
-    public string Contents
+    /// <remarks>
+    /// Virtual for the one subtype that draws it. For every other annotation the contents are a
+    /// description of what is drawn, so changing them redraws nothing; for a <c>/FreeText</c> they
+    /// <em>are</em> what is drawn, and <see cref="PdfFreeTextAnnotation"/> overrides this to say so.
+    /// </remarks>
+    public virtual string Contents
     {
         get => Elements.GetString(Keys.Contents, true);
         set
@@ -201,10 +206,14 @@ public abstract class PdfAnnotation : PdfDictionary
                 if (array.Elements.Count == 3)
                 {
                     // TODO: an array.GetColor() function may be useful here
+                    // Rounded rather than truncated. A component is written as a fraction of 255
+                    // to the seven decimal places PdfWriter gives a real, so 127 goes out as
+                    // 0.4980392 and comes back as 126.999996 - and truncating that loses a value
+                    // the file all but said.
                     return XColor.FromArgb(
-                        (int)(array.Elements.GetReal(0) * 255),
-                        (int)(array.Elements.GetReal(1) * 255),
-                        (int)(array.Elements.GetReal(2) * 255));
+                        (int)Math.Round(array.Elements.GetReal(0) * 255),
+                        (int)Math.Round(array.Elements.GetReal(1) * 255),
+                        (int)Math.Round(array.Elements.GetReal(2) * 255));
                 }
             }
             return XColors.Black;
@@ -318,6 +327,44 @@ public abstract class PdfAnnotation : PdfDictionary
 
         states.Elements[name] = FinishedForm(form).Reference;
         Elements.SetName(Keys.AS, name);
+    }
+
+    /// <summary>
+    /// Which of several named appearances is showing - <c>/AS</c>, with its solidus. Null when the
+    /// annotation has a single appearance rather than a set of them, which is what an absent entry
+    /// means.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SetAppearance(string, PdfSharpCore.Drawing.XForm)"/> points this at whichever
+    /// state it has just written, because an appearance nobody is showing is invisible and that is
+    /// almost never what the caller meant by adding one. Setting the last state added is therefore
+    /// the only thing needed for a check box; a radio button, where several widgets share a value
+    /// and only one of them may be on, is what this exists for.
+    /// </remarks>
+    public string AppearanceState
+    {
+        get
+        {
+            string state = Elements.GetName(Keys.AS);
+            return state.Length == 0 ? null : state;
+        }
+        set
+        {
+            if (value == null)
+            {
+                Elements.Remove(Keys.AS);
+                return;
+            }
+
+            // Refused the same way SetAppearance(string, XForm) refuses it, and for the same
+            // reason: /AS names a state, and the empty name names none. Checked here rather than
+            // left to SetName, which would happily write a solidus and nothing after it.
+            if (value.Length == 0)
+                throw new ArgumentException("An appearance state must be named.", nameof(value));
+
+            // SetName adds the solidus itself.
+            Elements.SetName(Keys.AS, value);
+        }
     }
 
     /// <summary>

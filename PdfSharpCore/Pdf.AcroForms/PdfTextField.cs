@@ -44,8 +44,9 @@ public sealed class PdfTextField : PdfAcroField
     /// <summary>
     /// Initializes a new instance of PdfTextField.
     /// </summary>
-    internal PdfTextField(PdfDocument document)
-        : base(document)
+    /// <param name="document">The document the field belongs to.</param>
+    public PdfTextField(PdfDocument document)
+        : base(document, "/Tx")
     {
     }
 
@@ -72,10 +73,20 @@ public sealed class PdfTextField : PdfAcroField
     /// <summary>
     /// Gets or sets the font used to draw the text of the field.
     /// </summary>
+    /// <remarks>
+    /// This and the three colours below redraw the field, as <see cref="Text"/> does. They used
+    /// not to: the appearance was drawn from them when the value changed and at no other time,
+    /// so setting a colour on a field whose value was already in place did nothing at all, and
+    /// setting one on a field that never gets a value did nothing ever.
+    /// </remarks>
     public XFont Font
     {
         get => _font;
-        set => _font = value;
+        set
+        {
+            _font = value;
+            RenderAppearance();
+        }
     }
 
     XFont _font = new(GlobalFontSettings.FontResolver.DefaultFontName, 10);
@@ -86,7 +97,11 @@ public sealed class PdfTextField : PdfAcroField
     public XColor ForeColor
     {
         get => _foreColor;
-        set => _foreColor = value;
+        set
+        {
+            _foreColor = value;
+            RenderAppearance();
+        }
     }
 
     XColor _foreColor = XColors.Black;
@@ -97,10 +112,36 @@ public sealed class PdfTextField : PdfAcroField
     public XColor BackColor
     {
         get => _backColor;
-        set => _backColor = value;
+        set
+        {
+            _backColor = value;
+            RenderAppearance();
+        }
     }
 
     XColor _backColor = XColor.Empty;
+
+    /// <summary>
+    /// Gets or sets the colour of the one-point border drawn around the field.
+    /// <see cref="XColor.Empty"/>, which is the default, draws none.
+    /// </summary>
+    /// <remarks>
+    /// This field draws its own appearance, and an appearance is what a reader shows in place of
+    /// building one from <c>/MK</c> - so a text field decorated only through <c>/MK</c> loses its
+    /// box the moment it is given a value. Naming the border here is what lets the drawing the
+    /// library makes look like the field the author described.
+    /// </remarks>
+    public XColor BorderColor
+    {
+        get => _borderColor;
+        set
+        {
+            _borderColor = value;
+            RenderAppearance();
+        }
+    }
+
+    XColor _borderColor = XColor.Empty;
 
     /// <summary>
     /// Gets or sets the maximum length of the field.
@@ -143,17 +184,77 @@ public sealed class PdfTextField : PdfAcroField
     }
 
     /// <summary>
-    /// Creates the normal appearance form X object for the annotation that represents
-    /// this acro form text field.
+    /// Creates the normal appearance form X object for each annotation that represents this acro
+    /// form text field.
     /// </summary>
+    /// <remarks>
+    /// A field merged with its single widget carries the rectangle itself, and is its own
+    /// annotation; a field whose widgets are separate objects carries none, and its annotations
+    /// are the dictionaries under <c>/Kids</c>. This used to read <c>/Rect</c> off the field
+    /// whatever its shape, so an unmerged field - which is every field
+    /// <see cref="PdfAcroField.AddWidget"/> builds, and plenty that other software writes - drew
+    /// its value into a form of no size at all and hung it on the field, where no reader looks.
+    /// </remarks>
     void RenderAppearance()
     {
-        PdfRectangle rect = Elements.GetRectangle(PdfAnnotation.Keys.Rect);
+        if (Elements.ContainsKey(PdfAnnotation.Keys.Rect))
+        {
+            RenderAppearanceOn(this);
+            return;
+        }
+
+        PdfArray kids = Elements.GetArray(Keys.Kids);
+        if (kids == null)
+            return;
+
+        foreach (PdfItem kid in kids.Elements.Items)
+        {
+            PdfItem item = kid is PdfReference reference ? reference.Value : kid;
+            if (item is PdfDictionary widget && widget.Elements.ContainsKey(PdfAnnotation.Keys.Rect))
+                RenderAppearanceOn(widget);
+        }
+    }
+
+    internal override void OnWidgetAdded()
+    {
+        // A field is usually described before it is placed, and until it is placed there is no
+        // rectangle to draw in - so everything set beforehand would be lost without this.
+        RenderAppearance();
+    }
+
+    void RenderAppearanceOn(PdfDictionary annotation)
+    {
+        PdfRectangle rect = annotation.Elements.GetRectangle(PdfAnnotation.Keys.Rect);
+
+        // A rectangle too small to draw in draws nothing, and XForm refuses to be made of one:
+        // its floor is a point in each direction, so the test is against 1 rather than against 0.
+        // A field reaches this while it is still being assembled, so it is a stage rather than a
+        // fault. It also keeps the border below from being given a negative width.
+        if (rect.Width < 1 || rect.Height < 1)
+            return;
+
+        // Nothing asked for. An appearance is what a reader shows in place of building one from
+        // /MK, so writing an empty one here would blank a field decorated that way rather than
+        // leave it alone - which is the difference between "draw nothing" and "draw it yourself".
+        if (_backColor == XColor.Empty && _borderColor == XColor.Empty && Text.Length == 0)
+        {
+            annotation.Elements.Remove(PdfAnnotation.Keys.AP);
+            return;
+        }
+
         XForm form = new XForm(_document, rect.Size);
         XGraphics gfx = XGraphics.FromForm(form);
 
         if (_backColor != XColor.Empty)
             gfx.DrawRectangle(new XSolidBrush(BackColor), rect.ToXRect() - rect.Location);
+
+        if (_borderColor != XColor.Empty)
+        {
+            // Inside the rectangle rather than centred on its edge, so that the outer half of the
+            // stroke is not clipped by the annotation's own bounds.
+            gfx.DrawRectangle(new XPen(_borderColor, 1),
+                new XRect(0.5, 0.5, rect.Width - 1, rect.Height - 1));
+        }
 
         string text = Text;
         if (text.Length > 0)
@@ -164,11 +265,11 @@ public sealed class PdfTextField : PdfAcroField
         form.PdfForm.Elements.Add("/FormType", new PdfLiteral("1"));
 
         // Get existing or create new appearance dictionary.
-        PdfDictionary ap = Elements[PdfAnnotation.Keys.AP] as PdfDictionary;
+        PdfDictionary ap = annotation.Elements[PdfAnnotation.Keys.AP] as PdfDictionary;
         if (ap == null)
         {
             ap = new PdfDictionary(_document);
-            Elements[PdfAnnotation.Keys.AP] = ap;
+            annotation.Elements[PdfAnnotation.Keys.AP] = ap;
         }
 
         // Set XRef to normal state
