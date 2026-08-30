@@ -833,9 +833,10 @@ public sealed class PdfDocument : PdfObject, IDisposable
     /// <summary>
     /// Claims an archival profile for this document, and checks immediately what the claim can be
     /// held to right now: that the document has a title, is not encrypted, its colour mode can be
-    /// described, and — for PDF/A-1 — that nothing has already pushed the version past what that
-    /// profile allows. Refuses rather than sets the claim when one of those is not yet true, so the
-    /// mistake is found where it was made rather than discovered later at <see cref="Save(Stream)"/>.
+    /// described, that — for PDF/A-1 — nothing has already pushed the version past what that profile
+    /// allows, and — for an <c>A</c> level — that the document is already tagged. Refuses rather than
+    /// sets the claim when one of those is not yet true, so the mistake is found where it was made
+    /// rather than discovered later at <see cref="Save(Stream)"/>.
     /// </summary>
     /// <remarks>
     /// What cannot be settled by looking at the document now — chiefly, whether it carries an

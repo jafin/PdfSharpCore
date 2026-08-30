@@ -186,12 +186,14 @@ public sealed class FacturXInvoice
         var schema = Schema();
 
         var claimed = document.Options.Conformance;
-        if (claimed != PdfAConformance.None && claimed != PdfAConformance.PdfA3B)
+        if (claimed != PdfAConformance.None
+            && claimed != PdfAConformance.PdfA3B && claimed != PdfAConformance.PdfA3A)
             throw new InvalidOperationException(
                 "This document claims " + claimed + ", and no PDF/A profile but PDF/A-3 may carry an "
                 + "embedded file — which is exactly why the hybrid e-invoice formats are built on "
                 + "PDF/A-3. Either set Options.Conformance to " + nameof(PdfAConformance.PdfA3B)
-                + " or leave it alone and let attaching the invoice set it.");
+                + " (or " + nameof(PdfAConformance.PdfA3A) + " for an accessible hybrid invoice) or "
+                + "leave it alone and let attaching the invoice set it.");
 
         // Attached before anything is changed about the document, so that the one failure a caller
         // is likely to hit here — a second invoice under a name the first already took — leaves the
@@ -199,7 +201,12 @@ public sealed class FacturXInvoice
         var specification =
             document.Attachments.Add(FileName, Xml, Relationship, Description, InvoiceMimeType);
 
-        document.Options.Conformance = PdfAConformance.PdfA3B;
+        // A caller who already claimed PdfA3A wants an accessible hybrid invoice and keeps that
+        // claim; one who claimed nothing gets the plain PdfA3B a Factur-X document defaults to.
+        // Either way the claim already carries an attachment happily, so there is nothing to change
+        // for it — only the caller who asked for nothing gets a claim set on their behalf.
+        if (claimed == PdfAConformance.None)
+            document.Options.Conformance = PdfAConformance.PdfA3B;
 
         document.AddMetadataContributor(metadata => metadata.DeclareSchema(schema));
 

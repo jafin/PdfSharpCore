@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MigraDocCore.DocumentObjectModel;
@@ -36,7 +37,20 @@ static class Corpus
         yield return ("pdfa-3b", Drawn(PdfAConformance.PdfA3B, transparency: true));
         yield return ("pdfa-2b-cff", Cff());
         yield return ("pdfa-3b-facturx", Invoice());
-        yield return ("pdfua-1", Tagged());
+        yield return ("pdfua-1", Tagged(doc => doc.Options.UAConformance = PdfUAConformance.PdfUA1));
+        yield return ("pdfa-1a", Tagged(doc => doc.Options.Conformance = PdfAConformance.PdfA1A));
+        yield return ("pdfa-2a", Tagged(doc => doc.Options.Conformance = PdfAConformance.PdfA2A));
+        yield return ("pdfa-3a", Tagged(doc => doc.Options.Conformance = PdfAConformance.PdfA3A));
+
+        // No pdfua-2 document. ISO 14289-2 clause 8.8 requires every destination internal to the
+        // document — outline items, links, OpenAction — to be a "structure destination" rather than
+        // a page-relative one, through the /SD entry ISO 32000-2:2020 introduced. That entry is
+        // itself unresolved in the published standard: pdf-association/pdf-issues#162 is an open,
+        // unfixed errata report that the specification never defines what /SD contains or how a
+        // reader is meant to use it. PdfUAConformance.PdfUA2 exists and every other rule this
+        // library can check for it is enforced — see its own remarks — but a document is not put in
+        // the gated corpus claiming a profile this library cannot yet make good on for that one
+        // clause. Adding it back is a matter of building the corpus again, once /SD has an answer.
     }
 
     /// <summary>
@@ -173,11 +187,12 @@ static class Corpus
     }
 
     /// <summary>
-    /// A tagged document claiming PDF/UA-1, rendered through MigraDoc.
+    /// A tagged document rendered through MigraDoc, making whichever accessibility or archival
+    /// claim <paramref name="claim"/> asks for.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The one that most needs an outside opinion. <c>PdfUaValidator</c> holds a document to the
+    /// The shape that most needs an outside opinion. <c>PdfUaValidator</c> holds a document to the
     /// rules that can be settled by looking at it, and says in its own remarks what it cannot reach —
     /// the largest being that no content sits outside the structure tree, which needs a content-stream
     /// pass it does not make. That is exactly what veraPDF does make.
@@ -190,8 +205,13 @@ static class Corpus
     /// inside an inline-level <c>/Note</c> — is a reading of the standard that no test here can
     /// settle.
     /// </para>
+    /// <para>
+    /// An A-level archival claim is the archival rules of its part plus these same tagging rules, so
+    /// one document shape now serves both PDF/UA and the three <c>A</c> levels — passed
+    /// <paramref name="claim"/> rather than copied out per claim.
+    /// </para>
     /// </remarks>
-    static byte[] Tagged()
+    static byte[] Tagged(Action<PdfDocument> claim)
     {
         var document = new Document();
         var section = document.AddSection();
@@ -236,7 +256,7 @@ static class Corpus
 
         renderer.PdfDocument.Info.Title = "Statement of account";
         renderer.PdfDocument.Info.Author = "PdfSharpCore conformance corpus";
-        renderer.PdfDocument.Options.UAConformance = PdfUAConformance.PdfUA1;
+        claim(renderer.PdfDocument);
 
         return Bytes(renderer.PdfDocument);
     }

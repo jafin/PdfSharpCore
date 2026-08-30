@@ -80,6 +80,20 @@ public sealed class PdfStructureElement : PdfDictionary
     }
 
     /// <summary>
+    /// Sets the numbering scheme of an <c>/L</c> element — how a reader should announce its items,
+    /// bulleted or numbered and in what style. ISO 32000-2 Table 349's "List" attribute owner class;
+    /// ISO 14289-2 clause 8.2.5.25 requires it, at any value but <see cref="PdfListNumbering.None"/>,
+    /// on every list carrying a <c>/Lbl</c>.
+    /// </summary>
+    public void SetListNumbering(PdfListNumbering listNumbering)
+    {
+        var attributes = new PdfDictionary(Owner);
+        attributes.Elements.SetName("/O", "/List");
+        attributes.Elements.SetName("/ListNumbering", "/" + listNumbering);
+        Elements[Keys.A] = attributes;
+    }
+
+    /// <summary>
     /// Adds a child element and records this element as its parent. The tree is doubly linked
     /// because a reader walks it in both directions — down to read, up to work out context.
     /// </summary>
@@ -238,6 +252,22 @@ public sealed class PdfStructureElement : PdfDictionary
         /// <summary>(Optional) The language of this element.</summary>
         [KeyInfo(KeyType.TextString | KeyType.Optional)]
         public const string Lang = "/Lang";
+
+        /// <summary>
+        /// (Optional) Attributes for this element, owned by a class such as List, Table or Layout —
+        /// a dictionary, or an array of them when more than one class contributes.
+        /// </summary>
+        [KeyInfo(KeyType.Various | KeyType.Optional)]
+        public const string A = "/A";
+
+        /// <summary>
+        /// (Optional; PDF 2.0) The namespace this element's structure type is defined in. An element
+        /// without one inherits its nearest ancestor's, all the way up to the tree root's single
+        /// child — which is what lets <see cref="PdfStructureBuilder"/> put a whole tree in the
+        /// PDF 2.0 namespace by setting this once, on that one element, for ISO 14289-2's sake.
+        /// </summary>
+        [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
+        public const string NS = "/NS";
 
         /// <summary>
         /// (Optional; required by ISO 14289-1 of every Note) The name this element may be referred to

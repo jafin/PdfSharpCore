@@ -145,6 +145,14 @@ public sealed class PdfStructureTreeRoot : PdfDictionary
         [KeyInfo(KeyType.Dictionary | KeyType.Optional)]
         public const string RoleMap = "/RoleMap";
 
+        /// <summary>
+        /// (Required if any structure element names a namespace; PDF 2.0) Every namespace used
+        /// anywhere in the tree. An element's <c>/NS</c> points into this array, and a namespace
+        /// that appears on an element but not here is one a reader has no dictionary for.
+        /// </summary>
+        [KeyInfo(KeyType.Array | KeyType.Optional)]
+        public const string Namespaces = "/Namespaces";
+
         /// <summary>Gets the KeysMeta for these keys.</summary>
         internal static DictionaryMeta Meta => _meta ??= CreateMeta(typeof(Keys));
 

@@ -438,14 +438,32 @@ internal sealed class StructureTagger
     /// </summary>
     void OpenList(ListType type, int level, PdfStructureElement parent)
     {
+        var list = _document.Structure.CreateElement(PdfTag.L, parent);
+
+        // Every level says how it is numbered, not just the outermost one: PDF/UA-2 asks it of each
+        // /L element, and a nested list is an /L of its own rather than a continuation of its parent.
+        list.SetListNumbering(ListNumberingOf(type));
+
         _listFrames.Push(new ListFrame
         {
-            List = _document.Structure.CreateElement(PdfTag.L, parent),
+            List = list,
             Parent = parent,
             Type = type,
             Level = level,
         });
     }
+
+    /// <summary>
+    /// The list-numbering scheme a <c>ListType</c> announces itself as. MigraDoc does not vary the
+    /// bullet glyph by level, so every bulleted level reads the same; every numbered level reads as
+    /// plain decimal, which is what MigraDoc actually renders.
+    /// </summary>
+    static PdfListNumbering ListNumberingOf(ListType type) => type switch
+    {
+        ListType.BulletList1 or ListType.BulletList2 or ListType.BulletList3 => PdfListNumbering.Disc,
+        ListType.NumberList1 or ListType.NumberList2 or ListType.NumberList3 => PdfListNumbering.Decimal,
+        _ => PdfListNumbering.None,
+    };
 
     /// <summary>
     /// Ends the run of list paragraphs, so that the next one starts a new list. Called by every

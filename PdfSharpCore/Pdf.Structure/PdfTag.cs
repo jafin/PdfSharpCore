@@ -98,7 +98,18 @@ public readonly struct PdfTag : IEquatable<PdfTag>
     /// <see cref="PdfStructureElement.Id"/>, so that the <see cref="Reference"/> citing it has
     /// something to point at.
     /// </summary>
+    /// <remarks>
+    /// PDF 1.7's type. PDF 2.0 removed it in favour of <see cref="FootnoteOrEndnote"/>, and ISO
+    /// 14289-2 clause 8.2.5.14 refuses a PDF/UA-2 document that still uses this one.
+    /// </remarks>
     public static PdfTag Note => new("/Note");
+
+    /// <summary>
+    /// A footnote or endnote — PDF 2.0's replacement for <see cref="Note"/>, and the one ISO
+    /// 14289-2 (PDF/UA-2) requires in its place. Otherwise the same shape: a label and body, cited
+    /// from the body text by a <see cref="Reference"/>.
+    /// </summary>
+    public static PdfTag FootnoteOrEndnote => new("/FENote");
 
     /// <summary>
     /// A citation of something elsewhere in the document — the raised mark in the body text that
