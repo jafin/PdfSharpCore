@@ -9,7 +9,7 @@ investigation turned up. All three are tracked the same way, because what a read
 first is the same in each case: is this the code as it stands, or the code as somebody hoped it
 would be?
 
-**40 done · 4 in progress · 13 not started · 57 total.**
+**41 done · 4 in progress · 12 not started · 57 total.**
 
 Read the relevant spec before extending that feature area.
 
@@ -40,6 +40,7 @@ decisions, not outstanding work.
 - [x] [migradoc-field-evaluation.md](migradoc-field-evaluation.md) — a field's value evaluable without a renderer (T18)
 - [x] [migradoc-footnotes.md](migradoc-footnotes.md) — footnotes rendered, having been dropped in silence
 - [x] [nested-lists.md](nested-lists.md) — a list inside a list, said through `ListInfo.NestingLevel` and nested in the tree (G2 tail)
+- [x] [nice-to-have-inventory.md](nice-to-have-inventory.md) — the ten deferred features, each with the seam it would be tested at; re-verified 30 August 2026 and none picked up. An inventory, not a proposal.
 - [x] [outline-destinations.md](outline-destinations.md) — outlines on a LaTeX document, empira#8
 - [x] [page-resize.md](page-resize.md) — resizing a page that already has content on it
 - [x] [parser-document-decoupling.md](parser-document-decoupling.md) — narrowing what the parser needs of a document (T13)
@@ -81,7 +82,6 @@ Written, argued, and not yet acted on.
 - [ ] [font-seam-contracts.md](font-seam-contracts.md) — stating the lifecycle each of the five global font seams promises.
 - [ ] [layout-api-decision.md](layout-api-decision.md) — **a decision note, not a proposal** (G8). Build a constraint-solver layout model, or make the flow model pleasanter? The largest strategic call in the gap analysis, and unmade. Nothing should be built here until it is answered.
 - [ ] [legacy-collections-migration.md](legacy-collections-migration.md) — `ArrayList` and `Hashtable` replaced by generic collections. Still 19 files using one and 7 the other; `ParagraphFormatInfo.lineInfos` still boxes a struct per line of every paragraph.
-- [ ] [nice-to-have-inventory.md](nice-to-have-inventory.md) — the ten deferred features, each with the seam it would be tested at. An inventory, not a proposal.
 - [ ] [open-mode-enforcement.md](open-mode-enforcement.md) — `PdfDocumentOpenMode` enforced where it is named. `CanModify` is still hardcoded `true`; twelve guarded operations at seven places are waiting on it.
 - [ ] [shared-character-scanner.md](shared-character-scanner.md) — one character scanner shared between the document lexer, the content lexer and the DDL scanner.
 - [ ] [shared-visual-order.md](shared-visual-order.md) — the leftmost-position rule written once instead of in both layout engines.
