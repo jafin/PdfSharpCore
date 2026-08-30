@@ -1606,11 +1606,23 @@ public sealed class XGraphics : IDisposable
             CloseMarkedContent(renderer, page, _markedContent.Peek());
 
         var mcid = page.Owner.Structure.AddMarkedContent(page, element);
-        renderer.BeginMarkedContent(element.Tag.Name, mcid);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid, actualText: ActualTextOf(element));
         _markedContent.Push(element);
 
         return new MarkedContentScope(this, true, suspendedParent);
     }
+
+    /// <summary>
+    /// The element's own <c>/ActualText</c>, or null when it never declared one — which is not the
+    /// same question as whether the string is empty. An explicit empty replacement is itself a
+    /// PDF/UA idiom, and <see cref="PdfStructure.PdfStructureElement.ActualText"/> answers "" for
+    /// both that and for never having been set at all, so the distinction has to be asked of
+    /// <c>Elements</c> directly.
+    /// </summary>
+    static string ActualTextOf(PdfStructure.PdfStructureElement element) =>
+        element.Elements.ContainsKey(PdfStructure.PdfStructureElement.Keys.ActualText)
+            ? element.ActualText
+            : null;
 
     /// <summary>
     /// Marks everything drawn until the returned scope is disposed as an artifact: on the page, but
@@ -1656,7 +1668,8 @@ public sealed class XGraphics : IDisposable
             return;
 
         var mcid = page.Owner.Structure.AddMarkedContent(page, element);
-        renderer.BeginMarkedContent(element.Tag.Name, mcid, removableIfEmpty: true);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid, removableIfEmpty: true,
+            actualText: ActualTextOf(element));
     }
 
     readonly Stack<PdfStructure.PdfStructureElement> _markedContent = new();
