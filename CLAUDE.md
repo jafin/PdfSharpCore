@@ -21,7 +21,9 @@ Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 **veraPDF runs the same script CI does, and it gates.** `ConformanceCorpus` writes one PDF per claim
 the library can make into `artifacts/conformance-corpus`; each document *makes* a claim, because
 flavour detection is automatic and a file claiming nothing would be held to the fallback flavour and
-fail for saying nothing. All six conform, so a failure is a regression.
+fail for saying nothing. All nine conform, so a failure is a regression. A tenth, claiming PDF/UA-2,
+is built but not gated: it fails one clause, structure destinations, whose syntax the standard's own
+errata leave undefined — `docs/specs/conformance-completeness.md` says why it is left there.
 
 Its first run found three defects, all in the writer and none reachable by any test here — worth
 knowing because two of them are easy to reintroduce. **`/Length` counts the stream data alone**: the
@@ -32,7 +34,7 @@ loud**, because PDF/A and PDF/UA require what ISO 32000-1 leaves to a default. A
 written for PDF/A-1 alone**, the one profile that asks for it. `StreamLengthTests` and
 `CidFontConformanceTests` pin all three.
 
-A sixth document sets a page in a face with **PostScript outlines**, which is the one path where a
+One document sets a page in a face with **PostScript outlines**, which is the one path where a
 CID font is embedded whole rather than subsetted — so it carries no `/CIDToGIDMap` and is not named
 as a subset, both the opposite of every other document.
 
@@ -252,8 +254,9 @@ English phrase inside a Hebrew sentence in its own order, where reversing the li
 Two things about the MigraDoc pass are load-bearing. **The second walk is still in the order the
 leaves were written** — only the x changes — so the marked content stays in reading order, which
 is what a structure tree is for; `TheMarksStayInTheOrderTheTextIsRead` asserts both orders at once.
-And **a line with a tab in it is left alone**, because a tab's width is consumed from a list built
-during formatting and cannot be walked twice. While reordering, the underline, strikethrough and
+And **a line with a tab in it is reordered one segment at a time** — the tabs stay put and the text
+between them is ordered on its own — with the tab-width list replayed for the second walk, and
+`RenderTab` drawing nothing while `probing`. While reordering, the underline, strikethrough and
 hyperlink rules are drawn per leaf rather than per stretch, or one rectangle would run backwards
 across the line.
 
@@ -330,7 +333,7 @@ with **3 left vacant** — the compiler inlines an enum constant at the call sit
 slide from 4 to 3 to close the gap would have silently redirected every already-compiled caller into
 the removed mode's place. An old assembly passing 3 gets a value the enum does not define, which
 `IsReadOnly` answers as read-only: exactly what `InformationOnly` always did. Add a new member after
-`Append`, never into 3. `OpenModeEnforcementTests` is the matrix of four modes against eighteen
+`Append`, never into 3. `OpenModeEnforcementTests` is the matrix of four modes against nineteen
 operations, and `docs/specs/open-mode-enforcement.md` has the rest.
 
 **Strings and names are byte strings, one char per byte.** `Lexer` reads with
@@ -356,6 +359,70 @@ information dictionary is object 1 before a byte is read, so a test writing its 
 them from two, or the entry it writes for object 1 is ignored in favour of the one already there.
 `TolerantParsingTests` and `CrossReferenceStreamDecodingTests` are what the probe is for; the
 `PdfReader.Open`-based tests beside them still cover the same logic through a whole file.
+
+## The interactive layer
+
+The part of a PDF a reader *does* something with. `docs/specs/interactive-layer-gaps.md` is the
+inventory, and nine of its ten items are now closed; everything below is what a change in this area
+has to know.
+
+**An appearance-bearing annotation builds its own appearance.** `/Square`, `/Circle`, `/Line` and
+`/FreeText` are drawn by a reader from `/AP` and from nothing else, so a well-formed one carrying a
+rectangle and a colour rasterizes to nothing at all. Each class therefore draws itself — through
+`XForm` and `XGraphics`, never by writing operators — and redraws from `OnAppearanceInvalidated`
+whenever anything it is drawn from changes. **Asked for nothing, each one removes the appearance it
+had** rather than writing an empty stream, or a border set back to zero stays on the page. Tests for
+these count pixels; asserting keys would pass on a document nobody can see.
+
+**`/Line` computes its own `/Rect`**, from `Start`, `End`, the width and how much the line endings
+take — the opposite of `PdfSquareCircleAnnotation`, where the rectangle *is* the geometry. Assigning
+`Rectangle` on one is overwritten rather than honoured. It also reads every property back out of the
+dictionary, so it survives a round trip through the file, where `PdfSquareCircleAnnotation` keeps its
+interior and border width in fields and does not.
+
+**Both endpoints of a `/Line` are in default user space**, measured up from the bottom left, not the
+top-left world space `XGraphics` draws in. `gfx.Transformer.WorldToDefaultPage` has an `XPoint`
+overload for exactly this; the `XRect` one encloses rather than maps, so which corner a point became
+is lost.
+
+**A form field and its widget are always separate objects.** `PdfAcroField.AddWidget(page, rect)` is
+the only way to put a field on a page, and it never merges the two dictionaries even though ISO
+32000-1 12.7.3.1 allows it for a field with one widget — so a field that gains a second widget does
+not change shape. Consequences worth carrying: `/Kids` holds **both** nested fields and widget
+annotations, and only the first sort has a `/T`, so anything walking it has to allow for a kid with
+no name; and `PdfTextField` renders its value onto each kid that has a `/Rect`, not onto the field.
+
+**A partial field name may not contain a period.** `Name = "name.full"` is refused, because a period
+joins partial names into the path `Fields["name.full"]` looks a field up by — so writing one produces
+a field that cannot be found. Nest the fields instead.
+
+**The same collection is a form's `/Fields` and a field's `/Kids`, and `Add` writes `/Parent` for
+the second.** ISO 32000-1 Table 220 requires the back-reference of a field that is the child of
+another and forbids it of a root field, and the collection cannot tell which it is from the outside —
+so `PdfAcroField.Fields` tells it, and `PdfAcroForm.Fields` leaves it unset. Nothing here reads
+`/Parent`; every lookup walks *down* from `/Fields`, which is why its absence went unnoticed. A
+reader assembling a field's full name walks up.
+
+**A field's kind is written in `/Ff`, and the `Flags` setter puts those bits back.** `/Btn` is a push
+button, a radio group or a check box by two bits and `/Ch` is a combo or a list box by one, so
+assigning `Flags` outright would change the field's *type* behind the caller —
+`new PdfComboBoxField(document) { Flags = Required }` used to write a list box, and only reopening
+the file said so. `KindMask` and `KindFlags` are what each class declares; the other flags assign
+normally, and `SetFlags` (internal) bypasses the whole thing because it only ever sets one bit.
+
+**An appearance cannot be made of a rectangle under a point.** `XForm` throws below 1 in either
+direction, so every class that draws its own appearance tests against 1 rather than against 0 and
+removes the appearance instead. It bites a `/Line` most: a hairline lying flat is half its width
+either side and no more.
+
+**A text field's own appearance suppresses `/MK`.** An appearance is what a reader shows *in place
+of* building one from the appearance characteristics, so `PdfTextField` removes `/AP` when it has no
+background, no border and no value, and `BorderColor` exists so that a field which does draw itself
+can still look like a field. `BackColor`, `ForeColor`, `Font` and `BorderColor` all redraw, as `Text`
+does; they used to be read only when the value changed, which made them silent no-ops.
+
+`PdfAcroForm.AddStandardFont` leaves `/Symbol` and `/ZapfDingbats` without an `/Encoding` — WinAnsi
+would override the built-in one, and ZapfDingbats is how a check box draws its tick.
 
 ## Drawing
 

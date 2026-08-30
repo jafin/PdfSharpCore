@@ -4,6 +4,23 @@ The last open item of gap **G3**. `docs/specs/text-shaping-and-bidi.md` is the n
 bidirectional text and font fallback as a whole, and calls this one a design question rather than a
 defect, which it is — right up to the point where somebody puts a tab in an Arabic paragraph.
 
+| item | what | status |
+|---|---|---|
+| 1 | A tab divides the line into segments; each segment is reordered within itself, the tabs stay put | done |
+| 2 | The tab-width list is replayable, so the probing walk and the real walk read the same widths | done |
+| 3 | A left-to-right tabbed line, and a line with nothing to swap, come out exactly as before | done, pinned |
+| 4 | Decimal tabs still align; leaders, underline, strikethrough and hyperlink areas follow the text | done |
+| 5 | Marks stay in reading order; a tabbed line in a table cell reorders too | done |
+| 6 | `RenderTab` drawing during the probing walk — a second defect, found on the way | done, fixed |
+| 7 | Mirroring tab stops in a right-to-left paragraph; a tab as a bidirectional neutral | not done, **deliberately** |
+
+Covered by the tabbed tests in `MigraDocCore.Rendering.Tests/BidirectionalParagraphTests.cs`;
+`ALineWithATabInItKeepsTheOrderItWasWritten`, which pinned the old refusal, is gone.
+
+Item 6 was not in the spec. Once a tab's segment became reorderable, `RenderTab` — which never looked
+at the probing flag — drew its leader, rule and link once in the probe and again for real, the same
+shape as the footnote double-draw fixed earlier. It is a commit of its own.
+
 ## Problem Statement
 
 MigraDoc reorders a bidirectional line by walking it twice: once to learn how wide every piece is

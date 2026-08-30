@@ -9,7 +9,7 @@ deliberately leaves out.
 | 2 | Every refusal naming both the mode used and the modes wanted | done |
 | 3 | Twelve dead guards made live, one removed, the thirteenth fork deleted | done |
 | 4 | `InformationOnly` decided: removed from the enum, its number left vacant | done |
-| 5 | The matrix of four modes against eighteen operations, pinned | done |
+| 5 | The matrix of four modes against nineteen operations, pinned | done |
 | 6 | `PdfPages.Remove`, `RemoveAt` and `PdfDocument.Language`, never guarded at all | done |
 
 ## What shipped

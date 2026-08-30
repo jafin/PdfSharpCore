@@ -274,8 +274,9 @@ tables that describe themselves.
 - **Nested lists.** MigraDoc has no list object — a list is however many consecutive paragraphs happen
   to carry a `ListInfo`, so the tagger reads a run of one kind as one `/L` and a change of kind as a
   new one. That matches what the page looks like and cannot see a nested list as nested, because
-  nothing in the DOM says it is. **Blocked on the DOM rather than on the tagger**: there is nothing to
-  read, so there is nothing the tagger could be taught to read.
+  nothing in the DOM says it is. **Since built**: `ListInfo.NestingLevel` says how deep an item is, and
+  the tagger nests a deeper item's list inside the previous item's `/LBody`. See
+  [nested-lists.md](nested-lists.md).
 - **A link in a running header** is not reachable from the tree, because the header is an artifact and
   nothing inside one is tagged. `PdfUaValidator` reports it rather than hiding it, naming the page.
   **This is where it stays.** The two rules genuinely conflict, and refusing is better than writing a

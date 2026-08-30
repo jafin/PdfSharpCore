@@ -520,6 +520,12 @@ This file starts at the entry below. Changes before that point are recorded only
 
 ### Fixed
 
+- **An annotation's colour came back a shade darker every time it was saved.**
+  `PdfAnnotation.Color` reads `/C` back by multiplying each component by 255 and truncating, and a
+  component is written as a fraction of 255 to the seven decimal places `PdfWriter` gives a real —
+  so 127 goes out as `0.4980392` and comes back as 126.999996, which truncates to 126. Rounded now.
+  `PdfLineAnnotation.Interior` read `/IC` the same way and is fixed with it.
+
 - **A heading containing an `InfoField` lost that text from its outline entry.** The predicate that
   decided which of a heading's parts contribute to its PDF outline title tested for `DocumentInfo` —
   the document's own info object, which is never one of a paragraph's parts — and so never
