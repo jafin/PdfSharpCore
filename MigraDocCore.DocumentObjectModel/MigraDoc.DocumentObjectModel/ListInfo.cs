@@ -30,6 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
 using MigraDocCore.DocumentObjectModel.Internals;
 
 namespace MigraDocCore.DocumentObjectModel;
@@ -105,7 +106,12 @@ public partial class ListInfo : DocumentObject
   public int NestingLevel
   {
     get => nestingLevel ?? 1;
-    set => nestingLevel = value;
+    set
+    {
+      if (value < 1)
+        throw new ArgumentOutOfRangeException(nameof(value), value, "NestingLevel is one-based; the outermost level is 1.");
+      nestingLevel = value;
+    }
   }
   [DV]
   internal int? nestingLevel;

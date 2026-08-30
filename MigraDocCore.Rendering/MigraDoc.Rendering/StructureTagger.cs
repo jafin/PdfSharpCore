@@ -415,15 +415,14 @@ internal sealed class StructureTagger
             else
             {
                 // Deeper: nested inside the body of the item the enclosing frame last added, which
-                // is where the standard puts a nested list. The body already exists by now - the
-                // previous item finished rendering, Lbl and LBody both, before this one was asked
-                // for - so this asks for it rather than building it, which matters: building it here
-                // would give an item's body a child before its own label, and every list would come
-                // out with LBody ahead of Lbl instead of behind it.
-                var enclosingBody = top.LastItem != null
-                    ? Element(top.LastItemKey, PdfTag.LBody, top.LastItem, ListBodySlot)
-                    : null;
-                OpenList(type, level, enclosingBody ?? top.List);
+                // is where the standard puts a nested list. top.LastItem is never null here - a frame
+                // only ever becomes "top" after a ListItem call set it - so the body already exists by
+                // now, made when that item finished rendering, Lbl and LBody both. Asking for it
+                // rather than building it here matters: building it here would give an item's body a
+                // child before its own label, and every list would come out with LBody ahead of Lbl
+                // instead of behind it.
+                var enclosingBody = Element(top.LastItemKey, PdfTag.LBody, top.LastItem, ListBodySlot);
+                OpenList(type, level, enclosingBody);
             }
         }
 

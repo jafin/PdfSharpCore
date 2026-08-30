@@ -1,3 +1,4 @@
+using System;
 using AwesomeAssertions;
 using MigraDocCore.DocumentObjectModel.IO;
 using MigraDocCore.DocumentObjectModel.Visitors;
@@ -30,6 +31,22 @@ public class ListNestingLevelTests
         var listInfo = new ListInfo { NestingLevel = 3 };
 
         listInfo.NestingLevel.Should().Be(3);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ANestingLevelBelowOneIsRefused(int level)
+    {
+        // The scale starts at one, unlike MergeRight or MergeDown where zero is the meaningful
+        // default - so there is no sensible reading of a level below it, and the tagger comparing
+        // levels to decide deeper-or-shallower would otherwise nest a later, valid item underneath
+        // it without anything ever failing.
+        var listInfo = new ListInfo();
+
+        var act = () => listInfo.NestingLevel = level;
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
