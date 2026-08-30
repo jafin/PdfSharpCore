@@ -9,7 +9,7 @@ investigation turned up. All three are tracked the same way, because what a read
 first is the same in each case: is this the code as it stands, or the code as somebody hoped it
 would be?
 
-**41 done · 4 in progress · 12 not started · 57 total.**
+**42 done · 4 in progress · 11 not started · 57 total.**
 
 Read the relevant spec before extending that feature area.
 
@@ -51,6 +51,7 @@ decisions, not outstanding work.
 - [x] [signature-lifetime.md](signature-lifetime.md) — PAdES B-T and B-LT, and a `/DocMDP` level that is enforced (G5 tail)
 - [x] [simple-type-immutability.md](simple-type-immutability.md) — the simple-type rule enforced, not just stated (T12)
 - [x] [soft-hyphen-in-justified-list.md](soft-hyphen-in-justified-list.md) — a hyphenated word in a justified list item, empira#339
+- [x] [tabbed-bidirectional-lines.md](tabbed-bidirectional-lines.md) — a right-to-left line with a tab in it, reordered segment by segment (G3 tail)
 - [x] [tagged-pdf-accessibility.md](tagged-pdf-accessibility.md) — tagged PDF and PDF/UA output, all three stages (G2)
 - [x] [tagged-text-extraction.md](tagged-text-extraction.md) — extraction that reads the marked content the tagger writes; the writer now states `/ActualText` inline too (G7 tail)
 - [x] [test-host-crash-investigation.md](test-host-crash-investigation.md) — why a full test run died at the end; found and fixed
@@ -86,7 +87,6 @@ Written, argued, and not yet acted on.
 - [ ] [shared-character-scanner.md](shared-character-scanner.md) — one character scanner shared between the document lexer, the content lexer and the DDL scanner.
 - [ ] [shared-visual-order.md](shared-visual-order.md) — the leftmost-position rule written once instead of in both layout engines.
 - [ ] [structure-tagger-interface.md](structure-tagger-interface.md) — separating "my parent" from "the element I just opened" in the tagger.
-- [ ] [tabbed-bidirectional-lines.md](tabbed-bidirectional-lines.md) — reordering a right-to-left line that contains a tab (G3 tail).
 
 ---
 

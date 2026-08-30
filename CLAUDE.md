@@ -252,8 +252,9 @@ English phrase inside a Hebrew sentence in its own order, where reversing the li
 Two things about the MigraDoc pass are load-bearing. **The second walk is still in the order the
 leaves were written** — only the x changes — so the marked content stays in reading order, which
 is what a structure tree is for; `TheMarksStayInTheOrderTheTextIsRead` asserts both orders at once.
-And **a line with a tab in it is left alone**, because a tab's width is consumed from a list built
-during formatting and cannot be walked twice. While reordering, the underline, strikethrough and
+And **a line with a tab in it is reordered one segment at a time** — the tabs stay put and the text
+between them is ordered on its own — with the tab-width list replayed for the second walk, and
+`RenderTab` drawing nothing while `probing`. While reordering, the underline, strikethrough and
 hyperlink rules are drawn per leaf rather than per stretch, or one rectangle would run backwards
 across the line.
 
