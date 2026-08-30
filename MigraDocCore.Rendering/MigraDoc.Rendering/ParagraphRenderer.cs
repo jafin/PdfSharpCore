@@ -182,30 +182,31 @@ internal class ParagraphRenderer : Renderer
     {
         labelElement = null;
 
-        if (!IsListItem(out var listType))
+        if (!IsListItem(out var listType, out var listLevel))
         {
             Tagger.EndList();
             return Tagger.Block(gfx, paragraph, TagOfParagraph());
         }
 
-        var item = Tagger.ListItem(gfx, paragraph, listType);
+        var item = Tagger.ListItem(gfx, paragraph, listType, listLevel);
         if (item == null)
             return StructureTagger.Nothing;
 
         labelElement = Tagger.Element(paragraph, PdfTag.Lbl, item, LabelSlot);
 
-        var body = Tagger.Element(paragraph, PdfTag.LBody, item, BodySlot);
+        var body = Tagger.Element(paragraph, PdfTag.LBody, item, StructureTagger.ListBodySlot);
         return Tagger.Marks(gfx, body);
     }
 
     /// <summary>
-    /// Which of a list paragraph's two elements is meant. Slot 0 is the <c>/LI</c> itself.
+    /// Which of a list paragraph's elements is meant. Slot 0 is the <c>/LI</c> itself, and the body's
+    /// slot is <see cref="StructureTagger.ListBodySlot"/>, shared with the tagger so that the element
+    /// it creates while opening a nested list is the same one this asks for afterwards.
     /// </summary>
     const int LabelSlot = 1;
-    const int BodySlot = 2;
 
     /// <summary>
-    /// Whether this paragraph draws a bullet or a number, and of what kind.
+    /// Whether this paragraph draws a bullet or a number, and of what kind, and how deep it is nested.
     /// </summary>
     /// <remarks>
     /// Asked of the format info rather than of the format, and only in the rendering phase, so it
@@ -213,9 +214,10 @@ internal class ParagraphRenderer : Renderer
     /// <c>ListInfo</c> whose type is none of the six draws nothing, and a continuation of a split
     /// paragraph draws nothing either.
     /// </remarks>
-    bool IsListItem(out ListType listType)
+    bool IsListItem(out ListType listType, out int listLevel)
     {
         listType = ListType.BulletList1;
+        listLevel = 1;
         if (!GetListSymbol(out _, out _))
             return false;
 
@@ -224,6 +226,7 @@ internal class ParagraphRenderer : Renderer
             return false;
 
         listType = format.ListInfo.ListType;
+        listLevel = format.ListInfo.NestingLevel;
         return true;
     }
 

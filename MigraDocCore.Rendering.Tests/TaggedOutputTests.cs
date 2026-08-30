@@ -34,6 +34,13 @@ namespace MigraDocCore.Rendering.Tests;
 /// </remarks>
 public class TaggedOutputTests
 {
+    /// <summary>
+    /// A list item's own body — its direct child, not <c>Single("LBody")</c>, because a nested item
+    /// has a body of its own too and the search that finds one in the whole subtree finds several.
+    /// </summary>
+    static StructureNode Body(StructureNode listItem) => listItem.Children.First(child => child.Tag == "LBody");
+
+
     [Fact]
     public void AParagraphIsAParagraphAndAHeadingIsAHeading()
     {
@@ -153,6 +160,201 @@ public class TaggedOutputTests
         section1.ChildTags().Should().Equal("L", "P", "L");
         section1.Children[0].Children.Should().HaveCount(2);
         section1.Children[2].Children.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ANestedListIsAListInsideAnItemsBody()
+    {
+        // docs/specs/nested-lists.md. Two outer items with two inner ones between them: the tree
+        // should nest and then unnest, rather than coming out as a run of four siblings.
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("Outer 1").Format.ListInfo.ListType = ListType.BulletList1;
+
+        var inner1 = section.AddParagraph("Inner 1");
+        inner1.Format.ListInfo.ListType = ListType.BulletList2;
+        inner1.Format.ListInfo.NestingLevel = 2;
+
+        var inner2 = section.AddParagraph("Inner 2");
+        inner2.Format.ListInfo.ListType = ListType.BulletList2;
+        inner2.Format.ListInfo.NestingLevel = 2;
+
+        section.AddParagraph("Outer 2").Format.ListInfo.ListType = ListType.BulletList1;
+
+        var sect = Structure.Of(document).Single("Sect");
+        sect.ChildTags().Should().Equal("L"); // the whole run is one outer list
+
+        var outerList = sect.Children[0];
+        outerList.ChildTags().Should().Equal("LI", "LI");
+
+        var firstItem = outerList.Children[0];
+        firstItem.ChildTags().Should().Equal("Lbl", "LBody");
+
+        var firstBody = Body(firstItem);
+        firstBody.ChildTags().Should().Equal("L"); // the nested list lives in the item's body
+        firstBody.Children[0].ChildTags().Should().Equal("LI", "LI");
+
+        var secondItem = outerList.Children[1];
+        secondItem.OfTag("L").Should().BeEmpty("returning to the outer level closes the inner list");
+    }
+
+    [Fact]
+    public void ThreeLevelsNestJustAsTwoDo()
+    {
+        // Nothing about the tagger's rule is special-cased for the second level - a third has to
+        // work exactly the same way, one item's body at a time.
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("Level 1").Format.ListInfo.ListType = ListType.BulletList1;
+
+        var level2 = section.AddParagraph("Level 2");
+        level2.Format.ListInfo.ListType = ListType.BulletList2;
+        level2.Format.ListInfo.NestingLevel = 2;
+
+        var level3 = section.AddParagraph("Level 3");
+        level3.Format.ListInfo.ListType = ListType.BulletList3;
+        level3.Format.ListInfo.NestingLevel = 3;
+
+        var outerList = Structure.Of(document).Single("Sect").Children[0];
+        var middleList = Body(outerList.Children[0]).Children[0];
+        middleList.Tag.Should().Be("L");
+
+        var innermostList = Body(middleList.Children[0]).Children[0];
+        innermostList.Tag.Should().Be("L");
+        innermostList.Children[0].Single("Lbl").MarkCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void ASkippedLevelOpensOneNestedListRatherThanTwoOrAnError()
+    {
+        // An item at level three straight after one at level one is one level deeper, not two -
+        // refusing it would fail a document generated from real data over a cosmetic inconsistency.
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("Outer").Format.ListInfo.ListType = ListType.BulletList1;
+
+        var deep = section.AddParagraph("Deep");
+        deep.Format.ListInfo.ListType = ListType.BulletList2;
+        deep.Format.ListInfo.NestingLevel = 3;
+
+        var outerList = Structure.Of(document).Single("Sect").Children[0];
+        var body = Body(outerList.Children[0]);
+
+        body.ChildTags().Should().Equal("L"); // one nested list, not two, and no error
+        body.Children[0].ChildTags().Should().Equal("LI");
+    }
+
+    [Fact]
+    public void MixedTypesNestNumbersOutsideAndBulletsInside()
+    {
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("Section 1").Format.ListInfo.ListType = ListType.NumberList1;
+
+        var detail = section.AddParagraph("Detail");
+        detail.Format.ListInfo.ListType = ListType.BulletList1;
+        detail.Format.ListInfo.NestingLevel = 2;
+
+        var outerList = Structure.Of(document).Single("Sect").Children[0];
+        var innerList = Body(outerList.Children[0]).Children[0];
+
+        // Both are /L in the tree; what a reader is told apart by is the number formatting, decided
+        // by rendering rather than by structure, so there is nothing here to distinguish them by
+        // beyond the nesting itself.
+        outerList.Tag.Should().Be("L");
+        innerList.Tag.Should().Be("L");
+        innerList.Children.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ADocumentThatNeverSetsALevelProducesExactlyTodaysTreeItemForItem()
+    {
+        // User story 8: adopting the new property changes nothing for a document that never sets it.
+        var document = new Document();
+        var section = document.AddSection();
+        foreach (var item in new[] { "First", "Second", "Third" })
+            section.AddParagraph(item).Format.ListInfo.ListType = ListType.BulletList1;
+
+        var list = Structure.Of(document).Single("L");
+
+        list.ChildTags().Should().Equal("LI", "LI", "LI");
+        foreach (var listItem in list.Children)
+            listItem.ChildTags().Should().Equal("Lbl", "LBody");
+    }
+
+    [Fact]
+    public void EveryListItemHasABodyNestedOrNot()
+    {
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("Outer").Format.ListInfo.ListType = ListType.BulletList1;
+        var inner = section.AddParagraph("Inner");
+        inner.Format.ListInfo.ListType = ListType.BulletList2;
+        inner.Format.ListInfo.NestingLevel = 2;
+
+        var tree = Structure.Of(document);
+
+        // A direct child, not merely one somewhere in the subtree - a nested item's LBody living
+        // inside the outer item's own LBody must not count as the outer item's.
+        tree.OfTag("LI").Should().OnlyContain(li => li.Children.Any(child => child.Tag == "LBody"));
+    }
+
+    [Fact]
+    public void NestingSurvivesAPageBreakInTheMiddleOfAnInnerList()
+    {
+        var document = new Document();
+        var section = document.AddSection();
+        // Both dimensions: FlattenPageSetup overwrites whichever one is set on its own with the
+        // document default, so a page sized by height alone is silently still A4.
+        section.PageSetup.PageWidth = "21cm";
+        section.PageSetup.PageHeight = "4cm";
+        section.PageSetup.TopMargin = "0.5cm";
+        section.PageSetup.BottomMargin = "0.5cm";
+
+        section.AddParagraph("Outer").Format.ListInfo.ListType = ListType.BulletList1;
+        for (var index = 0; index < 8; index++)
+        {
+            var inner = section.AddParagraph($"Inner {index}");
+            inner.Format.ListInfo.ListType = ListType.BulletList2;
+            inner.Format.ListInfo.NestingLevel = 2;
+        }
+
+        var rendered = Rendered.Of(document);
+        rendered.PageCount.Should().BeGreaterThan(1, "the arrangement is only interesting if it splits");
+
+        var outerList = Structure.RootOf(rendered).Single("Sect").Children[0];
+        var innerList = Body(outerList.Children[0]).Children[0];
+
+        innerList.Tag.Should().Be("L");
+        innerList.ChildTags().Should().Equal("LI", "LI", "LI", "LI", "LI", "LI", "LI", "LI");
+    }
+
+    [Fact]
+    public void NumberingContinuesAcrossANestedList()
+    {
+        // Depth does not touch numbering: an outer numbered list resuming after a nested list keeps
+        // counting, exactly as it does today for a plain change of list type.
+        var document = new Document();
+        var section = document.AddSection();
+
+        section.AddParagraph("One").Format.ListInfo.ListType = ListType.NumberList1;
+
+        var nested = section.AddParagraph("Nested");
+        nested.Format.ListInfo.ListType = ListType.BulletList1;
+        nested.Format.ListInfo.NestingLevel = 2;
+
+        section.AddParagraph("Two").Format.ListInfo.ListType = ListType.NumberList1;
+
+        var pdf = Rendered.Of(document);
+        var shown = TextOperators.ShownStrings(pdf.Pages[0]);
+
+        shown.Should().Contain("1.");
+        shown.Should().Contain("2.");
     }
 
     [Fact]
