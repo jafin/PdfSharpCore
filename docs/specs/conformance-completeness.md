@@ -5,6 +5,50 @@ shipped. `docs/specs/pdf-a-conformance.md` is the note for what was built and
 `docs/specs/verapdf-validation.md` for how it is validated; this one is for the two things neither
 covers.
 
+| item | what | status |
+|---|---|---|
+| 1 | The page-resource walk, lifted out of the pruner into `PdfPageWalk` so a second caller can ask it what a page uses | done |
+| 2 | The four rules the walk answers: no transparency and no JPEG 2000 under PDF/A-1, no interpolated image under any archival profile, no device colour the output intent does not describe | done |
+| 3 | PDF/A's `A` levels — `PdfA1A`, `PdfA2A`, `PdfA3A`, each the archival rules of its part plus the tagging rules `PdfUaValidator` already enforces, refused at the claim on an untagged document | done |
+| 4 | PDF/UA-2 | done, **but not a claim the library can stand behind yet** |
+| 5 | A corpus document per new claim, validated by veraPDF | done for every claim but PDF/UA-2 |
+
+Covered by `PdfSharpCore.Test/IO/ResourceConformanceRulesTests.cs`,
+`MigraDocCore.Rendering.Tests/PdfUaConformanceTests.cs` and `PdfSharpCore.Test/Pdfs/EInvoiceTests.cs`.
+
+## What is honestly not finished
+
+**PDF/UA-2 is real and untested against the one clause that matters most for it.** All four of its
+own rules this library could enforce are: `pdfuaid:rev` written as `2024` alongside the part,
+the structure tree root's `/Document` child put explicitly in the PDF 2.0 namespace, `/Note`
+retagged as `/FENote` — PDF 2.0's replacement, ISO 14289-2 clause 8.2.5.14 — and a `/ListNumbering`
+attribute on every list, ISO 14289-2 clause 8.2.5.25. Working out which elements needed the PDF 2.0
+namespace and which did not took three rounds against veraPDF, because the specification's own
+inheritance rule for namespaces did not hold up against it: an element several levels under an
+explicitly-namespaced `/Document` was still held to the PDF 1.7 default, and namespacing every
+element instead got `/Reference` refused as non-standard in the PDF 2.0 namespace where the PDF 1.7
+default already recognises it. What works — `/NS` on the root `/Document` and on `/FENote` alone —
+is recorded in `PdfStructureBuilder`'s own remarks.
+
+**One clause is not enforced, and no document claiming PDF/UA-2 is in the gated corpus because of
+it.** ISO 14289-2 clause 8.8 requires every destination internal to the document — outline items,
+links, an `OpenAction` — to be a "structure destination" through the `/SD` entry ISO 32000-2:2020
+introduced, and this library still writes the page-relative kind PDF 1.7 always has. `/SD` is
+unresolved in the published standard itself: `pdf-association/pdf-issues#162` is an open, unfixed
+errata report stating ISO 32000-2:2020 never defines what it contains or how a reader is meant to
+use it. Guessing at a mechanism the standard's own editors have not pinned down risks a destination
+that neither validates nor navigates correctly in a real reader, which is worse than the explicit
+one that works everywhere today — so it was not attempted. `PdfUAConformance.PdfUA2`'s own remarks
+say the same thing, and `ConformanceCorpus.Corpus.Documents` says why no `pdfua-2` document is
+built: the corpus has no mechanism for a document that is built but not gated, and every document in
+it makes a claim and is held to it. Adding one back is a matter of building the corpus again once
+`/SD` has an answer.
+
+**Everything else shipped and is gated.** The four resource-walk rules, the three PDF/A `A` levels,
+and the writer defect they turned up along the way — `PdfLinkAnnotation` never wrote `/F` at all,
+which every PDF/A part but the first and PDF/UA-2 alike refuse of a non-Popup annotation — are all
+enforced, tested, and validated: `./verapdf-check.ps1` passes 9 of 9.
+
 ## Problem Statement
 
 **Four archival rules are real, and none of them is checked.** A document may claim PDF/A-1 and paint
