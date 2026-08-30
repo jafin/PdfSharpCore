@@ -182,30 +182,31 @@ internal class ParagraphRenderer : Renderer
     {
         labelElement = null;
 
-        if (!IsListItem(out var listType))
+        if (!IsListItem(out var listType, out var listLevel))
         {
             Tagger.EndList();
             return Tagger.Block(gfx, paragraph, TagOfParagraph());
         }
 
-        var item = Tagger.ListItem(gfx, paragraph, listType);
+        var item = Tagger.ListItem(gfx, paragraph, listType, listLevel);
         if (item == null)
             return StructureTagger.Nothing;
 
         labelElement = Tagger.Element(paragraph, PdfTag.Lbl, item, LabelSlot);
 
-        var body = Tagger.Element(paragraph, PdfTag.LBody, item, BodySlot);
+        var body = Tagger.Element(paragraph, PdfTag.LBody, item, StructureTagger.ListBodySlot);
         return Tagger.Marks(gfx, body);
     }
 
     /// <summary>
-    /// Which of a list paragraph's two elements is meant. Slot 0 is the <c>/LI</c> itself.
+    /// Which of a list paragraph's elements is meant. Slot 0 is the <c>/LI</c> itself, and the body's
+    /// slot is <see cref="StructureTagger.ListBodySlot"/>, shared with the tagger so that the element
+    /// it creates while opening a nested list is the same one this asks for afterwards.
     /// </summary>
     const int LabelSlot = 1;
-    const int BodySlot = 2;
 
     /// <summary>
-    /// Whether this paragraph draws a bullet or a number, and of what kind.
+    /// Whether this paragraph draws a bullet or a number, and of what kind, and how deep it is nested.
     /// </summary>
     /// <remarks>
     /// Asked of the format info rather than of the format, and only in the rendering phase, so it
@@ -213,9 +214,10 @@ internal class ParagraphRenderer : Renderer
     /// <c>ListInfo</c> whose type is none of the six draws nothing, and a continuation of a split
     /// paragraph draws nothing either.
     /// </remarks>
-    bool IsListItem(out ListType listType)
+    bool IsListItem(out ListType listType, out int listLevel)
     {
         listType = ListType.BulletList1;
+        listLevel = 1;
         if (!GetListSymbol(out _, out _))
             return false;
 
@@ -224,6 +226,7 @@ internal class ParagraphRenderer : Renderer
             return false;
 
         listType = format.ListInfo.ListType;
+        listLevel = format.ListInfo.NestingLevel;
         return true;
     }
 
@@ -862,6 +865,12 @@ internal class ParagraphRenderer : Renderer
     /// Where each leaf of the line should be drawn, or null when the line reads the way it was
     /// written and nothing needs moving.
     /// </summary>
+    /// <remarks>
+    /// A tab is a boundary, not a character with a direction: it divides the line into segments and
+    /// each segment is reordered within itself, exactly as a whole line with no tabs in it would be.
+    /// The tabs themselves never move - a leaf's default position is where it was written, and only
+    /// a segment that turns out to hold something right to left has that default overwritten.
+    /// </remarks>
     XUnit[] PlacedInVisualOrder(LineInfo lineInfo)
     {
         if (!MayNeedReordering(lineInfo))
@@ -869,35 +878,106 @@ internal class ParagraphRenderer : Renderer
 
         var widths = new List<XUnit>();
         var spans = new List<(int Start, int Length)>();
-        string text = Probe(lineInfo, widths, spans);
+        var isTab = new List<bool>();
+        string text = Probe(lineInfo, widths, spans, isTab);
 
-        var bidi = BidiAlgorithm.Resolve(text, ParagraphDirection);
+        var placed = new XUnit[widths.Count];
+        XUnit cursor = StartXPosition;
+        for (int idx = 0; idx < widths.Count; idx++)
+        {
+            placed[idx] = cursor;
+            cursor += widths[idx];
+        }
+
+        bool anyReordered = false;
+
+        int segmentStart = 0;
+        for (int idx = 0; idx <= isTab.Count; idx++)
+        {
+            if (idx == isTab.Count || isTab[idx])
+            {
+                if (idx > segmentStart)
+                    anyReordered |= ReorderSegment(segmentStart, idx, text, widths, spans, placed);
+
+                segmentStart = idx + 1;
+            }
+        }
+
+        return anyReordered ? placed : null;
+    }
+
+    /// <summary>
+    /// Reorders one segment of a line - the whole line, when it holds no tab - in place. Answers
+    /// whether the segment held anything right to left, which is what decides whether the line is
+    /// drawn from <paramref name="placed"/> at all.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="placed"/> already holds this segment's written-order positions on entry -
+    /// segments are handled left to right, and nothing at or after <paramref name="start"/> has
+    /// been touched by an earlier one - so <c>placed[start]</c> doubles as that starting position
+    /// with no second array to keep it in. A whole-line segment (the only kind a tab-free RTL line
+    /// ever has) is passed <paramref name="text"/> and <paramref name="spans"/> as they stand,
+    /// unsliced, which is what keeps the common right-to-left line - still the majority of what
+    /// this reorders - to the one copy <see cref="Probe"/> already made.
+    /// </remarks>
+    bool ReorderSegment(int start, int end, string text, List<XUnit> widths,
+        List<(int Start, int Length)> spans, XUnit[] placed)
+    {
+        bool wholeLine = start == 0 && end == spans.Count;
+
+        string segmentText = text;
+        IReadOnlyList<(int Start, int Length)> segmentSpans = spans;
+
+        if (!wholeLine)
+        {
+            int textStart = spans[start].Start;
+            var lastSpan = spans[end - 1];
+            int textEnd = lastSpan.Start + lastSpan.Length;
+            segmentText = text.Substring(textStart, textEnd - textStart);
+
+            var localSpans = new List<(int Start, int Length)>(end - start);
+            for (int idx = start; idx < end; idx++)
+                localSpans.Add((spans[idx].Start - textStart, spans[idx].Length));
+            segmentSpans = localSpans;
+        }
+
+        var bidi = BidiAlgorithm.Resolve(segmentText, ParagraphDirection);
         bool anyRightToLeft = false;
         foreach (var run in bidi.Runs())
             anyRightToLeft |= run.Direction == XTextDirection.RightToLeft;
 
         if (!anyRightToLeft)
-            return null;
+            return false;
 
-        var order = VisualOrder.Of(bidi, spans);
-        var placed = new XUnit[widths.Count];
-        XUnit x = StartXPosition;
-        foreach (int leaf in order)
+        var order = VisualOrder.Of(bidi, segmentSpans);
+        XUnit x = placed[start];
+        foreach (int local in order)
         {
+            int leaf = start + local;
             placed[leaf] = x;
             x += widths[leaf];
         }
 
-        return placed;
+        return true;
     }
 
     /// <summary>
-    /// Walks the line without drawing it, collecting what each leaf says and how wide it is.
+    /// Walks the line without drawing it, collecting what each leaf says, how wide it is, and
+    /// whether it is a tab - the boundary a reordered segment must not cross.
     /// </summary>
-    string Probe(LineInfo lineInfo, List<XUnit> widths, List<(int Start, int Length)> spans)
+    /// <remarks>
+    /// A tab's width comes from <see cref="tabOffsets"/>, read in order and advanced by
+    /// <see cref="NextTabOffset"/> as the walk passes each one. That read position is state the
+    /// probing walk disturbs exactly as it disturbs <see cref="currentLeaf"/> and
+    /// <see cref="currentXPosition"/>, so it is saved and restored alongside them - a walk that
+    /// left it consumed would hand the real walk behind it either the wrong tab's width or none at
+    /// all.
+    /// </remarks>
+    string Probe(LineInfo lineInfo, List<XUnit> widths, List<(int Start, int Length)> spans, List<bool> isTab)
     {
         var savedLeaf = currentLeaf;
         var savedPosition = currentXPosition;
+        var savedTabIdx = tabIdx;
 
         probedText = new StringBuilder();
         probing = true;
@@ -912,6 +992,7 @@ internal class ParagraphRenderer : Renderer
                 int start = probedText.Length;
                 XUnit before = currentXPosition;
 
+                isTab.Add(IsTab(currentLeaf.Current));
                 RenderElement(currentLeaf.Current);
 
                 widths.Add(currentXPosition - before);
@@ -927,6 +1008,7 @@ internal class ParagraphRenderer : Renderer
             probedText = null;
             currentLeaf = savedLeaf;
             currentXPosition = savedPosition;
+            tabIdx = savedTabIdx;
         }
     }
 
@@ -934,12 +1016,9 @@ internal class ParagraphRenderer : Renderer
     /// Whether the line could possibly want reordering, asked before anything is measured.
     /// </summary>
     /// <remarks>
-    /// Two answers matter here. A line with nothing right to left in it and no direction declared
-    /// cannot need moving, and this is what keeps every left-to-right document paying one cheap
-    /// scan rather than an extra walk of every line. And <b>a line with a tab in it is left
-    /// alone</b>: a tab's width is taken from a list built during formatting and consumed in order,
-    /// so walking the line twice would consume it twice - and where a tabbed line's columns belong
-    /// in a right-to-left paragraph is a question nothing here answers.
+    /// A line with nothing right to left in it and no direction declared cannot need moving, and
+    /// this is what keeps every left-to-right document paying one cheap scan rather than an extra
+    /// walk of every line - tab or no tab.
     /// </remarks>
     bool MayNeedReordering(LineInfo lineInfo)
     {
@@ -949,9 +1028,6 @@ internal class ParagraphRenderer : Renderer
         var leaf = lineInfo.startIter;
         while (leaf != null)
         {
-            if (leaf.Current is Character character && character.SymbolName == SymbolName.Tab)
-                return false;
-
             if (!found && leaf.Current is Text text && text.Content != null)
             {
                 foreach (char ch in text.Content)
@@ -1486,6 +1562,17 @@ internal class ParagraphRenderer : Renderer
     void RenderTab()
     {
         TabOffset tabOffset = NextTabOffset();
+
+        // Every other leaf checks this and returns before touching the page - a tab's own segment
+        // could never need reordering until now, so this was never called during a probing walk.
+        // A leader, an underline or strikethrough under the tab, or a hyperlink around it would
+        // otherwise be drawn once here and again for real.
+        if (probing)
+        {
+            currentXPosition += tabOffset.offset;
+            return;
+        }
+
         RenderUnderline(tabOffset.offset, false);
         RenderStrikethrough(tabOffset.offset, false);
         RenderTabLeader(tabOffset);

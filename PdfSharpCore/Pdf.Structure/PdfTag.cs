@@ -126,6 +126,13 @@ public readonly struct PdfTag : IEquatable<PdfTag>
     /// <summary>A span of text within a paragraph.</summary>
     public static PdfTag Span => new("/Span");
 
+    /// <summary>
+    /// Content that is on the page but is not part of what the page says — a running head, a
+    /// folio, a rule. Written directly by <c>XGraphics.BeginArtifact</c> rather than through this
+    /// type, so this is here for a reader to compare a run's tag against, not a writer to pass one.
+    /// </summary>
+    public static PdfTag Artifact => new("/Artifact");
+
     /// <inheritdoc/>
     public bool Equals(PdfTag other) => Name == other.Name;
 

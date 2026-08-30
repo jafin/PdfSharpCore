@@ -1606,11 +1606,53 @@ public sealed class XGraphics : IDisposable
             CloseMarkedContent(renderer, page, _markedContent.Peek());
 
         var mcid = page.Owner.Structure.AddMarkedContent(page, element);
-        renderer.BeginMarkedContent(element.Tag.Name, mcid);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid, actualText: ActualTextForThisSequence(element));
         _markedContent.Push(element);
 
         return new MarkedContentScope(this, true, suspendedParent);
     }
+
+    /// <summary>
+    /// The element's own <c>/ActualText</c>, or null when it never declared one — which is not the
+    /// same question as whether the string is empty. An explicit empty replacement is itself a
+    /// PDF/UA idiom, and <see cref="PdfStructure.PdfStructureElement.ActualText"/> answers "" for
+    /// both that and for never having been set at all, so the distinction has to be asked of
+    /// <c>Elements</c> directly.
+    /// </summary>
+    static string ActualTextOf(PdfStructure.PdfStructureElement element) =>
+        element.Elements.ContainsKey(PdfStructure.PdfStructureElement.Keys.ActualText)
+            ? element.ActualText
+            : null;
+
+    /// <summary>
+    /// What to write as this content item's own inline <c>/ActualText</c>: the element's declared
+    /// text the first time this element opens a sequence on this page, and an explicit empty string
+    /// - not null - every later time.
+    /// </summary>
+    /// <remarks>
+    /// An element with several content items - a word broken at a hyphen is two, one per line - had
+    /// each of them repeat the whole word inline, and a page-scoped reader with no way to know two
+    /// sequences name the same element read the word twice. Writing it once and an empty string
+    /// after relies on the extractor's own rule for a declared sequence whose text is empty: it
+    /// contributes nothing, the same as an artifact, rather than falling back to the glyphs the
+    /// later content item actually draws. <see cref="_actualTextEmitted"/> is keyed by object
+    /// identity and is a field of this <see cref="XGraphics"/> instance, which draws exactly one
+    /// page for its whole lifetime - so nothing further has to reset it at a page boundary.
+    /// </remarks>
+    string ActualTextForThisSequence(PdfStructure.PdfStructureElement element)
+    {
+        var declared = ActualTextOf(element);
+        if (declared == null)
+            return null;
+
+        return _actualTextEmitted.Add(element) ? declared : "";
+    }
+
+    /// <summary>
+    /// Which elements have already had their own <c>/ActualText</c> written inline this page. See
+    /// <see cref="ActualTextForThisSequence"/>.
+    /// </summary>
+    readonly HashSet<PdfStructure.PdfStructureElement> _actualTextEmitted = new();
 
     /// <summary>
     /// Marks everything drawn until the returned scope is disposed as an artifact: on the page, but
@@ -1656,7 +1698,8 @@ public sealed class XGraphics : IDisposable
             return;
 
         var mcid = page.Owner.Structure.AddMarkedContent(page, element);
-        renderer.BeginMarkedContent(element.Tag.Name, mcid, removableIfEmpty: true);
+        renderer.BeginMarkedContent(element.Tag.Name, mcid, removableIfEmpty: true,
+            actualText: ActualTextForThisSequence(element));
     }
 
     readonly Stack<PdfStructure.PdfStructureElement> _markedContent = new();

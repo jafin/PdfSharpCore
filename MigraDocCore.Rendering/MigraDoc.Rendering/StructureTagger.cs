@@ -51,11 +51,34 @@ internal sealed class StructureTagger
     PdfDocument _document;
     PdfStructureElement _root;
 
-    // The run of consecutive list paragraphs currently being gathered into one /L, and what makes a
-    // paragraph part of it rather than the start of a new one.
-    PdfStructureElement _listRun;
-    PdfStructureElement _listRunParent;
-    ListType _listRunType;
+    // The list, or run of nested lists, currently being gathered - one frame per level of nesting,
+    // deepest on top. See ListItem for how a level compared against the frame on top decides whether
+    // an item continues the current list, starts a sibling of it, opens one nested inside the last
+    // item, or closes one or more before landing.
+    readonly Stack<ListFrame> _listFrames = new Stack<ListFrame>();
+
+    /// <summary>
+    /// One level of a run of nested lists: the <c>/L</c> itself, what it hangs from, the type its
+    /// items share, and the last item added to it - a list one level deeper attaches to that item's
+    /// body, per the standard putting a nested list inside its enclosing item's body.
+    /// </summary>
+    sealed class ListFrame
+    {
+        internal PdfStructureElement List;
+        internal PdfStructureElement Parent;
+        internal ListType Type;
+        internal int Level;
+        internal PdfStructureElement LastItem;
+        internal object LastItemKey;
+    }
+
+    /// <summary>
+    /// Which of a list item's elements is which, beyond the <c>/LI</c> itself (slot 0). Shared with
+    /// <c>ParagraphRenderer</c>, which builds the <c>/Lbl</c> and reuses the <c>/LBody</c> this
+    /// creates - the same slot number is what makes the second ask return the first ask's element
+    /// rather than a new one.
+    /// </summary>
+    internal const int ListBodySlot = 2;
 
     /// <summary>
     /// Whether to tag at all. Set from <see cref="DocumentRenderer.TagContent"/>.
@@ -330,31 +353,104 @@ internal sealed class StructureTagger
 
     /// <summary>
     /// The list item a list paragraph belongs to, gathering consecutive paragraphs of the same kind
-    /// into one list.
+    /// into one list and, per <paramref name="level"/>, one list nested inside another.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// MigraDoc has no list object — a list is however many paragraphs in a row happen to carry a
     /// <c>ListInfo</c>, and the run is only visible from the order they are rendered in. So the run
     /// is tracked here and broken by <see cref="EndList"/> the moment anything else is tagged at the
     /// same level. That reads a change of list type as a new list, which matches what the page looks
-    /// like; it cannot see a nested list as nested, because nothing in the DOM says so.
+    /// like.
+    /// </para>
+    /// <para>
+    /// <paramref name="level"/> is compared against the run's open frames, deepest on top: deeper
+    /// opens a list nested inside the previous item's body; shallower closes frames until one is
+    /// found whose level is no greater than this item's; equal continues that frame unless the type
+    /// changed, which starts a sibling of it in the same place. A skipped level — three straight
+    /// after one, with nothing in between — lands exactly like a plain step, because it is compared
+    /// only as deeper or shallower and never against the numbers themselves: refusing it would fail a
+    /// document over a cosmetic inconsistency, and inventing the missing level would tag something
+    /// the page has nothing corresponding to.
+    /// </para>
     /// </remarks>
-    internal PdfStructureElement ListItem(XGraphics gfx, Paragraph paragraph, ListType type)
+    internal PdfStructureElement ListItem(XGraphics gfx, Paragraph paragraph, ListType type, int level)
     {
         if (!CanTagContent(gfx))
             return null;
 
-        var parent = ParentFor(paragraph);
+        var ambientParent = ParentFor(paragraph);
 
-        if (_listRun == null || _listRunType != type || !ReferenceEquals(_listRunParent, parent))
+        if (_listFrames.Count == 0)
         {
-            _listRun = _document.Structure.CreateElement(PdfTag.L, parent);
-            _listRun.SetListNumbering(ListNumberingOf(type));
-            _listRunParent = parent;
-            _listRunType = type;
+            OpenList(type, level, ambientParent);
+        }
+        else
+        {
+            while (_listFrames.Count > 1 && level < _listFrames.Peek().Level)
+                _listFrames.Pop();
+
+            var top = _listFrames.Peek();
+
+            if (level < top.Level)
+            {
+                // Shallower than even the outermost open frame: nothing here still applies.
+                _listFrames.Clear();
+                OpenList(type, level, ambientParent);
+            }
+            else if (level == top.Level)
+            {
+                // The outermost frame hangs off wherever the ambient context says it should; a
+                // nested one always hangs off the same fixed parent it was opened with, so this
+                // comparison only ever finds a mismatch at the outermost level - exactly where a
+                // change of surrounding context matters.
+                var desiredParent = _listFrames.Count == 1 ? ambientParent : top.Parent;
+                if (type != top.Type || !ReferenceEquals(top.Parent, desiredParent))
+                {
+                    var parent = top.Parent;
+                    _listFrames.Pop();
+                    OpenList(type, level, parent);
+                }
+            }
+            else
+            {
+                // Deeper: nested inside the body of the item the enclosing frame last added, which
+                // is where the standard puts a nested list. top.LastItem is never null here - a frame
+                // only ever becomes "top" after a ListItem call set it - so the body already exists by
+                // now, made when that item finished rendering, Lbl and LBody both. Asking for it
+                // rather than building it here matters: building it here would give an item's body a
+                // child before its own label, and every list would come out with LBody ahead of Lbl
+                // instead of behind it.
+                var enclosingBody = Element(top.LastItemKey, PdfTag.LBody, top.LastItem, ListBodySlot);
+                OpenList(type, level, enclosingBody);
+            }
         }
 
-        return Element(paragraph, PdfTag.LI, _listRun);
+        var frame = _listFrames.Peek();
+        var item = Element(paragraph, PdfTag.LI, frame.List);
+        frame.LastItem = item;
+        frame.LastItemKey = paragraph;
+        return item;
+    }
+
+    /// <summary>
+    /// Opens a new nested-list frame as the run's current, deepest level.
+    /// </summary>
+    void OpenList(ListType type, int level, PdfStructureElement parent)
+    {
+        var list = _document.Structure.CreateElement(PdfTag.L, parent);
+
+        // Every level says how it is numbered, not just the outermost one: PDF/UA-2 asks it of each
+        // /L element, and a nested list is an /L of its own rather than a continuation of its parent.
+        list.SetListNumbering(ListNumberingOf(type));
+
+        _listFrames.Push(new ListFrame
+        {
+            List = list,
+            Parent = parent,
+            Type = type,
+            Level = level,
+        });
     }
 
     /// <summary>
@@ -375,8 +471,7 @@ internal sealed class StructureTagger
     /// </summary>
     internal void EndList()
     {
-        _listRun = null;
-        _listRunParent = null;
+        _listFrames.Clear();
     }
 
     /// <summary>

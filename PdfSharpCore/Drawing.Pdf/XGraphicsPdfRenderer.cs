@@ -1810,12 +1810,29 @@ internal class XGraphicsPdfRenderer : IXGraphicsRenderer
     /// or not - it is the caller's statement that something on the page belongs to that element, and
     /// silently dropping it is how an unopened scope comes to look like a balanced one.
     /// </param>
-    internal void BeginMarkedContent(string tag, int mcid, bool removableIfEmpty = false)
+    /// <param name="actualText">
+    /// What the element's own <c>/ActualText</c> says its marks really spell, or null when the
+    /// element declares none. Written beside <c>/MCID</c> in the same properties dictionary, so that
+    /// a page-scoped reader of the content stream alone - one that never resolves the parent tree
+    /// back to the element - reads the same replacement a reader of the structure tree does. The
+    /// element keeps its own <c>/ActualText</c> as well; this is additional, not instead.
+    /// </param>
+    internal void BeginMarkedContent(string tag, int mcid, bool removableIfEmpty = false,
+        string actualText = null)
     {
         BeginPage();
         BeginGraphicMode();
         _markedContentStarts.Push(removableIfEmpty ? _content.Length : NotRemovable);
-        _content.Append(tag).Append(" <</MCID ").Append(mcid).Append(">> BDC\n");
+        _content.Append(tag).Append(" <</MCID ").Append(mcid);
+        if (actualText != null)
+        {
+            // Null for the security handler: a string inside a content stream is not encrypted on
+            // its own, because the stream around it already is - the same reasoning the ligature
+            // path beside this one uses for the same call.
+            _content.Append(" /ActualText ")
+                .Append(PdfEncoders.ToStringLiteral(actualText, PdfStringEncoding.Unicode, null));
+        }
+        _content.Append(">> BDC\n");
     }
 
     /// <summary>
