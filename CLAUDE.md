@@ -21,9 +21,9 @@ Ghostscript, then runs `dotnet test` with coverlet/opencover coverage.
 **veraPDF runs the same script CI does, and it gates.** `ConformanceCorpus` writes one PDF per claim
 the library can make into `artifacts/conformance-corpus`; each document *makes* a claim, because
 flavour detection is automatic and a file claiming nothing would be held to the fallback flavour and
-fail for saying nothing. All nine conform, so a failure is a regression. A tenth, claiming PDF/UA-2,
-is built but not gated: it fails one clause, structure destinations, whose syntax the standard's own
-errata leave undefined — `docs/specs/conformance-completeness.md` says why it is left there.
+fail for saying nothing. All nine conform, so a failure is a regression. **No document claims
+PDF/UA-2**: one would fail a single clause, structure destinations, whose syntax the standard's own
+errata leave undefined — `docs/specs/conformance-completeness.md` says why none is written.
 
 Its first run found three defects, all in the writer and none reachable by any test here — worth
 knowing because two of them are easy to reintroduce. **`/Length` counts the stream data alone**: the

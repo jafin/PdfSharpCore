@@ -24,7 +24,7 @@ documents to nine gated ones — `pdfa-1a`, `pdfa-2a`, `pdfa-3a` — and all nin
 **PDF/UA-2 is the one claim veraPDF does not yet pass.** A document claiming it fails a single clause,
 8.8: every destination inside the document must be a *structure destination*, a PDF 2.0 `/SD` whose
 contents ISO 32000-2 never actually defines (pdf-association/pdf-issues#162 is the open erratum). Rather
-than guess at a syntax and ship links that may not navigate, `pdfua-2` is kept out of the gated corpus,
+than guess at a syntax and ship links that may not navigate, no `pdfua-2` document is in the corpus,
 `PdfUA2` says so in its own remarks, and the four rules that *were* fixed for it stay fixed. It is a
 claim the library can make and cannot yet stand behind, and the enum member says which.
 
