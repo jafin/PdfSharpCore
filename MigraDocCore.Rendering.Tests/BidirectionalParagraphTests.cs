@@ -298,6 +298,32 @@ public class BidirectionalParagraphTests
     }
 
     [Fact]
+    public void ATabLeaderOnAReorderedTabbedLineIsDrawnOnce()
+    {
+        // Every other leaf checks `probing` and returns before touching the page - RenderWord,
+        // RenderBlank, RenderImage all do. RenderTab did not, because until this change a tab's
+        // segment could never actually need reordering, so RenderTab was never called during a
+        // probing walk at all. Now that a tab's own segment can, a leader tab inside one is exactly
+        // AFootnoteMarkOnAReorderedLineIsDrawnOnce's defect again: drawn once for the probe and
+        // once for real, at the same position, because a tab's own position never moves.
+        var document = new Document();
+        var paragraph = document.AddSection().AddParagraph();
+        paragraph.Format.TabStops.AddTabStop(Unit.FromCentimeter(6), TabLeader.Dots);
+        paragraph.AddText(First + " " + Second);
+        paragraph.AddTab();
+        paragraph.AddText(Second + " " + First);
+
+        var page = Rendered.FirstPageOf(document);
+        var dot = GlyphOf('.');
+
+        var leaderRuns = Glyphs.RunsOn(page).Where(run => run.Count > 0 && run.All(g => g == dot)).ToList();
+
+        leaderRuns.Should().ContainSingle(
+            "the probing walk must not draw the leader a second time when the segment it sits in "
+            + "needs reordering");
+    }
+
+    [Fact]
     public void AHyperlinkInsideATabbedRightToLeftLineKeepsItsClickableAreaWhereTheTextIs()
     {
         var document = new Document();

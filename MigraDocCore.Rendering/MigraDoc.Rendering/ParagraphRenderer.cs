@@ -1542,6 +1542,17 @@ internal class ParagraphRenderer : Renderer
     void RenderTab()
     {
         TabOffset tabOffset = NextTabOffset();
+
+        // Every other leaf checks this and returns before touching the page - a tab's own segment
+        // could never need reordering until now, so this was never called during a probing walk.
+        // A leader, an underline or strikethrough under the tab, or a hyperlink around it would
+        // otherwise be drawn once here and again for real.
+        if (probing)
+        {
+            currentXPosition += tabOffset.offset;
+            return;
+        }
+
         RenderUnderline(tabOffset.offset, false);
         RenderStrikethrough(tabOffset.offset, false);
         RenderTabLeader(tabOffset);
