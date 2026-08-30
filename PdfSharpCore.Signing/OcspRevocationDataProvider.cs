@@ -1,5 +1,6 @@
 using System;
 using System.Formats.Asn1;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -34,12 +35,23 @@ public sealed class OcspRevocationDataProvider : IRevocationDataProvider, IDispo
     /// <summary>id-pe-authorityInfoAccess, RFC 5280.</summary>
     const string AuthorityInfoAccessOid = "1.3.6.1.5.5.7.1.1";
 
+    /// <summary>
+    /// A generous cap on how large an OCSP response this will read into memory. A real response is a
+    /// few kilobytes; this is headroom rather than a tight bound, and exists only so a malicious or
+    /// misbehaving responder — named by the certificate being checked, not chosen by the caller — cannot
+    /// turn evidence-gathering into unbounded memory use.
+    /// </summary>
+    const int MaxOcspResponseBytes = 1024 * 1024;
+
     readonly HttpClient _httpClient;
     readonly bool _ownsHttpClient;
 
     /// <param name="httpClient">
     /// Reused rather than created per call, if given. Left unset, this makes and owns one for its own
-    /// lifetime — construct one instance and reuse it rather than making one per certificate.
+    /// lifetime — construct one instance and reuse it rather than making one per certificate. The
+    /// owned client follows no redirect: the request goes to a URI a certificate named, not one the
+    /// caller chose, so a 3xx response is treated as failure rather than as somewhere else to go. A
+    /// caller supplying its own client decides that policy for itself.
     /// </param>
     public OcspRevocationDataProvider(HttpClient httpClient = null)
     {
@@ -49,7 +61,7 @@ public sealed class OcspRevocationDataProvider : IRevocationDataProvider, IDispo
         }
         else
         {
-            _httpClient = new HttpClient();
+            _httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
             _ownsHttpClient = true;
         }
     }
@@ -75,16 +87,46 @@ public sealed class OcspRevocationDataProvider : IRevocationDataProvider, IDispo
             using var content = new ByteArrayContent(request);
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/ocsp-request");
 
-            using var response = _httpClient.PostAsync(responderUri, content).GetAwaiter().GetResult();
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, responderUri) { Content = content };
+
+            // ResponseHeadersRead so the body is read by ReadBounded, under its own cap, rather than
+            // buffered in full by the client before this ever sees it.
+            using var response = _httpClient
+                .SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead)
+                .GetAwaiter().GetResult();
             response.EnsureSuccessStatusCode();
 
-            var responseBytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            var responseBytes = ReadBounded(response.Content, MaxOcspResponseBytes);
+            if (responseBytes == null)
+                return RevocationData.None;
+
             return new RevocationData(new[] { responseBytes }, null);
         }
         catch (Exception problem) when (problem is HttpRequestException or TaskCanceledException)
         {
             return RevocationData.None;
         }
+    }
+
+    /// <summary>
+    /// Reads <paramref name="content"/> into memory, or answers null once it has read more than
+    /// <paramref name="maxBytes"/> without ever buffering the excess.
+    /// </summary>
+    static byte[] ReadBounded(HttpContent content, int maxBytes)
+    {
+        using var stream = content.ReadAsStreamAsync().GetAwaiter().GetResult();
+        using var buffer = new MemoryStream();
+        var chunk = new byte[8192];
+
+        int read;
+        while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            buffer.Write(chunk, 0, read);
+            if (buffer.Length > maxBytes)
+                return null;
+        }
+
+        return buffer.ToArray();
     }
 
     /// <summary>
@@ -113,21 +155,38 @@ public sealed class OcspRevocationDataProvider : IRevocationDataProvider, IDispo
         if (extension == null)
             return null;
 
-        var reader = new AsnReader(extension.RawData, AsnEncodingRules.BER);
-        var accessDescriptions = reader.ReadSequence();
-
-        while (accessDescriptions.HasData)
+        // The extension's bytes come from a certificate this code did not create, so a malformed
+        // one is an absence of evidence rather than a reason to fail the whole request — the same
+        // stance GetRevocationData takes on an issuer it cannot find or a responder that will not
+        // answer.
+        try
         {
-            var accessDescription = accessDescriptions.ReadSequence();
-            var accessMethod = accessDescription.ReadObjectIdentifier();
+            var reader = new AsnReader(extension.RawData, AsnEncodingRules.BER);
+            var accessDescriptions = reader.ReadSequence();
 
-            var uriTag = new Asn1Tag(TagClass.ContextSpecific, 6);
-            if (accessMethod == OcspAccessMethodOid && accessDescription.PeekTag() == uriTag)
+            while (accessDescriptions.HasData)
             {
-                var uri = accessDescription.ReadCharacterString(UniversalTagNumber.IA5String, uriTag);
-                if (Uri.TryCreate(uri, UriKind.Absolute, out var responderUri))
-                    return responderUri;
+                var accessDescription = accessDescriptions.ReadSequence();
+                var accessMethod = accessDescription.ReadObjectIdentifier();
+
+                var uriTag = new Asn1Tag(TagClass.ContextSpecific, 6);
+                if (accessMethod == OcspAccessMethodOid && accessDescription.PeekTag() == uriTag)
+                {
+                    var uri = accessDescription.ReadCharacterString(UniversalTagNumber.IA5String, uriTag);
+
+                    // http(s) only. The URI names where an HTTP POST goes, chosen by whoever issued
+                    // the certificate being checked rather than by this library's caller — accepting
+                    // any scheme Uri.TryCreate parses would hand that issuer more than "which server",
+                    // for no benefit, since RFC 6960 traffic is HTTP either way.
+                    if (Uri.TryCreate(uri, UriKind.Absolute, out var responderUri)
+                        && (responderUri.Scheme == Uri.UriSchemeHttp || responderUri.Scheme == Uri.UriSchemeHttps))
+                        return responderUri;
+                }
             }
+        }
+        catch (AsnContentException)
+        {
+            return null;
         }
 
         return null;
