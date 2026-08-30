@@ -878,15 +878,14 @@ internal class ParagraphRenderer : Renderer
         var isTab = new List<bool>();
         string text = Probe(lineInfo, widths, spans, isTab);
 
-        var writtenX = new XUnit[widths.Count];
+        var placed = new XUnit[widths.Count];
         XUnit cursor = StartXPosition;
         for (int idx = 0; idx < widths.Count; idx++)
         {
-            writtenX[idx] = cursor;
+            placed[idx] = cursor;
             cursor += widths[idx];
         }
 
-        var placed = (XUnit[])writtenX.Clone();
         bool anyReordered = false;
 
         int segmentStart = 0;
@@ -895,7 +894,7 @@ internal class ParagraphRenderer : Renderer
             if (idx == isTab.Count || isTab[idx])
             {
                 if (idx > segmentStart)
-                    anyReordered |= ReorderSegment(segmentStart, idx, text, widths, spans, writtenX, placed);
+                    anyReordered |= ReorderSegment(segmentStart, idx, text, widths, spans, placed);
 
                 segmentStart = idx + 1;
             }
@@ -909,17 +908,35 @@ internal class ParagraphRenderer : Renderer
     /// whether the segment held anything right to left, which is what decides whether the line is
     /// drawn from <paramref name="placed"/> at all.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="placed"/> already holds this segment's written-order positions on entry -
+    /// segments are handled left to right, and nothing at or after <paramref name="start"/> has
+    /// been touched by an earlier one - so <c>placed[start]</c> doubles as that starting position
+    /// with no second array to keep it in. A whole-line segment (the only kind a tab-free RTL line
+    /// ever has) is passed <paramref name="text"/> and <paramref name="spans"/> as they stand,
+    /// unsliced, which is what keeps the common right-to-left line - still the majority of what
+    /// this reorders - to the one copy <see cref="Probe"/> already made.
+    /// </remarks>
     bool ReorderSegment(int start, int end, string text, List<XUnit> widths,
-        List<(int Start, int Length)> spans, XUnit[] writtenX, XUnit[] placed)
+        List<(int Start, int Length)> spans, XUnit[] placed)
     {
-        int textStart = spans[start].Start;
-        var lastSpan = spans[end - 1];
-        int textEnd = lastSpan.Start + lastSpan.Length;
-        string segmentText = text.Substring(textStart, textEnd - textStart);
+        bool wholeLine = start == 0 && end == spans.Count;
 
-        var localSpans = new List<(int Start, int Length)>(end - start);
-        for (int idx = start; idx < end; idx++)
-            localSpans.Add((spans[idx].Start - textStart, spans[idx].Length));
+        string segmentText = text;
+        IReadOnlyList<(int Start, int Length)> segmentSpans = spans;
+
+        if (!wholeLine)
+        {
+            int textStart = spans[start].Start;
+            var lastSpan = spans[end - 1];
+            int textEnd = lastSpan.Start + lastSpan.Length;
+            segmentText = text.Substring(textStart, textEnd - textStart);
+
+            var localSpans = new List<(int Start, int Length)>(end - start);
+            for (int idx = start; idx < end; idx++)
+                localSpans.Add((spans[idx].Start - textStart, spans[idx].Length));
+            segmentSpans = localSpans;
+        }
 
         var bidi = BidiAlgorithm.Resolve(segmentText, ParagraphDirection);
         bool anyRightToLeft = false;
@@ -929,8 +946,8 @@ internal class ParagraphRenderer : Renderer
         if (!anyRightToLeft)
             return false;
 
-        var order = VisualOrder.Of(bidi, localSpans);
-        XUnit x = writtenX[start];
+        var order = VisualOrder.Of(bidi, segmentSpans);
+        XUnit x = placed[start];
         foreach (int local in order)
         {
             int leaf = start + local;
