@@ -241,8 +241,10 @@ public class TaggedOutputTests
         // same thing inline, beside its /MCID.
         var page = Rendered.FirstPageOf(Hyphenated());
 
-        PdfTextExtractor.ExtractText(page).Should().Contain("demonstrate",
-            "the page reads \"demon-\" and \"strate\"; only /ActualText says the word is neither");
+        // Exact rather than Contain: the word is drawn as two content items of the same element,
+        // one per line, and each used to repeat the whole word inline - "In demonstrate\ndemonstrate"
+        // passed a Contain assertion just as easily as the single, correct occurrence does.
+        PdfTextExtractor.ExtractText(page).Should().Be("In demonstrate");
     }
 
     [Fact]
