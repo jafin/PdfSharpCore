@@ -75,12 +75,32 @@ public class TaggedTextExtractionTests
 
         runs.Should().HaveCount(2, "the lower-level method returns the furniture too");
         runs[0].Tag.Should().Be(PdfTag.P);
+        runs[0].IsArtifact.Should().BeFalse();
         runs[1].Tag.Should().Be(PdfTag.Artifact);
+        runs[1].IsArtifact.Should().BeTrue();
         runs[1].Text.Should().Be("Sample", "a run inside an artifact still reports its own glyph text");
 
         PdfTextExtractor.ExtractText(page).Should().Be("Sample",
             "the body run on the first baseline is kept and the artifact run on the second is left "
             + "out entirely, rather than joined onto it as a second line");
+    }
+
+    [Fact]
+    public void AStructuralSequenceNestedInsideAnArtifactIsStillFurniture()
+    {
+        // Malformed for this library's own writer - StructureTagger never tags anything while an
+        // artifact is open - but not for PDF in general, and a document from another producer is
+        // free to nest one. The innermost tag is /P, which is exactly why checking Tag alone would
+        // miss this: the artifact is an ancestor, not the nearest sequence.
+        var page = Reopen(WithContentReplaced((font, shown) =>
+            $"/Artifact BMC /P <</MCID 0>> BDC BT {font} 12 Tf 1 0 0 1 40 700 Tm <{shown}> Tj ET EMC EMC\n"));
+
+        var run = PdfTextExtractor.ExtractRuns(page).Single();
+
+        run.Tag.Should().Be(PdfTag.P, "the innermost tag is reported regardless");
+        run.IsArtifact.Should().BeTrue("an ancestor sequence is an artifact, and that is not opt-out-able");
+        PdfTextExtractor.ExtractText(page).Should().BeEmpty(
+            "the run is furniture however specific a tag its own nearer sequence claims");
     }
 
     [Fact]

@@ -14,7 +14,7 @@ namespace PdfSharpCore.Pdf.Extraction;
 public sealed class PdfTextRun
 {
     internal PdfTextRun(string text, XPoint origin, double width, double fontSize, string fontName,
-        PdfTag? tag, string actualText, int? markedContentId, object actualTextScope)
+        PdfTag? tag, string actualText, int? markedContentId, object actualTextScope, bool isArtifact)
     {
         Text = text;
         Origin = origin;
@@ -25,6 +25,7 @@ public sealed class PdfTextRun
         ActualText = actualText;
         MarkedContentId = markedContentId;
         ActualTextScope = actualTextScope;
+        IsArtifact = isArtifact;
     }
 
     /// <summary>
@@ -66,6 +67,21 @@ public sealed class PdfTextRun
     /// skips and this method does not.
     /// </remarks>
     public PdfTag? Tag { get; }
+
+    /// <summary>
+    /// Whether this run is nested inside an artifact sequence at any depth — not only when
+    /// <see cref="PdfTag.Artifact"/> is the innermost one.
+    /// </summary>
+    /// <remarks>
+    /// A run tagged something else while an ancestor sequence is an artifact is still furniture: an
+    /// artifact is not a container its contents can opt out of, so a structural sequence nested
+    /// inside one — malformed for this library's own writer, which never nests one there, but not for
+    /// PDF in general — does not make the glyphs inside it content. This is what
+    /// <see cref="PdfTextExtractor.ExtractText"/> actually excludes on; <see cref="Tag"/> stays the
+    /// innermost tag regardless, for a caller who wants to know what that inner sequence claims to be
+    /// as well as whether it counts.
+    /// </remarks>
+    public bool IsArtifact { get; }
 
     /// <summary>
     /// What the innermost marked-content sequence declaring any <c>/ActualText</c> says this run's

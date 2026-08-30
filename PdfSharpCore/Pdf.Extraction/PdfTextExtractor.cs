@@ -57,7 +57,7 @@ public static class PdfTextExtractor
     /// for a two-column page, which is what the note about layout analysis above is warning of.
     /// </para>
     /// <para>
-    /// <b>Runs tagged <see cref="PdfTag.Artifact"/> are left out</b> — a running head or a folio is
+    /// <b>Runs <see cref="PdfTextRun.IsArtifact"/> are left out</b> — a running head or a folio is
     /// on the page and not part of what it says, and <see cref="ExtractRuns"/> still returns them
     /// for a caller who wants them anyway. And <b>a run whose <see cref="PdfTextRun.ActualText"/> is
     /// declared contributes that text once</b>, at the position of the first run of the sequence
@@ -74,7 +74,7 @@ public static class PdfTextExtractor
 
         foreach (var run in ExtractRuns(page))
         {
-            if (run.Tag == PdfTag.Artifact)
+            if (run.IsArtifact)
                 continue;
 
             string shown;
@@ -435,7 +435,7 @@ public static class PdfTextExtractor
                 Runs.Add(new PdfTextRun(text.ToString(), origin, advance * scale,
                     _fontSize * scale, _fontName,
                     string.IsNullOrEmpty(innermost?.Tag) ? (PdfTag?)null : new PdfTag(innermost.Tag),
-                    declaring?.ActualText, innermost?.Mcid, declaring));
+                    declaring?.ActualText, innermost?.Mcid, declaring, IsInsideArtifact()));
             }
 
             _textMatrix = Multiply(new XMatrix(1, 0, 0, 1, advance, 0), _textMatrix);
@@ -489,6 +489,25 @@ public static class PdfTextExtractor
 
             return null;
         }
+
+        /// <summary>
+        /// Whether an artifact sequence is open anywhere on the stack, not only innermost. An
+        /// artifact is not a container its contents can opt out of — this library's own writer never
+        /// nests a structural sequence inside one, but a document from another producer is free to,
+        /// and glyphs drawn there are still furniture whatever the nearer tag claims to be.
+        /// </summary>
+        bool IsInsideArtifact()
+        {
+            foreach (var scope in _markedContent)
+            {
+                if (scope.Tag == ArtifactTagName)
+                    return true;
+            }
+
+            return false;
+        }
+
+        const string ArtifactTagName = "/Artifact";
 
         FontInfo FontFor(string name)
         {
